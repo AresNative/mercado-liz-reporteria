@@ -28,7 +28,7 @@ import { TagInputComponent as TagInput } from "./tag-input"
 
 import { usePostUserLoginMutation } from "@/hooks/reducers/auth";
 import { Button } from "../button";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { usePostLandingMutation, usePostLandingJsonMutation } from "@/hooks/reducers/api_landing";
 
 export const MainForm = ({ message_button, dataForm, actionType, aditionalData, action, valueAssign, onSuccess, formName }: MainFormProps) => {
@@ -219,7 +219,7 @@ export function SwitchTypeInputRender(props: any) {
     case "H1":
       return <h1 className="text-2xl font-bold">{props.cuestion.label}</h1>;
     case "LINK":
-      return <Link to={props.cuestion.href} className="text-primary-600">
+      return <Link href={props.cuestion.href} className="text-primary-600">
         {props.cuestion.label}
       </Link>
     default:

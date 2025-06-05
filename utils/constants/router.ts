@@ -1,4 +1,3 @@
-import LayoutPromocionesId from "@/pages/@promociones/[id]/layout";
 import {
   House,
   Package,
@@ -19,15 +18,7 @@ import {
 import React from "react";
 
 const Pages = {
-  Layout: () => import("@/pages/Layout"),
-  LayoutVerificador: () => import("@/pages/@verificador/layout"),
-  LayoutPostulaciones: () => import("@/pages/@postulaciones/layout"),
-  LayoutHistoria: () => import("@/pages/@historia/layout"),
-  LayoutValoraciones: () => import("@/pages/@valoracion/layout"),
-  LayoutVacantes: () => import("@/pages/@vacantes/layout"),
-  LayoutPromociones: () => import("@/pages/@promociones/layout"),
-  LayoutPromocionesId: () => import("@/pages/@promociones/[id]/layout"),
-  LayoutFilesTest: () => import("@/pages/files-test/layout"),
+  Layout: () => import("@/app/model/layout"),
   // ... otros componentes
 };
 
@@ -42,42 +33,42 @@ export const navigationDefault = [
     name: "Historia",
     href: "/Historia",
     icon: Clock,
-    page: React.lazy(Pages.LayoutHistoria),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Promociones",
     href: "/promociones",
     icon: TicketPercent,
-    page: React.lazy(Pages.LayoutPromociones),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Promociones",
     href: "/promociones/:id" /* los que no cuenten con icono no aparecen en el menu */,
-    page: React.lazy(Pages.LayoutPromocionesId),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Vacantes",
     href: "/vacantes",
     icon: BookUser,
-    page: React.lazy(Pages.LayoutVacantes),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Postulaciones",
     href: "/postulaciones",
     icon: Briefcase,
-    page: React.lazy(Pages.LayoutPostulaciones),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Valoracion",
     href: "/valoracion",
     icon: Star,
-    page: React.lazy(Pages.LayoutValoraciones),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Verificador",
     href: "/verificador",
     icon: ScanBarcode,
-    page: React.lazy(Pages.LayoutVerificador),
+    page: React.lazy(Pages.Layout),
   },
 ];
 
@@ -92,13 +83,13 @@ export const navigationUser = [
     name: "Verificador",
     href: "/verificador",
     icon: ScanBarcode,
-    page: React.lazy(Pages.LayoutVerificador),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Listas",
     href: "/listas",
     icon: LayoutList,
-    page: React.lazy(Pages.LayoutVerificador),
+    page: React.lazy(Pages.Layout),
   },
 ];
 
@@ -131,30 +122,30 @@ export const navigationAdmin = [
     name: "Valoracion",
     href: "/valoracion",
     icon: Star,
-    page: React.lazy(Pages.LayoutValoraciones),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Vacantes",
     href: "/vacantes",
     icon: UserPlus,
-    page: React.lazy(Pages.LayoutVacantes),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Postulaciones",
     href: "/postulaciones",
     icon: Briefcase,
-    page: React.lazy(Pages.LayoutPostulaciones),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Promociones",
     href: "/promociones",
     icon: TicketPercent,
-    page: React.lazy(Pages.LayoutPromociones),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Promociones",
     href: "/promociones/:id" /* los que no cuenten con icono no aparecen en el menu */,
-    page: React.lazy(Pages.LayoutPromocionesId),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Proveedores",
@@ -166,12 +157,12 @@ export const navigationAdmin = [
     name: "Verificador",
     href: "/verificador",
     icon: ScanBarcode,
-    page: React.lazy(Pages.LayoutVerificador),
+    page: React.lazy(Pages.Layout),
   },
   {
     name: "Files Test",
     href: "/files-test",
     icon: ShieldUser,
-    page: React.lazy(Pages.LayoutFilesTest),
+    page: React.lazy(Pages.Layout),
   },
 ];
