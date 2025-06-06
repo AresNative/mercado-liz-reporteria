@@ -17,7 +17,7 @@ export default function Admin() {
                     <div className="float-right -right-4 h-[30vh] md:w-[70%] rounded-s-full inset-0 bg-[#f2f2f7]">
                         <img src="/historia.png" className="h-full w-full object-cover rounded-s-lg shadow-md" />
                     </div>
-                    <a href="/historia" className="absolute bottom-0 m-4 inline-flex items-center text-purple-600">
+                    <a href="/historia" className="absolute bottom-0 m-4 inline-flex items-center text-green-600">
                         Ver más <ArrowRightIcon />
                     </a>
                 </div>

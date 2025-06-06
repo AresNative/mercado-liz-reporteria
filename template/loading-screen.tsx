@@ -8,7 +8,7 @@ export const LoadingScreen = () => (
             className="flex flex-col items-center justify-center space-y-4"
         >
             <Loader2
-                className="h-12 w-12 text-purple-600 animate-spin"
+                className="h-12 w-12 text-green-600 animate-spin"
                 aria-hidden="true"
             />
             <p className="text-lg text-gray-600 font-medium">Cargando pantalla...</p>

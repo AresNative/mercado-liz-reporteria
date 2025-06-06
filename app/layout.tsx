@@ -59,7 +59,7 @@ export default function RootLayout({
           <Background>
             {/* Cabecera con navegación */}
             <Header
-              title="Administración"
+              title="Liz"
               showBackButton={false}
               showMenuButton={true}
               className="fixed top-0 left-0 right-0 z-20"

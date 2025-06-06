@@ -85,7 +85,7 @@ export function ImgComponent(props: InputMediaProps) {
                 </>
                 <label
                     htmlFor="file-upload-profile"
-                    className=" bg-white dark:bg-zinc-800 py-2 px-3 border border-gray-300  dark:border-zinc-700 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 cursor-pointer"
+                    className=" bg-white dark:bg-zinc-800 py-2 px-3 border border-gray-300  dark:border-zinc-700 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 cursor-pointer"
                 >
                     {profileImage ? 'Cambiar foto' : 'Subir foto'}
                 </label>

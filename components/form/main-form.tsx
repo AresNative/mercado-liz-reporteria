@@ -169,7 +169,7 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
           <Button color="indigo" type="button" label="Siguiente" onClick={() => handlePageChange(page + 1)} />
         ) : (
           <button
-            className="float-right flex items-center rounded-md bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700"
+            className="float-right flex items-center rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
             slot="end"
             type="submit"
           >{loading ? "Loading..." : message_button}</button>

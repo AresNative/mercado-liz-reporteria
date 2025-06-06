@@ -58,7 +58,7 @@ const AppMenu = () => {
                 className="fixed right-4 top-4 z-30 p-2 rounded-full bg-white shadow-md"
                 aria-label="Abrir menú"
             >
-                <Menu className="text-purple-700" size={24} />
+                <Menu className="text-green-700" size={24} />
             </button>
 
             {/* Menú lateral */}
@@ -67,12 +67,12 @@ const AppMenu = () => {
                     }`}
                 aria-hidden={!menuOpen}
             >
-                <header className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4">
+                <header className="bg-gradient-to-r from-green-600 to-green-800 text-white p-4">
                     {userData.token ? (
                         <section className="text-center space-y-3">
                             <button
                                 onClick={handleLogout}
-                                className="flex items-center justify-center w-full py-2 px-4 bg-white text-purple-700 font-semibold rounded-lg gap-2"
+                                className="flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
                             >
                                 <LogOut size={18} /> Cerrar Sesión
                             </button>
@@ -81,7 +81,7 @@ const AppMenu = () => {
                         <section className="space-y-3">
                             <button
                                 onClick={() => setLoginModalOpen(true)}
-                                className="flex items-center justify-center w-full py-2 px-4 bg-white text-purple-700 font-semibold rounded-lg gap-2"
+                                className="flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
                             >
                                 <LogIn size={18} /> Iniciar Sesión
                             </button>
@@ -105,7 +105,7 @@ const AppMenu = () => {
                                     <Link
                                         href={item.href}
                                         onClick={() => setMenuOpen(false)}
-                                        className="flex items-center p-3 rounded-lg text-gray-700 hover:bg-purple-50"
+                                        className="flex items-center p-3 rounded-lg text-gray-700 hover:bg-green-50"
                                     >
                                         <Icon size={20} className="mr-3 text-gray-500" aria-hidden="true" />
                                         <span className="font-medium">{item.name}</span>
@@ -114,21 +114,6 @@ const AppMenu = () => {
                             ) : null;
                         })}
                     </ul>
-
-                    {!userData.token && (
-                        <footer className="p-4 text-sm text-gray-500 mt-4">
-                            <p>
-                                ¿Eres proveedor?{' '}
-                                <Link
-                                    href="/proveedor-login"
-                                    onClick={() => setMenuOpen(false)}
-                                    className="text-purple-600 hover:underline"
-                                >
-                                    Acceso proveedores
-                                </Link>
-                            </p>
-                        </footer>
-                    )}
                 </nav>
 
                 <button
@@ -163,7 +148,7 @@ const AppMenu = () => {
                                 className="p-1 rounded-full hover:bg-gray-100"
                                 aria-label="Cerrar modal"
                             >
-                                <X className="text-purple-700" size={24} />
+                                <X className="text-green-700" size={24} />
                             </button>
                         </header>
 

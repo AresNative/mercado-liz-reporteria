@@ -90,7 +90,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
                             {title}
                         </h3>
                         <button
-                            className="relative z-10 ml-auto rounded-md bg-white border text-gray-400 hover:text-gray-500 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                            className="relative z-10 ml-auto rounded-md bg-white border text-gray-400 hover:text-gray-500 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                             onClick={handleBackdropClick}
                         >
                             <span className="sr-only">Close</span>
