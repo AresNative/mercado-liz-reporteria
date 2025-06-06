@@ -5,20 +5,173 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+.radio-checked.ios::part(container) {
+  border-color: #6815ec;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.container-switch {
+  display: flex;
+  margin: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  position: relative;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+}
+
+.switch {
+  cursor: pointer;
+  position: relative;
+  border-radius: 25rem;
+  display: block;
+  width: 50px;
+  height: 28px;
+  margin: 15px;
+  flex-shrink: 0;
+  border: 1px solid var(--switch-border-color);
+  background: var(--switch-bg-color);
+  transition: border-color 0.25s, background-color 0.3s var(--switch-animation-easing);
+}
+
+.switch:hover {
+  border: 1px solid var(--hover);
+}
+
+.checkbox {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: 0.4s;
+}
+
+.sun {
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  top: 3px;
+  position: absolute;
+  transition: var(--switch-animation-duration) var(--switch-animation-easing);
+}
+
+.sun-color {
+  fill: transparent;
+  stroke: var(--switch-icon-color);
+}
+
+.sun-color2 {
+  fill: var(--switch-icon-color);
+  stroke: transparent;
+}
+
+.moon {
+  width: 20px;
+  height: 20px;
+  right: 5px;
+  top: 3px;
+  position: absolute;
+  transition: var(--switch-animation-duration) var(--switch-animation-easing);
+  transform: translateX(1em);
+  opacity: 0;
+}
+
+.moon-color {
+  fill: transparent;
+  stroke: var(--switch-icon-color);
+}
+
+.slider:before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  border-radius: 25rem;
+  background: var(--switch-btn-bg);
+  box-shadow: 0px 5px 10px #00000019;
+  transition: transform var(--switch-animation-duration) var(--switch-animation-easing);
+}
+
+.checkbox:checked+.slider:before {
+  transform: translateX(1.4em);
+}
+
+.checkbox:checked+.slider .sun {
+  animation: slideOutAndFade var(--switch-animation-duration) var(--switch-animation-easing) forwards;
+}
+
+.checkbox:checked+.slider .moon {
+  animation: slideInAndAppear var(--switch-animation-duration) var(--switch-animation-easing) forwards;
+}
+
+.checkbox:not(:checked)+.slider .sun {
+  animation: slideInAndAppear var(--switch-animation-duration) var(--switch-animation-easing) forwards;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.checkbox:not(:checked)+.slider .moon {
+  animation: slideOutAndFade var(--switch-animation-duration) var(--switch-animation-easing) forwards;
+}
+
+@keyframes slideOutAndFade {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  70% {
+    opacity: 0.3;
+    transform: translateX(-10px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-15px);
   }
 }
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes slideInAndAppear {
+  0% {
+    opacity: 0;
+    transform: translateX(15px);
+  }
+
+  70% {
+    opacity: 0.7;
+    transform: translateX(-5px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes infinite-scroll {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-infinite-scroll {
+  animation: infinite-scroll 20s linear infinite;
 }
