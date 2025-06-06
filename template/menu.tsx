@@ -7,8 +7,12 @@ import { usePostLogutMutation } from '@/hooks/reducers/auth';
 import { LogInField } from '@/utils/constants/forms/logIn';
 import { navigationAdmin, navigationDefault, navigationUser } from '@/utils/constants/router';
 import { getLocalStorageItem } from '@/utils/functions/local-storage';
+import { cn } from '@/utils/functions/cn';
+interface MenuProps {
+    isScrolled?: boolean;
+}
 
-const AppMenu = () => {
+const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
     const [logoutProcess] = usePostLogutMutation();
     const [loginModalOpen, setLoginModalOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -55,10 +59,10 @@ const AppMenu = () => {
         <>
             <button
                 onClick={() => setMenuOpen(true)}
-                className="fixed right-4 top-4 z-30 p-2 rounded-full bg-white shadow-md"
+                className="fixed right-4 top-4 z-30 p-2 rounded-full cursor-pointer"
                 aria-label="Abrir menú"
             >
-                <Menu className="text-green-700" size={24} />
+                <Menu className={cn(isScrolled ? "text-green-700" : "text-white")} size={24} />
             </button>
 
             {/* Menú lateral */}

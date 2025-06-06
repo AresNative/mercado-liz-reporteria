@@ -78,7 +78,7 @@ const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {showMenuButton && <AppMenu />}
+                    {showMenuButton && <AppMenu isScrolled={isScrolled} />}
                 </div>
             </section>
         </header >

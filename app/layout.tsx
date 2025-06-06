@@ -71,9 +71,6 @@ export default function RootLayout({
                 {children}
               </Suspense>
             </main>
-
-            {/* Menú global */}
-            <AppMenu />
           </Background>
 
           {/* Sistema de alertas */}
