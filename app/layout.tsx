@@ -39,7 +39,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} ${lobsterSans.variable}`} suppressHydrationWarning>
-
       <head>
         <meta name="description"
           content="Mercado Liz - Tu pantalla de administracion general en supermercados | todal de sucursales | empleados | compras | ventas | reporteria" />
@@ -54,7 +53,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Mercado Liz" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className="bg-gray-50 text-gray-900 antialiased">
+      <body>
         <Providers>
           <Background>
             {/* Cabecera con navegación */}
@@ -66,7 +65,7 @@ export default function RootLayout({
             />
 
             {/* Contenido principal con suspense para loading */}
-            <main className="pt-16 pb-4 safe-area-top safe-area-bottom">
+            <main className="pt-16 pb-4 ">
               <Suspense fallback={<LoadingScreen />}>
                 {children}
               </Suspense>

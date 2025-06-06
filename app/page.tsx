@@ -5,7 +5,6 @@ export default function Home() {
   return (
     <>
       <BentoGrid>
-        {/* Sección Nuestra Historia */}
         <BentoItem
           rowSpan={3}
           colSpan={2}

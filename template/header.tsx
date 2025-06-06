@@ -68,7 +68,7 @@ const Header: React.FC<HeaderProps> = ({
 
                     <h1
                         className={cn(
-                            "font-light tracking-tight truncate max-w-[60vw] text-5xl pb-2 pt-0 font-[Lobster]",
+                            "font-light tracking-tight truncate  text-5xl pb-2 pt-0 font-[Lobster]",
                             showBackButton ?? "text-center m-auto", isScrolled ? "text-green-700" : "text-white",
                         )}
                         aria-level={1}
