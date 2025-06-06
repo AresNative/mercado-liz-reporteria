@@ -7,7 +7,6 @@ import Background from "@/template/background";
 import Providers from "@/hooks/provider";
 import Alert from "@/components/alert";
 import Header from "@/template/header";
-import AppMenu from "@/template/menu";
 
 import { Suspense } from 'react';
 import { LoadingScreen } from "@/template/loading-screen";
@@ -65,7 +64,7 @@ export default function RootLayout({
             />
 
             {/* Contenido principal con suspense para loading */}
-            <main className="pt-16 pb-4 ">
+            <main className="pt-16">
               <Suspense fallback={<LoadingScreen />}>
                 {children}
               </Suspense>

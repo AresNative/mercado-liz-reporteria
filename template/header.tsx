@@ -68,8 +68,8 @@ const Header: React.FC<HeaderProps> = ({
 
                     <h1
                         className={cn(
-                            "font-light tracking-tight truncate  text-5xl pb-2 pt-0 font-[Lobster]",
-                            showBackButton ?? "text-center m-auto", isScrolled ? "text-green-700" : "text-white",
+                            "font-light tracking-tight truncate pb-2 pt-0 font-[Lobster]",
+                            showBackButton ?? "text-center m-auto", isScrolled ? "text-green-700 text-2xl" : "text-white text-5xl",
                         )}
                         aria-level={1}
                     >
@@ -77,7 +77,7 @@ const Header: React.FC<HeaderProps> = ({
                     </h1>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className={cn("flex items-center gap-2")}>
                     {showMenuButton && <AppMenu isScrolled={isScrolled} />}
                 </div>
             </section>

@@ -8,6 +8,7 @@ import { LogInField } from '@/utils/constants/forms/logIn';
 import { navigationAdmin, navigationDefault, navigationUser } from '@/utils/constants/router';
 import { getLocalStorageItem } from '@/utils/functions/local-storage';
 import { cn } from '@/utils/functions/cn';
+
 interface MenuProps {
     isScrolled?: boolean;
 }
@@ -37,6 +38,26 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
         });
     }, []);
 
+    useEffect(() => {
+        if (menuOpen || loginModalOpen) {
+            document.body.style.overflow = 'hidden';
+            if (menuOpen) {
+                // Enfocar el menú al abrir para accesibilidad
+                setTimeout(() => {
+                    const menu = document.querySelector('aside');
+                    menu?.focus();
+                }, 100);
+            }
+        } else {
+            document.body.style.overflow = 'auto';
+        }
+
+        return () => {
+            document.body.style.overflow = 'auto';
+        };
+    }, [menuOpen, loginModalOpen]);
+
+
     const handleLogout = async () => {
         if (!userData.id) return;
 
@@ -59,7 +80,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
         <>
             <button
                 onClick={() => setMenuOpen(true)}
-                className="fixed right-4 top-4 z-30 p-2 rounded-full cursor-pointer"
+                className={cn(isScrolled ? "top-2" : "top-4", "fixed right-4 z-30 p-2 rounded-full cursor-pointer")}
                 aria-label="Abrir menú"
             >
                 <Menu className={cn(isScrolled ? "text-green-700" : "text-white")} size={24} />
@@ -67,9 +88,10 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
 
             {/* Menú lateral */}
             <aside
-                className={`fixed inset-y-0 right-0 z-40 w-64 bg-white shadow-xl transition-transform duration-300 ${menuOpen ? 'translate-x-0' : 'translate-x-full'
-                    }`}
-                aria-hidden={!menuOpen}
+                className={cn(
+                    "fixed inset-y-0 right-0 z-40 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out",
+                    menuOpen ? "translate-x-0" : "translate-x-full overflow-hidden"
+                )} aria-hidden={!menuOpen}
             >
                 <header className="bg-gradient-to-r from-green-600 to-green-800 text-white p-4">
                     {userData.token ? (
