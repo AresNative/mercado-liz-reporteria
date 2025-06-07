@@ -9,6 +9,9 @@ import {
   CalendarCheck,
   Users,
   Wallet,
+  Lock,
+  ChartCandlestick,
+  Zap,
 } from "lucide-react";
 
 export default function Home() {
@@ -26,7 +29,7 @@ export default function Home() {
               <button className="bg-white cursor-pointer text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
                 Solicitar Demo
               </button>
-              <button className="bg-transparent cursor-pointer border-2 border-green-800 hover:bg-white/10 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300">
+              <button className="bg-white/70 cursor-pointer border-2 border-green-800 hover:bg-white/90 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300">
                 Conocer más
               </button>
             </ul>
@@ -37,12 +40,12 @@ export default function Home() {
       {/* Features Grid */}
       <section className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
+          <label className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Sistema de Gestión Completo</h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
               Nuestra plataforma integra todas las áreas de tu negocio en una sola solución, optimizando procesos y aumentando la productividad.
             </p>
-          </div>
+          </label>
 
           <BentoGrid>
             {/* Historia - Ocupa 3 filas y 2 columnas */}
@@ -54,14 +57,14 @@ export default function Home() {
               description="Conoce cómo empezó nuestra historia y cómo hemos crecido para servirte mejor..."
               icon={<HistoryIcon className="h-6 w-6 text-primary" />}
             >
-              <div className="relative h-[32vh]">
+              <article className="relative h-[32vh]">
                 <div className="float-right -right-4 h-[30vh] md:w-[70%] rounded-s-full inset-0 bg-[#f2f2f7]">
                   <img src="/historia.png" className="h-full w-full object-cover rounded-s-lg shadow-md" />
                 </div>
                 <a href="/historia" className="absolute bottom-0 m-4 inline-flex items-center text-purple-600">
                   Ver más <ArrowRightIcon />
                 </a>
-              </div>
+              </article>
             </BentoItem>
 
             {/* Gestión de Compras */}
@@ -73,7 +76,7 @@ export default function Home() {
               icon={<ShoppingCart className="h-6 w-6 text-blue-500" />}
               className="bg-blue-50"
             >
-              <div className="absolute bottom-4 right-4">
+              <div className="absolute bottom-2 right-4">
                 <a href="/compras" className="inline-flex items-center text-blue-600 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
@@ -89,7 +92,7 @@ export default function Home() {
               icon={<Tag className="h-6 w-6 text-green-500" />}
               className="bg-green-50"
             >
-              <div className="absolute bottom-4 right-4">
+              <div className="absolute bottom-2 right-4">
                 <a href="/ventas" className="inline-flex items-center text-green-600 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
@@ -105,7 +108,7 @@ export default function Home() {
               icon={<Gavel className="h-6 w-6 text-yellow-500" />}
               className="bg-yellow-50"
             >
-              <div className="absolute bottom-4 right-4">
+              <div className="absolute bottom-2 right-4">
                 <a href="/subastas" className="inline-flex items-center text-yellow-600 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
@@ -121,7 +124,7 @@ export default function Home() {
               icon={<CalendarCheck className="h-6 w-6 text-purple-500" />}
               className="bg-purple-50"
             >
-              <div className="absolute bottom-4 right-4">
+              <div className="absolute bottom-2 right-4">
                 <a href="/proyectos" className="inline-flex items-center text-purple-600 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
@@ -137,7 +140,7 @@ export default function Home() {
               icon={<Users className="h-6 w-6 text-red-500" />}
               className="bg-red-50"
             >
-              <div className="absolute bottom-4 right-4">
+              <div className="absolute bottom-2 right-4">
                 <a href="/empleados" className="inline-flex items-center text-red-600 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
@@ -153,7 +156,7 @@ export default function Home() {
               icon={<Wallet className="h-6 w-6 text-cyan-500" />}
               className="bg-cyan-50"
             >
-              <div className="absolute bottom-4 right-4">
+              <div className="absolute bottom-2 right-4">
                 <a href="/nomina" className="inline-flex items-center text-cyan-600 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
@@ -162,55 +165,41 @@ export default function Home() {
           </BentoGrid>
         </div>
       </section>
-
       {/* Benefits Section */}
-      <section className="py-16 px-4 bg-gray-50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Beneficios Clave</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Descubre cómo nuestro sistema puede transformar la gestión de tu empresa
-            </p>
-          </div>
+      <section className="py-16 px-4 max-w-6xl mx-auto">
+        <label className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Beneficios Clave</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Descubre cómo nuestro sistema puede transformar la gestión de tu empresa
+          </p>
+        </label>
+        <BentoGrid>
+          <BentoItem
+            rowSpan={1}
+            colSpan={1}
+            title="Eficiencia Operativa"
+            description="Automatiza procesos manuales y reduce tiempos de ejecución en todas las áreas de tu negocio."
+            icon={<Zap className="h-6 w-6 text-blue-500" />}
+            className="bg-blue-50"
+          />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-3">Eficiencia Operativa</h3>
-              <p className="text-gray-600">
-                Automatiza procesos manuales y reduce tiempos de ejecución en todas las áreas de tu negocio.
-              </p>
-            </div>
-
-            <div className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-3">Toma de Decisiones</h3>
-              <p className="text-gray-600">
-                Accede a reportes en tiempo real y dashboards personalizados para una mejor toma de decisiones.
-              </p>
-            </div>
-
-            <div className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-3">Seguridad de Datos</h3>
-              <p className="text-gray-600">
-                Protege la información de tu empresa con nuestro sistema de seguridad de última generación.
-              </p>
-            </div>
-          </div>
-        </div>
+          <BentoItem
+            rowSpan={1}
+            colSpan={1}
+            title="Toma de Decisiones"
+            description="Accede a reportes en tiempo real y dashboards personalizados para una mejor toma de decisiones."
+            icon={<ChartCandlestick className="h-6 w-6 text-green-500" />}
+            className="bg-green-50"
+          />
+          <BentoItem
+            rowSpan={1}
+            colSpan={1}
+            title="Seguridad de Datos"
+            description="Protege la información de tu empresa con nuestro sistema de seguridad de última generación."
+            icon={<Lock className="h-6 w-6 text-purple-500" />}
+            className="bg-purple-50"
+          />
+        </BentoGrid>
       </section>
 
       {/* CTA Section */}

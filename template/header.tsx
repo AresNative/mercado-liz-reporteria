@@ -41,16 +41,16 @@ const Header: React.FC<HeaderProps> = ({
     return (
         <header
             className={cn(
-                `sticky top-0 z-10 transition-all duration-300 safe-area-top`,
+                `sticky top-0 z-40 transition-all duration-300 safe-area-top`,
                 showBackButton || isScrolled
-                    ? 'bg-white/70 border-b border-gray-200 backdrop-blur-sm'
-                    : 'bg-gradient-to-r from-green-800 to-green-600',
+                    ? 'bg-white/90 border-b border-gray-200'
+                    : 'bg-gradient-to-r from-green-800 to-green-600 ',
                 className
             )}
             aria-label="Cabecera principal"
         >
             <section className="p-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <ul className="flex items-center gap-2  backdrop-blur-lg">
                     {showBackButton && (
                         <button
                             onClick={() => router.push(defaultBack)}
@@ -75,7 +75,7 @@ const Header: React.FC<HeaderProps> = ({
                     >
                         {title}
                     </h1>
-                </div>
+                </ul>
 
                 <div className={cn("flex items-center gap-2")}>
                     {showMenuButton && <AppMenu isScrolled={isScrolled} />}

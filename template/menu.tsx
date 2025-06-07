@@ -88,7 +88,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
 
             {/* Menú lateral */}
             <aside
-                className={cn(
+                className={cn(isScrolled ?? "absolute",
                     "fixed inset-y-0 right-0 z-40 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out",
                     menuOpen ? "translate-x-0" : "translate-x-full overflow-hidden"
                 )} aria-hidden={!menuOpen}
@@ -203,3 +203,4 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
 };
 
 export default AppMenu;
+
