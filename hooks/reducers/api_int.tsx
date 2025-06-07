@@ -21,7 +21,7 @@ export const api_int = createApi({
         },
     }),
     endpoints: (builder) => ({
-        getAll: builder.mutation({
+        get: builder.mutation({
             query: ({ url, filters, signal, page, pageSize, sum, distinct }) => ({
                 url: `v2/${url}`,
                 method: "POST",
@@ -70,7 +70,7 @@ export const api_int = createApi({
 });
 
 export const {
-    useGetAllMutation,
+    useGetMutation,
     usePostMutation,
     useGetArticulosQuery,
 } = api_int;

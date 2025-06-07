@@ -24,16 +24,18 @@ const DashboardLayout = async ({ admin, user }: DashboardLayoutProps) => {
 
     // Renderizado en el servidor
     return (
-        <>
+        <section className="pt-10" >
             {/* Muestra el contenido según el rol o un mensaje por defecto */}
-            {userRole && roleContent[userRole] ? (
-                <Providers>
-                    {roleContent[userRole]}
-                </Providers>
-            ) : (
-                <>Acceso no autorizado</>
-            )}
-        </>
+            {
+                userRole && roleContent[userRole] ? (
+                    <Providers>
+                        {roleContent[userRole]}
+                    </Providers>
+                ) : (
+                    <>Acceso no autorizado</>
+                )
+            }
+        </section >
     );
 };
 
