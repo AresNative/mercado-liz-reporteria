@@ -102,7 +102,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
 
         // Formato booleano
         if (typeof value === 'boolean') {
-            return value ? <Check color="purple" size={18} /> : <X color="red" size={18} />;
+            return value ? <Check color="green" size={18} /> : <X color="red" size={18} />;
         }
 
         // Formato de archivos

@@ -17,10 +17,10 @@ export default function Footer() {
 
                 {/* Enlaces */}
                 <div className="flex items-center gap-x-4">
-                    <a href="#" className="text-sm text-gray-500 hover:text-purple-600 transition-colors">
+                    <a href="#" className="text-sm text-gray-500 hover:text-green-600 transition-colors">
                         Privacy
                     </a>
-                    <a href="#" className="text-sm text-gray-500 hover:text-purple-600 transition-colors">
+                    <a href="#" className="text-sm text-gray-500 hover:text-green-600 transition-colors">
                         Terms
                     </a>
                 </div>

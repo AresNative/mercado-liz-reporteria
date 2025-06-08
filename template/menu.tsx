@@ -7,8 +7,13 @@ import { usePostLogutMutation } from '@/hooks/reducers/auth';
 import { LogInField } from '@/utils/constants/forms/logIn';
 import { navigationAdmin, navigationDefault, navigationUser } from '@/utils/constants/router';
 import { getLocalStorageItem } from '@/utils/functions/local-storage';
+import { cn } from '@/utils/functions/cn';
 
-const AppMenu = () => {
+interface MenuProps {
+    isScrolled?: boolean;
+}
+
+const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
     const [logoutProcess] = usePostLogutMutation();
     const [loginModalOpen, setLoginModalOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -33,6 +38,26 @@ const AppMenu = () => {
         });
     }, []);
 
+    useEffect(() => {
+        if (menuOpen || loginModalOpen) {
+            document.body.style.overflow = 'hidden';
+            if (menuOpen) {
+                // Enfocar el menú al abrir para accesibilidad
+                setTimeout(() => {
+                    const menu = document.querySelector('aside');
+                    menu?.focus();
+                }, 100);
+            }
+        } else {
+            document.body.style.overflow = 'auto';
+        }
+
+        return () => {
+            document.body.style.overflow = 'auto';
+        };
+    }, [menuOpen, loginModalOpen]);
+
+
     const handleLogout = async () => {
         if (!userData.id) return;
 
@@ -55,24 +80,25 @@ const AppMenu = () => {
         <>
             <button
                 onClick={() => setMenuOpen(true)}
-                className="fixed right-4 top-4 z-30 p-2 rounded-full bg-white shadow-md"
+                className={cn(isScrolled ? "top-2" : "top-4", "fixed right-4 z-30 p-2 rounded-full cursor-pointer")}
                 aria-label="Abrir menú"
             >
-                <Menu className="text-purple-700" size={24} />
+                <Menu className={cn(isScrolled ? "text-green-700" : "text-white")} size={24} />
             </button>
 
             {/* Menú lateral */}
             <aside
-                className={`fixed inset-y-0 right-0 z-40 w-64 bg-white shadow-xl transition-transform duration-300 ${menuOpen ? 'translate-x-0' : 'translate-x-full'
-                    }`}
-                aria-hidden={!menuOpen}
+                className={cn(isScrolled ?? "absolute",
+                    "fixed inset-y-0 right-0 z-40 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out",
+                    menuOpen ? "translate-x-0" : "translate-x-full overflow-hidden"
+                )} aria-hidden={!menuOpen}
             >
-                <header className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4">
+                <header className="bg-gradient-to-r from-green-600 to-green-800 text-white p-4">
                     {userData.token ? (
                         <section className="text-center space-y-3">
                             <button
                                 onClick={handleLogout}
-                                className="flex items-center justify-center w-full py-2 px-4 bg-white text-purple-700 font-semibold rounded-lg gap-2"
+                                className="flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
                             >
                                 <LogOut size={18} /> Cerrar Sesión
                             </button>
@@ -81,7 +107,7 @@ const AppMenu = () => {
                         <section className="space-y-3">
                             <button
                                 onClick={() => setLoginModalOpen(true)}
-                                className="flex items-center justify-center w-full py-2 px-4 bg-white text-purple-700 font-semibold rounded-lg gap-2"
+                                className="flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
                             >
                                 <LogIn size={18} /> Iniciar Sesión
                             </button>
@@ -105,7 +131,7 @@ const AppMenu = () => {
                                     <Link
                                         href={item.href}
                                         onClick={() => setMenuOpen(false)}
-                                        className="flex items-center p-3 rounded-lg text-gray-700 hover:bg-purple-50"
+                                        className="flex items-center p-3 rounded-lg text-gray-700 hover:bg-green-50"
                                     >
                                         <Icon size={20} className="mr-3 text-gray-500" aria-hidden="true" />
                                         <span className="font-medium">{item.name}</span>
@@ -114,21 +140,6 @@ const AppMenu = () => {
                             ) : null;
                         })}
                     </ul>
-
-                    {!userData.token && (
-                        <footer className="p-4 text-sm text-gray-500 mt-4">
-                            <p>
-                                ¿Eres proveedor?{' '}
-                                <Link
-                                    href="/proveedor-login"
-                                    onClick={() => setMenuOpen(false)}
-                                    className="text-purple-600 hover:underline"
-                                >
-                                    Acceso proveedores
-                                </Link>
-                            </p>
-                        </footer>
-                    )}
                 </nav>
 
                 <button
@@ -163,7 +174,7 @@ const AppMenu = () => {
                                 className="p-1 rounded-full hover:bg-gray-100"
                                 aria-label="Cerrar modal"
                             >
-                                <X className="text-purple-700" size={24} />
+                                <X className="text-green-700" size={24} />
                             </button>
                         </header>
 
@@ -192,3 +203,4 @@ const AppMenu = () => {
 };
 
 export default AppMenu;
+

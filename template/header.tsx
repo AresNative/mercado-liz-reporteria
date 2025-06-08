@@ -41,26 +41,26 @@ const Header: React.FC<HeaderProps> = ({
     return (
         <header
             className={cn(
-                `sticky top-0 z-10 transition-all duration-300 safe-area-top`,
+                `sticky top-0 z-40 transition-all duration-300 safe-area-top`,
                 showBackButton || isScrolled
-                    ? 'bg-white/70 border-b border-gray-200 backdrop-blur-sm'
-                    : 'bg-gradient-to-r from-purple-600 to-purple-800',
+                    ? 'bg-white/90 border-b border-gray-200'
+                    : 'bg-gradient-to-r from-green-800 to-green-600 ',
                 className
             )}
             aria-label="Cabecera principal"
         >
             <section className="p-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <ul className="flex items-center gap-2  backdrop-blur-lg">
                     {showBackButton && (
                         <button
                             onClick={() => router.push(defaultBack)}
-                            className="p-1 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
+                            className="p-1 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
                             aria-label="Volver atrás"
                         >
                             <ArrowLeft
                                 className={cn(
                                     "h-6 w-6",
-                                    isScrolled ? "text-purple-700" : "text-white"
+                                    isScrolled ? "text-green-700" : "text-white"
                                 )}
                             />
                         </button>
@@ -68,17 +68,17 @@ const Header: React.FC<HeaderProps> = ({
 
                     <h1
                         className={cn(
-                            "font-light tracking-tight truncate max-w-[60vw] text-2xl font-[Lobster]",
-                            showBackButton || isScrolled ? "text-purple-700" : "text-white",
+                            "font-light tracking-tight truncate pb-2 pt-0 font-[Lobster]",
+                            showBackButton ?? "text-center m-auto", isScrolled ? "text-green-700 text-2xl" : "text-white text-5xl",
                         )}
                         aria-level={1}
                     >
                         {title}
                     </h1>
-                </div>
+                </ul>
 
-                <div className="flex items-center gap-2">
-                    {showMenuButton && <AppMenu />}
+                <div className={cn("flex items-center gap-2")}>
+                    {showMenuButton && <AppMenu isScrolled={isScrolled} />}
                 </div>
             </section>
         </header >

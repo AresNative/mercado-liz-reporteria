@@ -92,7 +92,7 @@ export function SelectComponent(props: SearchableSelectProps) {
             </label>
             <div className="relative bg-white dark:bg-zinc-800">
                 <div
-                    className="px-4 py-2 border focus:ring-purple-500 focus:border-purple-900 w-full sm:text-sm border-gray-300  dark:border-zinc-700 rounded-md focus:outline-none text-gray-600 dark:text-white cursor-pointer flex items-center justify-between"
+                    className="px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm border-gray-300  dark:border-zinc-700 rounded-md focus:outline-none text-gray-600 dark:text-white cursor-pointer flex items-center justify-between"
                     onClick={() => setShowSkillsDropdown(!showSkillsDropdown)}
                 >
                     <span>
@@ -147,7 +147,7 @@ export function SelectComponent(props: SearchableSelectProps) {
                 <div className="flex flex-wrap gap-2 mt-2 ">
                     {formData.skills.map(skill => (
                         <div key={skill}>
-                            <Badge text={skill} color="purple" />
+                            <Badge text={skill} color="green" />
                             <button
                                 type="button"
                                 onClick={() => handleRemoveSkill(skill)}

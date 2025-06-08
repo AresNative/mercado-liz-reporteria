@@ -92,7 +92,7 @@ export function SearchComponent(props: SearchableSelectProps) {
                     type="text"
                     placeholder={cuestion.placeholder}
                     value={searchTerm}
-                    className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 py-2 pl-10 w-full rounded-md focus:outline-none border shadow-md focus:border-purple-500 focus:ring-purple-500"
+                    className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 py-2 pl-10 w-full rounded-md focus:outline-none border shadow-md focus:border-green-500 focus:ring-green-500"
                     onClick={() => setShowSkillsDropdown(true)}
                     onChange={(e) => {
                         if (cuestion.options) dispatch(searchData(e.target.value));
@@ -136,7 +136,7 @@ export function SearchComponent(props: SearchableSelectProps) {
             <div className="flex flex-wrap gap-2 mt-2 ">
                 {formData.skills.map(skill => (
                     <div key={skill}>
-                        <Badge text={skill} color="purple" />
+                        <Badge text={skill} color="green" />
                         <button
                             type="button"
                             onClick={() => handleRemoveSkill(skill)}
