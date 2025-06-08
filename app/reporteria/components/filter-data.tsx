@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useForm, useFieldArray, Controller } from "react-hook-form"
-import { X, User, Calendar, Mail, Plus, ChevronDown } from "lucide-react"
+import { X, User, Plus, ChevronDown, CalendarDays, FolderPen, BookCopy, Layers2, BookUser, ChevronsLeftRightEllipsis, MapPin, SendToBack, Type, Hash, ArrowLeftRight, Repeat2, Banknote, Bitcoin, Tally5 } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
 
 type FilterType = { Key: string; Value: string; Operator: string }
@@ -23,23 +23,112 @@ type FormValues = {
     Filtros: FilterType[]
     Selects: SelectType[]
     OrderBy: OrderByType
+    DateFilters: {
+        startDate: string
+        endDate: string
+        preset: string
+    }
 }
 
 const fieldOptions = [
-    { value: "Nombre", label: "Nombre", icon: <User className="inline mr-2" />, category: "Datos Personales" },
-    { value: "email", label: "Correo", icon: <Mail className="inline mr-2" />, category: "Datos Personales" },
-    {
-        value: "created_at",
-        label: "Fecha de creación",
-        icon: <Calendar className="inline mr-2" />,
-        category: "Metadatos",
-    },
+    { value: "Nombre", label: "Nombre", icon: <FolderPen className="inline mr-2" />, category: "Datos de producto" },
+    { value: "Categoria", label: "Categoria", icon: <BookCopy className="inline mr-2" />, category: "Datos de producto" },
+    { value: "Grupo", label: "Grupo", icon: <Layers2 className="inline mr-2" />, category: "Datos de producto" },
+    { value: "Familia", label: "Familia", icon: <BookUser className="inline mr-2" />, category: "Datos de producto" },
+    { value: "Linea", label: "Linea", icon: <ChevronsLeftRightEllipsis className="inline mr-2" />, category: "Datos de producto" },
+
+    { value: "Movimiento", label: "Movimiento", icon: <SendToBack className="inline mr-2" />, category: "Operaciones", },
+    { value: "Cliente", label: "Cliente", icon: <User className="inline mr-2" />, category: "Operaciones", },
+    { value: "Tipo", label: "Tipo", icon: <Type className="inline mr-2" />, category: "Operaciones", },
+    { value: "Almacen", label: "Almacen", icon: <MapPin className="inline mr-2" />, category: "Operaciones", },
+
+    { value: "Unidad", label: "Unidad", icon: <Hash className="inline mr-2" />, category: "Cotable", },
+    { value: "Factor", label: "Factor", icon: <Repeat2 className="inline mr-2" />, category: "Cotable", },
+    { value: "Equivalencia", label: "Equivalencia", icon: <ArrowLeftRight className="inline mr-2" />, category: "Cotable", },
+    { value: "CostoUnitario", label: "Costo unitario", icon: <Banknote className="inline mr-2" />, category: "Cotable", },
+    { value: "CostoTotal", label: "Costo total", icon: <Bitcoin className="inline mr-2" />, category: "Cotable", },
+    { value: "ImporteUnitario", label: "Importe unitario", icon: <Banknote className="inline mr-2" />, category: "Cotable", },
+    { value: "ImporteTotal", label: "Importe total", icon: <Bitcoin className="inline mr-2" />, category: "Cotable", },
+    { value: "Cantidad", label: "Cantidad", icon: <Tally5 className="inline mr-2" />, category: "Cotable", },
 ]
 
 const groupedFieldOptions = [
-    { label: "Datos Personales", options: fieldOptions.filter((o) => o.category === "Datos Personales") },
-    { label: "Metadatos", options: fieldOptions.filter((o) => o.category === "Metadatos") },
+    { label: "Datos de producto", options: fieldOptions.filter((o) => o.category === "Datos de producto") },
+    { label: "Operaciones", options: fieldOptions.filter((o) => o.category === "Operaciones") },
+    { label: "Cotable", options: fieldOptions.filter((o) => o.category === "Cotable") },
 ]
+
+const datePresets = [
+    { value: "today", label: "Hoy" },
+    { value: "yesterday", label: "Ayer" },
+    { value: "last7days", label: "Últimos 7 días" },
+    { value: "last30days", label: "Últimos 30 días" },
+    { value: "thisMonth", label: "Este mes" },
+    { value: "lastMonth", label: "Mes pasado" },
+    { value: "thisYear", label: "Este año" },
+    { value: "lastYear", label: "Año pasado" },
+]
+
+const getDateFromPreset = (preset: string) => {
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    switch (preset) {
+        case "today":
+            return {
+                start: today.toISOString().split("T")[0],
+                end: today.toISOString().split("T")[0],
+            }
+        case "yesterday":
+            return {
+                start: yesterday.toISOString().split("T")[0],
+                end: yesterday.toISOString().split("T")[0],
+            }
+        case "last7days":
+            const last7 = new Date(today)
+            last7.setDate(last7.getDate() - 7)
+            return {
+                start: last7.toISOString().split("T")[0],
+                end: today.toISOString().split("T")[0],
+            }
+        case "last30days":
+            const last30 = new Date(today)
+            last30.setDate(last30.getDate() - 30)
+            return {
+                start: last30.toISOString().split("T")[0],
+                end: today.toISOString().split("T")[0],
+            }
+        case "thisMonth":
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+            return {
+                start: startOfMonth.toISOString().split("T")[0],
+                end: today.toISOString().split("T")[0],
+            }
+        case "lastMonth":
+            const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+            const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
+            return {
+                start: startOfLastMonth.toISOString().split("T")[0],
+                end: endOfLastMonth.toISOString().split("T")[0],
+            }
+        case "thisYear":
+            const startOfYear = new Date(today.getFullYear(), 0, 1)
+            return {
+                start: startOfYear.toISOString().split("T")[0],
+                end: today.toISOString().split("T")[0],
+            }
+        case "lastYear":
+            const startOfLastYear = new Date(today.getFullYear() - 1, 0, 1)
+            const endOfLastYear = new Date(today.getFullYear() - 1, 11, 31)
+            return {
+                start: startOfLastYear.toISOString().split("T")[0],
+                end: endOfLastYear.toISOString().split("T")[0],
+            }
+        default:
+            return { start: "", end: "" }
+    }
+}
 
 interface CustomSelectProps {
     value: string
@@ -202,13 +291,35 @@ const CustomSelect = ({ value, onChange, options, placeholder, inputId, ariaLabe
 }
 
 export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
-    const { control, register, handleSubmit, reset } = useForm<FormValues>({
+    const { control, register, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
         defaultValues: {
             Filtros: [{ Key: "", Value: "", Operator: "" }],
             Selects: [{ Key: "" }],
             OrderBy: { Key: "", Direction: "asc" },
+            DateFilters: {
+                startDate: "",
+                endDate: "",
+                preset: "",
+            },
         },
     })
+
+    const watchedPreset = watch("DateFilters.preset")
+
+    const handlePresetChange = (preset: string) => {
+        if (preset) {
+            const dates = getDateFromPreset(preset)
+            setValue("DateFilters.startDate", dates.start)
+            setValue("DateFilters.endDate", dates.end)
+        } else {
+            setValue("DateFilters.startDate", "")
+            setValue("DateFilters.endDate", "")
+        }
+    }
+
+    useEffect(() => {
+        handlePresetChange(watchedPreset)
+    }, [watchedPreset])
 
     const { fields: filtros, append: addFiltro, remove: removeFiltro } = useFieldArray({ control, name: "Filtros" })
     const {
@@ -218,8 +329,28 @@ export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
     } = useFieldArray({ control, name: "Selects" })
 
     const onSubmit = (data: FormValues) => {
+        // Filtros base (excluyendo fechas)
+        const baseFilters = data.Filtros.filter((f) => f.Key && f.Operator && f.Key !== "FechaEmision")
+
+        // Agregar filtros de fecha si están definidos
+        const dateFilters = []
+        if (data.DateFilters.startDate) {
+            dateFilters.push({
+                Key: "FechaEmision",
+                Value: data.DateFilters.startDate,
+                Operator: ">=",
+            })
+        }
+        if (data.DateFilters.endDate) {
+            dateFilters.push({
+                Key: "FechaEmision",
+                Value: data.DateFilters.endDate,
+                Operator: "<=",
+            })
+        }
+
         onApply({
-            Filtros: data.Filtros.filter((f) => f.Key && f.Operator),
+            Filtros: [...baseFilters, ...dateFilters],
             Selects: data.Selects.filter((s) => s.Key),
             OrderBy: data.OrderBy.Key ? data.OrderBy : { Key: "", Direction: "asc" },
         })
@@ -230,6 +361,11 @@ export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
             Filtros: [{ Key: "", Value: "", Operator: "" }],
             Selects: [{ Key: "" }],
             OrderBy: { Key: "", Direction: "asc" },
+            DateFilters: {
+                startDate: "",
+                endDate: "",
+                preset: "",
+            },
         })
         onReset()
     }
@@ -412,6 +548,86 @@ export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
                             <option value="desc">Descendente (Z-A, 9-1)</option>
                         </select>
                     </div>
+                </div>
+            </div>
+
+            {/* Filtros de Fecha */}
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <CalendarDays size={20} />
+                    Filtros de fecha
+                </h3>
+
+                <div className="space-y-4 p-4 bg-gray-50 dark:bg-zinc-700/50 rounded-lg border border-gray-200 dark:border-zinc-600">
+                    {/* Fechas predefinidas */}
+                    <div>
+                        <label htmlFor="date-preset" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Fechas clave
+                        </label>
+                        <select
+                            id="date-preset"
+                            {...register("DateFilters.preset")}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-150"
+                        >
+                            <option value="">Seleccionar fecha predefinida</option>
+                            {datePresets.map((preset) => (
+                                <option key={preset.value} value={preset.value}>
+                                    {preset.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Separador */}
+                    <div className="flex items-center gap-4">
+                        <div className="flex-1 h-px bg-gray-300 dark:bg-zinc-600"></div>
+                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                            O seleccionar rango personalizado
+                        </span>
+                        <div className="flex-1 h-px bg-gray-300 dark:bg-zinc-600"></div>
+                    </div>
+
+                    {/* Rango personalizado */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Fecha desde
+                            </label>
+                            <input
+                                id="start-date"
+                                type="date"
+                                {...register("DateFilters.startDate")}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-150"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Fecha hasta
+                            </label>
+                            <input
+                                id="end-date"
+                                type="date"
+                                {...register("DateFilters.endDate")}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-150"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Información del rango seleccionado */}
+                    {(watch("DateFilters.startDate") || watch("DateFilters.endDate")) && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <p className="text-sm text-blue-800 dark:text-blue-200">
+                                <strong>Rango seleccionado:</strong>{" "}
+                                {watch("DateFilters.startDate") && (
+                                    <span>Desde {new Date(watch("DateFilters.startDate")).toLocaleDateString("es-ES")}</span>
+                                )}
+                                {watch("DateFilters.startDate") && watch("DateFilters.endDate") && " "}
+                                {watch("DateFilters.endDate") && (
+                                    <span>hasta {new Date(watch("DateFilters.endDate")).toLocaleDateString("es-ES")}</span>
+                                )}
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
 

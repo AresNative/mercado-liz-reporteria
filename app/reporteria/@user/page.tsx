@@ -4,17 +4,16 @@ import Pagination from "@/components/pagination";
 import DynamicTable, { DataItem } from "@/components/table";
 import { FilterSection } from "../components/filter-data"; // Ruta al componente
 import { useGetMutation } from "@/hooks/reducers/api_int";
-import { LoadingScreen } from "@/template/loading-screen";
+import { LoadingSection } from "@/template/loading-screen";
 import { Filter } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 
 export default function User() {
-  const [getData] = useGetMutation();
+  const [getData, { isLoading }] = useGetMutation();
   const [config] = useState('ventas');
   const [tableData, setTableData] = useState<DataItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
 
   // Estado para almacenar los filtros activos
@@ -25,7 +24,6 @@ export default function User() {
   });
 
   async function handleGetData() {
-    setIsLoading(true);
     try {
       const { data } = await getData({
         url: `reporteria/${config}`,
@@ -48,8 +46,6 @@ export default function User() {
     } catch (error) {
       console.error("Error fetching data:", error);
       setTableData([]);
-    } finally {
-      setIsLoading(false);
     }
   }
 
@@ -93,9 +89,7 @@ export default function User() {
         />
       )}
 
-      <Suspense fallback={<LoadingScreen />}>
-        <DynamicTable data={tableData} />
-      </Suspense>
+      {isLoading ? (<LoadingSection message="Cargando datos" />) : (<DynamicTable data={tableData} />)}
 
       <Pagination
         currentPage={page}

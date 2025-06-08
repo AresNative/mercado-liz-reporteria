@@ -15,3 +15,22 @@ export const LoadingScreen = () => (
         </div>
     </main>
 );
+interface LoadingSectionProps {
+    message?: string;
+}
+
+export const LoadingSection = ({ message }: LoadingSectionProps) => (
+    <section className="w-full flex flex-col items-center justify-center p-4">
+        <div
+            role="status"
+            aria-label="Cargando contenido"
+            className="flex flex-col items-center justify-center space-y-4"
+        >
+            <Loader2
+                className="h-12 w-12 text-green-600 animate-spin"
+                aria-hidden="true"
+            />
+            <p className="text-lg text-gray-600 font-medium">{message ? message : "Cargando pantalla"}...</p>
+        </div>
+    </section>
+);
