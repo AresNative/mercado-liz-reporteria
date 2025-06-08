@@ -75,7 +75,7 @@ export default function User() {
 
   return (
     <main className="flex flex-col items-center max-w-7xl m-auto px-4 py-8">
-      <div className="w-full mb-6 flex justify-between items-center">
+      <section className="w-full mb-6 flex justify-between items-center">
         <h1 className="text-2xl font-bold">Reporte de Ventas</h1>
         <button
           onClick={() => setShowFilters(!showFilters)}
@@ -84,7 +84,7 @@ export default function User() {
           <Filter size={18} />
           {showFilters ? "Ocultar" : "Mostrar"}
         </button>
-      </div>
+      </section>
 
       {showFilters && (
         <FilterSection
