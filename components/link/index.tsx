@@ -1,4 +1,4 @@
-import { InputFormProps } from "@/utils/constants/interfaces";
+import { InputFormProps } from "@/utils/types/interfaces";
 import { Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
 

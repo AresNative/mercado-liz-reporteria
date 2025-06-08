@@ -1,4 +1,4 @@
-import { ReportConfig } from "@/app/report/constants/interfaces";
+import { ReportConfig } from "@/app/reporteria/utils/types";
 
 export const formatValue = (value: number, format?: string): string => {
   switch (format) {

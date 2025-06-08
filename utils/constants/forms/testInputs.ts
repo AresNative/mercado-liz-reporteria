@@ -1,4 +1,4 @@
-import { Field } from "../interfaces";
+import { Field } from "@/utils/types/interfaces";
 
 export function TestInputsField(): Field[] {
   return [
