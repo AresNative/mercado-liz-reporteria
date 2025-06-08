@@ -82,7 +82,7 @@ export default function User() {
           className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
         >
           <Filter size={18} />
-          {showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}
+          {showFilters ? "Ocultar" : "Mostrar"}
         </button>
       </div>
 

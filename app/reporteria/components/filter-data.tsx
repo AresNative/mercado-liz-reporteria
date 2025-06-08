@@ -248,7 +248,7 @@ export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
                     <button
                         type="button"
                         onClick={() => addFiltro({ Key: "", Value: "", Operator: "" })}
-                        className="inline-flex items-center gap-2 text-sm bg-emerald-600 hover:bg-emerald-700 focus:bg-emerald-700 text-white px-3 py-2 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-800"
+                        className="inline-flex items-center gap-2 text-xs bg-emerald-600 hover:bg-emerald-700 focus:bg-emerald-700 text-white px-3 py-2 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-800"
                         aria-label="Agregar nuevo filtro"
                     >
                         <Plus size={16} />
@@ -340,7 +340,7 @@ export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
                     <button
                         type="button"
                         onClick={() => addSelectField({ Key: "" })}
-                        className="inline-flex items-center gap-2 text-sm bg-emerald-600 hover:bg-emerald-700 focus:bg-emerald-700 text-white px-3 py-2 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-800"
+                        className="inline-flex items-center gap-2 text-xs bg-emerald-600 hover:bg-emerald-700 focus:bg-emerald-700 text-white px-3 py-2 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-800"
                         aria-label="Agregar nuevo campo"
                     >
                         <Plus size={16} />
