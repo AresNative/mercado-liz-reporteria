@@ -7,7 +7,6 @@ import Background from "@/template/background";
 import Providers from "@/hooks/provider";
 import Alert from "@/components/alert";
 import Header from "@/template/header";
-import AppMenu from "@/template/menu";
 
 import { Suspense } from 'react';
 import { LoadingScreen } from "@/template/loading-screen";
@@ -39,7 +38,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} ${lobsterSans.variable}`} suppressHydrationWarning>
-
       <head>
         <meta name="description"
           content="Mercado Liz - Tu pantalla de administracion general en supermercados | todal de sucursales | empleados | compras | ventas | reporteria" />
@@ -54,26 +52,23 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Mercado Liz" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className="bg-gray-50 text-gray-900 antialiased">
+      <body>
         <Providers>
           <Background>
             {/* Cabecera con navegación */}
             <Header
-              title="Administración"
+              title="Liz"
               showBackButton={false}
               showMenuButton={true}
               className="fixed top-0 left-0 right-0 z-20"
             />
 
             {/* Contenido principal con suspense para loading */}
-            <main className="pt-16 pb-4 safe-area-top safe-area-bottom">
+            <main className="pt-16">
               <Suspense fallback={<LoadingScreen />}>
                 {children}
               </Suspense>
             </main>
-
-            {/* Menú global */}
-            <AppMenu />
           </Background>
 
           {/* Sistema de alertas */}

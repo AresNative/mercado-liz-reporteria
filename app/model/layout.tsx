@@ -3,8 +3,6 @@ import { cookies } from "next/headers";
 
 import { DashboardLayoutProps } from "@/utils/types/interfaces";
 
-import Providers from "@/hooks/provider";
-
 const DashboardLayout = async ({ admin, user }: DashboardLayoutProps) => {
   // Función para obtener el rol del usuario desde las cookies en el lado del servidor
   const getCookie = async (cookieName: string) => {
@@ -28,9 +26,7 @@ const DashboardLayout = async ({ admin, user }: DashboardLayoutProps) => {
       {/* Muestra el contenido según el rol o un mensaje por defecto */}
       {
         userRole && roleContent[userRole] ? (
-          <Providers>
-            {roleContent[userRole]}
-          </Providers>
+          roleContent[userRole]
         ) : (
           <>Acceso no autorizado</>
         )
