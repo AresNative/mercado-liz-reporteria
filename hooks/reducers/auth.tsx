@@ -1,7 +1,6 @@
-;
-import { EnvConfig } from "@/utils/constants/env.config";
-import { getLocalStorageItem, removeFromLocalStorage, setLocalStorageItem } from "@/utils/functions/local-storage";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { EnvConfig } from "@/utils/constants/env.config";
+import { removeFromLocalStorage, setLocalStorageItem } from "@/utils/functions/local-storage";
 
 const { api: apiUrl } = EnvConfig();
 
@@ -11,8 +10,8 @@ export const auth = createApi({
     baseQuery: fetchBaseQuery({
         baseUrl: apiUrl,
         prepareHeaders: (headers) => {
+            const token = getCookie("token"); // <- usa cookie
             headers.set("Content-Type", "application/json");
-            const token = getLocalStorageItem("token");
             if (token) {
                 headers.set("Authorization", `Bearer ${token}`);
             }
@@ -36,15 +35,19 @@ export const auth = createApi({
             onQueryStarted: async (_, { queryFulfilled }) => {
                 try {
                     const { data: responseData } = await queryFulfilled;
-                    // Verifica si la respuesta contiene un token
+
                     if (responseData.token) {
-                        // Guardar el token en localStorage
+                        const options = "path=/; SameSite=Lax";
+                        // Si estás en HTTPS, agrega "; Secure"
+                        document.cookie = `token=${responseData.token}; ${options}`;
+                        document.cookie = `user-role=${responseData.role.trimEnd()}; ${options}`;
+                        document.cookie = `user-id=${responseData.userId}; ${options}`;
                         setLocalStorageItem("user-role", responseData.role.trimEnd());
                         setLocalStorageItem("user-id", responseData.userId);
                         setLocalStorageItem("token", responseData.token);
                     }
                 } catch (error) {
-                    console.log("Error al hacer login:", error);
+                    console.error("Error al hacer login:", error);
                 }
             },
         }),
@@ -57,7 +60,10 @@ export const auth = createApi({
             onQueryStarted: async (_, { queryFulfilled }) => {
                 try {
                     await queryFulfilled;
-                    // Eliminar todos los datos relacionados con la sesión
+                    // Eliminar cookies (se hace expirándolas)
+                    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+                    document.cookie = "user-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+                    document.cookie = "user-id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
                     removeFromLocalStorage("user-role");
                     removeFromLocalStorage("user-id");
                     removeFromLocalStorage("token");
@@ -68,6 +74,12 @@ export const auth = createApi({
         }),
     }),
 });
+
+// Utilidad para leer cookies del cliente
+export function getCookie(name: string): string | null {
+    const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+    return match ? decodeURIComponent(match[2]) : null;
+}
 
 export const {
     usePostLogutMutation,

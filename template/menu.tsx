@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react'; // Añade useEffect
+import { useState, useEffect } from 'react';
 import Link from "next/link";
 import MainForm from '@/components/form/main-form';
 import { X, Menu, LogOut, LogIn, UserPlus, User } from 'lucide-react';
