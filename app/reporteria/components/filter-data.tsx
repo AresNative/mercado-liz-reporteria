@@ -5,6 +5,7 @@ import type React from "react"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { X, User, Plus, ChevronDown, CalendarDays, FolderPen, BookCopy, Layers2, BookUser, ChevronsLeftRightEllipsis, MapPin, SendToBack, Type, Hash, ArrowLeftRight, Repeat2, Banknote, Bitcoin, Tally5 } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
+import AutocompleteSelect from "./auto-complete"
 
 type FilterType = { Key: string; Value: string; Operator: string }
 type SelectType = { Key: string }
@@ -289,7 +290,33 @@ const CustomSelect = ({ value, onChange, options, placeholder, inputId, ariaLabe
         </div>
     )
 }
+const fetchNames = async (query: string, page: number) => {
+    // Esta es una implementación simulada - reemplázala con una llamada real a tu API
+    console.log(`Fetching names with query: ${query}, page: ${page}`)
 
+    // Simulamos un retraso de red
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // Generamos algunos datos de ejemplo
+    const allNames = [
+        "Producto 1", "Producto 2", "Producto 3", "Producto 4", "Producto 5",
+        "Producto 6", "Producto 7", "Producto 8", "Producto 9", "Producto 10",
+        "Producto 11", "Producto 12", "Producto 13", "Producto 14", "Producto 15",
+    ]
+
+    const filtered = allNames.filter(name =>
+        name.toLowerCase().includes(query.toLowerCase())
+    )
+
+    const pageSize = 5
+    const startIndex = (page - 1) * pageSize
+    const paginated = filtered.slice(startIndex, startIndex + pageSize)
+
+    return {
+        options: paginated,
+        hasMore: startIndex + pageSize < filtered.length
+    }
+}
 export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
     const { control, register, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
         defaultValues: {
@@ -443,13 +470,28 @@ export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
                                 <label className="sr-only" htmlFor={`filter-value-${idx}`}>
                                     Valor para filtro {idx + 1}
                                 </label>
-                                <input
-                                    id={`filter-value-${idx}`}
-                                    {...register(`Filtros.${idx}.Value`)}
-                                    placeholder="Valor a filtrar"
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-150"
-                                    aria-label={`Valor para filtro ${idx + 1}`}
-                                />
+                                {watch(`Filtros.${idx}.Key`) === "Nombre" ? (
+                                    <Controller
+                                        name={`Filtros.${idx}.Value`}
+                                        control={control}
+                                        render={({ field }) => (
+                                            <AutocompleteSelect
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                fetchOptions={fetchNames}
+                                                placeholder="Buscar nombre..."
+                                            />
+                                        )}
+                                    />
+                                ) : (
+                                    <input
+                                        id={`filter-value-${idx}`}
+                                        {...register(`Filtros.${idx}.Value`)}
+                                        placeholder="Valor a filtrar"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-150"
+                                        aria-label={`Valor para filtro ${idx + 1}`}
+                                    />
+                                )}
                             </div>
 
                             <div className="md:col-span-1 flex justify-center">
