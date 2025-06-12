@@ -6,7 +6,7 @@ import { FilterSection } from "../components/filter-data"; // Ruta al componente
 import { useGetMutation } from "@/hooks/reducers/api_int";
 import { LoadingSection } from "@/template/loading-screen";
 import { Filter } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function User() {
   const [getData, { isLoading }] = useGetMutation();

@@ -290,6 +290,7 @@ const CustomSelect = ({ value, onChange, options, placeholder, inputId, ariaLabe
         </div>
     )
 }
+
 const fetchNames = async (query: string, page: number) => {
     // Esta es una implementación simulada - reemplázala con una llamada real a tu API
     console.log(`Fetching names with query: ${query}, page: ${page}`)
@@ -317,6 +318,7 @@ const fetchNames = async (query: string, page: number) => {
         hasMore: startIndex + pageSize < filtered.length
     }
 }
+
 export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
     const { control, register, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
         defaultValues: {

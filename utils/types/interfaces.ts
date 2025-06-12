@@ -165,7 +165,7 @@ export interface UserRoleRendererProps {
 export interface DashboardLayoutProps {
   admin: React.ReactNode;
   user: React.ReactNode;
-  ventas?: React.ReactNode;
+  ventas: React.ReactNode;
 }
 
 export interface StarRatingProps {
