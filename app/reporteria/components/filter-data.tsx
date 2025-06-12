@@ -290,6 +290,7 @@ const CustomSelect = ({ value, onChange, options, placeholder, inputId, ariaLabe
         </div>
     )
 }
+
 const fetchNames = async (query: string, page: number) => {
     // Esta es una implementación simulada - reemplázala con una llamada real a tu API
     console.log(`Fetching names with query: ${query}, page: ${page}`)
@@ -317,6 +318,7 @@ const fetchNames = async (query: string, page: number) => {
         hasMore: startIndex + pageSize < filtered.length
     }
 }
+
 export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
     const { control, register, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
         defaultValues: {
@@ -470,28 +472,18 @@ export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
                                 <label className="sr-only" htmlFor={`filter-value-${idx}`}>
                                     Valor para filtro {idx + 1}
                                 </label>
-                                {watch(`Filtros.${idx}.Key`) === "Nombre" ? (
-                                    <Controller
-                                        name={`Filtros.${idx}.Value`}
-                                        control={control}
-                                        render={({ field }) => (
-                                            <AutocompleteSelect
-                                                value={field.value}
-                                                onChange={field.onChange}
-                                                fetchOptions={fetchNames}
-                                                placeholder="Buscar nombre..."
-                                            />
-                                        )}
-                                    />
-                                ) : (
-                                    <input
-                                        id={`filter-value-${idx}`}
-                                        {...register(`Filtros.${idx}.Value`)}
-                                        placeholder="Valor a filtrar"
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-150"
-                                        aria-label={`Valor para filtro ${idx + 1}`}
-                                    />
-                                )}
+                                <Controller
+                                    name={`Filtros.${idx}.Value`}
+                                    control={control}
+                                    render={({ field }) => (
+                                        <AutocompleteSelect
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            fetchOptions={fetchNames}
+                                            placeholder={`Valor a filtrar...`}
+                                        />
+                                    )}
+                                />
                             </div>
 
                             <div className="md:col-span-1 flex justify-center">

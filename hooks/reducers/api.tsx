@@ -1,6 +1,7 @@
 import { EnvConfig } from "@/utils/constants/env.config";
-import { getLocalStorageItem } from "@/utils/functions/local-storage";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { getCookie } from "./auth";
+import { getLocalStorageItem } from "@/utils/functions/local-storage";
 
 const { api: apiUrl } = EnvConfig();
 
@@ -13,7 +14,7 @@ export const api = createApi({
         baseUrl: apiUrl,
         prepareHeaders: (headers, { }) => {
             headers.set("Content-Type", "application/json");
-            const token = getLocalStorageItem("token");
+            const token = getCookie("token") ?? getLocalStorageItem('token'); // <- usa cookie
             if (token) {
                 headers.set("Authorization", `Bearer ${token}`);
             }
