@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { EnvConfig } from "@/utils/constants/env.config";
-import { removeFromLocalStorage, setLocalStorageItem } from "@/utils/functions/local-storage";
+import { getLocalStorageItem, removeFromLocalStorage, setLocalStorageItem } from "@/utils/functions/local-storage";
 
 const { api: apiUrl } = EnvConfig();
 
@@ -10,7 +10,7 @@ export const auth = createApi({
     baseQuery: fetchBaseQuery({
         baseUrl: apiUrl,
         prepareHeaders: (headers) => {
-            const token = getCookie("token"); // <- usa cookie
+            const token = getCookie("token") ?? getLocalStorageItem('token'); // <- usa cookie
             headers.set("Content-Type", "application/json");
             if (token) {
                 headers.set("Authorization", `Bearer ${token}`);

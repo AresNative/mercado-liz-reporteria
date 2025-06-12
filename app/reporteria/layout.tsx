@@ -5,7 +5,6 @@ import { DashboardLayoutProps } from "@/utils/types/interfaces";
 
 import Providers from "@/hooks/provider";
 
-
 const Layout = async ({ admin, user, ventas }: DashboardLayoutProps) => {
     // Función para obtener el rol del usuario desde las cookies
     const getCookie = async (cookieName: string): Promise<string> => {
