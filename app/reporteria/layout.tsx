@@ -1,9 +1,11 @@
 import { ReactNode } from "react";
 import { cookies } from "next/headers";
 
-import { DashboardLayoutProps } from "@/utils/types/interfaces";
-
-const Layout = async ({ admin, user, ventas }: DashboardLayoutProps) => {
+const Layout = async ({ admin, user, ventas }: {
+    admin: React.ReactNode
+    user: React.ReactNode
+    ventas: React.ReactNode
+}) => {
     // Función para obtener el rol del usuario desde las cookies
     const getCookie = async (cookieName: string): Promise<string> => {
         const cookieStore = await cookies();
