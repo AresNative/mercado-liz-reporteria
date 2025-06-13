@@ -1,134 +1,121 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface AutocompleteSelectProps {
-    value: string
-    onChange: (value: string) => void
-    fetchOptions: (query: string, page: number) => Promise<{ options: string[], hasMore: boolean }>
-    placeholder?: string
+    value: string;
+    onChange: (value: string) => void;
+    fetchOptions: (query: string, page: number) => Promise<{ options: string[]; hasMore: boolean }>;
+    placeholder?: string;
 }
 
-const AutocompleteSelect = ({ value, onChange, fetchOptions, placeholder }: AutocompleteSelectProps) => {
-    const [inputValue, setInputValue] = useState(value)
-    const [options, setOptions] = useState<string[]>([])
-    const [isOpen, setIsOpen] = useState(false)
-    const [loading, setLoading] = useState(false)
-    const [page, setPage] = useState(1)
-    const [hasMore, setHasMore] = useState(true)
-    const [selectedIndex, setSelectedIndex] = useState(-1)
-    const containerRef = useRef<HTMLDivElement>(null)
-    const listRef = useRef<HTMLUListElement>(null)
-    const observerRef = useRef<IntersectionObserver>(null)
+export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: AutocompleteSelectProps) => {
+    const [inputValue, setInputValue] = useState(value);
+    const [options, setOptions] = useState<string[]>([]);
+    const [isOpen, setIsOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLUListElement>(null);
+    const observerRef = useRef<IntersectionObserver>(null);
 
-    // Elemento observador para infinite scroll
-    const lastOptionRef = useCallback(
-        (node: HTMLLIElement) => {
-            if (loading) return
-            if (observerRef.current) observerRef.current.disconnect()
+    const lastOptionRef = useCallback((node: HTMLLIElement) => {
+        if (loading || !node || !hasMore) return;
 
-            observerRef.current = new IntersectionObserver(
-                (entries) => {
-                    if (entries[0].isIntersecting && hasMore) {
-                        loadMore()
-                    }
-                },
-                { threshold: 1.0 }
-            )
+        if (observerRef.current) observerRef.current.disconnect();
 
-            if (node) observerRef.current.observe(node)
-        },
-        [loading, hasMore]
-    )
+        observerRef.current = new IntersectionObserver(
+            (entries) => entries[0].isIntersecting && hasMore && loadMore(),
+            { threshold: 1.0 }
+        );
 
-    // Fetch options when input changes
+        observerRef.current.observe(node);
+    }, [loading, hasMore]);
+
     useEffect(() => {
         const fetchData = async () => {
-            if (!isOpen) return
+            if (!isOpen) return;
 
-            setLoading(true)
+            setLoading(true);
             try {
-                const { options: newOptions, hasMore } = await fetchOptions(inputValue, 1)
-                setOptions(newOptions)
-                setHasMore(hasMore)
-                setPage(1)
+                const { options: newOptions, hasMore } = await fetchOptions(inputValue, 1);
+                setOptions(newOptions);
+                setHasMore(hasMore);
+                setPage(1);
             } finally {
-                setLoading(false)
+                setLoading(false);
             }
-        }
+        };
 
-        const timer = setTimeout(fetchData, 300)
-        return () => clearTimeout(timer)
-    }, [inputValue, isOpen, fetchOptions])
+        const timer = setTimeout(fetchData, 300);
+        return () => clearTimeout(timer);
+    }, [inputValue, isOpen, fetchOptions]);
 
-    // Load more options
     const loadMore = useCallback(async () => {
-        if (loading || !hasMore) return
+        if (loading || !hasMore) return;
 
-        setLoading(true)
+        setLoading(true);
         try {
-            const { options: newOptions, hasMore: newHasMore } = await fetchOptions(inputValue, page + 1)
-            setOptions(prev => [...prev, ...newOptions])
-            setHasMore(newHasMore)
-            setPage(prev => prev + 1)
+            const { options: newOptions, hasMore: newHasMore } = await fetchOptions(inputValue, page + 1);
+            setOptions(prev => [...prev, ...newOptions]);
+            setHasMore(newHasMore);
+            setPage(prev => prev + 1);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }, [inputValue, page, loading, hasMore, fetchOptions])
+    }, [inputValue, page, loading, hasMore, fetchOptions]);
 
-    // Close when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
+                setIsOpen(false);
             }
-        }
+        };
 
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
-    // Keyboard navigation
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (!isOpen) return
+        if (!isOpen) return;
 
         switch (e.key) {
             case 'ArrowDown':
-                e.preventDefault()
-                setSelectedIndex(prev => (prev < options.length - 1 ? prev + 1 : prev))
-                break
+                e.preventDefault();
+                setSelectedIndex(prev => Math.min(prev + 1, options.length - 1));
+                break;
             case 'ArrowUp':
-                e.preventDefault()
-                setSelectedIndex(prev => (prev > 0 ? prev - 1 : 0))
-                break
+                e.preventDefault();
+                setSelectedIndex(prev => Math.max(prev - 1, 0));
+                break;
             case 'Enter':
-                e.preventDefault()
+                e.preventDefault();
                 if (selectedIndex >= 0 && selectedIndex < options.length) {
-                    handleSelect(options[selectedIndex])
+                    handleSelect(options[selectedIndex]);
                 }
-                break
+                break;
             case 'Escape':
-                e.preventDefault()
-                setIsOpen(false)
-                break
+                e.preventDefault();
+                setIsOpen(false);
+                break;
         }
-    }
+    };
 
     const handleSelect = (option: string) => {
-        setInputValue(option)
-        onChange(option)
-        setIsOpen(false)
-    }
+        setInputValue(option);
+        onChange(option);
+        setIsOpen(false);
+    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setInputValue(e.target.value)
-        if (!isOpen) setIsOpen(true)
-        setSelectedIndex(-1)
-    }
+        setInputValue(e.target.value);
+        if (!isOpen) setIsOpen(true);
+        setSelectedIndex(-1);
+    };
 
-    const handleFocus = () => {
-        if (!isOpen) setIsOpen(true)
-    }
+    const handleFocus = () => !isOpen && setIsOpen(true);
 
     return (
         <div ref={containerRef} className="relative">
@@ -159,25 +146,27 @@ const AutocompleteSelect = ({ value, onChange, fetchOptions, placeholder }: Auto
                                     {option}
                                 </li>
                             ))}
-                            {loading && (
-                                <li className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">
-                                    Cargando...
-                                </li>
-                            )}
+                            {loading && <LoadingItem />}
                         </>
                     ) : !loading ? (
-                        <li className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">
-                            No se encontraron resultados
-                        </li>
+                        <NoResultsItem />
                     ) : (
-                        <li className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">
-                            Cargando...
-                        </li>
+                        <LoadingItem />
                     )}
                 </ul>
             )}
         </div>
-    )
-}
+    );
+};
 
-export default AutocompleteSelect
+const LoadingItem = () => (
+    <li className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">
+        Cargando...
+    </li>
+);
+
+const NoResultsItem = () => (
+    <li className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">
+        No se encontraron resultados
+    </li>
+);

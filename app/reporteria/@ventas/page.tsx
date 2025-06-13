@@ -2,7 +2,7 @@
 
 import Pagination from "@/components/pagination";
 import DynamicTable, { DataItem } from "@/components/table";
-import { FilterSection } from "../components/filter-data"; // Ruta al componente
+import { FilterSection } from "../components/filter-section"; // Ruta al componente
 import { useGetMutation } from "@/hooks/reducers/api_int";
 import { LoadingSection } from "@/template/loading-screen";
 import { Filter } from "lucide-react";
@@ -86,8 +86,8 @@ export default function User() {
         <FilterSection
           onApply={handleApplyFilters}
           onReset={handleResetFilters}
-          config={config}
-          filterFunction={getData}
+        /* config={config}
+        filterFunction={getData} */
         />
       )}
 
