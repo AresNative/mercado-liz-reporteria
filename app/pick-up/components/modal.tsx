@@ -73,7 +73,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
         const { data: Response } = await putOrder({
             url: "citas",
             data: dataUpdater,
-            ID: id
+            id: id
         });
         console.log(Response);
     };

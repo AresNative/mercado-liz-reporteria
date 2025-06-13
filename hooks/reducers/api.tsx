@@ -50,8 +50,8 @@ export const api = createApi({
             extraOptions: { maxRetries: 2 }
         }),
         put: builder.mutation({
-            query: ({ url, data, signal }) => ({
-                url: `v2/update/${url}`,
+            query: ({ id, url, data, signal }) => ({
+                url: `v2/update/${url}?ID=${id}`,
                 method: "POST",
                 body: JSON.stringify(data),
                 signal
