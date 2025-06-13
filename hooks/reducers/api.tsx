@@ -1,6 +1,6 @@
 import { EnvConfig } from "@/utils/constants/env.config";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { getCookie } from "./auth";
+import { getCookie } from "@/utils/functions/cookies";
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 
 const { api: apiUrl } = EnvConfig();

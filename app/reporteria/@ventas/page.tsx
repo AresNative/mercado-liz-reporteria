@@ -36,8 +36,8 @@ export default function User() {
       });
 
       const processedData = data.data.map((item: DataItem, index: number) => ({
-        ...item,
-        ID: item.ID || index
+        // Asegurarse de que cada item tenga un ID único
+        ID: item.ID || index, ...item,
       }));
 
       setTotalPages(data.totalPages || 1);
@@ -86,6 +86,8 @@ export default function User() {
         <FilterSection
           onApply={handleApplyFilters}
           onReset={handleResetFilters}
+          config={config}
+          filterFunction={getData}
         />
       )}
 

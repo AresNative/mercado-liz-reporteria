@@ -1,6 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { EnvConfig } from "@/utils/constants/env.config";
 import { getLocalStorageItem, removeFromLocalStorage, setLocalStorageItem } from "@/utils/functions/local-storage";
+import { getCookie } from "@/utils/functions/cookies";
 
 const { api: apiUrl } = EnvConfig();
 
@@ -76,10 +77,7 @@ export const auth = createApi({
 });
 
 // Utilidad para leer cookies del cliente
-export function getCookie(name: string): string | null {
-    const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-    return match ? decodeURIComponent(match[2]) : null;
-}
+
 
 export const {
     usePostLogutMutation,
