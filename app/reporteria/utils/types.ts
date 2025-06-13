@@ -1,3 +1,4 @@
+import { config } from "./../../middleware";
 export type ReportType = "COMPRA" | "VENTA";
 
 export interface ReportConfig {
@@ -21,3 +22,29 @@ export interface ReporteriaFilters {
     Direction: string;
   };
 }
+
+export type FilterType = { Key: string; Value: string; Operator: string };
+export type SelectType = { Key: string };
+export type OrderByType = { Key: string; Direction: "asc" | "desc" };
+
+export interface FilterSectionProps {
+  onApply: (filters: {
+    Filtros: FilterType[];
+    Selects: SelectType[];
+    OrderBy: OrderByType;
+  }) => void;
+  onReset: () => void;
+  config: string;
+  filterFunction: any;
+}
+
+export type FormValues = {
+  Filtros: FilterType[];
+  Selects: SelectType[];
+  OrderBy: OrderByType;
+  DateFilters: {
+    startDate: string;
+    endDate: string;
+    preset: string;
+  };
+};

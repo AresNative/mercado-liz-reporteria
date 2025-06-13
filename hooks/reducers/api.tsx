@@ -1,6 +1,6 @@
 import { EnvConfig } from "@/utils/constants/env.config";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { getCookie } from "./auth";
+import { getCookie } from "@/utils/functions/cookies";
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 
 const { api: apiUrl } = EnvConfig();
@@ -49,6 +49,19 @@ export const api = createApi({
             }),
             extraOptions: { maxRetries: 2 }
         }),
+        put: builder.mutation({
+            query: ({ id, url, data, signal }) => ({
+                url: `v2/update/${url}?ID=${id}`,
+                method: "POST",
+                body: JSON.stringify(data),
+                signal
+            }),
+            transformErrorResponse: (response: any) => ({
+                status: response.status,
+                message: response.data?.message || 'Error fetching data',
+            }),
+            extraOptions: { maxRetries: 2 }
+        }),
         getArticulosById: builder.query({
             query: ({ page, pageSize, id, filtro, categoria, listaPrecio, signal }) => ({
                 url: `v1/pick-up`,
@@ -75,5 +88,6 @@ export const api = createApi({
 export const {
     useGetMutation,
     usePostMutation,
+    usePutMutation,
     useGetArticulosByIdQuery,
 } = api;

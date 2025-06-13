@@ -1,7 +1,7 @@
 import { colorClasses } from "@/utils/constants/colors";
 
 interface BadgeProps {
-    color: 'green' | 'red' | 'yellow' | 'blue' | 'green' | 'indigo' | 'pink' | 'gray' | 'black' | 'white';
+    color: 'green' | 'red' | 'yellow' | 'blue' | 'purple' | 'indigo' | 'pink' | 'gray' | 'black' | 'white';
     text: string;
 }
 

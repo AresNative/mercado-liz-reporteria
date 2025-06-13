@@ -69,15 +69,15 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
                 id={modalName}
                 ref={dialogRef}
                 open={isOpen}
-                className={cn("fixed inset-0 z-50 max-h-screen bg-transparent", maxWidthClasses[maxWidth])}
+                className={cn("inset-0 z-50 bg-transparent max-h-screen ", maxWidthClasses[maxWidth])}
                 aria-modal="true"
                 aria-labelledby={`modal-${modalName}`}>
 
-                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={handleBackdropClick} />
+                <div className="fixed inset-0 bg-black/20 bg-opacity-75 transition-opacity" onClick={handleBackdropClick} />
 
                 <section
                     className={cn(
-                        "relative transform max-h-screen overflow-auto w-11/12 m-auto sm:w-auto rounded-lg bg-white dark:bg-zinc-800 text-left shadow-xl transition-all my-0 sm:mb-8 ",
+                        "relative max-h-screen overflow-auto w-11/12 rounded-lg bg-white dark:bg-zinc-800 text-left shadow-xl transition-all my-0 sm:mb-8 ",
                         maxWidthClasses[maxWidth],
                     )}
                 >
@@ -99,13 +99,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
                     </form>
 
                     {/* Content */}
-                    <div className="bg-white h-full overflow-auto dark:bg-zinc-800 px-4 pb-4 pt-5 sm:p-6">
-                        <div className="sm:flex sm:items-start h-full">
-                            <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full h-full">
-                                <div className="mt-1 flex flex-col">{children}</div>
-                            </div>
-                        </div>
-                    </div>
+                    <main className="p-4 m-auto">{children}</main>
                 </section>
             </dialog>
         </>
