@@ -1,3 +1,4 @@
+import { config } from "./../../middleware";
 export type ReportType = "COMPRA" | "VENTA";
 
 export interface ReportConfig {
@@ -33,6 +34,8 @@ export interface FilterSectionProps {
     OrderBy: OrderByType;
   }) => void;
   onReset: () => void;
+  config: string;
+  filterFunction: any;
 }
 
 export type FormValues = {

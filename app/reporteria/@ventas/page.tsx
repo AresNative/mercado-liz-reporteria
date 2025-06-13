@@ -86,8 +86,8 @@ export default function User() {
         <FilterSection
           onApply={handleApplyFilters}
           onReset={handleResetFilters}
-        /* config={config}
-        filterFunction={getData} */
+          config={config}
+          filterFunction={getData}
         />
       )}
 

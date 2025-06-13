@@ -14,9 +14,11 @@ interface FilterRowProps {
     register: any;
     onRemove: () => void;
     isLast: boolean;
+    config: string;
+    filterFunction: any;
 }
 
-export const FilterRow = ({ index, control, register, onRemove, isLast }: FilterRowProps) => (
+export const FilterRow = ({ index, control, register, onRemove, isLast, config, filterFunction }: FilterRowProps) => (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-gray-50 dark:bg-zinc-700/50 rounded-lg border border-gray-200 dark:border-zinc-600">
         <div className="md:col-span-5">
             <label className="sr-only" htmlFor={`filter-field-${index}`}>
@@ -70,7 +72,7 @@ export const FilterRow = ({ index, control, register, onRemove, isLast }: Filter
                     <AutoComplete
                         value={field.value}
                         onChange={field.onChange}
-                        fetchOptions={fetchNames}
+                        fetchOptions={(query, page, signal) => fetchNames(query, page, config, filterFunction, signal)}
                         placeholder="Valor a filtrar..."
                     />
                 )}

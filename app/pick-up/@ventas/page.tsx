@@ -102,7 +102,7 @@ export default function AdminDashboard() {
         <div className="min-h-screen text-gray-900">
             <div className="mx-auto max-w-7xl p-4 md:p-6">
                 <header className="mb-8">
-                    <h1 className="flex items-center text-2xl font-bold md:text-3xl">Portal de PickUp</h1>
+                    <h1 className="flex items-center text-2xl font-bold md:text-3xl">Portal de Pick Up</h1>
                     <p className="mt-2 text-gray-600">Gestiona y visualiza todos los pedidos</p>
                 </header>
 

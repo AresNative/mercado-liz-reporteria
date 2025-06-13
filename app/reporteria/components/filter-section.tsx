@@ -8,7 +8,7 @@ import { FilterRow } from "./filter-row";
 import { OrderBySection } from "./order-by-section";
 import { SelectFieldRow } from "./select-field-row";
 
-export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
+export const FilterSection = ({ onApply, onReset, config, filterFunction }: FilterSectionProps) => {
     const { control, register, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
         defaultValues: {
             Filtros: [{ Key: "", Value: "", Operator: "" }],
@@ -22,8 +22,11 @@ export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
     const { fields: selects, append: addSelectField, remove: removeSelectField } = useFieldArray({ control, name: "Selects" });
 
     const onSubmit = (data: FormValues) => {
-        const baseFilters = data.Filtros.filter(f => f.Key && f.Operator && f.Key !== "FechaEmision");
-        const dateFilters = [];
+        const baseFilters = data.Filtros
+            .filter(f => f.Key && f.Operator)  // Solo filtros con Key y Operator definidos
+            .filter(f => f.Key !== "FechaEmision");  // Excluir campo de fecha
+        const dateFilters = data.Filtros
+            .filter(f => f.Key === "FechaEmision" && f.Value);  // Solo filtros de fecha con valor   ;
 
         if (data.DateFilters.startDate) {
             dateFilters.push({
@@ -84,6 +87,8 @@ export const FilterSection = ({ onApply, onReset }: FilterSectionProps) => {
                             register={register}
                             onRemove={() => removeFiltro(idx)}
                             isLast={filtros.length <= 1}
+                            filterFunction={filterFunction}
+                            config={config}
                         />
                     ))}
                 </div>

@@ -1,11 +1,12 @@
 "use client";
 
+import useDebounce from "@/hooks/use-debounce";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 interface AutocompleteSelectProps {
     value: string;
     onChange: (value: string) => void;
-    fetchOptions: (query: string, page: number) => Promise<{ options: string[]; hasMore: boolean }>;
+    fetchOptions: (query: string, page: number, signal?: AbortSignal) => Promise<{ options: string[]; hasMore: boolean }>;
     placeholder?: string;
 }
 
@@ -34,24 +35,34 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
         observerRef.current.observe(node);
     }, [loading, hasMore]);
 
+    const debouncedValue = useDebounce(inputValue, 500);
+
     useEffect(() => {
+        const controller = new AbortController();
         const fetchData = async () => {
-            if (!isOpen) return;
+            if (!isOpen || !debouncedValue) return;
 
             setLoading(true);
             try {
-                const { options: newOptions, hasMore } = await fetchOptions(inputValue, 1);
+                const { options: newOptions, hasMore } = await fetchOptions(debouncedValue, 1, controller.signal);
                 setOptions(newOptions);
                 setHasMore(hasMore);
                 setPage(1);
+            } catch (error) {
+                if ((error as any).name !== 'AbortError') {
+                    console.error("Error fetching options:", error);
+                }
             } finally {
                 setLoading(false);
             }
         };
 
-        const timer = setTimeout(fetchData, 300);
-        return () => clearTimeout(timer);
-    }, [inputValue, isOpen, fetchOptions]);
+        fetchData();
+
+        return () => controller.abort();
+    }, [debouncedValue, isOpen, fetchOptions]);
+
+
 
     const loadMore = useCallback(async () => {
         if (loading || !hasMore) return;
@@ -111,6 +122,7 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(e.target.value);
+        onChange(e.target.value);
         if (!isOpen) setIsOpen(true);
         setSelectedIndex(-1);
     };

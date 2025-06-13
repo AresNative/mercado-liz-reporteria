@@ -1,5 +1,5 @@
 import { Modal } from "@/components/modal";
-import { useGetMutation, usePostMutation } from "@/hooks/reducers/api";
+import { useGetMutation, usePutMutation } from "@/hooks/reducers/api";
 import { cn } from "@/utils/functions/cn";
 import { Check, ChevronRight, FileText, MessageSquare, ScanBarcode } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -24,7 +24,7 @@ interface PedidoData {
 const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
     const [pedidoDetails, setPedidoDetails] = useState<PedidoData | null>(null);
     const [getWithFilter] = useGetMutation();
-    const [putOrder] = usePostMutation();
+    const [putOrder] = usePutMutation();
 
     const handleCheckboxChange = (index: number) => {
         if (!pedidoDetails) return;
@@ -226,10 +226,9 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                                 Id_Cliente: pedidoDetails.id_cliente,
                                                 Id_Usuario_Responsable: 1,
                                                 Fecha: new Date().toISOString(),
-                                                Plan: "Pickup",
+                                                Plan: "Pick Up",
                                                 Id_Lista: idListas,
-                                                Estado: "listo",
-                                                Sucursal: pedidoDetails.sucursal,
+                                                Estado: "listo"
                                             }
                                         ]
                                     }, idPedido)
@@ -249,10 +248,9 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                             Id_Cliente: pedidoDetails.id_cliente,
                                             Id_Usuario_Responsable: 1,
                                             Fecha: new Date().toISOString(),
-                                            Plan: "Pickup",
+                                            Plan: "Pick Up",
                                             Id_Lista: idListas,
-                                            Estado: "proceso",
-                                            Sucursal: pedidoDetails.sucursal,
+                                            Estado: "proceso"
                                         }
                                     ]
                                 }, idPedido)}
