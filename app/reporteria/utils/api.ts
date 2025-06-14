@@ -23,11 +23,10 @@ export const fetchNames = async (
   const nombres = data.data
     .map((row: any) => row.Nombre)
     .filter((nombre: any): nombre is string => typeof nombre === "string");
-
-  const hasMore = data.totalPages >= page; // Si hay 5 elementos, puede haber más
+  console.log(data.totalPages > page);
 
   return {
     options: nombres,
-    hasMore,
+    hasMore: data.totalPages > page,
   };
 };
