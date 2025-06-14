@@ -1,5 +1,4 @@
-import { config } from "./../../middleware";
-export type ReportType = "COMPRA" | "VENTA";
+export type ReportType = "compras" | "ventas";
 
 export interface ReportConfig {
   type: ReportType;

@@ -1,16 +1,16 @@
 import { ReportConfig, ReportType } from "../utils/types";
 
 export const REPORT_CONFIGS: Record<ReportType, ReportConfig> = {
-  COMPRA: {
-    type: "COMPRA",
-    title: "Compras",
+  compras: {
+    type: "compras",
+    title: "compras",
     amountKey: "Costo",
     mainField: "Proveedor",
     sumKey: "Proveedor",
   },
-  VENTA: {
-    type: "VENTA",
-    title: "Ventas",
+  ventas: {
+    type: "ventas",
+    title: "ventas",
     amountKey: "Importe",
     mainField: "Cliente",
     sumKey: "Cliente",
