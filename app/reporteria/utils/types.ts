@@ -1,4 +1,10 @@
-export type ReportType = "compras" | "ventas";
+export type ReportType =
+  | "compras"
+  | "ventas"
+  | "almacen"
+  | "gastos"
+  | "utilidad"
+  | "mermas";
 
 export interface ReportConfig {
   type: ReportType;
