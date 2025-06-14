@@ -118,7 +118,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
 
     return (
         <Modal modalName={name} title={title}>
-            <div className="rounded-xl h-full">
+            <>
                 <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
                     <FileText className="h-6 w-6 text-purple-600" />
                 </span>
@@ -271,7 +271,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                         Cargando detalles del pedido...
                     </p>
                 )}
-            </div>
+            </>
         </Modal>
     );
 };

@@ -37,7 +37,8 @@ export default function User() {
 
       const processedData = data.data.map((item: DataItem, index: number) => ({
         // Asegurarse de que cada item tenga un ID único
-        ID: item.ID || index, ...item,
+        ID: item.ID || index,
+        ...item,
       }));
 
       setTotalPages(data.totalPages || 1);

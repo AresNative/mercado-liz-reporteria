@@ -6,9 +6,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 interface AutocompleteSelectProps {
     value: string;
     onChange: (value: string) => void;
-    fetchOptions: (query: string, page: number, signal?: AbortSignal) => Promise<{ options: string[]; hasMore: boolean }>;
+    fetchOptions: (
+        query: string,
+        page: number,
+        signal?: AbortSignal
+    ) => Promise<{ options: string[]; hasMore: boolean }>;
     placeholder?: string;
 }
+
 
 export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: AutocompleteSelectProps) => {
     const [inputValue, setInputValue] = useState(value);
@@ -60,23 +65,28 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
         fetchData();
 
         return () => controller.abort();
-    }, [debouncedValue, isOpen, fetchOptions]);
-
-
+    }, [debouncedValue, isOpen]);
 
     const loadMore = useCallback(async () => {
         if (loading || !hasMore) return;
 
+        const controller = new AbortController();
         setLoading(true);
+
         try {
-            const { options: newOptions, hasMore: newHasMore } = await fetchOptions(inputValue, page + 1);
+            const { options: newOptions, hasMore: newHasMore } = await fetchOptions(inputValue, page + 1, controller.signal);
             setOptions(prev => [...prev, ...newOptions]);
             setHasMore(newHasMore);
             setPage(prev => prev + 1);
+        } catch (error) {
+            if ((error as any).name !== 'AbortError') {
+                console.error("Error loading more options:", error);
+            }
         } finally {
             setLoading(false);
         }
     }, [inputValue, page, loading, hasMore, fetchOptions]);
+
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -122,7 +132,6 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(e.target.value);
-        onChange(e.target.value);
         if (!isOpen) setIsOpen(true);
         setSelectedIndex(-1);
     };
