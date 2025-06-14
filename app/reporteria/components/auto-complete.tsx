@@ -6,9 +6,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 interface AutocompleteSelectProps {
     value: string;
     onChange: (value: string) => void;
-    fetchOptions: (query: string, page: number, signal?: AbortSignal) => Promise<{ options: string[]; hasMore: boolean }>;
+    fetchOptions: (
+        query: string,
+        page: number,
+        signal?: AbortSignal
+    ) => Promise<{ options: string[]; hasMore: boolean }>;
     placeholder?: string;
 }
+
 
 export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: AutocompleteSelectProps) => {
     const [inputValue, setInputValue] = useState(value);
@@ -21,19 +26,6 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
     const containerRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLUListElement>(null);
     const observerRef = useRef<IntersectionObserver>(null);
-
-    const lastOptionRef = useCallback((node: HTMLLIElement) => {
-        if (loading || !node || !hasMore) return;
-
-        if (observerRef.current) observerRef.current.disconnect();
-
-        observerRef.current = new IntersectionObserver(
-            (entries) => entries[0].isIntersecting && hasMore && loadMore(),
-            { threshold: 1.0 }
-        );
-
-        observerRef.current.observe(node);
-    }, [loading, hasMore]);
 
     const debouncedValue = useDebounce(inputValue, 500);
 
@@ -60,23 +52,56 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
         fetchData();
 
         return () => controller.abort();
-    }, [debouncedValue, isOpen, fetchOptions]);
-
-
+    }, [debouncedValue, isOpen]);
 
     const loadMore = useCallback(async () => {
         if (loading || !hasMore) return;
 
+        const controller = new AbortController();
         setLoading(true);
+
+        const nextPage = page + 1;
+
         try {
-            const { options: newOptions, hasMore: newHasMore } = await fetchOptions(inputValue, page + 1);
+            const { options: newOptions, hasMore: newHasMore } = await fetchOptions(
+                debouncedValue, // usa el valor debounced
+                nextPage,
+                controller.signal
+            );
             setOptions(prev => [...prev, ...newOptions]);
             setHasMore(newHasMore);
-            setPage(prev => prev + 1);
+            setPage(nextPage);
+        } catch (error) {
+            if ((error as any).name !== 'AbortError') {
+                console.error("Error loading more options:", error);
+            }
         } finally {
             setLoading(false);
         }
-    }, [inputValue, page, loading, hasMore, fetchOptions]);
+    }, [debouncedValue, page, loading, hasMore]);
+
+
+    const lastOptionRef = useCallback((node: HTMLLIElement | null) => {
+        if (!node || loading || !hasMore) return;
+
+        if (observerRef.current) observerRef.current.disconnect();
+
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    loadMore();
+                }
+            },
+            {
+                root: listRef.current, // Observa dentro del scroll del UL
+                rootMargin: '0px',
+                threshold: 0.1, // Más permisivo
+            }
+        );
+
+        observerRef.current.observe(node);
+    }, [loadMore, hasMore, loading]);
+
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -122,7 +147,6 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(e.target.value);
-        onChange(e.target.value);
         if (!isOpen) setIsOpen(true);
         setSelectedIndex(-1);
     };
@@ -151,13 +175,21 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
                             {options.map((option, index) => (
                                 <li
                                     key={`${option}-${index}`}
-                                    ref={index === options.length - 1 ? lastOptionRef : null}
-                                    className={`px-3 py-2 cursor-pointer ${index === selectedIndex ? 'bg-blue-100 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-zinc-600'}`}
+                                    ref={
+                                        hasMore && index === options.length - 1
+                                            ? lastOptionRef
+                                            : null
+                                    }
+                                    className={`px-3 py-2 cursor-pointer ${index === selectedIndex
+                                        ? 'bg-blue-100 dark:bg-blue-900/30'
+                                        : 'hover:bg-gray-50 dark:hover:bg-zinc-600'
+                                        }`}
                                     onClick={() => handleSelect(option)}
                                 >
                                     {option}
                                 </li>
                             ))}
+
                             {loading && <LoadingItem />}
                         </>
                     ) : !loading ? (

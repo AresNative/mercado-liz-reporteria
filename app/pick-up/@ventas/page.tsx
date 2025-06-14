@@ -109,17 +109,17 @@ export default function AdminDashboard() {
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
                     <div className="p-4">
                         <header className="mb-4 flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                            <h2 className="text-lg font-semibold">Pedidos Agendadas</h2>
+                            <h2 className="text-lg font-semibold">Pedidos Agendados</h2>
                             <section className="flex flex-wrap items-center gap-2">
                                 <div className="relative flex-1 min-w-[200px]">
                                     <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                                     <input
                                         type="text"
-                                        placeholder="Buscar paciente o ID..."
-                                        className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                                        placeholder="Buscar pedido o ID..."
+                                        className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
                                     />
                                 </div>
-                                <button className="flex items-center rounded-md px-3 py-2 text-sm font-medium bg-purple-600 text-white">
+                                <button className="flex items-center rounded-md px-3 py-2 text-sm font-medium bg-green-600 text-white">
                                     <Filter className="mr-1 h-4 w-4" />
                                     Filtrar
                                 </button>
@@ -172,7 +172,7 @@ export default function AdminDashboard() {
                                                     <Badge text={row.plan} color="blue" />
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <Badge text={row.estado} color="purple" />
+                                                    <Badge text={row.estado} color="green" />
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     {branches.map((branch: any, keyBranch) => (branch.precio === row.sucursal ? (
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
                                 <button className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-100">
                                     <ChevronLeft className="h-4 w-4" />
                                 </button>
-                                <button className="flex h-8 w-8 items-center justify-center rounded-md bg-purple-600 text-white">
+                                <button className="flex h-8 w-8 items-center justify-center rounded-md bg-green-600 text-white">
                                     1
                                 </button>
                                 <button className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-100">

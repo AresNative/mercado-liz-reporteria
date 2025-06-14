@@ -4,30 +4,29 @@ export const fetchNames = async (
   config: string,
   filterFunction: any,
   signal?: AbortSignal
-) => {
+): Promise<{ options: string[]; hasMore: boolean }> => {
   const { data } = await filterFunction({
     url: `reporteria/${config}`,
-    pageSize: 10,
-    page: page,
+    pageSize: 5,
+    page,
     sum: false,
-    distinct: false,
+    distinct: true,
     signal,
     filters: {
       Filtros: [
-        { Key: "Nombre", Value: "like", Operator: query.toLowerCase() },
+        { Key: "Nombre", Value: query.toLowerCase(), Operator: "like" },
       ],
+      Selects: [{ Key: "Nombre" }],
     },
   });
 
-  const filtered = data?.filter((item: any) =>
-    item.nombre.toLowerCase().includes(query.toLowerCase())
-  );
-
-  const pageSize = 5;
-  const startIndex = (page - 1) * pageSize;
+  const nombres = data.data
+    .map((row: any) => row.Nombre)
+    .filter((nombre: any): nombre is string => typeof nombre === "string");
+  console.log(data.totalPages > page);
 
   return {
-    options: /* filtered.slice(startIndex, startIndex + pageSize) */ [],
-    hasMore: startIndex + pageSize < filtered.length,
+    options: nombres,
+    hasMore: data.totalPages > page,
   };
 };
