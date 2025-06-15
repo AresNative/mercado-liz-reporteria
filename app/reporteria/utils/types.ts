@@ -2,8 +2,8 @@ export type ReportType =
   | "compras"
   | "ventas"
   | "almacen"
-  | "gastos"
-  | "utilidad"
+  /*   | "gastos" */
+  /*  | "utilidad" */
   | "mermas";
 
 export interface ReportConfig {
