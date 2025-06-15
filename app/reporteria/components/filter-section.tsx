@@ -1,38 +1,83 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
-import { Plus } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 import { FilterSectionProps, FormValues } from "../utils/types";
 import { DateFilterSection } from "./date-filter-section";
 import { FilterRow } from "./filter-row";
 import { OrderBySection } from "./order-by-section";
 import { SelectFieldRow } from "./select-field-row";
+import { getLocalStorageItem, setLocalStorageItem, removeFromLocalStorage } from "@/utils/functions/local-storage";
 
-export const FilterSection = ({ onApply, onReset, config, filterFunction }: FilterSectionProps) => {
-    const { control, register, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
+const SELECTS_STORAGE_KEY = "select_fields_config";
+
+export const FilterSection = ({
+    onApply,
+    onReset,
+    config,
+    filterFunction,
+}: FilterSectionProps) => {
+    const {
+        control,
+        register,
+        handleSubmit,
+        reset,
+        watch,
+        setValue,
+    } = useForm<FormValues>({
         defaultValues: {
             Filtros: [{ Key: "", Value: "", Operator: "" }],
             Selects: [{ Key: "" }],
             OrderBy: { Key: "", Direction: "asc" },
-            DateFilters: { startDate: "", endDate: "", preset: "" }
-        }
+            DateFilters: { startDate: "", endDate: "", preset: "" },
+        },
     });
 
-    const { fields: filtros, append: addFiltro, remove: removeFiltro } = useFieldArray({ control, name: "Filtros" });
-    const { fields: selects, append: addSelectField, remove: removeSelectField } = useFieldArray({ control, name: "Selects" });
+    const {
+        fields: filtros,
+        append: addFiltro,
+        remove: removeFiltro,
+    } = useFieldArray({ control, name: "Filtros" });
+
+    const {
+        fields: selects,
+        append: addSelectField,
+        remove: removeSelectField,
+        replace: replaceSelectFields,
+    } = useFieldArray({ control, name: "Selects" });
+
+    // 🔁 Cargar Selects desde localStorage
+    useEffect(() => {
+        const storedSelects = getLocalStorageItem(SELECTS_STORAGE_KEY);
+        if (storedSelects && Array.isArray(storedSelects)) {
+            replaceSelectFields(storedSelects.length > 0 ? storedSelects : [{ Key: "" }]);
+        }
+    }, [replaceSelectFields]);
+
+    // ✅ Guardar Selects en localStorage cada que cambian
+    const watchSelects = watch("Selects");
+    useEffect(() => {
+        if (watchSelects) {
+            const cleaned = watchSelects.filter(s => s?.Key);
+            setLocalStorageItem(SELECTS_STORAGE_KEY, cleaned);
+        }
+    }, [watchSelects]);
 
     const onSubmit = (data: FormValues) => {
         const baseFilters = data.Filtros
-            .filter(f => f.Key && f.Operator)  // Solo filtros con Key y Operator definidos
-            .filter(f => f.Key !== "FechaEmision");  // Excluir campo de fecha
-        const dateFilters = data.Filtros
-            .filter(f => f.Key === "FechaEmision" && f.Value);  // Solo filtros de fecha con valor   ;
+            .filter((f) => f.Key && f.Operator)
+            .filter((f) => f.Key !== "FechaEmision");
+
+        const dateFilters = data.Filtros.filter(
+            (f) => f.Key === "FechaEmision" && f.Value
+        );
 
         if (data.DateFilters.startDate) {
             dateFilters.push({
                 Key: "FechaEmision",
                 Value: data.DateFilters.startDate,
-                Operator: ">="
+                Operator: ">=",
             });
         }
 
@@ -40,21 +85,59 @@ export const FilterSection = ({ onApply, onReset, config, filterFunction }: Filt
             dateFilters.push({
                 Key: "FechaEmision",
                 Value: data.DateFilters.endDate,
-                Operator: "<="
+                Operator: "<=",
             });
         }
 
+        // 🔄 Guardar selectFields también al aplicar filtros
+        setLocalStorageItem(
+            SELECTS_STORAGE_KEY,
+            data.Selects.filter((s) => s.Key)
+        );
+
         onApply({
             Filtros: [...baseFilters, ...dateFilters],
-            Selects: data.Selects.filter(s => s.Key),
-            OrderBy: data.OrderBy.Key ? data.OrderBy : { Key: "", Direction: "asc" }
+            Selects: data.Selects.filter((s) => s.Key),
+            OrderBy: data.OrderBy.Key ? data.OrderBy : { Key: "", Direction: "asc" },
         });
     };
 
     const handleReset = () => {
         reset();
+        removeFromLocalStorage(SELECTS_STORAGE_KEY);
         onReset();
     };
+
+    const SELECTS_PROFILES_KEY = "select_profiles";
+
+    const getAllSelectProfiles = () => {
+        return getLocalStorageItem(SELECTS_PROFILES_KEY) || {};
+    };
+
+    const saveSelectProfile = (name: string, value: any[]) => {
+        const profiles = getAllSelectProfiles();
+        profiles[name] = value;
+        setLocalStorageItem(SELECTS_PROFILES_KEY, profiles);
+    };
+
+    const deleteSelectProfile = (name: string) => {
+        const profiles = getAllSelectProfiles();
+        delete profiles[name];
+        setLocalStorageItem(SELECTS_PROFILES_KEY, profiles);
+    };
+
+    const [profileName, setProfileName] = useState("");
+    const [selectedProfile, setSelectedProfile] = useState("");
+    const [availableProfiles, setAvailableProfiles] = useState<string[]>([]);
+
+    const refreshProfiles = () => {
+        const profiles = getAllSelectProfiles();
+        setAvailableProfiles(Object.keys(profiles));
+    };
+
+    useEffect(() => {
+        refreshProfiles();
+    }, []);
 
     return (
         <form
@@ -66,7 +149,9 @@ export const FilterSection = ({ onApply, onReset, config, filterFunction }: Filt
             {/* Filtros */}
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filtros de búsqueda</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        Filtros de búsqueda
+                    </h3>
                     <button
                         type="button"
                         onClick={() => addFiltro({ Key: "", Value: "", Operator: "" })}
@@ -78,7 +163,11 @@ export const FilterSection = ({ onApply, onReset, config, filterFunction }: Filt
                     </button>
                 </div>
 
-                <div className="space-y-3" role="group" aria-label="Lista de filtros">
+                <div
+                    className="space-y-3"
+                    role="group"
+                    aria-label="Lista de filtros"
+                >
                     {filtros.map((field, idx) => (
                         <FilterRow
                             key={field.id}
@@ -93,11 +182,116 @@ export const FilterSection = ({ onApply, onReset, config, filterFunction }: Filt
                     ))}
                 </div>
             </div>
+            {/* Manejo de perfiles de columnas */}
+            <div className="space-y-6 p-6 border border-gray-200 rounded-lg bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
+                {/* Sección de selección y eliminación de perfil */}
+                <fieldset className="space-y-3">
+                    <legend className="text-sm font-medium text-gray-900 dark:text-gray-100">Seleccionar perfil existente</legend>
+                    <div className="flex gap-3">
+                        <div className="flex-1">
+                            <label htmlFor="profile-select" className="sr-only">
+                                Seleccionar perfil
+                            </label>
+                            <select
+                                id="profile-select"
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-blue-400"
+                                value={selectedProfile}
+                                onChange={(e) => {
+                                    const name = e.target.value
+                                    setSelectedProfile(name)
+                                    const profiles = getAllSelectProfiles()
+                                    if (profiles[name]) {
+                                        replaceSelectFields(profiles[name])
+                                    }
+                                }}
+                            >
+                                <option value="">Selecciona un perfil</option>
+                                {availableProfiles.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-            {/* Campos a Mostrar */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (selectedProfile) {
+                                    deleteSelectProfile(selectedProfile)
+                                    setSelectedProfile("")
+                                    refreshProfiles()
+                                }
+                            }}
+                            disabled={!selectedProfile}
+                            className="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                            aria-label={`Eliminar perfil ${selectedProfile || "seleccionado"}`}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="ml-2 hidden sm:inline">Eliminar</span>
+                        </button>
+                    </div>
+                </fieldset>
+
+                {/* Separador visual */}
+                <div className="border-t border-gray-200 dark:border-gray-600"></div>
+
+                {/* Sección de creación de nuevo perfil */}
+                <fieldset className="space-y-3">
+                    <legend className="text-sm font-medium text-gray-900 dark:text-gray-100">Crear nuevo perfil</legend>
+                    <div className="flex gap-3">
+                        <div className="flex-1">
+                            <label htmlFor="profile-name" className="sr-only">
+                                Nombre del nuevo perfil
+                            </label>
+                            <input
+                                id="profile-name"
+                                type="text"
+                                placeholder="Nombre del nuevo perfil"
+                                value={profileName}
+                                onChange={(e) => setProfileName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.preventDefault()
+                                        if (profileName.trim()) {
+                                            const cleaned = watch("Selects").filter((s) => s?.Key)
+                                            saveSelectProfile(profileName.trim(), cleaned)
+                                            setProfileName("")
+                                            refreshProfiles()
+                                        }
+                                    }
+                                }}
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-500 dark:focus:ring-blue-400"
+                            />
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (profileName.trim()) {
+                                    const cleaned = watch("Selects").filter((s) => s?.Key)
+                                    saveSelectProfile(profileName.trim(), cleaned)
+                                    setProfileName("")
+                                    refreshProfiles()
+                                }
+                            }}
+                            disabled={!profileName.trim()}
+                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                            aria-label="Guardar nuevo perfil"
+                        >
+                            <Save className="h-4 w-4" />
+                            <span className="ml-2 hidden sm:inline">Guardar</span>
+                        </button>
+                    </div>
+                </fieldset>
+            </div>
+
+            {/* Campos a mostrar */}
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Campos a mostrar</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        Campos a mostrar
+                    </h3>
                     <button
                         type="button"
                         onClick={() => addSelectField({ Key: "" })}
@@ -109,7 +303,11 @@ export const FilterSection = ({ onApply, onReset, config, filterFunction }: Filt
                     </button>
                 </div>
 
-                <div className="space-y-3" role="group" aria-label="Lista de campos a mostrar">
+                <div
+                    className="space-y-3"
+                    role="group"
+                    aria-label="Lista de campos a mostrar"
+                >
                     {selects.map((field, idx) => (
                         <SelectFieldRow
                             key={field.id}
@@ -125,8 +323,12 @@ export const FilterSection = ({ onApply, onReset, config, filterFunction }: Filt
             {/* Ordenar por */}
             <OrderBySection register={register} />
 
-            {/* Filtros de Fecha */}
-            <DateFilterSection register={register} watch={watch} setValue={setValue} />
+            {/* Filtros de fecha */}
+            <DateFilterSection
+                register={register}
+                watch={watch}
+                setValue={setValue}
+            />
 
             {/* Botones */}
             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200 dark:border-zinc-700">
