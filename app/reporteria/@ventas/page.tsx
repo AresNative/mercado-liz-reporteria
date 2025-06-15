@@ -14,7 +14,7 @@ export default function User() {
   const [getData, { isLoading }] = useGetMutation();
 
   // Estado para tipo de reporte
-  const [config, setConfig] = useState<ReportType>("ventas");
+  const [config, setConfig] = useState<ReportType>("compras");
 
   const [tableData, setTableData] = useState<DataItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);

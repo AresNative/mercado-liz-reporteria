@@ -1,6 +1,7 @@
 export const fetchNames = async (
   query: string,
   page: number,
+  key: string,
   config: string,
   filterFunction: any,
   signal?: AbortSignal
@@ -13,15 +14,13 @@ export const fetchNames = async (
     distinct: true,
     signal,
     filters: {
-      Filtros: [
-        { Key: "Nombre", Value: query.toLowerCase(), Operator: "like" },
-      ],
-      Selects: [{ Key: "Nombre" }],
+      Filtros: [{ Key: key, Value: query.toLowerCase(), Operator: "like" }],
+      Selects: [{ Key: key }],
     },
   });
 
   const nombres = data.data
-    .map((row: any) => row.Nombre)
+    .map((row: any) => row[key])
     .filter((nombre: any): nombre is string => typeof nombre === "string");
   console.log(data.totalPages > page);
 
