@@ -35,7 +35,7 @@ export const TablaPickUp = ({ data, handleOpenModal }: { data: any, handleOpenMo
                         </div>
                     </th>
                     <th className="px-4 py-3 font-medium">Cliente</th>
-                    <th className="px-4 py-3 font-medium">Fecha y Hora</th>
+                    <th className="px-4 py-3 font-medium">Fecha y hora de entrega</th>
                     <th className="px-4 py-3 font-medium">Servicio</th>
                     <th className="px-4 py-3 font-medium">Estado</th>
                     <th className="px-4 py-3 font-medium">Sucursal</th>

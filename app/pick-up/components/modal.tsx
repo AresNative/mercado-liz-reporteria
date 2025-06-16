@@ -225,7 +225,6 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                             {
                                                 Id_Cliente: pedidoDetails.id_cliente,
                                                 Id_Usuario_Responsable: 1,
-                                                Fecha: new Date().toISOString(),
                                                 Plan: "Pick Up",
                                                 Id_Lista: idListas,
                                                 Estado: "listo"
@@ -247,7 +246,6 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                         {
                                             Id_Cliente: pedidoDetails.id_cliente,
                                             Id_Usuario_Responsable: 1,
-                                            Fecha: new Date().toISOString(),
                                             Plan: "Pick Up",
                                             Id_Lista: idListas,
                                             Estado: "proceso"
