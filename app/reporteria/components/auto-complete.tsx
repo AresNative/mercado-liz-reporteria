@@ -27,7 +27,7 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
     const listRef = useRef<HTMLUListElement>(null);
     const observerRef = useRef<IntersectionObserver>(null);
 
-    const debouncedValue = useDebounce(inputValue, 500);
+    const debouncedValue = useDebounce(inputValue, 200);
 
     useEffect(() => {
         const controller = new AbortController();

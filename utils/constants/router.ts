@@ -6,6 +6,8 @@ import {
   Banknote,
   ListCheck,
   Receipt,
+  Truck,
+  Info,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -20,14 +22,9 @@ export const navigationDefault = [
     icon: Clock,
   },
   {
-    name: "Reporteria",
-    href: "/reporteria",
-    icon: ChartArea,
-  },
-  {
-    name: "Proyectos",
-    href: "/proyectos",
-    icon: ClipboardList,
+    name: "Informacion",
+    href: "/informacion",
+    icon: Info,
   },
 ];
 
@@ -41,6 +38,11 @@ export const navigationUser = [
     name: "Reporteria",
     href: "/reporteria",
     icon: ChartArea,
+  },
+  {
+    name: "Pick Up",
+    href: "/pick-up",
+    icon: Truck,
   },
   {
     name: "Proyectos",
