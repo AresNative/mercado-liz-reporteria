@@ -77,7 +77,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
 
                 <section
                     className={cn(
-                        "relative max-h-screen overflow-auto w-11/12 rounded-lg bg-white dark:bg-zinc-800 text-left shadow-xl transition-all my-0 sm:mb-8 ",
+                        "relative max-h-[90vh] overflow-auto w-11/12 rounded-lg bg-white dark:bg-zinc-800 text-left shadow-xl transition-all my-0 sm:mb-8 ",
                         maxWidthClasses[maxWidth],
                     )}
                 >

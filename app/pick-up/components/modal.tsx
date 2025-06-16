@@ -119,8 +119,8 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
     return (
         <Modal modalName={name} title={title}>
             <>
-                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
-                    <FileText className="h-6 w-6 text-purple-600" />
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                    <FileText className="h-6 w-6 text-green-600" />
                 </span>
 
                 {pedidoDetails ? (
@@ -153,48 +153,49 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                     {pedidoDetails.array_lista.map((item, key) => (
                                         <article
                                             key={key}
-                                            className="border my-2 rounded-lg border-l-4 border-l-purple-500 shadow-sm"
+                                            className="border my-2 rounded-lg border-l-4 border-l-green-500 shadow-sm"
                                         >
                                             <section className="p-4">
                                                 <header className="flex flex-col gap-4">
                                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                        <div className="space-y-1">
+                                                        <ul className="space-y-1">
                                                             <hgroup className="flex items-center gap-2">
                                                                 <h3 className="font-medium">{item.nombre}</h3>
-                                                                <mark className="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-semibold">
+                                                                <mark className="inline-flex bg-green-500 text-white items-center rounded px-2.5 py-0.5 text-xs font-semibold">
                                                                     {item.categoria}
                                                                 </mark>
                                                             </hgroup>
                                                             <dl className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
-                                                                <div className="flex items-center gap-1">
+                                                                <span className="flex items-center gap-1">
                                                                     <dt>Cantidad:</dt>
                                                                     <dd className="font-medium">
                                                                         {item.quantity} {item.unidad}
                                                                     </dd>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
+                                                                </span>
+                                                                <span className="flex items-center gap-1">
                                                                     <ScanBarcode className="h-4 w-4" />
                                                                     <dd className="font-mono">{item.id}</dd>
-                                                                </div>
+                                                                </span>
+                                                                <span className="flex items-center gap-2 cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        className="w-4 h-4"
+                                                                        checked={item.recojido}
+                                                                        onChange={() => handleCheckboxChange(key)}
+                                                                    />
+                                                                    {item.recojido && (
+                                                                        <output className="flex gap-1 items-center text-sm text-green-600">
+                                                                            <Check className="inline h-4 w-4" /> Ready
+                                                                        </output>
+                                                                    )}
+                                                                </span>
                                                             </dl>
-                                                        </div>
+                                                        </ul>
 
-                                                        <label className="flex items-center gap-2 cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="w-4 h-4"
-                                                                checked={item.recojido}
-                                                                onChange={() => handleCheckboxChange(key)}
-                                                            />
-                                                            {item.recojido && (
-                                                                <output className="text-sm text-purple-600">
-                                                                    <Check className="inline h-4 w-4" /> Ready
-                                                                </output>
-                                                            )}
-                                                        </label>
+
                                                     </div>
 
-                                                    <nav className="flex items-center justify-between">
+                                                    {/*  <nav className="flex items-center justify-between">
                                                         <h4 className="flex items-center gap-2">
                                                             <MessageSquare className="h-4 w-4" />
                                                             <span className="text-sm font-medium">Comments (2)</span>
@@ -202,7 +203,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                                         <button className="text-sm text-blue-600">
                                                             <ChevronRight className="h-4 w-4" />
                                                         </button>
-                                                    </nav>
+                                                    </nav> */}
                                                 </header>
                                             </section>
                                         </article>
