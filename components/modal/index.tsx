@@ -69,7 +69,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
                 id={modalName}
                 ref={dialogRef}
                 open={isOpen}
-                className={cn("inset-0 z-50 bg-transparent max-h-screen ", maxWidthClasses[maxWidth])}
+                className={cn("inset-0 z-50 bg-transparent max-h-screen w-full")}
                 aria-modal="true"
                 aria-labelledby={`modal-${modalName}`}>
 
@@ -77,7 +77,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
 
                 <section
                     className={cn(
-                        "relative max-h-[90vh] overflow-auto w-11/12 rounded-lg bg-white dark:bg-zinc-800 text-left shadow-xl transition-all my-0 sm:mb-8 ",
+                        "relative max-h-screen md:max-h-[90vh] mx-auto overflow-auto md:w-11/12 md:rounded-lg bg-white dark:bg-zinc-800 text-left shadow-xl transition-all sm:mb-8 ",
                         maxWidthClasses[maxWidth],
                     )}
                 >

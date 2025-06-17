@@ -1,7 +1,7 @@
 import { Modal } from "@/components/modal";
 import { useGetMutation, usePutMutation } from "@/hooks/reducers/api";
 import { cn } from "@/utils/functions/cn";
-import { Check, ChevronRight, FileText, MessageSquare, ScanBarcode } from "lucide-react";
+import { Check, FileText, ScanBarcode } from "lucide-react";
 import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";

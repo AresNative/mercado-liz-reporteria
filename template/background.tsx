@@ -15,7 +15,7 @@ export default function Background({
           transition-all duration-300" />
 
             {/* Contenido principal */}
-            <div className="flex-grow z-10">
+            <div className="z-10">
                 {children}
             </div>
         </main>
