@@ -22,8 +22,6 @@ export const fetchNames = async (
   const nombres = data.data
     .map((row: any) => row[key])
     .filter((nombre: any): nombre is string => typeof nombre === "string");
-  console.log(data.totalPages > page);
-
   return {
     options: nombres,
     hasMore: data.totalPages > page,

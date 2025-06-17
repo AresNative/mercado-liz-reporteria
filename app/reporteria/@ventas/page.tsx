@@ -61,8 +61,6 @@ export default function User() {
   }, [page, activeFilters, config]);
 
   const handleApplyFilters = (newFilters: any) => {
-    console.log(newFilters);
-
     setActiveFilters(newFilters);
     setPage(1);
   };

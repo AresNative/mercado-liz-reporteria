@@ -70,12 +70,11 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
     };
 
     const updateCita = async (dataUpdater: any, id: number) => {
-        const { data: Response } = await putOrder({
+        await putOrder({
             url: "citas",
             data: dataUpdater,
             id: id
         });
-        console.log(Response);
     };
 
     const getPedidoInfo = async () => {
