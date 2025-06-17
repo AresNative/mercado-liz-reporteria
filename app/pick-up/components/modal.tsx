@@ -233,7 +233,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                     }, idPedido)
                                     getServerSideProps();
                                 }}
-                                className="bg-green-500 text-white px-4 py-2 rounded-md"
+                                className={cn("disabled:bg-green-300 disabled:cursor-default bg-green-500 text-white px-4 py-2 rounded-md cursor-pointer")}
                                 disabled={
                                     !pedidoDetails.array_lista.every(item => item.recojido)
                                 }
@@ -252,13 +252,13 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                         }
                                     ]
                                 }, idPedido)}
-                                className="bg-blue-500 text-white px-4 py-2 rounded-md"
+                                className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer"
                             >
                                 Proceso
                             </button>
                             <button
                                 onClick={generatePDF}
-                                className="bg-gray-500 text-white px-4 py-2 rounded-md flex items-center gap-2"
+                                className="bg-gray-500 text-white px-4 py-2 rounded-md flex items-center gap-2 cursor-pointer"
                             >
                                 <FileText className="h-4 w-4" /> PDF
                             </button>
