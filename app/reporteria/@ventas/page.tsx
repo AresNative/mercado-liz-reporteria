@@ -24,19 +24,22 @@ export default function User() {
   const [activeFilters, setActiveFilters] = useState({
     Filtros: [],
     Selects: [],
-    OrderBy: null
+    OrderBy: null,
+    sum: false,
+    distinct: false
   });
 
   async function handleGetData() {
     try {
+      const { sum, distinct, ...others } = activeFilters;
       const { data } = await getData({
         url: `reporteria/${config}`,
         pageSize: 10,
         page,
-        sum: false,
-        distinct: false,
+        sum,
+        distinct,
         signal: undefined,
-        filters: activeFilters
+        filters: others
       });
 
       const processedData = data.data.map((item: DataItem, index: number) => ({
@@ -58,6 +61,8 @@ export default function User() {
   }, [page, activeFilters, config]);
 
   const handleApplyFilters = (newFilters: any) => {
+    console.log(newFilters);
+
     setActiveFilters(newFilters);
     setPage(1);
   };
@@ -66,7 +71,9 @@ export default function User() {
     setActiveFilters({
       Filtros: [],
       Selects: [],
-      OrderBy: null
+      OrderBy: null,
+      sum: false,
+      distinct: false
     });
     setPage(1);
   };

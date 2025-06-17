@@ -29,9 +29,9 @@ export const REPORT_CONFIGS: Record<ReportType, ReportConfig> = {
     mainField: "Producto",
     sumKey: "Producto",
   },
-  /*  utilidad: {
-    type: "utilidad",
-    title: "utilidad",
+  /* utilidadbruta: {
+    type: "utilidadbruta",
+    title: "utilidadbruta",
     amountKey: "Importe",
     mainField: "Cliente",
     sumKey: "Cliente",
