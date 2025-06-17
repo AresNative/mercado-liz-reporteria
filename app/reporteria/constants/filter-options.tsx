@@ -14,6 +14,7 @@ import {
   Banknote,
   Bitcoin,
   Tally5,
+  Key,
 } from "lucide-react";
 
 export const fieldOptions = [
@@ -21,6 +22,12 @@ export const fieldOptions = [
     value: "Nombre",
     label: "Nombre",
     icon: <FolderPen className="inline mr-2" />,
+    category: "Datos de producto",
+  },
+  {
+    value: "Articulo",
+    label: "Articulo",
+    icon: <Key className="inline mr-2" />,
     category: "Datos de producto",
   },
   {

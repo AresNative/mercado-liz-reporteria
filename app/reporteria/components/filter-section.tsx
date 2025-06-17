@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Hash, Plus, Save, Trash2 } from "lucide-react";
 import { FilterSectionProps, FormValues } from "../utils/types";
 import { DateFilterSection } from "./date-filter-section";
 import { FilterRow } from "./filter-row";
 import { OrderBySection } from "./order-by-section";
 import { SelectFieldRow } from "./select-field-row";
 import { getLocalStorageItem, setLocalStorageItem, removeFromLocalStorage } from "@/utils/functions/local-storage";
+import { cn } from "@/utils/functions/cn";
 
 const SELECTS_STORAGE_KEY = "select_fields_config";
 
@@ -31,6 +32,8 @@ export const FilterSection = ({
             Selects: [{ Key: "" }],
             OrderBy: { Key: "", Direction: "asc" },
             DateFilters: { startDate: "", endDate: "", preset: "" },
+            sum: false,
+            distinct: false,
         },
     });
 
@@ -39,6 +42,10 @@ export const FilterSection = ({
         append: addFiltro,
         remove: removeFiltro,
     } = useFieldArray({ control, name: "Filtros" });
+
+    // Obtener valores actuales de los checkboxes
+    const sumValue = watch("sum");
+    const distinctValue = watch("distinct");
 
     const {
         fields: selects,
@@ -99,6 +106,8 @@ export const FilterSection = ({
             Filtros: [...baseFilters, ...dateFilters],
             Selects: data.Selects.filter((s) => s.Key),
             OrderBy: data.OrderBy.Key ? data.OrderBy : { Key: "", Direction: "asc" },
+            sum: data.sum,
+            distinct: data.distinct,
         });
     };
 
@@ -147,8 +156,46 @@ export const FilterSection = ({
             aria-label="Formulario de filtros de datos"
         >
             {/* Filtros */}
-            <div className="space-y-4">
-                <div className="flex justify-between items-center">
+            <ul className="space-y-4">
+                <li className="flex justify-between items-center">
+                    <button
+                        type="button"
+                        onClick={() => setValue("sum", !sumValue)}
+                        className={cn(
+                            "inline-flex items-center gap-2 text-xs text-white px-3 py-2 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-800",
+                            sumValue
+                                ? "bg-blue-600 hover:bg-blue-700"
+                                : "bg-emerald-600 hover:bg-emerald-700"
+                        )}
+                        aria-label={`Suma de totales ${sumValue ? "activado" : "desactivado"}`}
+                        aria-pressed={sumValue}
+                    >
+                        <Plus size={16} />
+                        Suma de totales
+                        {sumValue && (
+                            <span className="ml-1 text-xs font-semibold">✓</span>
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setValue("distinct", !distinctValue)}
+                        className={cn(
+                            "inline-flex items-center gap-2 text-xs text-white px-3 py-2 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-800",
+                            distinctValue
+                                ? "bg-blue-600 hover:bg-blue-700"
+                                : "bg-emerald-600 hover:bg-emerald-700"
+                        )}
+                        aria-label={`Obtener solo distintos ${distinctValue ? "activado" : "desactivado"}`}
+                        aria-pressed={distinctValue}
+                    >
+                        <Hash size={16} />
+                        Obtener solo distintos
+                        {distinctValue && (
+                            <span className="ml-1 text-xs font-semibold">✓</span>
+                        )}
+                    </button>
+                </li>
+                <li className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                         Filtros de búsqueda
                     </h3>
@@ -161,9 +208,9 @@ export const FilterSection = ({
                         <Plus size={16} />
                         Agregar filtro
                     </button>
-                </div>
+                </li>
 
-                <div
+                <li
                     className="space-y-3"
                     role="group"
                     aria-label="Lista de filtros"
@@ -180,111 +227,8 @@ export const FilterSection = ({
                             config={config}
                         />
                     ))}
-                </div>
-            </div>
-            {/* Manejo de perfiles de columnas */}
-            <div className="space-y-6 p-6 border border-gray-200 rounded-lg bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
-                {/* Sección de selección y eliminación de perfil */}
-                <fieldset className="space-y-3">
-                    <legend className="text-sm font-medium text-gray-900 dark:text-gray-100">Seleccionar perfil existente</legend>
-                    <div className="flex gap-3">
-                        <div className="flex-1">
-                            <label htmlFor="profile-select" className="sr-only">
-                                Seleccionar perfil
-                            </label>
-                            <select
-                                id="profile-select"
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-blue-400"
-                                value={selectedProfile}
-                                onChange={(e) => {
-                                    const name = e.target.value
-                                    setSelectedProfile(name)
-                                    const profiles = getAllSelectProfiles()
-                                    if (profiles[name]) {
-                                        replaceSelectFields(profiles[name])
-                                    }
-                                }}
-                            >
-                                <option value="">Selecciona un perfil</option>
-                                {availableProfiles.map((name) => (
-                                    <option key={name} value={name}>
-                                        {name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (selectedProfile) {
-                                    deleteSelectProfile(selectedProfile)
-                                    setSelectedProfile("")
-                                    refreshProfiles()
-                                }
-                            }}
-                            disabled={!selectedProfile}
-                            className="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                            aria-label={`Eliminar perfil ${selectedProfile || "seleccionado"}`}
-                        >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="ml-2 hidden sm:inline">Eliminar</span>
-                        </button>
-                    </div>
-                </fieldset>
-
-                {/* Separador visual */}
-                <div className="border-t border-gray-200 dark:border-gray-600"></div>
-
-                {/* Sección de creación de nuevo perfil */}
-                <fieldset className="space-y-3">
-                    <legend className="text-sm font-medium text-gray-900 dark:text-gray-100">Crear nuevo perfil</legend>
-                    <div className="flex gap-3">
-                        <div className="flex-1">
-                            <label htmlFor="profile-name" className="sr-only">
-                                Nombre del nuevo perfil
-                            </label>
-                            <input
-                                id="profile-name"
-                                type="text"
-                                placeholder="Nombre del nuevo perfil"
-                                value={profileName}
-                                onChange={(e) => setProfileName(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                        e.preventDefault()
-                                        if (profileName.trim()) {
-                                            const cleaned = watch("Selects").filter((s) => s?.Key)
-                                            saveSelectProfile(profileName.trim(), cleaned)
-                                            setProfileName("")
-                                            refreshProfiles()
-                                        }
-                                    }
-                                }}
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-500 dark:focus:ring-blue-400"
-                            />
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (profileName.trim()) {
-                                    const cleaned = watch("Selects").filter((s) => s?.Key)
-                                    saveSelectProfile(profileName.trim(), cleaned)
-                                    setProfileName("")
-                                    refreshProfiles()
-                                }
-                            }}
-                            disabled={!profileName.trim()}
-                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                            aria-label="Guardar nuevo perfil"
-                        >
-                            <Save className="h-4 w-4" />
-                            <span className="ml-2 hidden sm:inline">Guardar</span>
-                        </button>
-                    </div>
-                </fieldset>
-            </div>
+                </li>
+            </ul>
 
             {/* Campos a mostrar */}
             <div className="space-y-4">
@@ -301,6 +245,106 @@ export const FilterSection = ({
                         <Plus size={16} />
                         Agregar campo
                     </button>
+                </div>
+                {/* Manejo de perfiles de columnas */}
+                <div>
+                    {/* Sección de selección y eliminación de perfil */}
+                    <fieldset className="space-y-3">
+                        <legend className="text-sm font-medium text-gray-900 dark:text-gray-100">Seleccionar perfil existente</legend>
+                        <div className="flex gap-3">
+                            <div className="flex-1">
+                                <label htmlFor="profile-select" className="sr-only">
+                                    Seleccionar perfil
+                                </label>
+                                <select
+                                    id="profile-select"
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-blue-400"
+                                    value={selectedProfile}
+                                    onChange={(e) => {
+                                        const name = e.target.value
+                                        setSelectedProfile(name)
+                                        const profiles = getAllSelectProfiles()
+                                        if (profiles[name]) {
+                                            replaceSelectFields(profiles[name])
+                                        }
+                                    }}
+                                >
+                                    <option value="">Selecciona un perfil</option>
+                                    {availableProfiles.map((name) => (
+                                        <option key={name} value={name}>
+                                            {name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (selectedProfile) {
+                                        deleteSelectProfile(selectedProfile)
+                                        setSelectedProfile("")
+                                        refreshProfiles()
+                                    }
+                                }}
+                                disabled={!selectedProfile}
+                                className="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                aria-label={`Eliminar perfil ${selectedProfile || "seleccionado"}`}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                <span className="ml-2 hidden sm:inline">Eliminar</span>
+                            </button>
+                        </div>
+                    </fieldset>
+
+                    {/* Sección de creación de nuevo perfil */}
+                    <fieldset className="space-y-3">
+                        <legend className="text-sm font-medium text-gray-900 dark:text-gray-100">Crear nuevo perfil</legend>
+                        <div className="flex gap-3">
+                            <div className="flex-1">
+                                <label htmlFor="profile-name" className="sr-only">
+                                    Nombre del nuevo perfil
+                                </label>
+                                <input
+                                    id="profile-name"
+                                    type="text"
+                                    placeholder="Nombre del nuevo perfil"
+                                    value={profileName}
+                                    onChange={(e) => setProfileName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            e.preventDefault()
+                                            if (profileName.trim()) {
+                                                const cleaned = watch("Selects").filter((s) => s?.Key)
+                                                saveSelectProfile(profileName.trim(), cleaned)
+                                                setProfileName("")
+                                                refreshProfiles()
+                                            }
+                                        }
+                                    }}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-500 dark:focus:ring-blue-400"
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (profileName.trim()) {
+                                        const cleaned = watch("Selects").filter((s) => s?.Key)
+                                        saveSelectProfile(profileName.trim(), cleaned)
+                                        setProfileName("")
+                                        refreshProfiles()
+                                    }
+                                }}
+                                disabled={!profileName.trim()}
+                                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                aria-label="Guardar nuevo perfil"
+                            >
+                                <Save className="h-4 w-4" />
+                                <span className="ml-2 hidden sm:inline">Guardar</span>
+                            </button>
+                        </div>
+                    </fieldset>
                 </div>
 
                 <div

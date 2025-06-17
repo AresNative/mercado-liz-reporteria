@@ -1,7 +1,7 @@
 import { Modal } from "@/components/modal";
 import { useGetMutation, usePutMutation } from "@/hooks/reducers/api";
 import { cn } from "@/utils/functions/cn";
-import { Check, ChevronRight, FileText, MessageSquare, ScanBarcode } from "lucide-react";
+import { Check, FileText, ScanBarcode } from "lucide-react";
 import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -70,12 +70,11 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
     };
 
     const updateCita = async (dataUpdater: any, id: number) => {
-        const { data: Response } = await putOrder({
+        await putOrder({
             url: "citas",
             data: dataUpdater,
             id: id
         });
-        console.log(Response);
     };
 
     const getPedidoInfo = async () => {
@@ -119,8 +118,8 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
     return (
         <Modal modalName={name} title={title}>
             <>
-                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
-                    <FileText className="h-6 w-6 text-purple-600" />
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                    <FileText className="h-6 w-6 text-green-600" />
                 </span>
 
                 {pedidoDetails ? (
@@ -153,48 +152,49 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                     {pedidoDetails.array_lista.map((item, key) => (
                                         <article
                                             key={key}
-                                            className="border my-2 rounded-lg border-l-4 border-l-purple-500 shadow-sm"
+                                            className="border my-2 rounded-lg border-l-4 border-l-green-500 shadow-sm"
                                         >
                                             <section className="p-4">
                                                 <header className="flex flex-col gap-4">
                                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                        <div className="space-y-1">
+                                                        <ul className="space-y-1">
                                                             <hgroup className="flex items-center gap-2">
                                                                 <h3 className="font-medium">{item.nombre}</h3>
-                                                                <mark className="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-semibold">
+                                                                <mark className="inline-flex bg-green-500 text-white items-center rounded px-2.5 py-0.5 text-xs font-semibold">
                                                                     {item.categoria}
                                                                 </mark>
                                                             </hgroup>
                                                             <dl className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
-                                                                <div className="flex items-center gap-1">
+                                                                <span className="flex items-center gap-1">
                                                                     <dt>Cantidad:</dt>
                                                                     <dd className="font-medium">
                                                                         {item.quantity} {item.unidad}
                                                                     </dd>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
+                                                                </span>
+                                                                <span className="flex items-center gap-1">
                                                                     <ScanBarcode className="h-4 w-4" />
                                                                     <dd className="font-mono">{item.id}</dd>
-                                                                </div>
+                                                                </span>
+                                                                <span className="flex items-center gap-2 cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        className="w-4 h-4"
+                                                                        checked={item.recojido}
+                                                                        onChange={() => handleCheckboxChange(key)}
+                                                                    />
+                                                                    {item.recojido && (
+                                                                        <output className="flex gap-1 items-center text-sm text-green-600">
+                                                                            <Check className="inline h-4 w-4" /> Ready
+                                                                        </output>
+                                                                    )}
+                                                                </span>
                                                             </dl>
-                                                        </div>
+                                                        </ul>
 
-                                                        <label className="flex items-center gap-2 cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="w-4 h-4"
-                                                                checked={item.recojido}
-                                                                onChange={() => handleCheckboxChange(key)}
-                                                            />
-                                                            {item.recojido && (
-                                                                <output className="text-sm text-purple-600">
-                                                                    <Check className="inline h-4 w-4" /> Ready
-                                                                </output>
-                                                            )}
-                                                        </label>
+
                                                     </div>
 
-                                                    <nav className="flex items-center justify-between">
+                                                    {/*  <nav className="flex items-center justify-between">
                                                         <h4 className="flex items-center gap-2">
                                                             <MessageSquare className="h-4 w-4" />
                                                             <span className="text-sm font-medium">Comments (2)</span>
@@ -202,7 +202,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                                         <button className="text-sm text-blue-600">
                                                             <ChevronRight className="h-4 w-4" />
                                                         </button>
-                                                    </nav>
+                                                    </nav> */}
                                                 </header>
                                             </section>
                                         </article>
@@ -211,7 +211,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                             </li>
                         </ul>
 
-                        <footer className="flex flex-wrap justify-end gap-3 pt-4 mt-4 border-t">
+                        <footer className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t">
                             <button
                                 onClick={() => alert("Incompleto")}
                                 className="bg-red-500 text-white px-4 py-2 rounded-md"
@@ -225,7 +225,6 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                             {
                                                 Id_Cliente: pedidoDetails.id_cliente,
                                                 Id_Usuario_Responsable: 1,
-                                                Fecha: new Date().toISOString(),
                                                 Plan: "Pick Up",
                                                 Id_Lista: idListas,
                                                 Estado: "listo"
@@ -234,7 +233,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                     }, idPedido)
                                     getServerSideProps();
                                 }}
-                                className="bg-green-500 text-white px-4 py-2 rounded-md"
+                                className="disabled:bg-green-300 disabled:cursor-default bg-green-500 text-white px-4 py-2 rounded-md cursor-pointer"
                                 disabled={
                                     !pedidoDetails.array_lista.every(item => item.recojido)
                                 }
@@ -247,20 +246,19 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                         {
                                             Id_Cliente: pedidoDetails.id_cliente,
                                             Id_Usuario_Responsable: 1,
-                                            Fecha: new Date().toISOString(),
                                             Plan: "Pick Up",
                                             Id_Lista: idListas,
                                             Estado: "proceso"
                                         }
                                     ]
                                 }, idPedido)}
-                                className="bg-blue-500 text-white px-4 py-2 rounded-md"
+                                className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer"
                             >
                                 Proceso
                             </button>
                             <button
                                 onClick={generatePDF}
-                                className="bg-gray-500 text-white px-4 py-2 rounded-md flex items-center gap-2"
+                                className="bg-gray-500 text-white px-4 py-2 rounded-md flex items-center gap-2 cursor-pointer"
                             >
                                 <FileText className="h-4 w-4" /> PDF
                             </button>

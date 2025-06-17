@@ -3,7 +3,7 @@ export type ReportType =
   | "ventas"
   | "almacen"
   /*   | "gastos" */
-  /*  | "utilidad" */
+  /* | "utilidadbruta" */
   | "mermas";
 
 export interface ReportConfig {
@@ -37,6 +37,8 @@ export interface FilterSectionProps {
     Filtros: FilterType[];
     Selects: SelectType[];
     OrderBy: OrderByType;
+    sum: boolean;
+    distinct: boolean;
   }) => void;
   onReset: () => void;
   config: string;
@@ -52,4 +54,6 @@ export type FormValues = {
     endDate: string;
     preset: string;
   };
+  sum: boolean;
+  distinct: boolean;
 };

@@ -11,7 +11,7 @@ export const auth = createApi({
     baseQuery: fetchBaseQuery({
         baseUrl: apiUrl,
         prepareHeaders: (headers) => {
-            const token = getCookie("token") ?? getLocalStorageItem('token'); // <- usa cookie
+            const token = getLocalStorageItem('token'); // <- usa cookie
             headers.set("Content-Type", "application/json");
             if (token) {
                 headers.set("Authorization", `Bearer ${token}`);
