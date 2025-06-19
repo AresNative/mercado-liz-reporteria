@@ -6,7 +6,7 @@ import { FilterSection } from "../components/filter-section";
 import { useGetMutation } from "@/hooks/reducers/api_int";
 import { LoadingSection } from "@/template/loading-screen";
 import { Filter } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react"; // Añadido useRef
 import { ReportType } from "../utils/types";
 import { REPORT_CONFIGS } from "../constants/configs";
 import { exportToExcel } from "../utils/export-excel";
@@ -14,14 +14,15 @@ import { importFromExcel } from "../utils/import-excel";
 
 export default function User() {
   const [getData, { isLoading }] = useGetMutation();
+  const fileInputRef = useRef<HTMLInputElement>(null); // Referencia para el input de archivo
 
   // Estado para tipo de reporte
   const [config, setConfig] = useState<ReportType>("compras");
-
   const [tableData, setTableData] = useState<DataItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null); // Estado para mensajes de importación
 
   const [activeFilters, setActiveFilters] = useState({
     Filtros: [],
@@ -72,9 +73,37 @@ export default function User() {
     exportToExcel(data.data, `${config}_report.xlsx`);
   }
 
-  async function importDataToExcel(File: File) {
-    await importFromExcel(File)
+  async function importDataToExcel(file: File) {
+    try {
+      setImportStatus("Importando datos...");
+
+      // 1. Importar datos del Excel
+      const importedData = await importFromExcel(file);
+      console.log(importedData);
+      setTableData([]);
+      setTableData(importedData);
+      setImportStatus("Importación correcta");
+    } catch (error) {
+      console.error("Error al importar:", error);
+      setImportStatus("Error en la importación");
+    } finally {
+      // Limpiar mensaje después de 3 segundos
+      setTimeout(() => setImportStatus(null), 3000);
+    }
   }
+
+  // Función para activar el input de archivo
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Manejador de cambio de archivo
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      importDataToExcel(file);
+    }
+  };
 
   useEffect(() => {
     handleGetData();
@@ -106,7 +135,7 @@ export default function User() {
             value={config}
             onChange={(e) => {
               setConfig(e.target.value as ReportType);
-              setPage(1); // Reinicia la paginación al cambiar el tipo de reporte
+              setPage(1);
             }}
           >
             {Object.entries(REPORT_CONFIGS).map(([key, cfg]) => (
@@ -117,15 +146,47 @@ export default function User() {
           </select>
         </div>
 
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-        >
-          <Filter size={18} />
-          {showFilters ? "Ocultar" : "Mostrar"}
-        </button>
-        <button onClick={exportDataToExcel}>EXCEL</button>
+        <div className="flex gap-2">
+          <button
+            onClick={exportDataToExcel}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+          >
+            Exportar
+          </button>
+          <button
+            onClick={triggerFileInput}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            Importar
+          </button>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition"
+          >
+            <Filter size={18} />
+            {showFilters ? "Ocultar" : "Mostrar"}
+          </button>
+        </div>
       </section>
+
+      {/* Input oculto para selección de archivos */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={handleFileChange}
+        accept=".xlsx, .xls, .csv"
+      />
+
+      {/* Mensaje de estado de importación */}
+      {importStatus && (
+        <div className={`mb-4 px-4 py-2 rounded ${importStatus.includes("éxito")
+          ? "bg-green-100 text-green-700"
+          : "bg-red-100 text-red-700"
+          }`}>
+          {importStatus}
+        </div>
+      )}
 
       {showFilters && (
         <FilterSection
