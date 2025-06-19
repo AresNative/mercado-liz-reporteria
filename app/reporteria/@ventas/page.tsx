@@ -9,6 +9,8 @@ import { Filter } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ReportType } from "../utils/types";
 import { REPORT_CONFIGS } from "../constants/configs";
+import { exportToExcel } from "../utils/export-excel";
+import { importFromExcel } from "../utils/import-excel";
 
 export default function User() {
   const [getData, { isLoading }] = useGetMutation();
@@ -54,6 +56,24 @@ export default function User() {
       console.error("Error fetching data:", error);
       setTableData([]);
     }
+  }
+
+  async function exportDataToExcel() {
+    const { sum, distinct, ...others } = activeFilters;
+    const { data } = await getData({
+      url: `reporteria/${config}`,
+      pageSize: 100000,
+      page: 1,
+      sum,
+      distinct,
+      signal: undefined,
+      filters: others
+    });
+    exportToExcel(data.data, `${config}_report.xlsx`);
+  }
+
+  async function importDataToExcel(File: File) {
+    await importFromExcel(File)
   }
 
   useEffect(() => {
@@ -104,6 +124,7 @@ export default function User() {
           <Filter size={18} />
           {showFilters ? "Ocultar" : "Mostrar"}
         </button>
+        <button onClick={exportDataToExcel}>EXCEL</button>
       </section>
 
       {showFilters && (
