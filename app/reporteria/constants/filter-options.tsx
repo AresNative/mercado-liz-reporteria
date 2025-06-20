@@ -31,6 +31,12 @@ export const fieldOptions = [
     category: "Datos de producto",
   },
   {
+    value: "Sucursal",
+    label: "Sucursal",
+    icon: <Key className="inline mr-2" />,
+    category: "Datos de producto",
+  },
+  {
     value: "Categoria",
     label: "Categoria",
     icon: <BookCopy className="inline mr-2" />,
