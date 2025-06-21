@@ -27,7 +27,7 @@ export default function PickUp() {
             distinct: false,
             page: "1",
             filters: {
-                "Filtros": [{ "Key": "", "Value": "", "Operator": "" }],
+                "Filtros": [{ "Key": "Estado", "Value": "listo", "Operator": "<>" }],
                 "Selects": [{ "Key": "" }],
                 "Order": [{ "Key": "", "Direction": "" }]
             },

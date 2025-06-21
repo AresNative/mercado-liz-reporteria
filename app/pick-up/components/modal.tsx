@@ -5,6 +5,7 @@ import { Check, FileText, ScanBarcode } from "lucide-react";
 import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { exportToExcel } from "@/app/reporteria/utils/export-excel";
 
 interface ModalProps {
     name: string;
@@ -96,7 +97,20 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
     };
 
     async function getServerSideProps() {
-
+        console.log(pedidoDetails);
+        const mapArts = pedidoDetails ? pedidoDetails.array_lista.map((row: any) => ({
+            codigo: row.id,
+            articulo: "",
+            cantidad: row.quantity,
+            unidad: row.unidad,
+            precio: row.precio,
+            tipoiva: "",
+            'tipo ieps': "",
+            cc: "",
+            'consto unitario': row.precio,
+            observaciones: "PICK UP"
+        })) : []
+        exportToExcel(mapArts, `${new Date().toISOString()}_venta_pick_up.xlsx`)
         // Enviar mensaje al cargar la página
         /* const response = await sendWhatsAppMessage({
             to: '+5216462895421',
@@ -126,14 +140,14 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                     <>
                         <ul className="mt-6 space-y-4">
                             <li className="grid grid-cols-2 gap-4 text-sm">
-                                <div className="flex gap-2">
+                                <label className="flex gap-2">
                                     <p className="font-medium">Servicio:</p>
                                     <p>{pedidoDetails.servicio}</p>
-                                </div>
-                                <div className="flex gap-2">
+                                </label>
+                                <label className="flex gap-2">
                                     <p className="font-medium">Sucursal:</p>
                                     <p>{pedidoDetails.sucursal}</p>
-                                </div>
+                                </label>
                             </li>
 
                             <li className="border-t pt-4">
@@ -230,7 +244,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                                 Estado: "listo"
                                             }
                                         ]
-                                    }, idPedido)
+                                    }, idPedido);
                                     getServerSideProps();
                                 }}
                                 className="disabled:bg-gray-300 disabled:cursor-not-allowed bg-green-500 text-white px-4 py-2 rounded-md cursor-pointer"
