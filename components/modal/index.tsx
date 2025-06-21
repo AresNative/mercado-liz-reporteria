@@ -64,45 +64,43 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
     return (
-        <>
-            <dialog
-                id={modalName}
-                ref={dialogRef}
-                open={isOpen}
-                className={cn("inset-0 z-50 bg-transparent max-h-screen w-full")}
-                aria-modal="true"
-                aria-labelledby={`modal-${modalName}`}>
+        <dialog
+            id={modalName}
+            ref={dialogRef}
+            open={isOpen}
+            className={cn("inset-0 z-50 bg-transparent max-h-screen w-full")}
+            aria-modal="true"
+            aria-labelledby={`modal-${modalName}`}>
 
-                <div className="fixed inset-0 bg-black/20 bg-opacity-75 transition-opacity" onClick={handleBackdropClick} />
+            <div className="fixed inset-0 bg-black/20 bg-opacity-75 transition-opacity" onClick={handleBackdropClick} />
 
-                <section
-                    className={cn(
-                        "relative max-h-screen md:max-h-[90vh] mx-auto overflow-auto md:w-11/12 md:my-10 md:rounded-lg bg-white dark:bg-zinc-800 text-left shadow-xl transition-all ",
-                        maxWidthClasses[maxWidth],
-                    )}
-                >
-                    {/* Close button */}
-                    <form method="dialog" className="relative flex items-center justify-between gap-2 m-2">
-                        <h3
-                            id="modal-title"
-                            className="absolute left-0 right-0 text-center text-gray-900 dark:text-white pointer-events-none"
-                        >
-                            {title}
-                        </h3>
-                        <button
-                            className="cursor-pointer relative z-10 ml-auto rounded-md bg-white border text-gray-400 hover:text-gray-500 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                            onClick={handleBackdropClick}
-                        >
-                            <span className="sr-only">Close</span>
-                            <X className="h-6 w-6" aria-hidden="true" />
-                        </button>
-                    </form>
+            <section
+                className={cn(
+                    "fixed inset-0 h-screen md:h-fit md:max-h-[90vh] mx-auto overflow-auto md:w-11/12 md:my-4 md:rounded-lg bg-white dark:bg-zinc-800 text-left shadow-xl transition-all",
+                    maxWidthClasses[maxWidth],
+                )}
+            >
+                {/* Close button */}
+                <form method="dialog" className="relative flex items-center justify-between gap-2 m-2">
+                    <h3
+                        id="modal-title"
+                        className="absolute left-0 right-0 text-center text-gray-900 dark:text-white pointer-events-none"
+                    >
+                        {title}
+                    </h3>
+                    <button
+                        className="cursor-pointer relative z-10 ml-auto rounded-md bg-white border text-gray-400 hover:text-gray-500 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                        onClick={handleBackdropClick}
+                    >
+                        <span className="sr-only">Close</span>
+                        <X className="h-6 w-6" aria-hidden="true" />
+                    </button>
+                </form>
 
-                    {/* Content */}
-                    <main className="p-4 m-auto">{children}</main>
-                </section>
-            </dialog>
-        </>
+                {/* Content */}
+                <main className="p-4 m-auto">{children}</main>
+            </section>
+        </dialog>
     )
 }
 

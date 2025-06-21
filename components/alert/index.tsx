@@ -1,18 +1,16 @@
-// Alert.tsx (componente actualizado)
 'use client';
 
 import { useAppSelector, useAppDispatch } from "@/hooks/selector";
 import { alertClasses } from "@/utils/constants/colors";
 import { ArchiveRestore, CircleAlert } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { clearAlert } from "@/hooks/reducers/drop-down";
+import { cn } from "@/utils/functions/cn";
 
 export default function Alert() {
     const dispatch = useAppDispatch();
     const alert = useAppSelector((state) => state.dropDownReducer.alert);
     const { type, icon, title, message, buttonText, action, duration } = alert;
-    const dialogRef = useRef<HTMLDialogElement | null>(null);
-
     const styles = alertClasses[type];
 
     const iconsMap = {
@@ -39,54 +37,72 @@ export default function Alert() {
         dispatch(clearAlert());
     };
 
+    // Handle escape key
     useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
-                dispatch(clearAlert());
-            }
-        };
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === "Escape") closeDialog();
+        }
 
         if (message) {
-            document.addEventListener('mousedown', handleClickOutside);
-            return () => document.removeEventListener('mousedown', handleClickOutside);
+            document.addEventListener("keydown", handleEscape);
+            document.body.style.overflow = "hidden";
         }
-    }, [message, dispatch]);
+
+        return () => {
+            document.removeEventListener("keydown", handleEscape);
+            document.body.style.overflow = "unset";
+        }
+    }, [message]);
 
     if (!message) return null;
 
     return (
-        <section className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-lg bg-black bg-opacity-20">
-            <dialog
-                ref={dialogRef}
-                open={!!message}
-                className="max-w-lg w-full rounded-lg bg-white dark:bg-zinc-800 shadow-xl p-6 z-20"
-            >
-                <div className="flex items-start space-x-4">
-                    <span className={`flex items-center justify-center w-12 h-12 rounded-full ${styles.bg}`}>
-                        {iconsMap[icon] ?? null}
-                    </span>
-                    <section>
-                        <h3 className={`text-lg font-semibold ${styles.text}`}>{title}</h3>
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-200">{message}</p>
-                    </section>
-                </div>
-                {buttonText && (
-                    <form method="dialog" className="mt-6 flex justify-end space-x-4">
-                        <button
-                            onClick={closeDialog}
-                            className="px-4 py-2 text-sm font-semibold text-gray-900 dark:text-white border border-gray-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleAction}
-                            className={`px-4 py-2 text-sm font-semibold ${styles.text} ${styles.bg} ring-1 ring-inset ${styles.ring} rounded-md ${styles.hover} transition-all`}
-                        >
-                            {buttonText}
-                        </button>
-                    </form>
-                )}
-            </dialog>
-        </section>
+        <dialog
+            open={!!message}
+            className={cn("inset-0 z-50 bg-transparent max-h-screen w-full")}
+        >
+            {/* Backdrop */}
+            <div
+                className="fixed inset-0 bg-black/20 bg-opacity-75 transition-opacity"
+                onClick={closeDialog}
+            />
+
+            {/* Centered container */}
+            <section className="relative max-h-screen md:max-h-[90vh] mx-auto overflow-auto w-fit my-44 md:rounded-lg text-left transition-all ">
+                {/* Alert card */}
+                <article
+                    className="relative transform  bg-white overflow-hidden rounded-lg dark:bg-zinc-800 text-left shadow-xl transition-all w-full max-w-lg"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <label className="p-4 flex items-start gap-4">
+                        <span className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-full ${styles.bg}`}>
+                            {iconsMap[icon] ?? null}
+                        </span>
+
+                        <div className="flex-1">
+                            <h3 className={`text-lg font-semibold ${styles.text}`}>{title}</h3>
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-200">{message}</p>
+                        </div>
+                    </label>
+
+                    {buttonText && (
+                        <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-700 flex flex-row-reverse gap-3">
+                            <button
+                                onClick={handleAction}
+                                className={`px-4 py-2 text-sm font-semibold ${styles.text} ${styles.bg} ring-1 ring-inset ${styles.ring} rounded-md ${styles.hover} transition-all`}
+                            >
+                                {buttonText}
+                            </button>
+                            <button
+                                onClick={closeDialog}
+                                className="px-4 py-2 text-sm font-semibold text-gray-900 dark:text-white border border-gray-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    )}
+                </article>
+            </section>
+        </dialog>
     );
 }
