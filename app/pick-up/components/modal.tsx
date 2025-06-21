@@ -233,7 +233,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                                     }, idPedido)
                                     getServerSideProps();
                                 }}
-                                className="disabled:bg-green-300 disabled:cursor-default bg-green-500 text-white px-4 py-2 rounded-md cursor-pointer"
+                                className="disabled:bg-gray-300 disabled:cursor-not-allowed bg-green-500 text-white px-4 py-2 rounded-md cursor-pointer"
                                 disabled={
                                     !pedidoDetails.array_lista.every(item => item.recojido)
                                 }

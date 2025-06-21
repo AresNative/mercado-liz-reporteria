@@ -8,6 +8,8 @@ import { LogInField } from '@/utils/constants/forms/logIn';
 import { navigationAdmin, navigationDefault, navigationUser } from '@/utils/constants/router';
 import { getLocalStorageItem } from '@/utils/functions/local-storage';
 import { cn } from '@/utils/functions/cn';
+import { openAlertReducer } from '@/hooks/reducers/drop-down';
+import { useAppDispatch } from '@/hooks/selector';
 
 interface MenuProps {
     isScrolled?: boolean;
@@ -18,6 +20,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
     const [loginModalOpen, setLoginModalOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
 
+    const dispatch = useAppDispatch();
     // Estado para almacenar los datos del usuario
     const [userData, setUserData] = useState<{
         role: string | null;
@@ -64,6 +67,15 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
         try {
             await logoutProcess(userData.id).unwrap();
             setMenuOpen(false);
+            dispatch(
+                openAlertReducer({
+                    title: "Sesion cerrada",
+                    message: "Vuelve pronto!",
+                    type: "info",
+                    icon: "alert",
+                    duration: 4000
+                })
+            );
             // Actualizar estado después de logout
             setUserData({ role: null, id: null, token: null });
         } catch (error) {
@@ -186,12 +198,24 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                                 onSuccess={() => {
                                     setLoginModalOpen(false);
                                     setMenuOpen(false);
-                                    // Actualizar datos de usuario después de login exitoso
-                                    setUserData({
-                                        role: getLocalStorageItem("user-role"),
-                                        id: getLocalStorageItem("user-id"),
-                                        token: getLocalStorageItem("token"),
-                                    });
+                                    try {
+                                        // Actualizar datos de usuario después de login exitoso
+                                        setUserData({
+                                            role: getLocalStorageItem("user-role"),
+                                            id: getLocalStorageItem("user-id"),
+                                            token: getLocalStorageItem("token"),
+                                        });
+                                    } catch {
+                                        dispatch(
+                                            openAlertReducer({
+                                                title: "Correo o contraseña incorrectos!",
+                                                message: "Credenciales invalidas",
+                                                type: "error",
+                                                icon: "alert",
+                                                duration: 4000
+                                            })
+                                        );
+                                    }
                                 }}
                             />
                         </section>

@@ -10,11 +10,11 @@ import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
 import { useGetMutation } from "@/hooks/reducers/api"
 import { useEffect, useState } from "react"
-import ModalPedidos from "../components/modal"
-import { TablaPickUp } from "../components/table"
+import ModalPedidos from "./components/modal"
+import { TablaPickUp } from "./components/table"
 import { LoadingSection } from "@/template/loading-screen"
 
-export default function AdminDashboard() {
+export default function PickUp() {
     const [pedidos, setpedidos] = useState([])
     const [IdLista, setIdLista] = useState(0)
     const [IdPedido, setIdPedido] = useState(0)
@@ -32,7 +32,7 @@ export default function AdminDashboard() {
                 "Selects": [{ "Key": "" }],
                 "Order": [{ "Key": "", "Direction": "" }]
             },
-            pageSize: "10"
+            pageSize: "5"
         });
         const idClientes = Pedidos.data.map((row: any) => ({ "Key": "id", "Value": row.id_cliente, "Operator": "" }))
         // Obtener clientes
@@ -46,7 +46,7 @@ export default function AdminDashboard() {
                 "Selects": [{ "Key": "" }],
                 "Order": [{ "Key": "", "Direction": "" }]
             },
-            pageSize: "10"
+            pageSize: "50000"
         });
 
         // Combinar datos
