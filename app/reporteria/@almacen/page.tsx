@@ -20,7 +20,7 @@ export default function User() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Estado para tipo de reporte
-  const [config, setConfig] = useState<ReportType>("compras");
+  const [config, setConfig] = useState<ReportType>("mermas");
   const [tableData, setTableData] = useState<DataItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
@@ -170,7 +170,7 @@ export default function User() {
       <section className="w-full mb-6 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold">Reporte de {config}</h1>
-          <select
+          {/*  <select
             className="border border-gray-300 rounded px-2 py-1"
             value={config}
             onChange={(e) => {
@@ -184,7 +184,7 @@ export default function User() {
                 {cfg.title}
               </option>
             ))}
-          </select>
+          </select> */}
 
           {/* Indicador de fuente de datos */}
           {dataSource === "imported" && (
