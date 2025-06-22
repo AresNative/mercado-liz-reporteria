@@ -97,7 +97,6 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
     };
 
     async function getServerSideProps() {
-        console.log(pedidoDetails);
         const mapArts = pedidoDetails ? pedidoDetails.array_lista.map((row: any) => ({
             codigo: row.id,
             articulo: row.articulo,
