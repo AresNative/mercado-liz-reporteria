@@ -11,6 +11,7 @@ import { ReportType } from "../utils/types";
 import { REPORT_CONFIGS } from "../constants/configs";
 import { exportToExcel } from "../utils/export-excel";
 import { importFromExcel } from "../utils/import-excel";
+import Badge from "@/components/badge";
 
 // Tamaño de página para datos importados
 const IMPORT_PAGE_SIZE = 10;
@@ -185,16 +186,16 @@ export default function User() {
 
           {/* Indicador de fuente de datos */}
           {dataSource === "imported" && (
-            <div className="flex items-center gap-2 ml-4 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full">
-              <span>Viendo datos importados</span>
+            <section className="items-center gap-1 ml-4 ">
+              <Badge color="green" text="Viendo datos importados" />
               <button
                 onClick={returnToApiData}
-                className="flex items-center gap-1 text-yellow-900 hover:text-yellow-700"
+                className="flex items-center cursor-pointer text-xs gap-1 text-red-900 hover:text-red-700"
               >
-                <X size={16} />
+                <X size={10} />
                 Regresar
               </button>
-            </div>
+            </section>
           )}
         </div>
 
