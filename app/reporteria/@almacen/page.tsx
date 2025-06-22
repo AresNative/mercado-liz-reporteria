@@ -11,6 +11,7 @@ import { ReportType } from "../utils/types";
 import { REPORT_CONFIGS } from "../constants/configs";
 import { exportToExcel } from "../utils/export-excel";
 import { importFromExcel } from "../utils/import-excel";
+import Badge from "@/components/badge";
 
 // Tamaño de página para datos importados
 const IMPORT_PAGE_SIZE = 10;
@@ -20,7 +21,7 @@ export default function User() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Estado para tipo de reporte
-  const [config, setConfig] = useState<ReportType>("mermas");
+  const [config, setConfig] = useState<ReportType>("almacen");
   const [tableData, setTableData] = useState<DataItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
@@ -170,7 +171,7 @@ export default function User() {
       <section className="w-full mb-6 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold">Reporte de {config}</h1>
-          {/*  <select
+          <select
             className="border border-gray-300 rounded px-2 py-1"
             value={config}
             onChange={(e) => {
@@ -179,25 +180,22 @@ export default function User() {
               setDataSource("api"); // Volver a modo API al cambiar config
             }}
           >
-            {Object.entries(REPORT_CONFIGS).map(([key, cfg]) => (
-              <option key={key} value={key}>
-                {cfg.title}
-              </option>
-            ))}
-          </select> */}
+            <option value="almacen">almacen</option>
+            <option value="mermas">mermas</option>
+          </select>
 
           {/* Indicador de fuente de datos */}
           {dataSource === "imported" && (
-            <div className="flex items-center gap-2 ml-4 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full">
-              <span>Viendo datos importados</span>
+            <section className="items-center gap-1 ml-4 ">
+              <Badge color="green" text="Viendo datos importados" />
               <button
                 onClick={returnToApiData}
-                className="flex items-center gap-1 text-yellow-900 hover:text-yellow-700"
+                className="flex items-center cursor-pointer text-xs gap-1 text-red-900 hover:text-red-700"
               >
-                <X size={16} />
+                <X size={10} />
                 Regresar
               </button>
-            </div>
+            </section>
           )}
         </div>
 
