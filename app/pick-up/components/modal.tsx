@@ -100,14 +100,14 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
         console.log(pedidoDetails);
         const mapArts = pedidoDetails ? pedidoDetails.array_lista.map((row: any) => ({
             codigo: row.id,
-            articulo: "",
+            articulo: row.articulo,
             cantidad: row.quantity,
             unidad: row.unidad,
             precio: row.precio,
             tipoiva: "",
             'tipo ieps': "",
             cc: "",
-            'consto unitario': row.precio,
+            'costo unitario': '',
             observaciones: "PICK UP"
         })) : []
         exportToExcel(mapArts, `${new Date().toISOString()}_venta_pick_up.xlsx`)
