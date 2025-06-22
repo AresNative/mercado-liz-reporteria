@@ -44,8 +44,7 @@ export default function PickUp() {
                 "Filtros": idClientes,
                 "Selects": [{ "Key": "" }],
                 "Order": [{ "Key": "", "Direction": "" }]
-            },
-            pageSize: "50000"
+            }
         });
 
         // Combinar datos

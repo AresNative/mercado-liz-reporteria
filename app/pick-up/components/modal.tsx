@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { exportToExcel } from "@/app/reporteria/utils/export-excel";
+import { useAppDispatch } from "@/hooks/selector";
+import { closeModalReducer, openAlertReducer } from "@/hooks/reducers/drop-down";
 
 interface ModalProps {
     name: string;
@@ -26,7 +28,7 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
     const [pedidoDetails, setPedidoDetails] = useState<PedidoData | null>(null);
     const [getWithFilter] = useGetMutation();
     const [putOrder] = usePutMutation();
-
+    const dispatch = useAppDispatch();
     const handleCheckboxChange = (index: number) => {
         if (!pedidoDetails) return;
         const updatedLista = pedidoDetails.array_lista.map((item, i) =>
@@ -108,20 +110,42 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
             cc: "",
             'costo unitario': '',
             observaciones: "PICK UP"
-        })) : []
-        exportToExcel(mapArts, `${new Date().toISOString()}_venta_pick_up.xlsx`)
-        // Enviar mensaje al cargar la página
-        /* const response = await sendWhatsAppMessage({
-            to: '+5216462895421',
-            body: '{"1":"12/1","2":"3pm"}',
-            contentSid: 'HX350d429d32e64a552466cafecbe95f3c',
-        });
+        })) : [];
+        try {
+            exportToExcel(mapArts, `${new Date().toISOString()}_venta_pick_up.xlsx`)
 
-        return {
-            props: {
-                messageStatus: response.success ? 'Enviado' : 'Error'
-            }
-        }; */
+            // Enviar mensaje al cargar la página
+            /* const response = await sendWhatsAppMessage({
+                to: '+5216462895421',
+                body: '{"1":"12/1","2":"3pm"}',
+                contentSid: 'HX350d429d32e64a552466cafecbe95f3c',
+            });
+    
+            return {
+                props: {
+                    messageStatus: response.success ? 'Enviado' : 'Error'
+                }
+            }; */
+
+            dispatch(closeModalReducer({ modalName: "pedido" }))
+            dispatch(openAlertReducer({
+                title: "Venta generada",
+                message: "La lista a sido generada exitosamente",
+                type: "success",
+                icon: "archivo",
+                duration: 4000
+            }))
+        } catch (error) {
+            console.log(error);
+
+            dispatch(openAlertReducer({
+                title: "Error!",
+                message: "error",
+                type: "error",
+                icon: "alert",
+                duration: 4000
+            }))
+        }
     }
 
     useEffect(() => {
