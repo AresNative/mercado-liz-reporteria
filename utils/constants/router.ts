@@ -50,6 +50,23 @@ export const navigationUser = [
     icon: ClipboardList,
   },
 ];
+export const navigationAlmacen = [
+  {
+    name: "Pantalla Inicial",
+    href: "/",
+    icon: House,
+  },
+  {
+    name: "Reporteria",
+    href: "/reporteria",
+    icon: ChartArea,
+  },
+  {
+    name: "Proyectos",
+    href: "/proyectos",
+    icon: ClipboardList,
+  },
+];
 
 export const navigationAdmin = [
   {

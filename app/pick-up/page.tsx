@@ -33,6 +33,7 @@ export default function PickUp() {
             },
             pageSize: "5"
         });
+
         const idClientes = Pedidos.data.map((row: any) => ({ "Key": "id", "Value": row.id_cliente }))
         // Obtener clientes
         const { data: Clientes } = await getWithFilter({
