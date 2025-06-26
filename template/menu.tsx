@@ -91,6 +91,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
             user: navigationUser,
             almacen: navigationAlmacen,
             seguridad: navigationAlmacen,
+            ventas: navigationAlmacen,
             // ... otros roles
         };
         return navigationMap[role] || navigationUser;
