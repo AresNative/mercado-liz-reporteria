@@ -5,7 +5,7 @@ import MainForm from '@/components/form/main-form';
 import { X, Menu, LogOut, LogIn, UserPlus, User } from 'lucide-react';
 import { usePostLogutMutation } from '@/hooks/reducers/auth';
 import { LogInField } from '@/utils/constants/forms/logIn';
-import { navigationAdmin, navigationDefault, navigationUser } from '@/utils/constants/router';
+import { navigationAdmin, navigationAlmacen, navigationDefault, navigationUser } from '@/utils/constants/router';
 import { getLocalStorageItem } from '@/utils/functions/local-storage';
 import { cn } from '@/utils/functions/cn';
 import { openAlertReducer } from '@/hooks/reducers/drop-down';
@@ -84,8 +84,16 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
     };
 
     const navigationItems = () => {
-        if (!userData.role) return navigationDefault;
-        return userData.role === "admin" ? navigationAdmin : navigationUser;
+        const role = userData.role;
+        if (!role) return navigationDefault;
+        const navigationMap: any = {
+            admin: navigationAdmin,
+            user: navigationUser,
+            almacen: navigationAlmacen,
+            seguridad: navigationAlmacen,
+            // ... otros roles
+        };
+        return navigationMap[role] || navigationUser;
     };
 
     return (
@@ -136,7 +144,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
 
                 <nav className="p-2">
                     <ul className="space-y-1">
-                        {navigationItems().map((item) => {
+                        {navigationItems().map((item: any) => {
                             const Icon = item.icon;
                             return Icon ? (
                                 <li key={item.href}>
