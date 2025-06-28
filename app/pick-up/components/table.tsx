@@ -47,7 +47,7 @@ export const TablaPickUp = ({ data, handleOpenModal }: { data: any, handleOpenMo
                     return (
                         <tr
                             key={key}
-                            onClick={() => handleOpenModal(row.id_lista, row.id)} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
+                            onClick={() => handleOpenModal(row.id_lista, row.id, row.id_cliente)} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
                             <td className="px-4 py-3 text-sm">#{row.id}</td>
                             <td className="px-4 py-3">
                                 <section className="flex items-center">

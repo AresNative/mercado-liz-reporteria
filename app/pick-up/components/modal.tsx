@@ -14,6 +14,7 @@ interface ModalProps {
     title: string;
     idListas: number;
     idPedido: number;
+    idCliente: number;
 }
 
 interface PedidoData {
@@ -24,8 +25,9 @@ interface PedidoData {
     array_lista: any[];
 }
 
-const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
+const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps) => {
     const [pedidoDetails, setPedidoDetails] = useState<PedidoData | null>(null);
+    const [clienteDetails, setClienteDetails] = useState<any[] | []>([]);
     const [getWithFilter] = useGetMutation();
     const [putOrder] = usePutMutation();
     const dispatch = useAppDispatch();
@@ -54,7 +56,8 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
             recojido: item.recojido ? "Sí" : "No"
         }));
 
-        const doc = new jsPDF();
+        const doc = new jsPDF('l', 'mm', 'a4');
+
         doc.setFontSize(18);
         doc.text(`Pedido #${pedidoDetails.id}`, 10, 20);
         doc.setFontSize(12);
@@ -95,6 +98,28 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                 }))
             };
             setPedidoDetails(parsedData);
+        }
+    };
+
+    const getClienteInfo = async () => {
+        const { data: Cliente } = await getWithFilter({
+            url: "clientes",
+            sum: false,
+            distinct: false,
+            page: "1",
+            filters: {
+                "Filtros": [{ "Value": idCliente, "key": "id" }],
+                "Selects": [{ "Key": "" }],
+                "Order": [{ "Key": "", "Direction": "" }]
+            }
+        });
+
+        if (Cliente?.data?.[0]) {
+            const clienteData = Cliente.data
+            console.log(clienteData);
+
+            setClienteDetails(clienteData);
+            //          (parsedData);
         }
     };
 
@@ -149,7 +174,10 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
     }
 
     useEffect(() => {
-        if (idListas) getPedidoInfo();
+        if (idListas) {
+            getPedidoInfo();
+            getClienteInfo();
+        }
     }, [idListas]);
 
     return (
@@ -158,7 +186,26 @@ const ModalPedidos = ({ name, title, idListas, idPedido }: ModalProps) => {
                 <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                     <FileText className="h-6 w-6 text-green-600" />
                 </span>
+                {clienteDetails.length > 0 && clienteDetails.map(
+                    (row: any, key: any) => (
+                        <article key={key}>
+                            <h3>Nombre: {row.nombre}</h3>
+                            <section className="grid grid-cols-2 gap-4 text-sm list-none">
+                                <span className="text-gray-600">Telefono</span>
+                                <li>{row.telefono}</li>
 
+                                <span className="text-gray-600">Ciudad</span>
+                                <li>{row.ciudad}</li>
+
+                                <span className="text-gray-600">Estado</span>
+                                <li>{row.estado}</li>
+
+                                <span className="text-gray-600">Direccion</span>
+                                <li>{row.direccion}</li>
+                            </section>
+                        </article>
+                    )
+                )}
                 {pedidoDetails ? (
                     <>
                         <ul className="mt-6 space-y-4">
