@@ -5,7 +5,7 @@ import MainForm from '@/components/form/main-form';
 import { X, Menu, LogOut, LogIn, UserPlus, User } from 'lucide-react';
 import { usePostLogutMutation } from '@/hooks/reducers/auth';
 import { LogInField } from '@/utils/constants/forms/logIn';
-import { navigationAdmin, navigationAlmacen, navigationDefault, navigationUser } from '@/utils/constants/router';
+import { navigationAdmin, navigationAlmacen, navigationDefault, navigationUser, navigationVentas } from '@/utils/constants/router';
 import { getLocalStorageItem } from '@/utils/functions/local-storage';
 import { cn } from '@/utils/functions/cn';
 import { openAlertReducer } from '@/hooks/reducers/drop-down';
@@ -91,6 +91,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
             user: navigationUser,
             almacen: navigationAlmacen,
             seguridad: navigationAlmacen,
+            ventas: navigationVentas,
             // ... otros roles
         };
         return navigationMap[role] || navigationUser;

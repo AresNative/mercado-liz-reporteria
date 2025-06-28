@@ -17,6 +17,7 @@ export default function PickUp() {
     const [pedidos, setpedidos] = useState([])
     const [IdLista, setIdLista] = useState(0)
     const [IdPedido, setIdPedido] = useState(0)
+    const [IdCliente, setIdCliente] = useState(0)
     const [getWithFilter, { isLoading: isLoadingPedidos }] = useGetMutation();
     const dispatch = useAppDispatch();
     async function getPedidos() {
@@ -51,6 +52,7 @@ export default function PickUp() {
         // Combinar datos
         const pedidosCombinados = Pedidos.data.map((pedido: any) => {
             const cliente = Clientes.data.find((c: any) => c.id === pedido.id_cliente);
+
             return {
                 ...pedido,
                 cliente: cliente || {
@@ -68,9 +70,10 @@ export default function PickUp() {
         getPedidos()
     }, [])
 
-    function handleOpenModal(idLista: number, idPedidos: number) {
+    function handleOpenModal(idLista: number, idPedidos: number, idCliente: number) {
         setIdLista(idLista)
         setIdPedido(idPedidos);
+        setIdCliente(idCliente)
         dispatch(openModalReducer({ modalName: "pedido" }))
     }
 
@@ -108,7 +111,7 @@ export default function PickUp() {
                 </article>
             </div>
 
-            <ModalPedidos name="pedido" title="Detalles del pedido" idPedido={IdPedido} idListas={IdLista} />
+            <ModalPedidos name="pedido" title="Detalles del pedido" idPedido={IdPedido} idCliente={IdCliente} idListas={IdLista} />
         </main >
     )
 }

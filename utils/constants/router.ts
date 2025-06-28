@@ -27,8 +27,19 @@ export const navigationDefault = [
     icon: Info,
   },
 ];
-
 export const navigationUser = [
+  {
+    name: "Pantalla Inicial",
+    href: "/",
+    icon: House,
+  },
+  {
+    name: "Proyectos",
+    href: "/proyectos",
+    icon: ClipboardList,
+  },
+];
+export const navigationVentas = [
   {
     name: "Pantalla Inicial",
     href: "/",
