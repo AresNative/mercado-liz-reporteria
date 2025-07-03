@@ -1,13 +1,14 @@
 import { Modal } from "@/components/modal";
 import { useGetMutation, usePutMutation } from "@/hooks/reducers/api";
 import { cn } from "@/utils/functions/cn";
-import { Check, FileText, ScanBarcode } from "lucide-react";
+import { Check, FileText, MessageCircle, ScanBarcode } from "lucide-react";
 import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { exportToExcel } from "@/app/reporteria/utils/export-excel";
 import { useAppDispatch } from "@/hooks/selector";
-import { closeModalReducer, openAlertReducer } from "@/hooks/reducers/drop-down";
+import { closeModalReducer, openAlertReducer, openModalReducer } from "@/hooks/reducers/drop-down";
+import { ModalChat } from "./modal-chat";
 
 interface ModalProps {
     name: string;
@@ -116,10 +117,7 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
 
         if (Cliente?.data?.[0]) {
             const clienteData = Cliente.data
-            console.log(clienteData);
-
             setClienteDetails(clienteData);
-            //          (parsedData);
         }
     };
 
@@ -181,180 +179,182 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
     }, [idListas]);
 
     return (
-        <Modal modalName={name} title={title}>
-            <>
-                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                    <FileText className="h-6 w-6 text-green-600" />
-                </span>
-                {clienteDetails.length > 0 && clienteDetails.map(
-                    (row: any, key: any) => (
-                        <article key={key}>
-                            <h3>Nombre: {row.nombre}</h3>
-                            <section className="grid grid-cols-2 gap-4 text-sm list-none">
-                                <span className="text-gray-600">Telefono</span>
-                                <li>{row.telefono}</li>
+        <>
+            <Modal modalName={name} title={title}>
+                <>
+                    <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                        <FileText className="h-6 w-6 text-green-600" />
+                    </span>
+                    {clienteDetails.length > 0 && clienteDetails.map(
+                        (row: any, key: any) => (
+                            <article className="mt-3" key={key}>
+                                <section className="grid grid-cols-2 gap-4 text-sm list-none">
+                                    <span className="text-gray-600">Nombre</span>
+                                    <li>{row.nombre}</li>
 
-                                <span className="text-gray-600">Ciudad</span>
-                                <li>{row.ciudad}</li>
+                                    {/*  <span className="text-gray-600">Telefono</span>
+                                <li>{row.telefono}</li> */}
 
-                                <span className="text-gray-600">Estado</span>
-                                <li>{row.estado}</li>
+                                    <span className="text-gray-600">Ciudad</span>
+                                    <li>{row.ciudad}</li>
 
-                                <span className="text-gray-600">Direccion</span>
-                                <li>{row.direccion}</li>
-                            </section>
-                        </article>
-                    )
-                )}
-                {pedidoDetails ? (
-                    <>
-                        <ul className="mt-6 space-y-4">
-                            <li className="grid grid-cols-2 gap-4 text-sm">
-                                <label className="flex gap-2">
-                                    <p className="font-medium">Servicio:</p>
-                                    <p>{pedidoDetails.servicio}</p>
-                                </label>
-                                <label className="flex gap-2">
-                                    <p className="font-medium">Sucursal:</p>
-                                    <p>{pedidoDetails.sucursal}</p>
-                                </label>
-                            </li>
+                                    <span className="text-gray-600">Estado</span>
+                                    <li>{row.estado}</li>
 
-                            <li className="border-t pt-4">
-                                <h4 className="font-medium mb-2">
-                                    Artículos:
-                                    <span className={cn(
-                                        pedidoDetails.array_lista.every(item => item.recojido)
-                                            ? "text-gray-500"
-                                            : "text-red-600",
-                                        "border border-gray-300 ml-4 rounded-lg p-2"
-                                    )}>
-                                        {pedidoDetails.array_lista.length}
-                                    </span>
-                                </h4>
-                                <section className="flex flex-col w-full">
-                                    {pedidoDetails.array_lista.map((item, key) => (
-                                        <article
-                                            key={key}
-                                            className="border my-2 rounded-lg border-l-4 border-l-green-500 shadow-sm"
-                                        >
-                                            <section className="p-4">
-                                                <header className="flex flex-col gap-4">
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                        <ul className="space-y-1">
-                                                            <hgroup className="flex items-center gap-2">
-                                                                <h3 className="font-medium">{item.nombre}</h3>
-                                                                <mark className="inline-flex bg-green-500 text-white items-center rounded px-2.5 py-0.5 text-xs font-semibold">
-                                                                    {item.categoria}
-                                                                </mark>
-                                                            </hgroup>
-                                                            <dl className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
-                                                                <span className="flex items-center gap-1">
-                                                                    <dt>Cantidad:</dt>
-                                                                    <dd className="font-medium">
-                                                                        {item.quantity} {item.unidad}
-                                                                    </dd>
-                                                                </span>
-                                                                <span className="flex items-center gap-1">
-                                                                    <ScanBarcode className="h-4 w-4" />
-                                                                    <dd className="font-mono">{item.id}</dd>
-                                                                </span>
-                                                                <span className="flex items-center gap-2 cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        className="w-4 h-4"
-                                                                        checked={item.recojido}
-                                                                        onChange={() => handleCheckboxChange(key)}
-                                                                    />
-                                                                    {item.recojido && (
-                                                                        <output className="flex gap-1 items-center text-sm text-green-600">
-                                                                            <Check className="inline h-4 w-4" /> Ready
-                                                                        </output>
-                                                                    )}
-                                                                </span>
-                                                            </dl>
-                                                        </ul>
-
-
-                                                    </div>
-
-                                                    {/*  <nav className="flex items-center justify-between">
-                                                        <h4 className="flex items-center gap-2">
-                                                            <MessageSquare className="h-4 w-4" />
-                                                            <span className="text-sm font-medium">Comments (2)</span>
-                                                        </h4>
-                                                        <button className="text-sm text-blue-600">
-                                                            <ChevronRight className="h-4 w-4" />
-                                                        </button>
-                                                    </nav> */}
-                                                </header>
-                                            </section>
-                                        </article>
-                                    ))}
+                                    <span className="text-gray-600">Direccion</span>
+                                    <li>{row.direccion}</li>
                                 </section>
-                            </li>
-                        </ul>
+                            </article>
+                        )
+                    )}
+                    {pedidoDetails ? (
+                        <>
+                            <ul className="mt-6 space-y-4">
+                                <li className="grid grid-cols-2 gap-4 text-sm">
+                                    <label className="flex gap-2">
+                                        <p className="font-medium">Servicio:</p>
+                                        <p>{pedidoDetails.servicio}</p>
+                                    </label>
+                                    <label className="flex gap-2">
+                                        <p className="font-medium">Sucursal:</p>
+                                        <p>{pedidoDetails.sucursal}</p>
+                                    </label>
+                                </li>
 
-                        <footer className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t">
-                            <button
-                                onClick={() => alert("Incompleto")}
-                                className="bg-red-500 text-white px-4 py-2 rounded-md"
-                            >
-                                Incompleto
-                            </button>
-                            <button
-                                onClick={() => {
-                                    updateCita({
+                                <li className="border-t pt-4">
+                                    <h4 className="font-medium mb-2">
+                                        Artículos:
+                                        <span className={cn(
+                                            pedidoDetails.array_lista.every(item => item.recojido)
+                                                ? "text-gray-500"
+                                                : "text-red-600",
+                                            "border border-gray-300 ml-4 rounded-lg p-2"
+                                        )}>
+                                            {pedidoDetails.array_lista.length}
+                                        </span>
+                                    </h4>
+                                    <section className="flex flex-col w-full">
+                                        {pedidoDetails.array_lista.map((item, key) => (
+                                            <article
+                                                key={key}
+                                                className="border my-2 rounded-lg border-l-4 border-l-green-500 shadow-sm"
+                                            >
+                                                <section className="p-4">
+                                                    <header className="flex flex-col gap-4">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                            <ul className="space-y-1">
+                                                                <hgroup className="flex items-center gap-2">
+                                                                    <h3 className="font-medium">{item.nombre}</h3>
+                                                                    <mark className="inline-flex bg-green-500 text-white items-center rounded px-2.5 py-0.5 text-xs font-semibold">
+                                                                        {item.categoria}
+                                                                    </mark>
+                                                                </hgroup>
+                                                                <dl className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+                                                                    <span className="flex items-center gap-1">
+                                                                        <dt>Cantidad:</dt>
+                                                                        <dd className="font-medium">
+                                                                            {item.quantity} {item.unidad}
+                                                                        </dd>
+                                                                    </span>
+                                                                    <span className="flex items-center gap-1">
+                                                                        <ScanBarcode className="h-4 w-4" />
+                                                                        <dd className="font-mono">{item.id}</dd>
+                                                                    </span>
+                                                                    <span className="flex items-center gap-2 cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className="w-4 h-4"
+                                                                            checked={item.recojido}
+                                                                            onChange={() => handleCheckboxChange(key)}
+                                                                        />
+                                                                        {item.recojido && (
+                                                                            <output className="flex gap-1 items-center text-sm text-green-600">
+                                                                                <Check className="inline h-4 w-4" /> Ready
+                                                                            </output>
+                                                                        )}
+                                                                    </span>
+                                                                </dl>
+                                                            </ul>
+                                                        </div>
+                                                    </header>
+                                                </section>
+                                            </article>
+                                        ))}
+                                    </section>
+                                </li>
+                            </ul>
+
+                            <footer className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t">
+                                <button
+                                    onClick={() => {
+                                        dispatch(closeModalReducer({ modalName: "pedido" }))
+                                        dispatch(openModalReducer({ modalName: clienteDetails[0]?.telefono }))
+                                    }}
+                                    className="flex gap-1 items-center bg-purple-500 text-white text-xs px-4 py-2 rounded-md cursor-pointer">
+                                    <MessageCircle className="size-4" /> {clienteDetails[0]?.telefono}
+                                </button>
+                                <button
+                                    onClick={() => updateCita({
                                         Citas: [
                                             {
                                                 Id_Cliente: pedidoDetails.id_cliente,
                                                 Id_Usuario_Responsable: 1,
                                                 Plan: "Pick Up",
                                                 Id_Lista: idListas,
-                                                Estado: "listo"
+                                                Estado: "proceso"
                                             }
                                         ]
-                                    }, idPedido);
-                                    getServerSideProps();
-                                }}
-                                className="disabled:bg-gray-300 disabled:cursor-not-allowed bg-green-500 text-white px-4 py-2 rounded-md cursor-pointer"
-                                disabled={
-                                    !pedidoDetails.array_lista.every(item => item.recojido)
-                                }
-                            >
-                                Listo
-                            </button>
-                            <button
-                                onClick={() => updateCita({
-                                    Citas: [
-                                        {
-                                            Id_Cliente: pedidoDetails.id_cliente,
-                                            Id_Usuario_Responsable: 1,
-                                            Plan: "Pick Up",
-                                            Id_Lista: idListas,
-                                            Estado: "proceso"
-                                        }
-                                    ]
-                                }, idPedido)}
-                                className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer"
-                            >
-                                Proceso
-                            </button>
-                            <button
-                                onClick={generatePDF}
-                                className="bg-gray-500 text-white px-4 py-2 rounded-md flex items-center gap-2 cursor-pointer"
-                            >
-                                <FileText className="h-4 w-4" /> PDF
-                            </button>
-                        </footer>
-                    </>
-                ) : (
-                    <p className="mt-4 text-center text-sm text-gray-500">
-                        Cargando detalles del pedido...
-                    </p>
-                )}
-            </>
-        </Modal>
+                                    }, idPedido)}
+                                    className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer"
+                                >
+                                    Proceso
+                                </button>
+                                <button
+                                    onClick={generatePDF}
+                                    className="bg-red-500 text-white px-4 py-2 rounded-md flex items-center gap-2 cursor-pointer"
+                                >
+                                    <FileText className="h-4 w-4" /> PDF
+                                </button>
+                                <button
+                                    onClick={() => alert("Incompleto")}
+                                    className="bg-red-500 text-white px-4 py-2 rounded-md"
+                                >
+                                    Incompleto
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        updateCita({
+                                            Citas: [
+                                                {
+                                                    Id_Cliente: pedidoDetails.id_cliente,
+                                                    Id_Usuario_Responsable: 1,
+                                                    Plan: "Pick Up",
+                                                    Id_Lista: idListas,
+                                                    Estado: "listo"
+                                                }
+                                            ]
+                                        }, idPedido);
+                                        getServerSideProps();
+                                    }}
+                                    className="disabled:bg-gray-300 disabled:cursor-not-allowed bg-green-500 text-white px-4 py-2 rounded-md cursor-pointer"
+                                    disabled={
+                                        !pedidoDetails.array_lista.every(item => item.recojido)
+                                    }
+                                >
+                                    Listo
+                                </button>
+                            </footer>
+                        </>
+                    ) : (
+                        <p className="mt-4 text-center text-sm text-gray-500">
+                            Cargando detalles del pedido...
+                        </p>
+                    )}
+
+                </>
+            </Modal>
+            <ModalChat telefonoClient={clienteDetails[0]?.telefono} />
+        </>
     );
 };
 
