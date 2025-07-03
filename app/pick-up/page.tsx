@@ -2,6 +2,7 @@
 
 import {
     Filter,
+    MessageCircle,
     Search,
 } from "lucide-react"
 import { openModalReducer } from "@/hooks/reducers/drop-down"
@@ -12,6 +13,7 @@ import { TablaPickUp } from "./components/table"
 import { LoadingSection } from "@/template/loading-screen"
 
 import ModalPedidos from "./components/modal"
+import { ModalChat } from "./components/modal-chat"
 
 export default function PickUp() {
     const [pedidos, setpedidos] = useState([])
@@ -97,6 +99,13 @@ export default function PickUp() {
                                     className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
                                 />
                             </div>
+                            <button
+                                onClick={() => {
+                                    dispatch(openModalReducer({ modalName: 'general' }))
+                                }}
+                                className="flex gap-1 items-center bg-purple-500 text-white text-xs px-4 py-2 rounded-md cursor-pointer">
+                                <MessageCircle className="size-4" />
+                            </button>
                             <button className="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium bg-green-600 text-white">
                                 <Filter className="mr-1 h-4 w-4" />
                                 Filtrar
@@ -110,7 +119,7 @@ export default function PickUp() {
                     </section>
                 </article>
             </div>
-
+            <ModalChat telefonoClient={'general'} />
             <ModalPedidos name="pedido" title="Detalles del pedido" idPedido={IdPedido} idCliente={IdCliente} idListas={IdLista} />
         </main >
     )
