@@ -14,13 +14,17 @@ import { LoadingSection } from "@/template/loading-screen"
 
 import ModalPedidos from "./components/modal"
 import { ModalChat } from "./components/modal-chat"
+import Pagination from "@/components/pagination"
 
 export default function PickUp() {
     const [pedidos, setpedidos] = useState([])
     const [IdLista, setIdLista] = useState(0)
     const [IdPedido, setIdPedido] = useState(0)
     const [IdCliente, setIdCliente] = useState(0)
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPage, setTotalPage] = useState(1);
     const [getWithFilter, { isLoading: isLoadingPedidos }] = useGetMutation();
+
     const dispatch = useAppDispatch();
     async function getPedidos() {
         // Obtener pedidos
@@ -28,7 +32,7 @@ export default function PickUp() {
             url: "citas",
             sum: false,
             distinct: false,
-            page: "1",
+            page: currentPage,
             filters: {
                 "Filtros": [{ "Key": "Estado", "Value": "listo", "Operator": "<>" }],
                 "Selects": [{ "Key": "" }],
@@ -36,7 +40,7 @@ export default function PickUp() {
             },
             pageSize: "5"
         });
-
+        setTotalPage(Pedidos.totalPages);
         const idClientes = Pedidos.data.map((row: any) => ({ "Key": "id", "Value": row.id_cliente }))
         // Obtener clientes
         const { data: Clientes } = await getWithFilter({
@@ -99,23 +103,35 @@ export default function PickUp() {
                                     className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
                                 />
                             </div>
+
+                            <button className="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium bg-green-600 text-white">
+                                <Filter className="mr-1 h-4 w-4" />
+                                Filtrar
+                            </button>
+
                             <button
                                 onClick={() => {
                                     dispatch(openModalReducer({ modalName: 'general' }))
                                 }}
-                                className="flex gap-1 items-center bg-purple-500 text-white text-xs px-4 py-2 rounded-md cursor-pointer">
-                                <MessageCircle className="size-4" />
-                            </button>
-                            <button className="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium bg-green-600 text-white">
-                                <Filter className="mr-1 h-4 w-4" />
-                                Filtrar
+                                className="flex gap-1 items-center bg-purple-500 text-white text-xs px-3 py-2 rounded-md cursor-pointer">
+                                <MessageCircle className="h-4 w-4" />
                             </button>
                         </section>
                     </header>
 
                     <section className="overflow-x-auto">
                         {isLoadingPedidos ? (<LoadingSection message="Cargando datos" />)
-                            : (<TablaPickUp data={pedidos} handleOpenModal={handleOpenModal} />)}
+                            : (<>
+                                <TablaPickUp data={pedidos} handleOpenModal={handleOpenModal} />
+                                <div className="p-4">
+                                    <Pagination
+                                        currentPage={currentPage}
+                                        loading={isLoadingPedidos}
+                                        setCurrentPage={setCurrentPage}
+                                        totalPages={totalPage}
+                                    />
+                                </div>
+                            </>)}
                     </section>
                 </article>
             </div>

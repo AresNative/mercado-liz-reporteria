@@ -20,9 +20,9 @@ export const colorClasses = {
     ring: "ring-blue-500/10",
   },
   purple: {
-    bg: "bg-green-50",
-    text: "text-green-600",
-    ring: "ring-green-500/10",
+    bg: "bg-purple-50",
+    text: "text-purple-600",
+    ring: "ring-purple-500/10",
   },
   indigo: {
     bg: "bg-indigo-50",
@@ -96,7 +96,7 @@ export const colorBorderClasses = {
   blue: "border-blue-500 bg-blue-100",
   green: "border-green-500 bg-green-100",
   yellow: "border-yellow-500 bg-yellow-100",
-  purple: "border-green-500 bg-green-100",
+  purple: "border-purple-500 bg-purple-100",
   pink: "border-pink-500 bg-pink-100",
   indigo: "border-indigo-500 bg-indigo-100",
   teal: "border-teal-500 bg-teal-100",
