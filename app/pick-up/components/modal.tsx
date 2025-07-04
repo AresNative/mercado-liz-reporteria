@@ -192,9 +192,6 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                                     <span className="text-gray-600">Nombre</span>
                                     <li>{row.nombre}</li>
 
-                                    {/*  <span className="text-gray-600">Telefono</span>
-                                <li>{row.telefono}</li> */}
-
                                     <span className="text-gray-600">Ciudad</span>
                                     <li>{row.ciudad}</li>
 
@@ -287,7 +284,6 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                             <footer className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t">
                                 <button
                                     onClick={() => {
-                                        dispatch(closeModalReducer({ modalName: "pedido" }))
                                         dispatch(openModalReducer({ modalName: clienteDetails[0]?.telefono }))
                                     }}
                                     className="flex gap-1 items-center bg-purple-500 text-white text-xs px-4 py-2 rounded-md cursor-pointer">
