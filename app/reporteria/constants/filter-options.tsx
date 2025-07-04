@@ -15,8 +15,21 @@ import {
   Bitcoin,
   Tally5,
   Key,
+  DollarSign,
+  HelpCircle,
 } from "lucide-react";
+import React from "react";
+export interface FieldOption {
+  value: string;
+  label: string;
+  icon: React.ReactNode;
+  category: string;
+}
 
+export interface GroupedFieldOption {
+  label: string;
+  options: FieldOption[];
+}
 export const fieldOptions = [
   {
     value: "Nombre",
@@ -90,66 +103,115 @@ export const fieldOptions = [
     value: "Unidad",
     label: "Unidad",
     icon: <Hash className="inline mr-2" />,
-    category: "Cotable",
+    category: "Contable",
   },
   {
     value: "Factor",
     label: "Factor",
     icon: <Repeat2 className="inline mr-2" />,
-    category: "Cotable",
+    category: "Contable",
   },
   {
     value: "Equivalencia",
     label: "Equivalencia",
     icon: <ArrowLeftRight className="inline mr-2" />,
-    category: "Cotable",
+    category: "Contable",
   },
   {
     value: "CostoUnitario",
     label: "Costo unitario",
     icon: <Banknote className="inline mr-2" />,
-    category: "Cotable",
+    category: "Contable",
   },
   {
     value: "CostoTotal",
     label: "Costo total",
     icon: <Bitcoin className="inline mr-2" />,
-    category: "Cotable",
+    category: "Contable",
   },
   {
     value: "ImporteUnitario",
     label: "Importe unitario",
     icon: <Banknote className="inline mr-2" />,
-    category: "Cotable",
+    category: "Contable",
   },
   {
     value: "ImporteTotal",
     label: "Importe total",
-    icon: <Bitcoin className="inline mr-2" />,
-    category: "Cotable",
+    icon: <DollarSign className="inline mr-2" />,
+    category: "Contable",
   },
   {
     value: "Cantidad",
     label: "Cantidad",
     icon: <Tally5 className="inline mr-2" />,
-    category: "Cotable",
+    category: "Contable",
   },
 ];
+export const getGroupedFieldOptions = (cols: string[]): GroupedFieldOption[] => {
+  // Crear mapa de valores existentes para búsqueda rápida
+  const existingValues = new Set(fieldOptions.map(opt => opt.value));
+  const colsSet = new Set(cols);
 
-export const groupedFieldOptions = [
-  {
-    label: "Datos de producto",
-    options: fieldOptions.filter((o) => o.category === "Datos de producto"),
-  },
-  {
-    label: "Operaciones",
-    options: fieldOptions.filter((o) => o.category === "Operaciones"),
-  },
-  {
-    label: "Cotable",
-    options: fieldOptions.filter((o) => o.category === "Cotable"),
-  },
-];
+  // Separar opciones existentes
+  const inCols: FieldOption[] = [];
+  const notInCols: FieldOption[] = [];
+
+  // Mapa para acceso rápido a las opciones
+  const optionsMap = new Map<string, FieldOption>();
+  fieldOptions.forEach(opt => optionsMap.set(opt.value, opt));
+
+  // Recorrer cols para obtener opciones existentes en orden
+  cols.forEach(col => {
+    if (optionsMap.has(col)) {
+      inCols.push(optionsMap.get(col)!);
+    }
+  });
+
+  // Obtener opciones que no están en cols
+  fieldOptions.forEach(opt => {
+    if (!colsSet.has(opt.value)) {
+      notInCols.push(opt);
+    }
+  });
+
+  // Crear opciones para campos no definidos
+  const otherOptions: FieldOption[] = cols
+    .filter(col => !existingValues.has(col))
+    .map(col => ({
+      value: col,
+      label: col,
+      icon: <HelpCircle className="inline mr-2" />,
+      category: "Otros"
+    }));
+
+  // Combinar todas las opciones ordenadas
+  const orderedOptions = [...inCols, ...notInCols];
+  const grouped: GroupedFieldOption[] = [
+    {
+      label: "Datos de producto",
+      options: orderedOptions.filter(o => o.category === "Datos de producto"),
+    },
+    {
+      label: "Operaciones",
+      options: orderedOptions.filter(o => o.category === "Operaciones"),
+    },
+    {
+      label: "Contable",
+      options: orderedOptions.filter(o => o.category === "Contable"),
+    },
+  ];
+  // Añadir sección "Otros" si hay campos no definidos
+  if (otherOptions.length > 0) {
+    grouped.push({
+      label: "Otros",
+      options: otherOptions
+    });
+  }
+
+  return grouped;
+};
+
 
 export const datePresets = [
   { value: "today", label: "Hoy" },

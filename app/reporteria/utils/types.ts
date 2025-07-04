@@ -43,6 +43,7 @@ export interface FilterSectionProps {
   onReset: () => void;
   config: string;
   filterFunction: any;
+  cols?: any;
 }
 
 export type FormValues = {
