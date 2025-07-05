@@ -358,9 +358,11 @@ export const FilterSection = ({
                         <SelectFieldRow
                             key={field.id}
                             index={idx}
+                            control={control}
                             register={register}
                             onRemove={() => removeSelectField(idx)}
                             isLast={selects.length <= 1}
+                            cols={cols}
                         />
                     ))}
                 </div>
