@@ -18,6 +18,7 @@ export const FilterSection = ({
     onReset,
     config,
     filterFunction,
+    cols
 }: FilterSectionProps) => {
     const {
         control,
@@ -25,7 +26,7 @@ export const FilterSection = ({
         handleSubmit,
         reset,
         watch,
-        setValue,
+        setValue
     } = useForm<FormValues>({
         defaultValues: {
             Filtros: [{ Key: "", Value: "", Operator: "" }],
@@ -225,6 +226,7 @@ export const FilterSection = ({
                             isLast={filtros.length <= 1}
                             filterFunction={filterFunction}
                             config={config}
+                            cols={cols}
                         />
                     ))}
                 </li>

@@ -1,30 +1,6 @@
 import { formatJSON } from "@/utils/constants/format-values";
-import {
-  DynamicTableItem,
-  formatFilter,
-  formatLoadDate,
-} from "@/utils/types/querys";
-
-async function loadData(
-  functionLoad: any,
-  filter: formatLoadDate
-): Promise<{ data: any; totalPages: number } | undefined> {
-  try {
-    // Ejecutar la función con la configuración recibida
-    const response: any = await functionLoad(filter);
-
-    // Extraer los datos y total de páginas
-    const dataTable: any = response.data?.data;
-    const dataTotalPages: any = response.data?.totalPages;
-
-    return { data: dataTable, totalPages: dataTotalPages };
-  } catch (error: any) {
-    // Si el error es porque la solicitud fue cancelada, no lo mostramos
-    if (error.name === "AbortError") return;
-
-    console.log("Error en loadData:", error);
-  }
-}
+import { DynamicTableItem, formatFilter } from "@/utils/types/querys";
+import { loadData } from "../models/format-filter";
 
 export const loadDataFromAPI = async (
   getAPI: any,
@@ -35,7 +11,7 @@ export const loadDataFromAPI = async (
   try {
     const [tableResult] = await Promise.all([
       loadData(getAPI, {
-        filters: { filtros /* , Selects: [{ key: "Categoria" }] */ },
+        filters: { filtros },
         page: currentPage,
         url,
         pageSize: 10,

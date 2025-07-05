@@ -3,7 +3,7 @@
 import { Controller, useWatch } from "react-hook-form";
 import { X } from "lucide-react";
 
-import { groupedFieldOptions } from "../constants/filter-options";
+import { getGroupedFieldOptions } from "../constants/filter-options";
 import { AutoComplete } from "./auto-complete";
 import { CustomSelect } from "./custom-select";
 import { fetchNames } from "../utils/api";
@@ -16,9 +16,10 @@ interface FilterRowProps {
     isLast: boolean;
     config: string;
     filterFunction: any;
+    cols?: any;
 }
 
-export const FilterRow = ({ index, control, register, onRemove, isLast, config, filterFunction }: FilterRowProps) => {
+export const FilterRow = ({ index, control, register, onRemove, isLast, config, filterFunction, cols }: FilterRowProps) => {
     const selectedKey = useWatch({
         control,
         name: `Filtros.${index}.Key`,
@@ -36,7 +37,7 @@ export const FilterRow = ({ index, control, register, onRemove, isLast, config, 
                         <CustomSelect
                             value={field.value}
                             onChange={field.onChange}
-                            options={groupedFieldOptions}
+                            options={getGroupedFieldOptions(cols)}
                             placeholder="Seleccionar campo"
                             inputId={`filter-field-${index}`}
                             ariaLabel={`Campo para filtro ${index + 1}`}
