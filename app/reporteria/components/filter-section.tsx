@@ -249,9 +249,9 @@ export const FilterSection = ({
                     </button>
                 </div>
                 {/* Manejo de perfiles de columnas */}
-                <div>
+                <div className="flex justify-between w-full gap-4">
                     {/* Sección de selección y eliminación de perfil */}
-                    <fieldset className="space-y-3">
+                    <fieldset className="space-y-3 w-full">
                         <legend className="text-sm font-medium text-gray-900 dark:text-gray-100">Seleccionar perfil existente</legend>
                         <div className="flex gap-3">
                             <div className="flex-1">
@@ -300,7 +300,7 @@ export const FilterSection = ({
                     </fieldset>
 
                     {/* Sección de creación de nuevo perfil */}
-                    <fieldset className="space-y-3">
+                    <fieldset className="space-y-3 w-full">
                         <legend className="text-sm font-medium text-gray-900 dark:text-gray-100">Crear nuevo perfil</legend>
                         <div className="flex gap-3">
                             <div className="flex-1">
