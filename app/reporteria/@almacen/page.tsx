@@ -166,6 +166,10 @@ export default function User() {
     setDataSource("api"); // Volver a modo API al resetear filtros
   };
 
+  const columns = useMemo(() => {
+    return tableData.length > 0 ? Object.keys(tableData[0]).filter(Boolean) : [];
+  }, [tableData]);
+
   return (
     <main className="flex flex-col items-center max-w-7xl m-auto px-4 py-8">
       <section className="w-full mb-6 flex justify-between items-center">
@@ -247,6 +251,7 @@ export default function User() {
           onReset={handleResetFilters}
           config={config}
           filterFunction={getData}
+          cols={columns}
         />
       )}
 
