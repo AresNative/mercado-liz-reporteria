@@ -151,7 +151,7 @@ export const fieldOptions = [
 
 export const getGroupedFieldOptions = (cols: string[]): GroupedFieldOption[] => {
   const existingValues = new Set(fieldOptions.map(opt => opt.value));
-  const colsSet = new Set(cols);
+  new Set(cols);
   const optionsMap = new Map(fieldOptions.map(opt => [opt.value, opt]));
 
   // Filtrar SOLO las opciones que existen en cols
