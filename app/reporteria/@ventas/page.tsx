@@ -72,9 +72,9 @@ export default function User() {
       setPage(data.page || 1);
       setTableData(processedData);
       setDataSource("api"); // Asegurar que estamos en modo API
-    } catch (error) {
-      console.error("Error fetching data:", error);
+    } catch (error: any) {
       setTableData([]);
+      console.log(error);
     }
   }
 

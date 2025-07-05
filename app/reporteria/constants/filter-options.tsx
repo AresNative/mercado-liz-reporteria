@@ -148,35 +148,22 @@ export const fieldOptions = [
     category: "Contable",
   },
 ];
+
 export const getGroupedFieldOptions = (cols: string[]): GroupedFieldOption[] => {
-  // Crear mapa de valores existentes para búsqueda rápida
   const existingValues = new Set(fieldOptions.map(opt => opt.value));
   const colsSet = new Set(cols);
+  const optionsMap = new Map(fieldOptions.map(opt => [opt.value, opt]));
 
-  // Separar opciones existentes
+  // Filtrar SOLO las opciones que existen en cols
   const inCols: FieldOption[] = [];
-  const notInCols: FieldOption[] = [];
-
-  // Mapa para acceso rápido a las opciones
-  const optionsMap = new Map<string, FieldOption>();
-  fieldOptions.forEach(opt => optionsMap.set(opt.value, opt));
-
-  // Recorrer cols para obtener opciones existentes en orden
   cols.forEach(col => {
     if (optionsMap.has(col)) {
       inCols.push(optionsMap.get(col)!);
     }
   });
 
-  // Obtener opciones que no están en cols
-  fieldOptions.forEach(opt => {
-    if (!colsSet.has(opt.value)) {
-      notInCols.push(opt);
-    }
-  });
-
   // Crear opciones para campos no definidos
-  const otherOptions: FieldOption[] = cols
+  const otherOptions = cols
     .filter(col => !existingValues.has(col))
     .map(col => ({
       value: col,
@@ -185,23 +172,23 @@ export const getGroupedFieldOptions = (cols: string[]): GroupedFieldOption[] => 
       category: "Otros"
     }));
 
-  // Combinar todas las opciones ordenadas
-  const orderedOptions = [...inCols, ...notInCols];
+  // Agrupar por categoría (solo con opciones presentes en cols)
   const grouped: GroupedFieldOption[] = [
     {
       label: "Datos de producto",
-      options: orderedOptions.filter(o => o.category === "Datos de producto"),
+      options: inCols.filter(o => o.category === "Datos de producto"),
     },
     {
       label: "Operaciones",
-      options: orderedOptions.filter(o => o.category === "Operaciones"),
+      options: inCols.filter(o => o.category === "Operaciones"),
     },
     {
       label: "Contable",
-      options: orderedOptions.filter(o => o.category === "Contable"),
+      options: inCols.filter(o => o.category === "Contable"),
     },
-  ];
-  // Añadir sección "Otros" si hay campos no definidos
+  ].filter(group => group.options.length > 0);  // Eliminar categorías vacías
+
+  // Añadir "Otros" solo si hay opciones
   if (otherOptions.length > 0) {
     grouped.push({
       label: "Otros",
@@ -211,7 +198,6 @@ export const getGroupedFieldOptions = (cols: string[]): GroupedFieldOption[] => 
 
   return grouped;
 };
-
 
 export const datePresets = [
   { value: "today", label: "Hoy" },
