@@ -31,7 +31,7 @@ export default function PickUp() {
     const [IdLista, setIdLista] = useState(0)
     const [IdPedido, setIdPedido] = useState(0)
     const [IdCliente, setIdCliente] = useState(0)
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(0);
     const [totalPage, setTotalPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [getWithFilter] = useGetMutation();
@@ -169,8 +169,7 @@ export default function PickUp() {
 
                     <section className="overflow-x-auto">
                         {isLoading ? (<LoadingSection message="Cargando datos" />)
-                            : (<>
-                                <TablaPickUp data={pedidos} handleOpenModal={handleOpenModal} />
+                            : pedidos.length ? (<> <TablaPickUp data={pedidos} handleOpenModal={handleOpenModal} />
                                 <div className="p-4">
                                     <Pagination
                                         currentPage={currentPage}
@@ -178,8 +177,11 @@ export default function PickUp() {
                                         setCurrentPage={setCurrentPage}
                                         totalPages={totalPage}
                                     />
-                                </div>
-                            </>)}
+                                </div></>)
+                                :
+                                (<div className="p-4 text-center">
+                                    <p className="text-gray-500">No se encontraron pedidos.</p>
+                                </div>)}
                     </section>
                 </article>
             </div>
