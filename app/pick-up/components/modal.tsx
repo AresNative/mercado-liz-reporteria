@@ -9,6 +9,7 @@ import { exportToExcel } from "@/app/reporteria/utils/export-excel";
 import { useAppDispatch } from "@/hooks/selector";
 import { closeModalReducer, openAlertReducer, openModalReducer } from "@/hooks/reducers/drop-down";
 import { ModalChat } from "./modal-chat";
+import { sendMessage } from "../utils/use-db-firebase";
 
 interface ModalProps {
     name: string;
@@ -312,8 +313,17 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                                     <FileText className="h-4 w-4" /> PDF
                                 </button>
                                 <button
-                                    onClick={() => alert("Incompleto")}
-                                    className="bg-red-500 text-white px-4 py-2 rounded-md"
+                                    onClick={async () => {
+                                        await sendMessage(clienteDetails[0].telefono, "1", "Soporte", "Su pedido no se puede completar")
+                                        dispatch(openAlertReducer({
+                                            title: "Mensaje enviado",
+                                            message: "El cliente ha sido notificado",
+                                            type: "success",
+                                            icon: "archivo",
+                                            duration: 4000
+                                        }));
+                                    }}
+                                    className="bg-red-500 text-white px-4 py-2 rounded-md cursor-pointer active:bg-red-600"
                                 >
                                     Incompleto
                                 </button>
