@@ -59,16 +59,26 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                 dataKey: key
             }));
 
-        // Reordenar: mover "cantidad" después de "articulo" si ambos existen
+        // Reordenar: mover "Inventario disponible" después de "articulo"
         const articuloIdx = columns.findIndex(col => col.dataKey === "articulo");
         const cantidadIdx = columns.findIndex(col => col.dataKey === "cantidad");
         if (articuloIdx !== -1 && cantidadIdx !== -1 && cantidadIdx !== articuloIdx + 1) {
             const [cantidadCol] = columns.splice(cantidadIdx, 1);
-            columns.splice(articuloIdx + 1, 0, cantidadCol);
+            const newPosition = cantidadIdx < articuloIdx ? articuloIdx : articuloIdx + 1;
+            columns.splice(newPosition, 0, cantidadCol);
+        }
+
+        // Reordenar: mover "Cantidad" antes de "unidad"
+        const unidadIdx = columns.findIndex(col => col.dataKey === "unidad");
+        const quantityIdx = columns.findIndex(col => col.dataKey === "quantity");
+        if (unidadIdx !== -1 && quantityIdx !== -1 && unidadIdx !== quantityIdx + 1) {
+            const [quantityCol] = columns.splice(quantityIdx, 1);
+            const newPosition = quantityIdx < unidadIdx ? unidadIdx : unidadIdx + 1;
+            columns.splice(unidadIdx, 0, quantityCol);
         }
 
         // Agregar columna de recolectado
-        columns.push({ title: "Recolectado", dataKey: "" });
+        columns.push({ title: "Recolectado", dataKey: "recojido" });
 
         const tableData = pedidoDetails.array_lista.map(item => ({
             ...item,
