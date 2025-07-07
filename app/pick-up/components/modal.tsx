@@ -43,15 +43,32 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
 
     const generatePDF = () => {
         if (!pedidoDetails) return;
-        const columns = [
-            ...Object.keys(pedidoDetails.array_lista[0])
-                .filter(key => key !== "recojido")
-                .map(key => ({
-                    title: key === "id" ? "Código Barras" : key,
-                    dataKey: key
-                })),
-            { title: "Recolectado", dataKey: "" }
-        ];
+        type Column = { title: string; dataKey: string; };
+
+        const titleMap: Record<string, string> = {
+            id: "Código Barras",
+            cantidad: "Inventario disponible",
+            quantity: "Cantidad"
+        };
+
+        // Construir columnas con tipado correcto
+        let columns: Column[] = Object.keys(pedidoDetails.array_lista[0])
+            .filter(key => key !== "recojido")
+            .map((key) => ({
+                title: titleMap[key] ?? key,
+                dataKey: key
+            }));
+
+        // Reordenar: mover "cantidad" después de "articulo" si ambos existen
+        const articuloIdx = columns.findIndex(col => col.dataKey === "articulo");
+        const cantidadIdx = columns.findIndex(col => col.dataKey === "cantidad");
+        if (articuloIdx !== -1 && cantidadIdx !== -1 && cantidadIdx !== articuloIdx + 1) {
+            const [cantidadCol] = columns.splice(cantidadIdx, 1);
+            columns.splice(articuloIdx + 1, 0, cantidadCol);
+        }
+
+        // Agregar columna de recolectado
+        columns.push({ title: "Recolectado", dataKey: "" });
 
         const tableData = pedidoDetails.array_lista.map(item => ({
             ...item,
@@ -144,7 +161,7 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                 body: '{"1":"12/1","2":"3pm"}',
                 contentSid: 'HX350d429d32e64a552466cafecbe95f3c',
             });
-    
+     
             return {
                 props: {
                     messageStatus: response.success ? 'Enviado' : 'Error'
