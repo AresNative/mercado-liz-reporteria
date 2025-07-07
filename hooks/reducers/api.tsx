@@ -82,6 +82,26 @@ export const api = createApi({
             }),
             extraOptions: { maxRetries: 2 }
         }),
+        getScrum: builder.query({
+            query: ({ page, pageSize, url, id, filtro, categoria, listaPrecio, signal }) => ({
+                url: `v1/${url}`,
+                method: "GET",
+                params: {
+                    page,
+                    pageSize,
+                    listaPrecio,
+                    categoria,
+                    id,
+                    filtro// codigo de barras o nombre
+                },
+                signal
+            }),
+            transformErrorResponse: (response: any) => ({
+                status: response.status,
+                message: response.data?.message || 'Error fetching data',
+            }),
+            extraOptions: { maxRetries: 2 }
+        }),
     }),
 });
 
