@@ -296,7 +296,7 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                                             {
                                                 Id_Cliente: pedidoDetails.id_cliente,
                                                 Id_Usuario_Responsable: 1,
-                                                Plan: "Pick Up",
+                                                Plan: "Pickup",
                                                 Id_Lista: idListas,
                                                 Estado: "proceso"
                                             }
@@ -322,6 +322,17 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                                             icon: "archivo",
                                             duration: 4000
                                         }));
+                                        updateCita({
+                                            Citas: [
+                                                {
+                                                    Id_Cliente: pedidoDetails.id_cliente,
+                                                    Id_Usuario_Responsable: 1,
+                                                    Plan: "Pickup",
+                                                    Id_Lista: idListas,
+                                                    Estado: "incompleto"
+                                                }
+                                            ]
+                                        }, idPedido);
                                     }}
                                     className="bg-red-500 text-white px-4 py-2 rounded-md cursor-pointer active:bg-red-600"
                                 >
@@ -334,7 +345,7 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                                                 {
                                                     Id_Cliente: pedidoDetails.id_cliente,
                                                     Id_Usuario_Responsable: 1,
-                                                    Plan: "Pick Up",
+                                                    Plan: "Pickup",
                                                     Id_Lista: idListas,
                                                     Estado: "listo"
                                                 }
