@@ -1,5 +1,5 @@
 "use client"
-import { useGetScrumQuery } from "@/hooks/reducers/api";
+import { useGetScrumQuery, usePutTaskStatusMutation } from "@/hooks/reducers/api";
 import { useState, useEffect, useCallback } from "react";
 
 export type TaskEstado = "backlog" | "pruebas" | "todo" | "in-progress" | "done";
@@ -32,7 +32,7 @@ export function useTaskService() {
         url: "sprints/27/tasks",
         signal: undefined,
     });
-
+    const [putStatusTask] = usePutTaskStatusMutation()
     const [tasks, setTasks] = useState<Task[]>([]);
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
 
@@ -96,10 +96,18 @@ export function useTaskService() {
 
     const deleteTask = useCallback((id: string) => {
         setTasks(prev => prev.filter(task => task.id !== id));
+        putStatusTask({
+            taskId: id,
+            estado: "archivado"
+        });
         return true;
     }, []);
 
     const updateTaskEstado = useCallback((id: string, estado: TaskEstado) => {
+        putStatusTask({
+            taskId: id,
+            estado: estado
+        });
         return updateTask(id, { estado });
     }, [updateTask]);
 
