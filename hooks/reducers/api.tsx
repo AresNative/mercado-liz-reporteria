@@ -83,17 +83,30 @@ export const api = createApi({
             extraOptions: { maxRetries: 2 }
         }),
         getScrum: builder.query({
-            query: ({ page, pageSize, url, id, filtro, categoria, listaPrecio, signal }) => ({
+            query: ({ url, signal }) => ({
                 url: `v1/${url}`,
                 method: "GET",
-                params: {
+                /* params: {
                     page,
                     pageSize,
                     listaPrecio,
                     categoria,
                     id,
                     filtro// codigo de barras o nombre
-                },
+                }, */
+                signal
+            }),
+            transformErrorResponse: (response: any) => ({
+                status: response.status,
+                message: response.data?.message || 'Error fetching data',
+            }),
+            extraOptions: { maxRetries: 2 }
+        }),
+        postScrum: builder.mutation({
+            query: ({ url, data, signal }) => ({
+                url: `v2/${url}`,
+                method: "POST",
+                body: JSON.stringify(data),
                 signal
             }),
             transformErrorResponse: (response: any) => ({
@@ -110,4 +123,6 @@ export const {
     usePostMutation,
     usePutMutation,
     useGetArticulosByIdQuery,
+    useGetScrumQuery,
+    usePostScrumMutation
 } = api;
