@@ -318,7 +318,7 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
                                 {/* Tags */}
                                 {task.tags && task.tags.length > 0 && (
                                     <section className="mt-2 flex flex-wrap gap-1">
-                                        {task.tags.map((tag, index) => (
+                                        {JSON.parse(task.tags).map((tag: any, index: any) => (
                                             <span
                                                 key={index}
                                                 className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800"
