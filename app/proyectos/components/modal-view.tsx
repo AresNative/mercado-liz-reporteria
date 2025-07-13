@@ -48,7 +48,19 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
             minute: '2-digit'
         });
     };
-    console.log(task);
+
+    const renderEstado = (estado: string) => {
+        switch (estado) {
+            case 'done':
+                return <span className="px-3 py-1 flex items-center w-fit rounded-full text-sm font-medium text-white bg-green-600">Completado</span>;
+            case 'todo':
+                return <span className="px-3 py-1 flex items-center w-fit rounded-full text-sm font-medium text-white bg-yellow-500">Por hacer</span>;
+            case 'in-progress':
+                return <span className="px-3 py-1 flex items-center w-fit rounded-full text-sm font-medium text-white bg-yellow-500">En Progreso</span>;
+            default:
+                return <span className="px-3 py-1 flex items-center w-fit rounded-full text-sm font-medium text-white bg-gray-600">{estado}</span>;
+        }
+    }
 
     return (
         <Modal title="Informe de tarea" modalName={nameModal} maxWidth="md">
@@ -69,12 +81,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                             <Hourglass className="w-4 h-4 mr-2" />
                             <span className="text-sm font-medium">Estado</span>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${task.estado === 'in-progress'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                            }`}>
-                            {task.estado === 'in-progress' ? 'En Progreso' : 'Completado'}
-                        </span>
+                        {renderEstado(task.estado)}
                     </li>
 
                     {/* Prioridad */}
