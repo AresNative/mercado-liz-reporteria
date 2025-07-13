@@ -15,7 +15,7 @@ export interface Task {
     createdAt: Date;
     updatedAt: Date;
     prioridad?: TaskPrioridad;
-    tags?: string[];
+    tags?: string;
 }
 
 export interface TimeEntry {
@@ -49,7 +49,7 @@ export function useTaskService() {
                 createdAt: new Date(apiTask.fecha_creacion),
                 updatedAt: new Date(apiTask.fecha_creacion),
                 prioridad: mapPriority(apiTask.prioridad),
-                tags: []
+                tags: apiTask.tags
             }));
             setTasks(mappedTasks);
         }

@@ -7,8 +7,6 @@ import {
     CalendarDays,
     RefreshCw,
     Tag,
-    Pencil,
-    X
 } from "lucide-react";
 
 type ModalViewProps = {
@@ -157,12 +155,11 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                     </label>
                     <label className="flex flex-wrap">
                         {task.tags && task.tags.length > 0 ? (
-                            task.tags.map((tag: string, index: number) => (
-                                <span
-                                    key={index}
-                                    className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm mr-2 mb-2"
-                                >
-                                    {tag}
+                            JSON.parse(task.tags).map((tag: string, index: number) => (
+                                <span key={index} className="inline-flex items-center">
+                                    <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm mr-2 mb-2">
+                                        {tag}
+                                    </span>
                                 </span>
                             ))
                         ) : (
