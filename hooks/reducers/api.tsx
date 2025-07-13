@@ -195,17 +195,19 @@ export const {
     useGetArticulosByIdQuery,
     useGetScrumQuery,
     usePostScrumMutation,
-
-
+    /* scrum */
     useGetProjectsQuery,
     useGetSprintsQuery,
     useGetTasksQuery,
     useGetHsitoryTaskQuery,
+    /* <----------> */
     usePostProjectsMutation,
     usePostSprintsMutation,
     usePostTasksMutation,
     usePostCommentsMutation,
+    /* <----------> */
     usePutTaskMutation,
     usePutTaskStatusMutation,
     usePutTaskOrderMutation
+    /* scrum */
 } = api;

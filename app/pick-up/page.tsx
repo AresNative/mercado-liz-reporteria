@@ -31,7 +31,7 @@ export default function PickUp() {
     const [IdLista, setIdLista] = useState(0)
     const [IdPedido, setIdPedido] = useState(0)
     const [IdCliente, setIdCliente] = useState(0)
-    const [currentPage, setCurrentPage] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
     const [totalPage, setTotalPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [getWithFilter] = useGetMutation();
