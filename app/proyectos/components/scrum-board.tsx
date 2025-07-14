@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { type Task, type TaskEstado, useTaskService } from "@/app/proyectos/services/taskService"
 import { Edit, Trash2, GripVertical, User, Plus } from "lucide-react"
 import { ModalView } from "./modal-view"
-import { openModalReducer } from "@/hooks/reducers/drop-down"
+import { openAlertReducer, openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
 import { ModalForm } from "./modal-form"
 
@@ -233,12 +233,24 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
             console.error("Failed to delete task:", error)
         }
     }
-
+    /* */
     const confirmDeleteTask = (id: string, e: React.MouseEvent) => {
         e.stopPropagation()
-        if (window.confirm("¿Estás seguro de que deseas eliminar esta tarea?")) {
+
+        dispatch(
+            openAlertReducer({
+                title: "Borrar tarea!",
+                message: "Se borrara la tarea seleccionada, ¿estás seguro?",
+                type: "error",
+                icon: "alert",
+                buttonText: "Aceptar",
+                action: () => handleDeleteTask(id),
+                duration: 10000000
+            })
+        );
+        /* if (window.confirm("¿Estás seguro de que deseas eliminar esta tarea?")) {
             handleDeleteTask(id)
-        }
+        } */
     }
     const [TaskId, setTaskId] = useState<string | undefined>()
     const dispatch = useAppDispatch();
