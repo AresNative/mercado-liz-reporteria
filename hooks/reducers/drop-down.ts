@@ -12,7 +12,7 @@ interface BaseAlertProps {
   icon: "archivo" | "alert";
   type: "success" | "error" | "warning" | "completed" | "info";
   duration?: number;
-  action?: (...args: any[]) => any;
+  action?: (...args: any[]) => void;
 }
 
 export interface DropDowState {
@@ -28,6 +28,7 @@ const initialAlertState: BaseAlertProps = {
   type: "completed",
   duration: 0,
   icon: "archivo",
+  action: () => {},
 };
 
 const initialState: DropDowState = {

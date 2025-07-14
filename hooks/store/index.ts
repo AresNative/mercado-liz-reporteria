@@ -27,7 +27,14 @@ export const store = configureStore({
   },
   devTools: config.mode !== "production",
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({}).concat([
+    getDefaultMiddleware({
+      serializableCheck: {
+        // Ignora estas rutas específicas
+        ignoredPaths: ["dropDownReducer.alert.action"],
+        // Ignora estas acciones específicas
+        ignoredActions: ["dropDown/openAlertReducer"],
+      },
+    }).concat([
       api.middleware,
       api_int.middleware,
       api_landing.middleware,
