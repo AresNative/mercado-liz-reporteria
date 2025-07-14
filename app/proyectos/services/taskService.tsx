@@ -34,7 +34,6 @@ export function useTaskService() {
     });
     const [putStatusTask] = usePutTaskStatusMutation()
     const [tasks, setTasks] = useState<Task[]>([]);
-    const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
 
     useEffect(() => {
         if (scrumTasks) {

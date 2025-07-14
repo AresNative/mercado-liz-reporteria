@@ -148,6 +148,7 @@ export interface ButtonProps {
   type?: "button" | "submit" | "reset";
   label?: string;
   size?: "small" | "medium" | "large";
+  aling?: string;
   color?: keyof typeof alertClasses;
   children?: React.ReactNode;
   disabled?: boolean;
