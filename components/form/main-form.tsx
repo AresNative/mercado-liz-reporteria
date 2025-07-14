@@ -30,6 +30,7 @@ import { usePostUserLoginMutation } from "@/hooks/reducers/auth";
 import { Button } from "../button";
 import Link from "next/link";
 import { usePostLandingMutation, usePostLandingJsonMutation } from "@/hooks/reducers/api_landing";
+import { usePostTasksMutation } from "@/hooks/reducers/api";
 
 export const MainForm = ({ message_button, dataForm, actionType, aditionalData, action, valueAssign, onSuccess, formName }: MainFormProps) => {
 
@@ -52,6 +53,7 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
   const [postUserLogin] = usePostUserLoginMutation();
   const [postLandingJson] = usePostLandingJsonMutation();
   const [postLanding] = usePostLandingMutation();
+  const [postTask] = usePostTasksMutation();
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
     const payload = formName ? data : { [actionType.toLowerCase()]: [data] };
@@ -59,6 +61,8 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
     switch (actionType) {
       case "post-login":
         return await postUserLogin(data).unwrap();
+      case "post-task":
+        return await postTask(data).unwrap();
       default:
         const functionFetch = formName ? postLanding : postLandingJson;
         return await functionFetch({

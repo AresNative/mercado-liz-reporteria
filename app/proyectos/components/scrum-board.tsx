@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react"
 import { type Task, type TaskEstado, useTaskService } from "@/app/proyectos/services/taskService"
-import { Edit, Trash2, GripVertical, User } from "lucide-react"
+import { Edit, Trash2, GripVertical, User, Plus } from "lucide-react"
 import { ModalView } from "./modal-view"
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
+import { ModalForm } from "./modal-form"
 
 interface ScrumBoardProps {
     initialTasks: any[]
@@ -243,113 +244,119 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
     const dispatch = useAppDispatch();
 
     return (
-        <ul className="grid grid-cols-1 space-y-6 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {COLUMNS.map((column) => (
-                <li key={column.id} className="space-y-2">
-                    <section className="flex items-center justify-between">
-                        <h3 className="font-medium text-gray-900">{column.name}</h3>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            {tasksByEstado[column.id]?.length || 0}
-                        </span>
-                    </section>
-                    <section
-                        id={`column-${column.id}`}
-                        className={`min-h-[200px] rounded-lg border p-2 space-y-2 transition-colors ${dragOverColumn === column.id
-                            ? "border-purple-300 bg-purple-50"
-                            : "border-gray-200 bg-gray-50"
-                            }`}
-                        onDragOver={(e: any) => handleDragOver(e, column.id)}
-                        onDragEnter={handleDragEnter}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e: any) => handleDrop(e, column.id)}
-                    >
-                        {tasksByEstado[column.id]?.map((task) => (
-                            <div
-                                key={task.id}
-                                id={`task-${task.id}`}
-                                className={`cursor-pointer rounded-md border bg-white shadow-sm hover:shadow p-3 ${draggedTask === task.id ? "opacity-50" : "opacity-100"
-                                    } ${dragOverTaskId === task.id
-                                        ? dragPosition === "above"
-                                            ? "border-t-2 border-t-purple-500"
-                                            : "border-b-2 border-b-purple-500"
-                                        : ""
-                                    }`}
-                                draggable="true"
-                                onDragStart={(e) => handleDragStart(e, task.id)}
-                                onDragOver={(e) => handleTaskDragOver(e, task.id)}
-                                onDragLeave={handleTaskDragLeave}
-                                onDrop={(e) => handleTaskDrop(e, task.id)}
-                                onClick={() => {
-                                    dispatch(openModalReducer({ modalName: 'test' }))
-                                    setTaskId(task.id)
-                                }}
-                            >
-                                <section className="flex items-start justify-between">
-                                    <h4 className="font-medium text-sm text-gray-900">{task.title}</h4>
-                                    <div className="flex items-center space-x-1">
-                                        <button
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="text-gray-400 hover:text-gray-500 cursor-pointer"
-                                        >
-                                            <Edit size={16} />
-                                        </button>
-                                        <button
-                                            onClick={(e) => confirmDeleteTask(task.id, e)}
-                                            className="text-gray-400 hover:text-red-500 cursor-pointer"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                        <span className="cursor-grab">
-                                            <GripVertical size={16} className="text-gray-400" />
-                                        </span>
-                                    </div>
-                                </section>
-                                <p
-                                    className="mt-1 text-xs text-gray-500 overflow-hidden text-ellipsis"
-                                    style={{
-                                        display: "-webkit-box",
-                                        WebkitLineClamp: 2,
-                                        WebkitBoxOrient: "vertical"
+        <main>
+            <button className="" onClick={() => {
+                dispatch(openModalReducer({ modalName: 'create-task' }))
+            }}><Plus /></button>
+            <ul className="grid grid-cols-1 space-y-6 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {COLUMNS.map((column) => (
+                    <li key={column.id} className="space-y-2">
+                        <section className="flex items-center justify-between">
+                            <h3 className="font-medium text-gray-900">{column.name}</h3>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {tasksByEstado[column.id]?.length || 0}
+                            </span>
+                        </section>
+                        <section
+                            id={`column-${column.id}`}
+                            className={`min-h-[200px] rounded-lg border p-2 space-y-2 transition-colors ${dragOverColumn === column.id
+                                ? "border-purple-300 bg-purple-50"
+                                : "border-gray-200 bg-gray-50"
+                                }`}
+                            onDragOver={(e: any) => handleDragOver(e, column.id)}
+                            onDragEnter={handleDragEnter}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e: any) => handleDrop(e, column.id)}
+                        >
+                            {tasksByEstado[column.id]?.map((task) => (
+                                <div
+                                    key={task.id}
+                                    id={`task-${task.id}`}
+                                    className={`cursor-pointer rounded-md border bg-white shadow-sm hover:shadow p-3 ${draggedTask === task.id ? "opacity-50" : "opacity-100"
+                                        } ${dragOverTaskId === task.id
+                                            ? dragPosition === "above"
+                                                ? "border-t-2 border-t-purple-500"
+                                                : "border-b-2 border-b-purple-500"
+                                            : ""
+                                        }`}
+                                    draggable="true"
+                                    onDragStart={(e) => handleDragStart(e, task.id)}
+                                    onDragOver={(e) => handleTaskDragOver(e, task.id)}
+                                    onDragLeave={handleTaskDragLeave}
+                                    onDrop={(e) => handleTaskDrop(e, task.id)}
+                                    onClick={() => {
+                                        dispatch(openModalReducer({ modalName: 'view-task' }))
+                                        setTaskId(task.id)
                                     }}
                                 >
-                                    {task.description}
-                                </p>
-
-                                {/* Tags */}
-                                {task.tags && task.tags.length > 0 && (
-                                    <section className="mt-2 flex flex-wrap gap-1">
-                                        {JSON.parse(task.tags).map((tag: any, index: any) => (
-                                            <span
-                                                key={index}
-                                                className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800"
+                                    <section className="flex items-start justify-between">
+                                        <h4 className="font-medium text-sm text-gray-900">{task.title}</h4>
+                                        <div className="flex items-center space-x-1">
+                                            <button
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="text-gray-400 hover:text-gray-500 cursor-pointer"
                                             >
-                                                {tag}
+                                                <Edit size={16} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => confirmDeleteTask(task.id, e)}
+                                                className="text-gray-400 hover:text-red-500 cursor-pointer"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                            <span className="cursor-grab">
+                                                <GripVertical size={16} className="text-gray-400" />
                                             </span>
-                                        ))}
+                                        </div>
                                     </section>
-                                )}
-
-                                <section className="mt-3 flex items-center justify-between">
-                                    <span
-                                        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize"
+                                    <p
+                                        className="mt-1 text-xs text-gray-500 overflow-hidden text-ellipsis"
                                         style={{
-                                            backgroundColor: PRIORIDAD_COLORS[task.prioridad || "medium"],
-                                            color: PRIORIDAD_TEXT_COLORS[task.prioridad || "medium"],
+                                            display: "-webkit-box",
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: "vertical"
                                         }}
                                     >
-                                        {task.prioridad || "medium"}
-                                    </span>
-                                    <span className="flex items-center text-xs text-gray-500">
-                                        <User size={12} className="mr-1" />
-                                        {task.assignee}
-                                    </span>
-                                </section>
-                            </div>
-                        ))}
-                    </section>
-                </li>
-            ))}
-            <ModalView nameModal="test" task={TaskId ? tasksById(TaskId)[0] : []} />
-        </ul>
+                                        {task.description}
+                                    </p>
+
+                                    {/* Tags */}
+                                    {task.tags && task.tags.length > 0 && (
+                                        <section className="mt-2 flex flex-wrap gap-1">
+                                            {JSON.parse(task.tags).map((tag: any, index: any) => (
+                                                <span
+                                                    key={index}
+                                                    className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800"
+                                                >
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </section>
+                                    )}
+
+                                    <section className="mt-3 flex items-center justify-between">
+                                        <span
+                                            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize"
+                                            style={{
+                                                backgroundColor: PRIORIDAD_COLORS[task.prioridad || "medium"],
+                                                color: PRIORIDAD_TEXT_COLORS[task.prioridad || "medium"],
+                                            }}
+                                        >
+                                            {task.prioridad || "medium"}
+                                        </span>
+                                        <span className="flex items-center text-xs text-gray-500">
+                                            <User size={12} className="mr-1" />
+                                            {task.assignee}
+                                        </span>
+                                    </section>
+                                </div>
+                            ))}
+                        </section>
+                    </li>
+                ))}
+            </ul>
+            <ModalView nameModal="view-task" task={TaskId ? tasksById(TaskId)[0] : []} />
+            <ModalForm nameModal="create-task" />
+        </main>
     )
 }
