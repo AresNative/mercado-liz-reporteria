@@ -245,9 +245,12 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
 
     return (
         <main>
-            <button className="" onClick={() => {
-                dispatch(openModalReducer({ modalName: 'create-task' }))
-            }}><Plus /></button>
+            <button className="flex gap-1 p-2 ml-auto border bg-green-600 text-white text-xs rounded-4xl items-center mb-4 before:content-['+'] before:text-xs before:bg-white before:text-green-600 before:px-2 before:py-1 before:rounded-full hover:bg-green-700 transition-colors"
+                onClick={() => {
+                    dispatch(openModalReducer({ modalName: 'create-task' }))
+                }}>
+                Agregar tarea
+            </button>
             <ul className="grid grid-cols-1 space-y-6 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {COLUMNS.map((column) => (
                     <li key={column.id} className="space-y-2">
@@ -356,7 +359,7 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
                 ))}
             </ul>
             <ModalView nameModal="view-task" task={TaskId ? tasksById(TaskId)[0] : []} />
-            <ModalForm nameModal="create-task" />
+            <ModalForm nameModal="create-task" sprintId={27} />
         </main>
     )
 }

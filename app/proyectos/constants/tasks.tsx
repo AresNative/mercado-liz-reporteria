@@ -1,4 +1,5 @@
 import { Field } from "@/utils/types/interfaces";
+import { Ampersand, ChartNoAxesGantt, Text } from "lucide-react";
 
 export function TasksField(): Field[] {
   return [
@@ -12,33 +13,37 @@ export function TasksField(): Field[] {
           require: true,
           label: "Titulo",
           placeholder: "Titulo de la tarea:",
+          icon: <Ampersand className="text-green-500" />,
         },
         {
           name: "prioridad",
           type: "SELECT",
-          label: "Prioridad de la tarea...",
+          label: "Prioridad de la tarea",
           require: true,
           multi: false,
           options: ["alta", "media", "baja"],
+          icon: <ChartNoAxesGantt className="text-orange-500" />,
         },
       ],
     },
 
     {
       name: "descripcion",
-      type: "INPUT",
+      type: "TEXT_AREA",
       require: true,
       label: "Descripcion",
       placeholder: "Explica en breves palabras que es la tarea...",
       maxLength: 50,
+      icon: <Text className="text-blue-500" />,
     },
     {
       name: "tags",
       type: "TAG_INPUT",
       require: true,
       label: "Tags",
-      placeholder: "Explica en breves palabras que es la tarea...",
+      placeholder: "Agrega tags para la tarea, considera que son palabras clave",
       maxLength: 50,
+      jsonString: true,
     },
   ];
 }

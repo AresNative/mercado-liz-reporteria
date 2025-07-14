@@ -1,10 +1,12 @@
 import { alertClasses } from "@/utils/constants/colors";
+import { cn } from "@/utils/functions/cn";
 import { ButtonProps } from "@/utils/types/interfaces";
 
 export function Button({
     type = "button",
     label,
     size = "medium",
+    aling = "justify-center",
     color = "info",
     onClick,
     children,
@@ -29,7 +31,7 @@ export function Button({
             type={type}
             onClick={onClick}
             onMouseDown={handleMouseDown}  // Agregar onMouseDown para evitar el drag
-            className={`flex gap-2 justify-center items-center ${sizeClass} ${styles.text} ${styles.bg} ${styles.ring} rounded-md ${styles.hover} transition-all`}
+            className={cn(`flex gap-2 justify-center items-center ${aling} ${sizeClass} ${styles.text} ${styles.bg} ${styles.ring} rounded-md ${styles.hover} transition-all`)}
             style={{ pointerEvents, opacity }}
             disabled={disabled}
         >
