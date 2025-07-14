@@ -1,5 +1,5 @@
 import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface TagInputProps {
     cuestion: {
@@ -7,6 +7,7 @@ interface TagInputProps {
         placeholder?: string;
         label?: string;
         require: boolean;
+        valueDefined?: any;
         jsonString?: boolean;
     };
     watch: any;
@@ -33,7 +34,11 @@ export const TagInputComponent = ({
     } else {
         tags = watchedValue || [];
     }
-
+    useEffect(() => {
+        if (cuestion.valueDefined) {
+            setValue(cuestion.name, cuestion.valueDefined);
+        }
+    }, [cuestion.valueDefined]);
     const addTag = (e: React.FormEvent) => {
         e.preventDefault();
         if (newTag.trim() && !tags.includes(newTag.trim())) {

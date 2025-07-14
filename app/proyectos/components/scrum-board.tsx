@@ -233,7 +233,12 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
             console.error("Failed to delete task:", error)
         }
     }
-    /* */
+    const editTask = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        dispatch(openModalReducer({ modalName: 'edit-task' }))
+        setTaskId(id)
+    }
+
     const confirmDeleteTask = (id: string, e: React.MouseEvent) => {
         e.stopPropagation()
 
@@ -248,9 +253,6 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
                 duration: 10000000
             })
         );
-        /* if (window.confirm("¿Estás seguro de que deseas eliminar esta tarea?")) {
-            handleDeleteTask(id)
-        } */
     }
     const [TaskId, setTaskId] = useState<string | undefined>()
     const dispatch = useAppDispatch();
@@ -307,12 +309,12 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
                                     <section className="flex items-start justify-between">
                                         <h4 className="font-medium text-sm text-gray-900">{task.title}</h4>
                                         <div className="flex items-center space-x-1">
-                                            <button
-                                                onClick={(e) => e.stopPropagation()}
+                                            {/* <button
+                                                onClick={(e) => editTask(task.id, e)}
                                                 className="text-gray-400 hover:text-gray-500 cursor-pointer"
                                             >
                                                 <Edit size={16} />
-                                            </button>
+                                            </button> */}
                                             <button
                                                 onClick={(e) => confirmDeleteTask(task.id, e)}
                                                 className="text-gray-400 hover:text-red-500 cursor-pointer"
@@ -372,6 +374,7 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
             </ul>
             <ModalView nameModal="view-task" task={TaskId ? tasksById(TaskId)[0] : []} />
             <ModalForm nameModal="create-task" sprintId={27} />
+            <ModalForm nameModal="edit-task" sprintId={27} dataModal={TaskId ? tasksById(TaskId)[0] : []} />
         </main>
     )
 }

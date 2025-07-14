@@ -1,10 +1,15 @@
 import { InputFormProps } from "@/utils/types/interfaces";
 import { Briefcase } from "lucide-react";
+import { useEffect } from "react";
 
 export function TextAreaComponent(props: InputFormProps) {
     const { cuestion } = props;
     const currentValue = props.watch(cuestion.name) || "";
-
+    useEffect(() => {
+        if (cuestion.valueDefined) {
+            props.setValue(cuestion.name, cuestion.valueDefined);
+        }
+    }, [cuestion.valueDefined]);
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { value } = e.target;
 
