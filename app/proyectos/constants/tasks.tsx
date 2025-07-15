@@ -2,7 +2,6 @@ import { Field } from "@/utils/types/interfaces";
 import { Ampersand, ChartNoAxesGantt, Text } from "lucide-react";
 
 export function TasksField(data?: any): Field[] {
-  console.log(data);
 
   return [
     {
