@@ -1,6 +1,6 @@
 import { formatJSON } from "@/utils/constants/format-values";
 import { DynamicTableItem, formatFilter } from "@/utils/types/querys";
-import { loadData } from "../models/format-filter";
+import { loadData } from "./sql/format-filter";
 
 export const loadDataFromAPI = async (
   getAPI: any,

@@ -1,26 +1,21 @@
 import { financial } from "@/utils/functions/format-financial";
-import { formatLoadDate } from "../types/querys";
+import { formatLoadDate } from "../../types/querys";
 
 export interface ChartData {
   name: string;
   data: { x: string; y: number }[];
 }
-export interface formatFilter {
-  key: string;
-  value: string;
-  operator: "like" | "=" | ">=" | "<=" | ">" | "<" | "<>" | ""; // Incluí "" como opción para el operador.
-}
 
 export async function loadDataGrafic(
-  functionLoad: (filter: formatLoadDate) => Promise<any>,
-  filter: formatLoadDate,
+  functionLoad: any,
+  filter: any,
   nameX: string | string[],
   nameY: string
 ): Promise<ChartData[]> {
   try {
     // Cargar datos desde la función proporcionada
     const response = await functionLoad(filter);
-    const dataTable: any[] = response.data.data;
+    const dataTable: any = response.data?.data;
 
     // Determinar campos para agrupación y eje X
     const [groupBy, xField] = Array.isArray(nameX) ? nameX : [undefined, nameX];

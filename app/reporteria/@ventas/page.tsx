@@ -12,6 +12,8 @@ import { REPORT_CONFIGS } from "../constants/configs";
 import { exportToExcel } from "../utils/export-excel";
 import { importFromExcel } from "../utils/import-excel";
 import Badge from "@/components/badge";
+import { loadDataGrafic } from "@/utils/data/sql/format-filter";
+import { RenderChart } from "../components/render-grafic";
 
 // Tamaño de página para datos importados
 const IMPORT_PAGE_SIZE = 10;
@@ -19,7 +21,7 @@ const IMPORT_PAGE_SIZE = 10;
 export default function User() {
   const [getData, { isLoading }] = useGetMutation();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const [areaData, setAreaData] = useState<any[]>([]); // Datos para el gráfico de área
   // Estado para tipo de reporte
   const [config, setConfig] = useState<ReportType>("compras");
   const [tableData, setTableData] = useState<DataItem[]>([]);
@@ -62,6 +64,18 @@ export default function User() {
         signal: undefined,
         filters: others
       });
+
+      const data_chart = await loadDataGrafic(getData, {
+        url: `reporteria/${config}`,
+        pageSize: 12,
+        page,
+        sum,
+        distinct,
+        filters: { Filtros: others.Filtros, Selects: [{ Key: 'Mes' }, ...others.Selects], OrderBy: others.OrderBy },
+        signal: undefined
+      }, "Mes", "CostoTotal");
+
+      setAreaData(data_chart);
 
       const processedData = data.data.map((item: DataItem, index: number) => ({
         ID: item.ID || index,
@@ -257,7 +271,13 @@ export default function User() {
           cols={columns}
         />
       )}
-
+      <section className="w-full mb-6">
+        <RenderChart
+          type="area"
+          barData={areaData}
+          treemapData={[]}
+        />
+      </section>
       {isLoading ? (
         <LoadingSection message="Cargando datos" />
       ) : (
