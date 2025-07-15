@@ -1,5 +1,5 @@
 import { formatAPIDate } from "@/utils/constants/format-values";
-import { formatFilter } from "../models/format-filter";
+import { formatFilter } from "./sql/format-filter";
 
 export const buildFilters = (searchParams: any): formatFilter[] => {
   const arr: formatFilter[] = [];

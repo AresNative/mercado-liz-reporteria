@@ -38,7 +38,7 @@ export const FilterRow = ({ index, control, register, onRemove, isLast, config, 
                             value={field.value}
                             onChange={field.onChange}
                             options={getGroupedFieldOptions(cols)}
-                            placeholder="Seleccionar campo"
+                            placeholder="Seleccionar columna..."
                             inputId={`filter-field-${index}`}
                             ariaLabel={`Campo para filtro ${index + 1}`}
                         />
