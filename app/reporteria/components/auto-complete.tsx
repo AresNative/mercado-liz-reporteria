@@ -28,7 +28,14 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
     const observerRef = useRef<IntersectionObserver>(null);
 
     const debouncedValue = useDebounce(inputValue, 200);
+    async function onClickInput() {
+        const controller = new AbortController();
 
+        const { options: newOptions, hasMore } = await fetchOptions("a", 1, controller.signal);
+        setOptions(newOptions);
+        setHasMore(hasMore);
+        setPage(1);
+    }
     useEffect(() => {
         const controller = new AbortController();
         const fetchData = async () => {
@@ -163,6 +170,7 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
                 onChange={handleInputChange}
                 onFocus={handleFocus}
                 onKeyDown={handleKeyDown}
+                onClick={onClickInput}
                 placeholder={placeholder}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-150"
             />
