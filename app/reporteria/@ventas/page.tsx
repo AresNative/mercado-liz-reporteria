@@ -67,13 +67,14 @@ export default function User() {
 
       const data_chart = await loadDataGrafic(getData, {
         url: `reporteria/${config}`,
-        pageSize: 10,
+        pageSize: 12,
         page,
         sum,
         distinct,
-        filters: others,
+        filters: { Filtros: others.Filtros, Selects: [{ Key: 'Mes' }, ...others.Selects], OrderBy: others.OrderBy },
         signal: undefined
       }, "Mes", "CostoTotal");
+
       setAreaData(data_chart);
 
       const processedData = data.data.map((item: DataItem, index: number) => ({
