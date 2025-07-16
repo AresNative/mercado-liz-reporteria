@@ -69,9 +69,9 @@ export default function User() {
         url: `reporteria/${config}`,
         pageSize: 12,
         page,
-        sum,
-        distinct,
-        filters: { Filtros: others.Filtros, Selects: [{ Key: 'Mes' }, ...others.Selects], OrderBy: others.OrderBy },
+        sum: true,
+        distinct: false,
+        filters: { Filtros: others.Filtros, Selects: [{ Key: 'Mes' }], OrderBy: others.OrderBy },
         signal: undefined
       }, "Mes", "CostoTotal");
 
