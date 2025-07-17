@@ -192,3 +192,7 @@
 .animate-infinite-scroll {
   animation: infinite-scroll 20s linear infinite;
 }
+.visibility{
+    content-visibility: auto;
+    contain-intrinsic-size: 1000px;
+  }

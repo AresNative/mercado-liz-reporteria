@@ -233,11 +233,11 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
             console.error("Failed to delete task:", error)
         }
     }
-    const editTask = (id: string, e: React.MouseEvent) => {
+    /* const editTask = (id: string, e: React.MouseEvent) => {
         e.stopPropagation()
         dispatch(openModalReducer({ modalName: 'edit-task' }))
         setTaskId(id)
-    }
+    } */
 
     const confirmDeleteTask = (id: string, e: React.MouseEvent) => {
         e.stopPropagation()
@@ -289,7 +289,7 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
                                 <div
                                     key={task.id}
                                     id={`task-${task.id}`}
-                                    className={`cursor-pointer rounded-md border bg-white shadow-sm hover:shadow p-3 ${draggedTask === task.id ? "opacity-50" : "opacity-100"
+                                    className={`cursor-pointer visibility rounded-md border bg-white shadow-sm hover:shadow p-3 ${draggedTask === task.id ? "opacity-50" : "opacity-100"
                                         } ${dragOverTaskId === task.id
                                             ? dragPosition === "above"
                                                 ? "border-t-2 border-t-purple-500"
@@ -374,7 +374,7 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
             </ul>
             <ModalView nameModal="view-task" task={TaskId ? tasksById(TaskId)[0] : []} />
             <ModalForm nameModal="create-task" sprintId={27} />
-            <ModalForm nameModal="edit-task" sprintId={27} dataModal={TaskId ? tasksById(TaskId)[0] : []} />
+            {/* <ModalForm nameModal="edit-task" sprintId={27} dataModal={TaskId ? tasksById(TaskId)[0] : []} /> */}
         </main>
     )
 }
