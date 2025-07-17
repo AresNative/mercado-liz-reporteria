@@ -39,11 +39,12 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} ${lobsterSans.variable}`} suppressHydrationWarning>
       <head>
+        <title>Mercado Liz</title>
         <meta name="description"
           content="Mercado Liz - Tu pantalla de administracion general en supermercados | todal de sucursales | empleados | compras | ventas | reporteria" />
 
         <base href="/" />
-        <meta name="theme-color" content="#7c3aed" />
+        <meta name="theme-color" content="#00a63e" />
         <link
           href="https://fonts.googleapis.com/css2?family=Lobster&family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap"
           rel="stylesheet" />

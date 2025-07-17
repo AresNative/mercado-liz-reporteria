@@ -271,13 +271,15 @@ export default function User() {
           cols={columns}
         />
       )}
-      <section className="w-full mb-6">
+      {isLoading ? (
+        <LoadingSection message="Cargando grafica" />
+      ) : (<section className="w-full mb-6">
         <RenderChart
           type="area"
           barData={areaData}
           treemapData={[]}
         />
-      </section>
+      </section>)}
       {isLoading ? (
         <LoadingSection message="Cargando datos" />
       ) : (
