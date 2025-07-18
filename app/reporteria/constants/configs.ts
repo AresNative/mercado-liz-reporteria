@@ -4,42 +4,42 @@ export const REPORT_CONFIGS: Record<ReportType, ReportConfig> = {
   compras: {
     type: "compras",
     title: "compras",
-    amountKey: "Costo",
+    amountKey: "CostoTotal",
     mainField: "Proveedor",
     sumKey: "Proveedor",
   },
   ventas: {
     type: "ventas",
     title: "ventas",
-    amountKey: "Importe",
+    amountKey: "ImporteTotal",
     mainField: "Cliente",
     sumKey: "Cliente",
   },
   /* gastos: {
     type: "gastos",
     title: "gastos",
-    amountKey: "Importe",
+    amountKey: "ImporteTotal",
     mainField: "Cliente",
     sumKey: "Cliente",
   }, */
   almacen: {
     type: "almacen",
     title: "almacen",
-    amountKey: "Costo",
+    amountKey: "CostoTotal",
     mainField: "Producto",
     sumKey: "Producto",
   },
   /* utilidadbruta: {
     type: "utilidadbruta",
     title: "utilidadbruta",
-    amountKey: "Importe",
+    amountKey: "ImporteTotal",
     mainField: "Cliente",
     sumKey: "Cliente",
   }, */
   mermas: {
     type: "mermas",
     title: "mermas",
-    amountKey: "Importe",
+    amountKey: "ImporteTotal",
     mainField: "Producto",
     sumKey: "Producto",
   },

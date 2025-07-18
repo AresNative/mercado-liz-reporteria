@@ -9,7 +9,7 @@ export type ReportType =
 export interface ReportConfig {
   type: ReportType;
   title: string;
-  amountKey: "Costo" | "Importe";
+  amountKey: "CostoTotal" | "ImporteTotal";
   mainField: string;
   sumKey: string;
 }

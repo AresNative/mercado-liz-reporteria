@@ -5,7 +5,7 @@ import DynamicTable, { DataItem } from "@/components/table";
 import { FilterSection } from "../components/filter-section";
 import { useGetMutation } from "@/hooks/reducers/api_int";
 import { LoadingSection } from "@/template/loading-screen";
-import { Filter, X } from "lucide-react"; // Añadido X para el botón de regresar
+import { ChartBar, Filter, X } from "lucide-react"; // Añadido X para el botón de regresar
 import { useEffect, useState, useRef, useMemo } from "react"; // Añadido useMemo
 import { ReportType } from "../utils/types";
 import { REPORT_CONFIGS } from "../constants/configs";
@@ -14,6 +14,8 @@ import { importFromExcel } from "../utils/import-excel";
 import Badge from "@/components/badge";
 import { loadDataGrafic } from "@/utils/data/sql/format-filter";
 import { RenderChart } from "../components/render-grafic";
+import Card from "@/components/card";
+import { formatValue } from "@/utils/constants/format-values";
 
 // Tamaño de página para datos importados
 const IMPORT_PAGE_SIZE = 10;
@@ -31,7 +33,8 @@ export default function User() {
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<"api" | "imported">("api"); // Origen de los datos
   const [importedData, setImportedData] = useState<DataItem[]>([]); // Datos importados completos
-
+  const [total, setTotal] = useState(0);
+  const [cantidad, setCantidad] = useState(0);
   const [activeFilters, setActiveFilters] = useState({
     Filtros: [],
     Selects: [],
@@ -64,6 +67,27 @@ export default function User() {
         signal: undefined,
         filters: others
       });
+      const { data: data_sumary } = await getData({
+        url: `reporteria/${config}`,
+        pageSize: 100000,
+        page,
+        sum: true,
+        distinct: false,
+        signal: undefined,
+        filters: { Filtros: others.Filtros, Selects: [{ key: "" }], OrderBy: others.OrderBy }
+      });
+      const caracter: any = Object.entries(REPORT_CONFIGS)
+        .filter(([_, cfg]) => cfg.type === config)
+        .map(([_, cfg]) => cfg.amountKey);
+
+      if (caracter && data_sumary?.data?.[0]) {
+        setTotal(data_sumary.data[0][caracter]);
+        setCantidad(data_sumary.data[0].Cantidad)
+      } else {
+        console.error("No se encontró el campo o los datos son inválidos");
+        setTotal(0); // O un valor por defecto
+        setCantidad(0)
+      }
 
       const data_chart = await loadDataGrafic(getData, {
         url: `reporteria/${config}`,
@@ -229,7 +253,7 @@ export default function User() {
           </button>
           <button
             onClick={triggerFileInput}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
           >
             Importar
           </button>
@@ -271,6 +295,11 @@ export default function User() {
           cols={columns}
         />
       )}
+      <section className="flex w-full gap-2">
+        {total > 0 && (<Card title="Costo total" icon={<ChartBar className="text-white" />} value={formatValue(total, "currency")} />)}
+
+        {cantidad > 0 && (<Card title="Cantidad" icon={<ChartBar className="text-white" />} value={formatValue(cantidad, "number")} />)}
+      </section>
       {isLoading ? (
         <LoadingSection message="Cargando grafica" />
       ) : (<section className="w-full mb-6">
