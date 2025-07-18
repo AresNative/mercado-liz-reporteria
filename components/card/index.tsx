@@ -13,7 +13,7 @@ export default function Card(props: Resumen) {
     return (
         <motion.div whileHover={{ scale: 1.02 }} className="w-full bg-white dark:bg-zinc-800 border dark:border-zinc-700 overflow-hidden shadow rounded-lg">
             <article className="p-5">
-                <body className="flex items-center">
+                <div className="flex items-center">
                     <label className="flex-shrink-0 bg-purple-500 rounded-md p-3">
                         {props.icon}
                     </label>
@@ -28,10 +28,12 @@ export default function Card(props: Resumen) {
                             </dd>
                         </dl>
                     </div>
-                    <div>
-                        {props.children}
-                    </div>
-                </body>
+                    {props.children && (
+                        <div className="ml-5 flex-shrink-0 border-t-2 border-gray-200 dark:border-zinc-700 pt-2">
+                            {props.children}
+                        </div>
+                    )}
+                </div>
             </article>
         </motion.div>
     )
