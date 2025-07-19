@@ -117,7 +117,7 @@ export default function User() {
       const { data } = await getData({
         url: `reporteria/${config}`,
         pageSize: 10,
-        page,
+        page: 1,
         sum,
         distinct,
         signal: undefined,
@@ -126,7 +126,7 @@ export default function User() {
       const { data: data_sumary } = await getData({
         url: `reporteria/${config}`,
         pageSize: 100000,
-        page,
+        page: 1,
         sum: true,
         distinct: false,
         signal: undefined,
@@ -265,6 +265,42 @@ export default function User() {
   }, [tableData]);
 
   const visibleWidgets = configPerzonalization.widgets.filter((w) => w.visible).sort((a, b) => a.position - b.position)
+
+
+  const renderWidget = (widget: DashboardWidget, key: any) => {
+    switch (widget.id) {
+      case "stats":
+        return <section key={key} className="w-full flex flex-col md:flex-row gap-4">
+          {total > 0 && (<Card title="Total" icon={<ChartBar className="text-white" />} value={formatValue(total, "currency")} />)}
+          {cantidad > 0 && (<Card title="Cantidad" icon={<ChartBar className="text-white" />} value={formatValue(cantidad, "number")} />)}
+        </section>
+
+      case "chart":
+        return <section key={key} className="w-full">
+          <RenderChart
+            type="area"
+            barData={areaData}
+            treemapData={[]}
+          />
+        </section>
+
+      case "table":
+        return <section key={key} className="mt-4 w-full">
+          <DynamicTable
+            data={dataSource === "imported" ? paginatedImportedData : tableData}
+          />
+
+          <Pagination
+            currentPage={page}
+            loading={isLoading}
+            setCurrentPage={setPage}
+            totalPages={dataSource === "imported" ? importedTotalPages : totalPages}
+          />
+        </section>
+      default:
+        return null
+    }
+  }
   return (
     <main className="flex flex-col items-center max-w-7xl m-auto px-4 py-8">
       <section className="w-full mb-6 flex justify-between items-center">
@@ -338,13 +374,13 @@ export default function User() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-white w-full shadow rounded-lg mb-4 sm:mb-6 overflow-hidden"
+            className="bg-white w-full shadow border rounded-lg mb-4 sm:mb-6 overflow-hidden"
             aria-labelledby="customization-title"
           >
             <header className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between items-start sm:items-center">
                 <h3 id="customization-title" className="text-base sm:text-lg font-medium text-gray-900">
-                  Personalizar Dashboard
+                  Personalizar Pantalla
                 </h3>
                 <button
                   onClick={resetConfig}
@@ -424,7 +460,6 @@ export default function User() {
         )
       }
       <AnimatePresence>
-
         {showFilters && (<motion.section
           id="customization-panel"
           initial={{ opacity: 0, height: 0 }}
@@ -448,48 +483,10 @@ export default function User() {
       {isLoading ? (
         <LoadingSection message="Cargando datos" />
       ) : (<>
-        <section className="flex w-full md:flex-row flex-col gap-2 mb-6">
-          {total > 0 && (<Card title="Total" icon={<ChartBar className="text-white" />} value={formatValue(total, "currency")} />)}
-          {cantidad > 0 && (<Card title="Cantidad" icon={<ChartBar className="text-white" />} value={formatValue(cantidad, "number")} />)}
-        </section>
-        <section className="w-full mb-6">
-          <RenderChart
-            type="area"
-            barData={areaData}
-            treemapData={[]}
-          />
-        </section>
-        <DynamicTable
-          data={dataSource === "imported" ? paginatedImportedData : tableData}
-        />
-
-        <Pagination
-          currentPage={page}
-          loading={isLoading}
-          setCurrentPage={setPage}
-          totalPages={dataSource === "imported" ? importedTotalPages : totalPages}
-        />
+        <AnimatePresence>{visibleWidgets.map((widget, key) => renderWidget(widget, key))}</AnimatePresence>
       </>
       )}
-      <AnimatePresence>{visibleWidgets.map((widget, key) => renderWidget(widget, key))}</AnimatePresence>
+
     </main >
   );
-}
-
-const renderWidget = (widget: DashboardWidget, key: any) => {
-  switch (widget.id) {
-    case "stats":
-      return <section key={key}></section>
-
-    case "stats-count":
-      return <section key={key}></section>
-
-    case "chart":
-      return <section key={key}></section>
-
-    case "table":
-      return <section key={key}></section>
-    default:
-      return null
-  }
 }
