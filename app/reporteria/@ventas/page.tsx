@@ -154,8 +154,33 @@ export default function User() {
         filters: { Filtros: others.Filtros, Selects: [{ Key: 'Mes' }], OrderBy: others.OrderBy },
         signal: undefined
       }, "Mes", "CostoTotal");
+      // Definir el orden cronológico de los meses (en minúsculas)
+      const mesesOrden = [
+        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+      ];
 
-      setAreaData(data_chart);
+      // Función para obtener el índice numérico del mes
+      const obtenerIndiceMes = (nombreMes: string) => {
+        return mesesOrden.indexOf(nombreMes.toLowerCase());
+      };
+
+      // Procesar data_chart para ordenar los meses
+      const newDataChart = data_chart.map(item => {
+        // Ordenar el array 'data' usando el índice del mes
+        const dataOrdenada = [...item.data].sort((a, b) => {
+          const indiceA = obtenerIndiceMes(a.x);
+          const indiceB = obtenerIndiceMes(b.x);
+          return indiceA - indiceB;
+        });
+
+        return {
+          ...item,
+          data: dataOrdenada
+        };
+      });
+
+      setAreaData(newDataChart);
 
       const processedData = data.data.map((item: DataItem, index: number) => ({
         ID: item.ID || index,
