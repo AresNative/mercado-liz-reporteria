@@ -117,7 +117,7 @@ export default function User() {
       const { data } = await getData({
         url: `reporteria/${config}`,
         pageSize: 10,
-        page: 1,
+        page,
         sum,
         distinct,
         signal: undefined,
@@ -148,7 +148,7 @@ export default function User() {
       const data_chart = await loadDataGrafic(getData, {
         url: `reporteria/${config}`,
         pageSize: 12,
-        page,
+        page: 1,
         sum: true,
         distinct: false,
         filters: { Filtros: others.Filtros, Selects: [{ Key: 'Mes' }], OrderBy: others.OrderBy },
@@ -188,7 +188,7 @@ export default function User() {
       }));
 
       setTotalPages(data.totalPages || 1);
-      setPage(data.page || 1);
+      setPage(data.page);
       setTableData(processedData);
       setDataSource("api"); // Asegurar que estamos en modo API
     } catch (error: any) {
@@ -313,13 +313,6 @@ export default function User() {
         return <section key={key} className="mt-4 w-full">
           <DynamicTable
             data={dataSource === "imported" ? paginatedImportedData : tableData}
-          />
-
-          <Pagination
-            currentPage={page}
-            loading={isLoading}
-            setCurrentPage={setPage}
-            totalPages={dataSource === "imported" ? importedTotalPages : totalPages}
           />
         </section>
       default:
@@ -512,6 +505,13 @@ export default function User() {
       </>
       )}
 
+
+      <Pagination
+        currentPage={page}
+        loading={isLoading}
+        setCurrentPage={setPage}
+        totalPages={dataSource === "imported" ? importedTotalPages : totalPages}
+      />
     </main >
   );
 }
