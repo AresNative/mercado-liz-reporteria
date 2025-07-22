@@ -5,7 +5,7 @@ import DynamicTable, { DataItem } from "@/components/table";
 import { FilterSection } from "../components/filter-section";
 import { useGetMutation } from "@/hooks/reducers/api_int";
 import { LoadingSection } from "@/template/loading-screen";
-import { ChartBar, Eye, EyeOff, Filter, Maximize2, Minimize2, RotateCcw, Sliders, X } from "lucide-react"; // Añadido X para el botón de regresar
+import { ChartBar, Eye, EyeOff, Filter, RotateCcw, Sliders, X } from "lucide-react"; // Añadido X para el botón de regresar
 import { useEffect, useState, useRef, useMemo } from "react"; // Añadido useMemo
 import { ReportType } from "../utils/types";
 import { REPORT_CONFIGS } from "../constants/configs";
@@ -151,7 +151,7 @@ export default function User() {
         page: 1,
         sum: true,
         distinct: false,
-        filters: { Filtros: others.Filtros, Selects: [{ Key: 'Mes' }], OrderBy: others.OrderBy },
+        filters: { Filtros: others.Filtros, Selects: [{ Key: 'Mes' }, { Key: 'Año' }], OrderBy: others.OrderBy },
         signal: undefined
       }, "Mes", "CostoTotal");
       // Definir el orden cronológico de los meses (en minúsculas)

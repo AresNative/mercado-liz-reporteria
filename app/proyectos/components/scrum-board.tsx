@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { type Task, type TaskEstado, useTaskService } from "@/app/proyectos/services/taskService"
-import { Edit, Trash2, GripVertical, User, Plus } from "lucide-react"
+import { /* Edit,  */Trash2, GripVertical, User/* , Plus */ } from "lucide-react"
 import { ModalView } from "./modal-view"
 import { openAlertReducer, openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
