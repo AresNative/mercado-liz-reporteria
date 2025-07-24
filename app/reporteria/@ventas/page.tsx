@@ -111,89 +111,116 @@ export default function User() {
     return Math.ceil(importedData.length / IMPORT_PAGE_SIZE);
   }, [importedData]);
 
+  // Mapeo de nombres de meses a su número correspondiente
+  const monthMap: Record<string, number> = {
+    'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6,
+    'julio': 7, 'agosto': 8, 'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
+  };
   async function handleGetData() {
     try {
       const { sum, distinct, ...others } = activeFilters;
-      const { data } = await getData({
+      const filters = others.Filtros;
+      const orderBy = others.OrderBy;
+
+      // Configuración base para todas las solicitudes
+      const baseConfig = {
         url: `reporteria/${config}`,
-        pageSize: 10,
-        page,
-        sum,
-        distinct,
         signal: undefined,
-        filters: others
-      });
-      const { data: data_sumary } = await getData({
-        url: `reporteria/${config}`,
-        pageSize: 100000,
-        page: 1,
-        sum: true,
-        distinct: false,
-        signal: undefined,
-        filters: { Filtros: others.Filtros, Selects: [{ key: "" }], OrderBy: others.OrderBy }
-      });
-      const caracter: any = Object.entries(REPORT_CONFIGS)
-        .filter(([_, cfg]) => cfg.type === config)
-        .map(([_, cfg]) => cfg.amountKey);
-
-      if (caracter && data_sumary?.data?.[0]) {
-        setTotal(data_sumary.data[0][caracter]);
-        setCantidad(data_sumary.data[0].Cantidad)
-      } else {
-        console.error("No se encontró el campo o los datos son inválidos");
-        setTotal(0); // O un valor por defecto
-        setCantidad(0)
-      }
-
-      const data_chart = await loadDataGrafic(getData, {
-        url: `reporteria/${config}`,
-        pageSize: 12,
-        page: 1,
-        sum: true,
-        distinct: false,
-        filters: { Filtros: others.Filtros, Selects: [{ Key: 'Mes' }, { Key: 'Año' }], OrderBy: others.OrderBy },
-        signal: undefined
-      }, "Mes", "CostoTotal");
-      // Definir el orden cronológico de los meses (en minúsculas)
-      const mesesOrden = [
-        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
-      ];
-
-      // Función para obtener el índice numérico del mes
-      const obtenerIndiceMes = (nombreMes: string) => {
-        return mesesOrden.indexOf(nombreMes.toLowerCase());
+        filters: { Filtros: filters, OrderBy: orderBy }
       };
 
-      // Procesar data_chart para ordenar los meses
-      const newDataChart = data_chart.map(item => {
-        // Ordenar el array 'data' usando el índice del mes
-        const dataOrdenada = [...item.data].sort((a, b) => {
-          const indiceA = obtenerIndiceMes(a.x);
-          const indiceB = obtenerIndiceMes(b.x);
-          return indiceA - indiceB;
-        });
+      // Ejecutar todas las solicitudes en paralelo
+      const [tableRes, summaryRes, chartRes] = await Promise.all([
+        // Datos de tabla
+        getData({
+          ...baseConfig,
+          pageSize: 10,
+          page,
+          sum,
+          distinct
+        }),
+
+        // Resumen
+        getData({
+          ...baseConfig,
+          pageSize: 1,
+          page: 1,
+          sum: true,
+          distinct: false,
+          filters: {
+            ...baseConfig.filters,
+            Selects: [{ key: "" }]
+          }
+        }),
+
+        // Datos para gráfico
+        getData({
+          ...baseConfig,
+          pageSize: 100, // Suficiente para varios años
+          page: 1,
+          sum: true,
+          distinct: true,
+          filters: {
+            ...baseConfig.filters,
+            Selects: [{ Key: 'Mes' }, { Key: 'Año' }]
+          }
+        })
+      ]);
+
+      // Procesar datos de resumen
+      const amountKey = Object.entries(REPORT_CONFIGS)
+        .find(([_, cfg]) => cfg.type === config)?.[1]?.amountKey || 'CostoTotal';
+
+      const summaryData = summaryRes.data?.data?.[0] || {};
+      setTotal(summaryData[amountKey] || 0);
+      setCantidad(summaryData.Cantidad || 0);
+
+      // Procesar datos para gráfico
+      const chartData = chartRes.data?.data || [];
+      const groupedByYear = chartData.reduce((acc: Record<string, any[]>, item: any) => {
+        const year = item.Año;
+        if (!acc[year]) acc[year] = [];
+        acc[year].push(item);
+        return acc;
+      }, {});
+
+      const yearSeries = Object.entries(groupedByYear).map(([year, yearData]: any) => {
+        // Ordenar por número de mes
+        const sortedData = yearData
+          .map((item: any) => ({
+            ...item,
+            order: monthMap[item.Mes] || 0, // Convertir nombre del mes a número
+            monthName: item.Mes
+          }))
+          .sort((a: any, b: any) => a.order - b.order);
 
         return {
-          ...item,
-          data: dataOrdenada
+          name: year,
+          data: sortedData.map((item: any) => ({
+            x: item.monthName,
+            y: item[amountKey] || 0,
+            order: item.order // Para referencia
+          }))
         };
       });
+      setAreaData(yearSeries);
 
-      setAreaData(newDataChart);
-
-      const processedData = data.data.map((item: DataItem, index: number) => ({
+      // Procesar datos de tabla
+      const processedData = tableRes.data.data.map((item: DataItem, index: number) => ({
         ID: item.ID || index,
         ...item,
       }));
 
-      setTotalPages(data.totalPages || 1);
-      setPage(data.page);
+      setTotalPages(tableRes.data.totalPages || 1);
+      setPage(tableRes.data.page);
       setTableData(processedData);
-      setDataSource("api"); // Asegurar que estamos en modo API
+      setDataSource("api");
+
     } catch (error: any) {
       setTableData([]);
-      console.log(error);
+      setTotal(0);
+      setCantidad(0);
+      console.error("Error fetching data:", error);
     }
   }
 
@@ -301,11 +328,12 @@ export default function User() {
         </section>
 
       case "chart":
-        return <section key={key} className="w-full">
+        return <section key={key} className="w-full mt-4">
           <RenderChart
             type="area"
             barData={areaData}
             treemapData={[]}
+            Categories={monthMap ? Object.keys(monthMap) : []}
           />
         </section>
 
@@ -321,9 +349,9 @@ export default function User() {
   }
   return (
     <main className="flex flex-col items-center max-w-7xl m-auto px-4 py-8">
-      <section className="w-full mb-6 flex justify-between items-center">
-        <div className="flex md:flex-row flex-col items-center gap-4">
-          <h1 className="text-2xl font-bold">Reporte de {config}</h1>
+      <section className="w-full mb-6 flex justify-between gap-2 items-center">
+        <div className="flex md:flex-row flex-col  gap-4">
+          <h1 className="text-xl font-bold">Reporte de {config}</h1>
           <select
             className="border border-gray-300 rounded px-2 py-1"
             value={config}
@@ -355,16 +383,16 @@ export default function User() {
           )}
         </div>
 
-        <div className="flex md:flex-row flex-col gap-2">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 sm:grid-cols-1 gap-2">
           <button
             onClick={exportDataToExcel}
-            className="bg-green-600 cursor-pointer text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+            className="bg-green-600 items-center cursor-pointer text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
           >
             Exportar
           </button>
           <button
             onClick={triggerFileInput}
-            className="bg-purple-600 cursor-pointer text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+            className="bg-purple-600 items-center cursor-pointer text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
           >
             Importar
           </button>

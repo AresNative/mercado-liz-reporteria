@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { ApexOptions } from "apexcharts";
 import { formatValue } from "@/utils/constants/format-values";
-import { getLocalStorageItem } from "@/utils/functions/local-storage";
 import { ChartData } from "@/utils/data/sql/format-filter";
 
 // Carga dinámica de ApexCharts para evitar problemas en el servidor de Next.js
@@ -23,7 +22,6 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
     data,
     height = 350,
 }) => {
-    const savedTheme = getLocalStorageItem("theme") || "light";
     // Configuración común para los gráficos
     const chartOptions: ApexOptions =
         type === "pie"
@@ -38,7 +36,6 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                     type: "gradient",
                     gradient: { shadeIntensity: 0, opacityFrom: 2, opacityTo: 1 },
                 },
-                colors: ["#6366f1", "#8b5cf6", "#ec4899", "#f43f5e", "#f97316"],
                 tooltip: {
                     y: {
                         formatter: (value) => (formatValue(value, "currency")),
@@ -46,47 +43,71 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                 },
             }
             : {
-                chart: { type, /* toolbar: { show: true }, */ background: "transparent" },
+                chart: {
+                    type, toolbar: { show: true },
+                },
                 xaxis: {
-                    categories,
-                    labels: { style: { colors: savedTheme === "light" ? "#64748b" : "#fff", fontSize: "12px" } },
+                    type: 'category',
+                    categories: categories,
                 },
-                stroke: {
-                    curve: type === "area" || type === "line" ? "smooth" : "straight",
-                    width: 2,
+                yaxis: {
+                    decimalsInFloat: 2,
+                    axisBorder: {
+                        show: true,
+                        color: "#fff",
+                    },
+                    axisTicks: {
+                        show: true,
+                        color: "#fff",
+                    },
+                    floating: false,
+                    forceNiceScale: true,
+                    tickAmount: 3,
+                    labels: { style: { fontSize: "12px" } },
                 },
-                fill: {
-                    type: type === "area" ? "gradient" : "solid",
-                    gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.3 },
-                },
-                plotOptions: {
-                    bar: { borderRadius: 4, distributed: true, horizontal: type === "bar" && categories.length > 4 },
-                },
-                colors: ["#6366f1", "#8b5cf6", "#ec4899", "#f43f5e", "#f97316"],
                 dataLabels: {
                     enabled: true,
                     formatter: (value: number) => formatValue(value, "currency"), // Formateo en las etiquetas de la tabla
-                    style: {
-                        colors: type === "bar" ? ['#fff'] : ["#6366f1", "#8b5cf6", "#ec4899", "#f43f5e", "#f97316"], // Color de los valores
-                        fontSize: "10px"
-                    },
                 },
+
                 tooltip: {
                     y: {
                         formatter: (value) => (formatValue(value, "currency")),
                     },
                 },
-                legend: { position: "bottom" },
+                legend: { position: "top", horizontalAlign: "left" },
+                grid: {
+                    borderColor: "#e7e7e7",
+                    row: {
+                        colors: ["#f3f3f3", "transparent"], // Alternar colores de fila
+                        opacity: 0.5,
+                    },
+                },
+                responsive: [{
+                    breakpoint: 480,
+                    options: {
+                        chart: { width: 300 },
+                        legend: { position: "bottom" },
+                    },
+                }],
+
             };
 
     // Convertir datos al formato requerido para las series del gráfico
     const series =
         type === "pie"
             ? data.flatMap((d) => d.data.map((item) => item.y))
-            : data.map((d) => ({
-                name: d.name,
-                data: d.data.map((item) => item.y),
-            }));
+            : data.map(d => {
+                const fullYearData = Array(categories.length).fill(0); // Llenar con 0 en lugar de null
+                d.data.forEach((item: any) => {
+                    fullYearData[item.order - 1] = item.y;
+                });
+                return {
+                    name: d.name,
+                    data: fullYearData
+                };
+            });
+    //console.log(series, categories, data);
 
     return <Chart options={chartOptions} series={series} type={type} height={height} />;
 };
