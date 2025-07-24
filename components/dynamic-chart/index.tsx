@@ -98,13 +98,13 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
         type === "pie"
             ? data.flatMap((d) => d.data.map((item) => item.y))
             : data.map(d => {
-                const fullYearData = Array(categories.length).fill(0); // Llenar con 0 en lugar de null
+                const fullData = Array(categories.length).fill(0); // Llenar con 0 en lugar de null
                 d.data.forEach((item: any) => {
-                    fullYearData[item.order - 1] = item.y;
+                    fullData[item.order - 1] = item.y;
                 });
                 return {
                     name: d.name,
-                    data: fullYearData
+                    data: fullData
                 };
             });
     //console.log(series, categories, data);
