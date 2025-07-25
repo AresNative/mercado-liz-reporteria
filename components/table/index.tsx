@@ -156,7 +156,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
                         <table className="w-full">
                             <thead className="bg-zinc-100 dark:bg-zinc-900">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider">
+                                    <th autoCapitalize="characters" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider">
                                         <input
                                             type="checkbox"
                                             className="rounded border-gray-300 dark:border-zinc-600 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
@@ -175,7 +175,8 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
                                             visibleColumns[column] ? (
                                                 <th
                                                     key={column}
-                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider"
+                                                    autoCapitalize="characters"
+                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200  tracking-wider"
                                                 >
 
                                                     <ul className="flex">

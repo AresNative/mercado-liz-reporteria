@@ -28,7 +28,6 @@ const TreemapChart: React.FC<TreemapChartProps> = ({ data, height = 350 }) => {
                 shadeIntensity: 0.5,
             },
         },
-        colors: ["#6366f1", "#8b5cf6", "#ec4899", "#f43f5e", "#f97316"],
         title: {
             align: "center",
             style: {

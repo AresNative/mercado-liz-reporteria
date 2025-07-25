@@ -28,7 +28,7 @@ export interface TimeEntry {
 
 // Custom hook para manejar el estado de las tareas
 export function useTaskService() {
-    const { data: scrumTasks } = useGetScrumQuery({
+    const { data: scrumTasks, refetch } = useGetScrumQuery({
         url: "sprints/27/tasks",
         signal: undefined,
     });
@@ -90,6 +90,7 @@ export function useTaskService() {
             }
             return task;
         }));
+        refetch();
         return tasks.find(task => task.id === id);
     }, [tasks]);
 
@@ -99,6 +100,7 @@ export function useTaskService() {
             taskId: id,
             estado: "archivado"
         });
+        refetch();
         return true;
     }, []);
 
@@ -107,6 +109,7 @@ export function useTaskService() {
             taskId: id,
             estado: estado
         });
+        refetch();
         return updateTask(id, { estado });
     }, [updateTask]);
 
