@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
-import { ChevronDown, ChevronUp, Hash, Plus, Save, Trash2 } from "lucide-react"; // Importamos ChevronDown y ChevronUp
+import { ChevronDown, ChevronUp, Hash, Plus, Save, Trash2 } from "lucide-react";
 import { FilterSectionProps, FormValues } from "../utils/types";
 import { DateFilterSection } from "./date-filter-section";
 import { FilterRow } from "./filter-row";
@@ -12,6 +12,8 @@ import { getLocalStorageItem, setLocalStorageItem, removeFromLocalStorage } from
 import { cn } from "@/utils/functions/cn";
 
 const SELECTS_STORAGE_KEY = "select_fields_config";
+// Nueva clave para almacenar la visibilidad de secciones
+const SECTION_VISIBILITY_KEY = "filter_sections_visibility";
 
 export const FilterSection = ({
     onApply,
@@ -20,19 +22,36 @@ export const FilterSection = ({
     filterFunction,
     cols
 }: FilterSectionProps) => {
-    // Estado para controlar la visibilidad de cada sección
-    const [sectionVisibility, setSectionVisibility] = useState({
+    // Estado inicial con valores por defecto
+    const defaultVisibility = {
         filters: true,
         selectFields: true,
         orderBy: true,
         dateFilters: true
-    });
+    };
+
+    // Estado para controlar la visibilidad de cada sección
+    const [sectionVisibility, setSectionVisibility] = useState(defaultVisibility);
+
+    // Cargar estado de visibilidad desde localStorage al montar el componente
+    useEffect(() => {
+        const storedVisibility = getLocalStorageItem(SECTION_VISIBILITY_KEY);
+        if (storedVisibility) {
+            setSectionVisibility({
+                ...defaultVisibility,
+                ...storedVisibility
+            });
+        }
+    }, []);
 
     const toggleSection = (section: keyof typeof sectionVisibility) => {
-        setSectionVisibility(prev => ({
-            ...prev,
-            [section]: !prev[section]
-        }));
+        const newVisibility = {
+            ...sectionVisibility,
+            [section]: !sectionVisibility[section]
+        };
+        setSectionVisibility(newVisibility);
+        // Guardar en localStorage cada vez que cambia la visibilidad
+        setLocalStorageItem(SECTION_VISIBILITY_KEY, newVisibility);
     };
 
     const {
