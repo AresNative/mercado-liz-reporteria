@@ -92,7 +92,6 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                 }],
 
             };
-
     // Convertir datos al formato requerido para las series del gráfico
     const series =
         type === "pie"
