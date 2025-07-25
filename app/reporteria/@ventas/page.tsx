@@ -12,7 +12,6 @@ import { REPORT_CONFIGS } from "../constants/configs";
 import { exportToExcel } from "../utils/export-excel";
 import { importFromExcel } from "../utils/import-excel";
 import Badge from "@/components/badge";
-import { loadDataGrafic } from "@/utils/data/sql/format-filter";
 import { RenderChart } from "../components/render-grafic";
 import Card from "@/components/card";
 import { formatValue } from "@/utils/constants/format-values";
@@ -49,7 +48,7 @@ const defaultConfig: DashboardConfig = {
   widgets: [
     { id: "stats", title: "Totales", type: "stat", size: "large", visible: true, position: 0 },
     { id: "chart", title: "Grafica", type: "chart", size: "medium", visible: true, position: 2 },
-    { id: "table", title: "Tabla", type: "list", size: "medium", visible: true, position: 3 }
+    { id: "table", title: "Tabla", type: "list", size: "medium", visible: true, position: 3 },
   ],
   layout: "grid",
 }
@@ -322,13 +321,13 @@ export default function User() {
   const renderWidget = (widget: DashboardWidget, key: any) => {
     switch (widget.id) {
       case "stats":
-        return <section key={key} className="w-full flex flex-col md:flex-row gap-4">
+        return <section key={key} className="max-w-7xl w-full flex flex-col md:flex-row gap-4">
           {total > 0 && (<Card title="Total" icon={<ChartBar className="text-white" />} value={formatValue(total, "currency")} />)}
           {cantidad > 0 && (<Card title="Cantidad" icon={<ChartBar className="text-white" />} value={formatValue(cantidad, "number")} />)}
         </section>
 
       case "chart":
-        return <section key={key} className="w-full mt-4">
+        return <section key={key} className="max-w-7xl w-full mx-auto mt-4">
           <RenderChart
             type="area"
             barData={areaData}
@@ -348,7 +347,7 @@ export default function User() {
     }
   }
   return (
-    <main className="flex flex-col items-center max-w-7xl m-auto px-4 py-8">
+    <main className="flex flex-col items-center m-auto px-4 py-8">
       <section className="w-full mb-6 flex justify-between gap-2 items-center">
         <div className="flex md:flex-row flex-col  gap-4">
           <h1 className="text-xl font-bold">Reporte de {config}</h1>
@@ -486,7 +485,7 @@ export default function User() {
       </AnimatePresence >
 
       {/* Input oculto para selección de archivos */}
-      < input
+      <input
         type="file"
         ref={fileInputRef}
         className="hidden"
