@@ -28,7 +28,9 @@
 *{
   border-color: #00000019;
 }
-
+body{
+  scrollbar-gutter: stable both-edges;
+}
 .container-switch {
   display: flex;
   margin: 0;

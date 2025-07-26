@@ -125,7 +125,7 @@ export default function User() {
       const baseConfig = {
         url: `reporteria/${config}`,
         signal: undefined,
-        filters: { Filtros: filters, OrderBy: orderBy }
+        filters: { Filtros: filters, OrderBy: orderBy, Selects: others.Selects },
       };
 
       // Ejecutar todas las solicitudes en paralelo
