@@ -397,7 +397,7 @@ export default function User() {
           </button>
           <button
             onClick={() => setShowCustomization(!showCustomization)}
-            className="flex items-center gap-2 bg-white cursor-pointer text-gray-800 border px-4 py-2 rounded-lg hover:bg-gray-200 transition"
+            className="flex items-center gap-2 bg-white cursor-pointer text-gray-800 border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-200 transition"
           >
             <Sliders size={18} />
             Personalizar

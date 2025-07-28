@@ -81,7 +81,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
                 )}
             >
                 {/* Close button */}
-                <form method="dialog" className="relative flex items-center justify-between gap-2 m-2">
+                <form method="dialog" className="relative flex items-center justify-between gap-2 m-2 border-b py-2 border-gray-200">
                     <h3
                         id="modal-title"
                         className="absolute left-0 right-0 text-center text-gray-900 dark:text-white pointer-events-none"

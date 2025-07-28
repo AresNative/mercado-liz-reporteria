@@ -6,10 +6,12 @@ import { /* Edit,  */Trash2, GripVertical, User/* , Plus */ } from "lucide-react
 import { ModalView } from "./modal-view"
 import { openAlertReducer, openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
-import { ModalForm } from "./modal-form"
+import { cn } from "@/utils/functions/cn"
+import Badge from "@/components/badge"
 
 interface ScrumBoardProps {
     initialTasks: any[]
+    sprintId: number
 }
 
 const COLUMNS: { id: TaskEstado; name: string }[] = [
@@ -19,10 +21,10 @@ const COLUMNS: { id: TaskEstado; name: string }[] = [
     { id: "done", name: "Completado" },
 ]
 
-const PRIORIDAD_COLORS = {
-    low: "#dcfce7",
-    medium: "#fef9c3",
-    high: "#fee2e2",
+const PRIORIDAD_COLORS: any = {
+    low: "green",
+    medium: "yellow",
+    high: "red",
 }
 
 const PRIORIDAD_TEXT_COLORS = {
@@ -31,13 +33,17 @@ const PRIORIDAD_TEXT_COLORS = {
     high: "#991b1b",
 }
 
-export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
+export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
     const {
         tasks: serviceTasks,
         updateTaskEstado,
-        deleteTask: deleteTaskService
-    } = useTaskService();
+        deleteTask: deleteTaskService,
+        updateTaskOrder // Añadida la función de actualización de orden
+    } = useTaskService(sprintId);
 
+    const dispatch = useAppDispatch();
+
+    const [TaskId, setTaskId] = useState<string | undefined>()
     const [tasks, setTasks] = useState<Task[]>(initialTasks || []);
     const [draggedTask, setDraggedTask] = useState<string | null>(null)
     const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
@@ -218,6 +224,52 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
             const insertIndex = dragPosition === "above" ? targetIndex : targetIndex + 1
             filteredTasks.splice(insertIndex, 0, draggedTaskObj)
 
+            // CALCULAR EL NUEVO ORDEN
+            // 1. Obtener todas las tareas en el mismo estado
+            const tasksInSameStatus: any = filteredTasks
+                .filter(t => t.estado === draggedTaskObj.estado)
+                .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+            console.log(tasksInSameStatus);
+
+            // 2. Encontrar la tarea arrastrada en la nueva posición
+            const draggedTaskNewIndex = tasksInSameStatus.findIndex((t: any) => t.id === taskId);
+
+            // 3. Calcular el nuevo orden basado en las tareas adyacentes
+            let newOrder;
+            if (draggedTaskNewIndex === 0) {
+                // Primera tarea: orden = tarea siguiente - 1
+                newOrder = tasksInSameStatus[1]?.order !== undefined
+                    ? tasksInSameStatus[1].order - 1
+                    : 1;
+            } else if (draggedTaskNewIndex === tasksInSameStatus.length - 1) {
+                // Última tarea: orden = tarea anterior + 1
+                newOrder = tasksInSameStatus[draggedTaskNewIndex - 1].order + 1;
+            } else {
+                // Tarea intermedia: promedio entre anterior y siguiente
+                const prevTask = tasksInSameStatus[draggedTaskNewIndex - 1];
+                const nextTask = tasksInSameStatus[draggedTaskNewIndex + 1];
+                newOrder = (prevTask.order + nextTask.order) / 2;
+            }
+
+            try {
+                // ACTUALIZAR ORDEN EN EL SERVIDOR
+                await updateTaskOrder(taskId, newOrder);
+
+                // Actualizar estado local con el nuevo orden
+                setTasks(prevTasks =>
+                    prevTasks.map(task =>
+                        task.id === taskId
+                            ? { ...task, order: newOrder }
+                            : task
+                    )
+                );
+            } catch (error) {
+                console.error("Failed to update task order:", error);
+                // Revertir a estado original en caso de error
+                setTasks(originalTasksRef.current);
+            }
+
+
             // Update the tasks state
             setTasks(filteredTasks)
         }
@@ -254,17 +306,15 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
             })
         );
     }
-    const [TaskId, setTaskId] = useState<string | undefined>()
-    const dispatch = useAppDispatch();
 
     return (
-        <main>
-            <button className="flex gap-1 p-2 ml-auto border bg-green-600 text-white text-xs rounded-4xl items-center mb-4 before:content-['+'] before:text-xs before:bg-white before:text-green-600 before:px-2 before:py-1 before:rounded-full hover:bg-green-700 transition-colors"
+        <>
+            {/* <button className="flex gap-1 p-2 ml-auto border bg-green-600 text-white text-xs rounded-4xl items-center mb-4 before:content-['+'] before:text-xs before:bg-white before:text-green-600 before:px-2 before:py-1 before:rounded-full hover:bg-green-700 transition-colors"
                 onClick={() => {
                     dispatch(openModalReducer({ modalName: 'create-task' }))
                 }}>
                 Agregar tarea
-            </button>
+            </button> */}
             <ul className="grid grid-cols-1 space-y-6 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {COLUMNS.map((column) => (
                     <li key={column.id} className="space-y-2">
@@ -276,31 +326,32 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
                         </section>
                         <section
                             id={`column-${column.id}`}
-                            className={`min-h-[200px] rounded-lg border p-2 space-y-2 transition-colors ${dragOverColumn === column.id
-                                ? "border-purple-300 bg-purple-50"
+                            className={cn(`min-h-[200px] h-full rounded-lg border p-2 space-y-2 transition-colors ${dragOverColumn === column.id
+                                ? "border-green-300 bg-green-50"
                                 : "border-gray-200 bg-gray-50"
-                                }`}
+                                }`)}
                             onDragOver={(e: any) => handleDragOver(e, column.id)}
                             onDragEnter={handleDragEnter}
                             onDragLeave={handleDragLeave}
                             onDrop={(e: any) => handleDrop(e, column.id)}
                         >
                             {tasksByEstado[column.id]?.map((task) => (
-                                <div
+                                <article
                                     key={task.id}
                                     id={`task-${task.id}`}
-                                    className={`cursor-pointer visibility rounded-md border bg-white shadow-sm hover:shadow p-3 ${draggedTask === task.id ? "opacity-50" : "opacity-100"
-                                        } ${dragOverTaskId === task.id
+                                    className={cn(`cursor-pointer visibility rounded-md bg-white p-3 shadow-sm hover:shadow
+                                         ${draggedTask === task.id ? "opacity-50" : "opacity-100"} 
+                                            ${dragOverTaskId === task.id
                                             ? dragPosition === "above"
-                                                ? "border-t-2 border-t-purple-500"
-                                                : "border-b-2 border-b-purple-500"
+                                                ? "border-t-2 border-emerald-700"
+                                                : "border-b-2 border-emerald-700"
                                             : ""
-                                        }`}
+                                        }`)}
                                     draggable="true"
-                                    onDragStart={(e) => handleDragStart(e, task.id)}
-                                    onDragOver={(e) => handleTaskDragOver(e, task.id)}
+                                    onDragStart={(e: any) => handleDragStart(e, task.id)}
+                                    onDragOver={(e: any) => handleTaskDragOver(e, task.id)}
                                     onDragLeave={handleTaskDragLeave}
-                                    onDrop={(e) => handleTaskDrop(e, task.id)}
+                                    onDrop={(e: any) => handleTaskDrop(e, task.id)}
                                     onClick={() => {
                                         dispatch(openModalReducer({ modalName: 'view-task' }))
                                         setTaskId(task.id)
@@ -341,40 +392,26 @@ export function ScrumBoard({ initialTasks }: ScrumBoardProps) {
                                     {task.tags && task.tags.length > 0 && (
                                         <section className="mt-2 flex flex-wrap gap-1">
                                             {JSON.parse(task.tags).map((tag: any, index: any) => (
-                                                <span
-                                                    key={index}
-                                                    className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800"
-                                                >
-                                                    {tag}
-                                                </span>
+                                                <Badge key={index} color="indigo" text={tag} />
                                             ))}
                                         </section>
                                     )}
 
                                     <section className="mt-3 flex items-center justify-between">
-                                        <span
-                                            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize"
-                                            style={{
-                                                backgroundColor: PRIORIDAD_COLORS[task.prioridad || "medium"],
-                                                color: PRIORIDAD_TEXT_COLORS[task.prioridad || "medium"],
-                                            }}
-                                        >
-                                            {task.prioridad || "medium"}
-                                        </span>
+                                        <Badge color={PRIORIDAD_COLORS[task.prioridad || "medium"]} text={task.prioridad || "medium"} />
                                         <span className="flex items-center text-xs text-gray-500">
                                             <User size={12} className="mr-1" />
                                             {task.assignee}
                                         </span>
                                     </section>
-                                </div>
+                                </article>
                             ))}
                         </section>
                     </li>
                 ))}
             </ul>
             <ModalView nameModal="view-task" task={TaskId ? tasksById(TaskId)[0] : []} />
-            <ModalForm nameModal="create-task" sprintId={27} />
-            {/* <ModalForm nameModal="edit-task" sprintId={27} dataModal={TaskId ? tasksById(TaskId)[0] : []} /> */}
-        </main>
+            {/* <ModalForm nameModal="edit-task" sprintId={sprintId} dataModal={TaskId ? tasksById(TaskId)[0] : []} /> */}
+        </>
     )
 }

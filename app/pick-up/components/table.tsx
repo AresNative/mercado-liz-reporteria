@@ -2,7 +2,7 @@ import Badge from "@/components/badge";
 import { ArrowUpDown, User } from "lucide-react";
 import { branches } from "../constants/sucursales";
 
-const formatDate = (fecha: any) => {
+export const formatDate = (fecha: any) => {
     const date = new Date(fecha);
 
     const optionsDate: any = {
@@ -14,12 +14,12 @@ const formatDate = (fecha: any) => {
     const optionsTime: any = {
         hour: 'numeric',
         minute: '2-digit',
-        hour12: true
+        hour12: true,
     };
 
     return {
-        date: date.toLocaleDateString('en-GB', optionsDate),
-        time: date.toLocaleTimeString('en-US', optionsTime)
+        date: date.toLocaleDateString('es-GB', optionsDate),
+        time: date.toLocaleTimeString('es-US', optionsTime)
     };
 };
 

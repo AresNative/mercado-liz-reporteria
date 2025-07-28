@@ -1,5 +1,5 @@
 "use client"
-import { useGetScrumQuery, usePutTaskStatusMutation } from "@/hooks/reducers/api";
+import { useGetScrumQuery, usePutTaskOrderMutation, usePutTaskStatusMutation } from "@/hooks/reducers/api";
 import { useState, useEffect, useCallback } from "react";
 
 export type TaskEstado = "backlog" | "pruebas" | "todo" | "in-progress" | "done";
@@ -27,14 +27,14 @@ export interface TimeEntry {
 }
 
 // Custom hook para manejar el estado de las tareas
-export function useTaskService() {
+export function useTaskService(sprintId: number) {
     const { data: scrumTasks, refetch } = useGetScrumQuery({
-        url: "sprints/27/tasks",
+        url: `sprints/${sprintId}/tasks`,
         signal: undefined,
     });
     const [putStatusTask] = usePutTaskStatusMutation()
     const [tasks, setTasks] = useState<Task[]>([]);
-
+    const [putTaskOrder] = usePutTaskOrderMutation();
     useEffect(() => {
         if (scrumTasks) {
             // Mapear los datos de la API al formato Task
@@ -45,10 +45,11 @@ export function useTaskService() {
                 estado: apiTask.estado,
                 assignee: apiTask.asignado_a || "Sin asignar",
                 storyPoints: 1, // Valor por defecto
-                createdAt: new Date(apiTask.fecha_creacion),
-                updatedAt: new Date(apiTask.fecha_creacion),
+                createdAt: apiTask.fecha_inicio,
+                updatedAt: apiTask.fecha_inicio,
                 prioridad: mapPriority(apiTask.prioridad),
-                tags: apiTask.tags
+                tags: apiTask.tags,
+                order: apiTask.order
             }));
             setTasks(mappedTasks);
         }
@@ -112,6 +113,29 @@ export function useTaskService() {
         refetch();
         return updateTask(id, { estado });
     }, [updateTask]);
+    // 5. Función para actualizar el orden
+    const updateTaskOrder = useCallback(async (taskId: string, newOrder: number) => {
+        try {
+            // Optimistic update
+            setTasks(prevTasks =>
+                prevTasks.map(task =>
+                    task.id === taskId
+                        ? { ...task, order: newOrder }
+                        : task
+                )
+            );
+
+            // Enviar actualización al servidor
+            await putTaskOrder({
+                taskId,
+                order: newOrder
+            }).unwrap();
+        } catch (error) {
+            console.error("Error updating task order:", error);
+            // Revertir cambios en caso de error
+            refetch();
+        }
+    }, [putTaskOrder, refetch]);
 
     return {
         tasks,
@@ -120,6 +144,7 @@ export function useTaskService() {
         getTask,
         updateTask,
         deleteTask,
-        updateTaskEstado
+        updateTaskEstado,
+        updateTaskOrder
     };
 }

@@ -82,6 +82,8 @@ export const api = createApi({
             }),
             extraOptions: { maxRetries: 2 }
         }),
+
+        /// * scrum
         getScrum: builder.query({
             query: ({ url, signal }) => ({
                 url: `v1/${url}`,
@@ -102,32 +104,17 @@ export const api = createApi({
             }),
             extraOptions: { maxRetries: 2 }
         }),
-        postScrum: builder.mutation({
-            query: ({ url, data, signal }) => ({
-                url: `v2/${url}`,
-                method: "POST",
-                body: JSON.stringify(data),
-                signal
-            }),
-            transformErrorResponse: (response: any) => ({
-                status: response.status,
-                message: response.data?.message || 'Error fetching data',
-            }),
-            extraOptions: { maxRetries: 2 }
-        }),
-
-        /// * scrum
         getProjects: builder.query({
-            query: () => `projects`,
+            query: () => `v1/projects`,
         }),
         getSprints: builder.query({
-            query: (params) => `projects/${params}/sprints`,
+            query: (params) => `v1/projects/${params}/sprints`,
         }),
         getTasks: builder.query({
-            query: (params) => `sprints/${params}/tasks`,
+            query: (params) => `v1/sprints/${params}/tasks`,
         }),
         getHsitoryTask: builder.query({
-            query: (params) => `tasks/${params}/hsitory`,
+            query: (params) => `v1/tasks/${params}/hsitory`,
         }),
 
         postProjects: builder.mutation({
@@ -193,9 +180,8 @@ export const {
     usePostMutation,
     usePutMutation,
     useGetArticulosByIdQuery,
-    useGetScrumQuery,
-    usePostScrumMutation,
     /* scrum */
+    useGetScrumQuery,
     useGetProjectsQuery,
     useGetSprintsQuery,
     useGetTasksQuery,

@@ -68,10 +68,10 @@ export default function Alert() {
             />
 
             {/* Centered container */}
-            <section className="relative max-h-screen md:max-h-[90vh] mx-auto overflow-auto w-fit my-44 md:rounded-lg text-left transition-all ">
+            <section className="fixed inset-0 h-fit w-fit mx-auto overflow-auto md:my-4 rounded-lg bg-white dark:bg-zinc-800 text-left shadow-xl transition-all">
                 {/* Alert card */}
                 <article
-                    className="relative transform  bg-white overflow-hidden rounded-lg dark:bg-zinc-800 text-left shadow-xl transition-all w-full max-w-lg"
+                    className="relative transform w-full bg-white overflow-hidden rounded-lg dark:bg-zinc-800 text-left shadow-xl transition-all"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <label className="p-4 flex items-start gap-4">
@@ -89,13 +89,13 @@ export default function Alert() {
                         <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-700 flex flex-row-reverse gap-3">
                             <button
                                 onClick={handleAction}
-                                className={`px-4 py-2 text-sm font-semibold ${styles.text} ${styles.bg} ring-1 ring-inset ${styles.ring} rounded-md ${styles.hover} transition-all`}
+                                className={`px-4 py-2 text-sm cursor-pointer font-semibold ${styles.text} ${styles.bg} ring-1 ring-inset ${styles.ring} rounded-md ${styles.hover} transition-all`}
                             >
                                 {buttonText}
                             </button>
                             <button
                                 onClick={closeDialog}
-                                className="px-4 py-2 text-sm font-semibold text-gray-900 dark:text-white border border-gray-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                                className="px-4 py-2 text-sm cursor-pointer font-semibold text-gray-900 dark:text-white border border-gray-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900"
                             >
                                 Cancel
                             </button>

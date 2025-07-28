@@ -110,7 +110,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
             {/* Menú lateral */}
             <aside
                 className={cn(isScrolled ?? "absolute",
-                    "fixed inset-y-0 right-0 z-40 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out",
+                    "fixed inset-y-0 right-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out",
                     menuOpen ? "translate-x-0" : "translate-x-full overflow-hidden"
                 )} aria-hidden={!menuOpen}
             >
@@ -178,7 +178,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
             {/* Fondo oscuro */}
             {menuOpen && (
                 <button
-                    className="fixed inset-0 z-30 bg-black/50"
+                    className="fixed inset-0 z-40 bg-black/50"
                     onClick={() => setMenuOpen(false)}
                     aria-label="Cerrar menú"
                     tabIndex={-1}
