@@ -12,9 +12,9 @@ export const api = createApi({
     refetchOnMountOrArgChange: true, // Mejor control de refetch
     baseQuery: fetchBaseQuery({
         baseUrl: apiUrl,
-        prepareHeaders: (headers, { }) => {
+        prepareHeaders: async (headers, { }) => {
             headers.set("Content-Type", "application/json");
-            const token = getCookie("token") ?? getLocalStorageItem('token'); // <- usa cookie
+            const token = await getCookie("token") ?? getLocalStorageItem('token'); // <- usa cookie
             if (token) {
                 headers.set("Authorization", `Bearer ${token}`);
             }

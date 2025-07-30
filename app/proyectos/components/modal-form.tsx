@@ -5,30 +5,32 @@ import { closeModalReducer } from "@/hooks/reducers/drop-down";
 import { useGetScrumQuery } from "@/hooks/reducers/api";
 
 type modalFormProps = {
-    action: string;
+    actionType: string;
     nameModal: string;
     sprintId: number; // ID del sprint si es necesario
     dataModal?: any; // Componente del formulario
-    formFunction: any
+    formFunction: any;
+    formName: string;
+    refetch: any;
 };
 
-export const ModalForm: React.FC<modalFormProps> = ({ action, nameModal, dataModal, sprintId, formFunction }) => {
+export const ModalForm: React.FC<modalFormProps> = ({ actionType, formName, nameModal, dataModal, sprintId, formFunction, refetch }) => {
     const dispatch = useAppDispatch();
-    const { refetch } = useGetScrumQuery({
+    const { refetch: refetchDef } = useGetScrumQuery({
         url: `sprints/${sprintId}/tasks`,
         signal: undefined,
     });
-    console.log(action);
 
     return (
         <Modal title="Formulario de Tarea" modalName={nameModal}>
             <MainForm
-                actionType={action}
+                actionType={actionType}
+                modelName={formName}
                 dataForm={formFunction(dataModal && dataModal)}
-                aditionalData={{ estado: "backlog", sprint_id: sprintId, Activo: 1 }}
+                aditionalData={{ estado: "backlog", sprint_id: sprintId, activo: 1 }}
                 onSuccess={() => {
-                    dispatch(closeModalReducer({ modalName: 'create-task' }));
-                    refetch();
+                    dispatch(closeModalReducer({ modalName: nameModal }));
+                    refetch() ?? refetchDef();
                 }}
                 message_button="Crear Tarea"
             />

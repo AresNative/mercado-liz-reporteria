@@ -189,7 +189,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
             {loginModalOpen && (
                 <section className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
                     <article className="bg-white rounded-xl max-w-md w-full max-h-[85vh] overflow-y-auto">
-                        <header className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+                        <header className="sticky top-0 bg-white border-b border-b-gray-200 p-4 flex justify-between items-center">
                             <h2 className="text-lg font-medium flex items-center gap-2">
                                 <User size={20} /> Iniciar Sesión
                             </h2>

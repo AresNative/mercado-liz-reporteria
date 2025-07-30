@@ -12,8 +12,9 @@ export const api_landing = createApi({
     refetchOnMountOrArgChange: true, // Mejor control de refetch
     baseQuery: fetchBaseQuery({
         baseUrl: apiUrl,
-        prepareHeaders: (headers, { }) => {
-            const token = getCookie("token") ?? getLocalStorageItem('token'); // <- usa cookie
+        prepareHeaders: async (headers, { }) => {
+            const token = await getCookie("token") ?? getLocalStorageItem('token'); // <- usa cookie
+
             if (token) {
                 headers.set("Authorization", `Bearer ${token}`);
             }
@@ -41,7 +42,7 @@ export const api_landing = createApi({
         }),
         postLandingJson: builder.mutation({
             query: ({ url, data, signal }) => ({
-                url: `v2/insert/${url}`,
+                url: `${url}`,
                 method: "POST",
                 body: JSON.stringify(data),
                 headers: {
@@ -57,7 +58,7 @@ export const api_landing = createApi({
         }),
         postLanding: builder.mutation({
             query: ({ url, data, signal }) => ({
-                url: `v2/insert/${url}`,
+                url: `${url}`,
                 method: "POST",
                 body: data,
                 signal
