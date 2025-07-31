@@ -122,7 +122,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                             </span>
                             <button
                                 onClick={handleLogout}
-                                className="text-center flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
+                                className="text-center cursor-pointer flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
                             >
                                 <LogOut size={18} /> Cerrar Sesión
                             </button>
@@ -131,7 +131,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                         <section className="space-y-3">
                             <button
                                 onClick={() => setLoginModalOpen(true)}
-                                className="flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
+                                className="flex cursor-pointer items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
                             >
                                 <LogIn size={18} /> Iniciar Sesión
                             </button>
@@ -168,17 +168,17 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
 
                 <button
                     onClick={() => setMenuOpen(false)}
-                    className="absolute top-3 right-3 p-1 text-white hover:bg-white/20 rounded-full"
+                    className="absolute cursor-pointer w-0 h-0 top-3 right-3 p-1 text-white hover:bg-white/20 rounded-full"
                     aria-label="Cerrar menú"
                 >
-                    <X size={24} />
+                    {/* <X size={24} /> */}
                 </button>
             </aside>
 
             {/* Fondo oscuro */}
             {menuOpen && (
                 <button
-                    className="fixed inset-0 z-40 bg-black/50"
+                    className="fixed cursor-pointer inset-0 z-40 bg-black/50"
                     onClick={() => setMenuOpen(false)}
                     aria-label="Cerrar menú"
                     tabIndex={-1}

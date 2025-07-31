@@ -63,7 +63,7 @@ export default function Alert() {
         >
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/20 bg-opacity-75 transition-opacity"
+                className="fixed inset-0 bg-black/50 bg-opacity-75 transition-opacity"
                 onClick={closeDialog}
             />
 

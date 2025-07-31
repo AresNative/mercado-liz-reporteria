@@ -1,8 +1,8 @@
 "use client"
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ScrumBoard } from "./components/scrum-board";
 import { useTaskService, type Task } from "./services/taskService";
-import { useGetProjectsQuery, useGetSprintsQuery } from "@/hooks/reducers/api";
+import { useGetProjectsQuery, useGetScrumQuery, useGetSprintsQuery } from "@/hooks/reducers/api";
 import { ArrowLeft, ClipboardListIcon, Hash, SquareChevronRight } from "lucide-react";
 import { formatDate } from "../pick-up/components/table";
 import { useAppDispatch } from "@/hooks/selector";
@@ -11,6 +11,7 @@ import { ModalForm } from "./components/modal-form";
 import { TasksField } from "./constants/tasks";
 import { SprintField } from "./constants/sprint";
 import { ProjectField } from "./constants/project";
+import { getLocalStorageItem, setLocalStorageItem } from "@/utils/functions/local-storage";
 
 interface Project {
     id: number;
@@ -30,6 +31,23 @@ export default function ProjectsPage() {
 
     const [projectId, setProjectId] = useState<number>(0);
     const [sprintId, setSprintId] = useState<number>(0);
+
+    useEffect(() => {
+        const savedProjectId = getLocalStorageItem('scrumProjectId');
+        const savedSprintId = getLocalStorageItem('scrumSprintId');
+
+        if (savedProjectId) setProjectId(parseInt(savedProjectId, 10));
+        if (savedSprintId) setSprintId(parseInt(savedSprintId, 10));
+    }, []);
+
+    useEffect(() => {
+        setLocalStorageItem('scrumProjectId', projectId.toString());
+    }, [projectId]);
+
+    useEffect(() => {
+        setLocalStorageItem('scrumSprintId', sprintId.toString());
+    }, [sprintId]);
+
     const [projects, setProjects] = useState<Project[]>([]);
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -37,6 +55,10 @@ export default function ProjectsPage() {
     const { getTasks } = useTaskService(projectId);
     const { data: projectsData, refetch: refetchProjects } = useGetProjectsQuery({});
     const { data: sprintsData, refetch: refetchSprints } = useGetSprintsQuery(projectId);
+    const { refetch: refetchDef } = useGetScrumQuery({
+        url: `sprints/${sprintId}/tasks`,
+        signal: undefined,
+    });
 
     // Fetch tasks when sprintId changes
     useEffect(() => {
@@ -72,41 +94,9 @@ export default function ProjectsPage() {
 
     const showBackButton = projectId > 0 || sprintId > 0;
 
-    // Configuración del formulario modal
-    const modalConfig = useMemo(() => {
-        if (projectId === 0) {
-            return {
-                actionType: "v1/projects",
-                formFunction: ProjectField,
-                formName: "Project",
-                refetch: refetchProjects,
-                aditionalData: {},
-                messageButton: "Crear Proyecto"
-            };
-        } else if (sprintId > 0) {
-            return {
-                actionType: `v1/sprints/tasks`,
-                formFunction: TasksField,
-                formName: "Task",
-                refetch: null,
-                aditionalData: { estado: "backlog", sprint_id: sprintId, Activo: 1 },
-                messageButton: "Crear Tarea"
-            };
-        } else {
-            return {
-                actionType: `v1/projects/${projectId}/sprints`,
-                formFunction: SprintField,
-                formName: "Sprint",
-                refetch: refetchSprints,
-                aditionalData: {},
-                messageButton: "Crear Sprint"
-            };
-        }
-    }, [projectId, sprintId, refetchProjects, refetchSprints]);
-
     const renderProjectsList = () => (
         <ul className="flex gap-2 flex-wrap mt-10">
-            {projects.map((project) => {
+            {projects.length ? projects.map((project) => {
                 const formatted = formatDate(project.fecha_inicio);
                 return (
                     <li
@@ -130,13 +120,17 @@ export default function ProjectsPage() {
                         </div>
                     </li>
                 );
-            })}
+            }) : (
+                <li className="flex items-center justify-center p-4">
+                    <span className="text-gray-500">No hay proyectos disponibles, añada uno en la seccion "Agregar Proyecto"</span>
+                </li>
+            )}
         </ul>
     );
 
     const renderSprintsList = () => (
         <ul className="flex flex-col gap-1 flex-wrap">
-            {sprints.map((sprint) => {
+            {sprints.length ? sprints.map((sprint) => {
                 const formatted = formatDate(sprint.fecha_inicio);
                 return (
                     <li
@@ -159,23 +153,13 @@ export default function ProjectsPage() {
                         </div>
                     </li>
                 );
-            })}
+            }) : (
+                <li className="flex items-center justify-center p-4">
+                    <span className="text-gray-500">No hay sprints disponibles, añada uno en la seccion "Agregar Sprint"</span>
+                </li>
+            )}
         </ul>
     );
-    const memoizedModalForm = useMemo(() => (
-        <ModalForm
-            actionType={modalConfig.actionType}
-            formName={modalConfig.formName}
-            nameModal="create-in-scrum"
-            formFunction={modalConfig.formFunction}
-            refetch={modalConfig.refetch}
-            sprintId={sprintId}
-        />
-    ), [ModalForm,
-        modalConfig,
-        projectId,
-        sprintId
-    ]);
 
     return (
         <main className="mx-auto px-4 md:p-6 text-gray-900 relative">
@@ -196,7 +180,9 @@ export default function ProjectsPage() {
 
                 <button
                     className="flex gap-1 p-2 ml-auto min-w-[130px] cursor-pointer border bg-green-600 text-white text-xs rounded-4xl items-center mb-4 before:content-['+'] before:text-xs before:bg-white before:text-green-600 before:px-2 before:py-1 before:rounded-full hover:bg-green-700 transition-colors"
-                    onClick={() => dispatch(openModalReducer({ modalName: 'create-in-scrum' }))}
+                    onClick={() => {
+                        dispatch(openModalReducer({ modalName: projectId === 0 ? "create-proyect" : sprintId > 0 ? "create-task" : "create-sprint" }))
+                    }}
                 >
                     Agregar {projectId === 0 ? "Proyecto" : sprintId > 0 ? "Tarea" : "Sprint"}
                 </button>
@@ -206,7 +192,32 @@ export default function ProjectsPage() {
             {projectId > 0 && !sprintId && renderSprintsList()}
             {sprintId > 0 && <ScrumBoard initialTasks={tasks} sprintId={sprintId} />}
 
-            {memoizedModalForm}
+            <ModalForm
+                actionType="v1/projects"
+                formName="Project"
+                formFunction={ProjectField}
+                refetch={refetchProjects}
+                messageButton="Crear Proyecto"
+                nameModal="create-proyect"
+            />
+            <ModalForm
+                actionType={`v1/projects/${projectId}/sprints`}
+                formName="Sprint"
+                formFunction={SprintField}
+                refetch={refetchSprints}
+                messageButton="Crear Sprint"
+                nameModal="create-sprint"
+                sprintId={projectId}
+            />
+            <ModalForm
+                actionType={`v1/sprints/tasks`}
+                formName="Task"
+                formFunction={TasksField}
+                refetch={refetchDef}
+                messageButton="Crear tarea"
+                nameModal="create-task"
+                sprintId={sprintId}
+            />
         </main>
     );
 }
