@@ -7,7 +7,7 @@ const Layout = async ({ children }: { children: React.ReactNode }) => {
     const userRole = await getCookieinPage("user-role") ?? getLocalStorageItem("user-role") ?? "none";
 
     return (
-        <section className="pt-10">
+        <section className="pt-5">
             {userRole ? (children) : (<>Acceso no autorizado</>)}
         </section>
     );

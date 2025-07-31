@@ -30,10 +30,11 @@ import { usePostUserLoginMutation } from "@/hooks/reducers/auth";
 import { Button } from "../button";
 import Link from "next/link";
 import { usePostLandingMutation, usePostLandingJsonMutation } from "@/hooks/reducers/api_landing";
-import { usePostTasksMutation } from "@/hooks/reducers/api";
+import { useAppDispatch } from "@/hooks/selector";
+import { openAlertReducer } from "@/hooks/reducers/drop-down";
 
-export const MainForm = ({ message_button, dataForm, actionType, aditionalData, action, valueAssign, onSuccess, formName }: MainFormProps) => {
-
+export const MainForm = ({ message_button, dataForm, actionType, aditionalData, action, valueAssign, onSuccess, formName, modelName }: MainFormProps) => {
+  const dispatch = useAppDispatch()
   const [page, setPage] = useState(0);
   const [formData, setFormData] = useState<any>({}); // Estado para guardar datos
   const [loading, setLoading] = useState(false);
@@ -47,22 +48,21 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
     setValue,
     control,
     getValues,
+    reset,
     formState: { errors },
   } = useForm();
 
   const [postUserLogin] = usePostUserLoginMutation();
   const [postLandingJson] = usePostLandingJsonMutation();
   const [postLanding] = usePostLandingMutation();
-  const [postTask] = usePostTasksMutation();
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
-    const payload = formName ? data : { [actionType.toLowerCase()]: [data] };
+    const payload = formName ? data : { [modelName ?? actionType.toLowerCase()]: modelName ? data : [data] };
+    console.log(actionType);
 
     switch (actionType) {
       case "post-login":
         return await postUserLogin(data).unwrap();
-      case "post-task":
-        return await postTask(data).unwrap();
       default:
         const functionFetch = formName ? postLanding : postLandingJson;
         return await functionFetch({
@@ -126,8 +126,23 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
           // Considerar propagar el error o manejar según necesidad
         }
       }
-    } catch (error) {
+      reset();
+    } catch (error: any) {
       console.log("Error en el envío del formulario:", error)
+      dispatch(openAlertReducer(error.data.message ?
+        {
+          title: "Error en el envío del formulario",
+          message: error.data.message,
+          type: "error",
+          icon: "archivo",
+          duration: 4000
+        } : {
+          title: "Error en el envío del formulario",
+          message: "Revise los campos a llenar y vuelva a intentarlo",
+          type: "error",
+          icon: "archivo",
+          duration: 4000
+        }))
     } finally {
       setLoading(false);
     }
@@ -173,9 +188,10 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
           <Button color="indigo" aling="ml-auto" type="button" label="Siguiente" onClick={() => handlePageChange(page + 1)} />
         ) : (
           <button
-            className="float-right ml-auto flex items-center rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
-            slot="end"
+            className="float-right ml-auto cursor-pointer flex items-center rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
             type="submit"
+            slot="end"
+            disabled={loading}
           >{loading ? "Loading..." : message_button}</button>
         )}
       </div>

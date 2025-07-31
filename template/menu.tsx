@@ -110,7 +110,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
             {/* Menú lateral */}
             <aside
                 className={cn(isScrolled ?? "absolute",
-                    "fixed inset-y-0 right-0 z-40 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out",
+                    "fixed inset-y-0 right-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out",
                     menuOpen ? "translate-x-0" : "translate-x-full overflow-hidden"
                 )} aria-hidden={!menuOpen}
             >
@@ -122,7 +122,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                             </span>
                             <button
                                 onClick={handleLogout}
-                                className="text-center flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
+                                className="text-center cursor-pointer flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
                             >
                                 <LogOut size={18} /> Cerrar Sesión
                             </button>
@@ -131,7 +131,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                         <section className="space-y-3">
                             <button
                                 onClick={() => setLoginModalOpen(true)}
-                                className="flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
+                                className="flex cursor-pointer items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
                             >
                                 <LogIn size={18} /> Iniciar Sesión
                             </button>
@@ -168,17 +168,17 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
 
                 <button
                     onClick={() => setMenuOpen(false)}
-                    className="absolute top-3 right-3 p-1 text-white hover:bg-white/20 rounded-full"
+                    className="absolute cursor-pointer w-0 h-0 top-3 right-3 p-1 text-white hover:bg-white/20 rounded-full"
                     aria-label="Cerrar menú"
                 >
-                    <X size={24} />
+                    {/* <X size={24} /> */}
                 </button>
             </aside>
 
             {/* Fondo oscuro */}
             {menuOpen && (
                 <button
-                    className="fixed inset-0 z-30 bg-black/50"
+                    className="fixed cursor-pointer inset-0 z-40 bg-black/50"
                     onClick={() => setMenuOpen(false)}
                     aria-label="Cerrar menú"
                     tabIndex={-1}
@@ -189,7 +189,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
             {loginModalOpen && (
                 <section className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
                     <article className="bg-white rounded-xl max-w-md w-full max-h-[85vh] overflow-y-auto">
-                        <header className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+                        <header className="sticky top-0 bg-white border-b border-b-gray-200 p-4 flex justify-between items-center">
                             <h2 className="text-lg font-medium flex items-center gap-2">
                                 <User size={20} /> Iniciar Sesión
                             </h2>

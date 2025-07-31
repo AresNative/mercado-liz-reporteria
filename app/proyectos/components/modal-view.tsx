@@ -64,7 +64,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
         <Modal title="Informe de tarea" modalName={nameModal} maxWidth="md">
             <main className="space-y-6">
                 {/* Encabezado */}
-                <article className="border-b pb-4">
+                <article className="border-b border-gray-200 pb-4">
                     <h2 className="text-2xl font-bold text-gray-800 flex items-center">
                         {task.title}
                     </h2>

@@ -55,6 +55,7 @@ export interface MainFormProps {
   aditionalData?: any;
   valueAssign?: any;
   formName?: string;
+  modelName?: string;
   action?: (...args: any[]) => any;
   onSuccess?: (result: any, formData: any) => void;
 }

@@ -2,7 +2,7 @@
 @import "tailwindcss";
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 /* @custom-variant dark (&:where(.dark, .dark *)); */
-:root {
+/* :root {
   --background: 255, 255, 255;
   --foreground: 0, 0, 0;
   --primary: 59, 130, 246;
@@ -24,11 +24,10 @@
   --border: 30, 41, 59;
   --input: 30, 41, 59;
   --ring: 96, 165, 250;
+} */
+body{
+  scrollbar-gutter: stable both-edges;
 }
-*{
-  border-color: #00000019;
-}
-
 .container-switch {
   display: flex;
   margin: 0;
