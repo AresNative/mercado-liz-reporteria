@@ -16,10 +16,10 @@ interface ScrumBoardProps {
 }
 
 const COLUMNS: { id: TaskEstado; name: string, border: string }[] = [
-    { id: "backlog", name: "Backlog", border: "border-4 border-gray-200" },
-    { id: "todo", name: "Por hacer", border: "border-4 border-yellow-200" },
-    { id: "in-progress", name: "En progreso", border: "border-4 border-violet-200" },
-    { id: "done", name: "Completado", border: "border-4 border-green-200" },
+    { id: "backlog", name: "Backlog", border: "border-3 border-gray-200" },
+    { id: "todo", name: "Por hacer", border: "border-3 border-yellow-200" },
+    { id: "in-progress", name: "En progreso", border: "border-3 border-violet-200" },
+    { id: "done", name: "Completado", border: "border-3 border-green-200" },
 ]
 
 const PRIORIDAD_COLORS: any = {
