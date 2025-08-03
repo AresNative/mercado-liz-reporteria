@@ -1,4 +1,5 @@
 "use client";
+import { Plane, Headset, CreditCard } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 // Extender la interfaz Navigator para incluir serial
@@ -119,54 +120,103 @@ export default function ScaleReader() {
     };
 
     return (
-        <div className="p-4 max-w-md mx-auto bg-white rounded-xl shadow-md">
-            <h1 className="text-xl font-bold text-center mb-4">Conexión de Báscula Digital</h1>
+        <>
+            {/* <section className="bg-white py-16 px-4 sm:px-6 lg:px-8">
+                <div className="max-w-5xl mx-auto text-center">
+                    <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                        Get Started{" "}
+                        <span className="relative inline-block">
+                            <span className="relative z-10 text-indigo-600">Today!</span>
+                            <svg
+                                className="absolute -bottom-1 left-0 w-full h-3"
+                                viewBox="0 0 100 10"
+                                preserveAspectRatio="none"
+                            >
+                                <path
+                                    d="M0,5 Q25,10 50,5 T100,5"
+                                    fill="none"
+                                    stroke="#6366f1"
+                                    strokeWidth="2"
+                                />
+                            </svg>
+                        </span>
+                    </h1>
+                    <p className="text-xl text-gray-700 font-medium flex items-center justify-center gap-2 mb-6">
+                        Affordable and Seamless Tourism in Tamil Nadu <Plane className="w-5 h-5 text-blue-500" />
+                    </p>
+                    <p className="text-gray-600 max-w-2xl mx-auto">
+                        Since our inception, we have prioritized the convenience of our tourists by
+                        offering affordable prices and a seamless experience.
+                    </p>
 
-            <div className="flex flex-col items-center">
-                <button
-                    onClick={isConnected ? disconnectScale : connectToScale}
-                    className={`px-6 py-3 rounded-lg text-white font-semibold ${isConnected
-                        ? 'bg-red-500 hover:bg-red-600'
-                        : 'bg-blue-500 hover:bg-blue-600'
-                        } transition-colors shadow-md`}
-                    disabled={!isSupported}
-                >
-                    {isConnected ? 'Desconectar Báscula' : 'Conectar Báscula'}
-                </button>
+                    <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="flex items-start gap-4 p-6 border rounded-lg shadow-sm">
+                            <Headset className="w-10 h-10 text-indigo-600" />
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900">24/7 Customer Support</h3>
+                                <p className="text-sm text-gray-600">Round-the-clock assistance for your travel experience.</p>
+                            </div>
+                        </div>
 
-                <div className="mt-6 p-6 bg-gray-50 rounded-xl text-center w-full border border-gray-200">
-                    <span className="text-sm text-gray-500 block">Peso actual</span>
-                    <span className="text-4xl font-bold text-gray-800">{weight}</span>
+                        <div className="flex items-start gap-4 p-6 border rounded-lg shadow-sm">
+                            <CreditCard className="w-10 h-10 text-green-600" />
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900">Flexible Payment Options</h3>
+                                <p className="text-sm text-gray-600">Convenient and secure transactions for your travel needs.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section> */}
+            <div className="p-4 max-w-md mx-auto bg-white rounded-xl shadow-md">
+                <h1 className="text-xl font-bold text-center mb-4">Conexión de Báscula Digital</h1>
+
+                <div className="flex flex-col items-center">
+                    <button
+                        onClick={isConnected ? disconnectScale : connectToScale}
+                        className={`px-6 py-3 rounded-lg text-white font-semibold ${isConnected
+                            ? 'bg-red-500 hover:bg-red-600'
+                            : 'bg-blue-500 hover:bg-blue-600'
+                            } transition-colors shadow-md`}
+                        disabled={!isSupported}
+                    >
+                        {isConnected ? 'Desconectar Báscula' : 'Conectar Báscula'}
+                    </button>
+
+                    <div className="mt-6 p-6 bg-gray-50 rounded-xl text-center w-full border border-gray-200">
+                        <span className="text-sm text-gray-500 block">Peso actual</span>
+                        <span className="text-4xl font-bold text-gray-800">{weight}</span>
+                    </div>
+                </div>
+
+                {error && (
+                    <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                        ⚠ {error}
+                    </div>
+                )}
+
+                {!isSupported && (
+                    <div className="mt-4 p-3 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
+                        ⚠ Tu navegador no soporta la conexión directa con básculas.
+                        Para usar esta función:
+                        <ul className="mt-2 list-disc pl-5">
+                            <li>Usa Chrome, Edge u otro navegador basado en Chromium</li>
+                            <li>Asegúrate de usar la versión 89 o superior</li>
+                            <li>Accede a la aplicación mediante HTTPS</li>
+                        </ul>
+                    </div>
+                )}
+
+                <div className="mt-6 text-sm text-gray-500">
+                    <h3 className="font-medium mb-2">Instrucciones:</h3>
+                    <ol className="list-decimal pl-5 space-y-1">
+                        <li>Conecta tu báscula al computador</li>
+                        <li>Haz clic en "Conectar Báscula"</li>
+                        <li>Selecciona tu dispositivo en el cuadro de diálogo</li>
+                        <li>El peso aparecerá automáticamente</li>
+                    </ol>
                 </div>
             </div>
-
-            {error && (
-                <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-                    ⚠ {error}
-                </div>
-            )}
-
-            {!isSupported && (
-                <div className="mt-4 p-3 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
-                    ⚠ Tu navegador no soporta la conexión directa con básculas.
-                    Para usar esta función:
-                    <ul className="mt-2 list-disc pl-5">
-                        <li>Usa Chrome, Edge u otro navegador basado en Chromium</li>
-                        <li>Asegúrate de usar la versión 89 o superior</li>
-                        <li>Accede a la aplicación mediante HTTPS</li>
-                    </ul>
-                </div>
-            )}
-
-            <div className="mt-6 text-sm text-gray-500">
-                <h3 className="font-medium mb-2">Instrucciones:</h3>
-                <ol className="list-decimal pl-5 space-y-1">
-                    <li>Conecta tu báscula al computador</li>
-                    <li>Haz clic en "Conectar Báscula"</li>
-                    <li>Selecciona tu dispositivo en el cuadro de diálogo</li>
-                    <li>El peso aparecerá automáticamente</li>
-                </ol>
-            </div>
-        </div>
+        </>
     );
 }

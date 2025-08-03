@@ -349,10 +349,10 @@ export default function User() {
   return (
     <main className="flex flex-col items-center m-auto px-4 py-8">
       <section className="w-full mb-6 flex justify-between gap-2 items-center">
-        <div className="flex md:flex-row flex-col  gap-4">
+        <div className="flex md:flex-row flex-col justify-between gap-4">
           <h1 className="text-xl font-bold">Reporte de {config}</h1>
           <select
-            className="border border-gray-300 rounded px-2 py-1"
+            className="border border-gray-300 bg-white rounded px-2 py-1"
             value={config}
             onChange={(e) => {
               setConfig(e.target.value as ReportType);
