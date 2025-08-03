@@ -246,7 +246,7 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                                     </label>
                                 </li>
 
-                                <li className="border-t pt-4">
+                                <li className="border-t border-gray-200 pt-4">
                                     <h4 className="font-medium mb-2">
                                         Artículos:
                                         <span className={cn(
@@ -262,7 +262,7 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                                         {pedidoDetails.array_lista.map((item, key) => (
                                             <article
                                                 key={key}
-                                                className="border my-2 rounded-lg border-l-4 border-l-green-500 shadow-sm"
+                                                className="border my-2 rounded-lg border-l-4 border-l-green-500 border-gray-200 shadow-sm"
                                             >
                                                 <section className="p-4">
                                                     <header className="flex flex-col gap-4">
@@ -309,7 +309,7 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                                 </li>
                             </ul>
 
-                            <footer className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t">
+                            <footer className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t border-gray-200">
                                 <button
                                     onClick={() => {
                                         dispatch(openModalReducer({ modalName: clienteDetails[0]?.telefono }))

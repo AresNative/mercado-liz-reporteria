@@ -130,6 +130,8 @@ export function useTaskService(sprintId: number) {
                 taskId,
                 order: newOrder
             }).unwrap();
+            // Refetch tasks to ensure data consistency
+            refetch();
         } catch (error) {
             console.error("Error updating task order:", error);
             // Revertir cambios en caso de error
