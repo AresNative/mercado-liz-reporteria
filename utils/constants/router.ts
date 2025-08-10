@@ -8,6 +8,7 @@ import {
   Receipt,
   Truck,
   Info,
+  ChartColumnStacked,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -28,11 +29,11 @@ export const navigationDefault = [
   },
 ];
 export const navigationUser = [
-  {
+  /*   {
     name: "Pantalla Inicial",
     href: "/",
     icon: House,
-  },
+  }, */
   {
     name: "Proyectos",
     href: "/proyectos",
@@ -40,15 +41,20 @@ export const navigationUser = [
   },
 ];
 export const navigationVentas = [
-  {
+  /*  {
     name: "Pantalla Inicial",
     href: "/",
     icon: House,
-  },
+  }, */
   {
     name: "Reporteria",
     href: "/reporteria",
     icon: ChartArea,
+  },
+  {
+    name: "Subastas",
+    href: "/subastas",
+    icon: ChartColumnStacked,
   },
   {
     name: "Pick Up",
@@ -62,11 +68,11 @@ export const navigationVentas = [
   },
 ];
 export const navigationAlmacen = [
-  {
+  /* {
     name: "Pantalla Inicial",
     href: "/",
     icon: House,
-  },
+  }, */
   {
     name: "Reporteria",
     href: "/reporteria",
@@ -80,30 +86,30 @@ export const navigationAlmacen = [
 ];
 
 export const navigationAdmin = [
-  {
+  /* {
     name: "Pantalla Inicial",
     href: "/",
     icon: House,
-  },
+  }, */
   {
     name: "Reporteria",
     href: "/reporteria",
     icon: ChartArea,
   },
   {
-    name: "Proyectos",
-    href: "/proyectos",
-    icon: ClipboardList,
-  },
-  {
     name: "Subastas",
     href: "/subastas",
-    icon: Banknote,
+    icon: ChartColumnStacked,
   },
   {
     name: "Listas",
     href: "/listas",
     icon: ListCheck,
+  },
+  {
+    name: "Proyectos",
+    href: "/proyectos",
+    icon: ClipboardList,
   },
   {
     name: "Contaduria",

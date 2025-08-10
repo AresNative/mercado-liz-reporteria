@@ -134,7 +134,7 @@ export default function PickUp() {
         <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
             <header className="mb-8">
                 <h1 className="flex items-center text-2xl font-bold md:text-3xl">Portal de Pick Up</h1>
-                <p className="mt-2 text-gray-600">Gestiona y visualiza todos los pedidos</p>
+                <p className="mt-2 text-gray-600 dark:text-gray-100">Gestiona y visualiza todos los pedidos</p>
             </header>
 
             <div className="rounded-xl border border-gray-200 bg-white shadow-sm">

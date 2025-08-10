@@ -15,11 +15,11 @@ interface ScrumBoardProps {
     sprintId: number
 }
 
-const COLUMNS: { id: TaskEstado; name: string, border: string }[] = [
-    { id: "backlog", name: "Backlog", border: "border-3 border-gray-200" },
-    { id: "todo", name: "Por hacer", border: "border-3 border-yellow-200" },
-    { id: "in-progress", name: "En progreso", border: "border-3 border-violet-200" },
-    { id: "done", name: "Completado", border: "border-3 border-green-200" },
+const COLUMNS: { id: TaskEstado; name: string, bg: string }[] = [
+    { id: "backlog", name: "Backlog", bg: "bg-3 bg-gray-100" },
+    { id: "todo", name: "Por hacer", bg: "bg-3 bg-yellow-100" },
+    { id: "in-progress", name: "En progreso", bg: "bg-3 bg-yellow-200/70" },
+    { id: "done", name: "Completado", bg: "bg-3 bg-green-100" },
 ]
 
 const PRIORIDAD_COLORS: any = {
@@ -422,7 +422,7 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                     <li key={column.id} className="space-y-2">
                         <section className="flex items-center justify-between">
                             <h3 className="font-medium text-gray-900">{column.name}</h3>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:text-gray-200">
                                 {tasksByEstado[column.id]?.length || 0}
                             </span>
                         </section>
@@ -444,14 +444,17 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                                     <article
                                         key={task.id}
                                         id={`task-${task.id}`}
-                                        className={cn(`cursor-pointer visibility rounded-md bg-white p-3 shadow-sm hover:shadow
-                             ${draggedTask === task.id ? "opacity-50" : "opacity-100"} 
-                                ${dragOverTaskId === task.id
-                                                ? dragPosition === "above"
-                                                    ? "border-t-2 border-emerald-700"
-                                                    : "border-b-2 border-emerald-700"
-                                                : column.border
-                                            }`)}
+                                        className={
+                                            cn(`cursor-pointer visibility rounded-md bg-white p-3 shadow-sm hover:shadow transition-all transition-duration-250
+                                            ${draggedTask === task.id ? "opacity-50" : "opacity-100"} 
+                                                ${dragOverTaskId === task.id
+                                                    ? dragPosition === "above"
+                                                        ? "border-t-2 border-emerald-700"
+                                                        : "border-b-2 border-emerald-700"
+                                                    : column.bg
+                                                }`
+                                            )
+                                        }
                                         draggable="true"
                                         onDragStart={(e: any) => handleDragStart(e, task.id)}
                                         onDragOver={(e: any) => handleTaskDragOver(e, task.id)}

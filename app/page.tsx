@@ -18,8 +18,8 @@ export default function Home() {
   return (
     <>
       {/* Hero Section */}
-      <header className="text-center bg-[url(/merc1.jpg)] bg-cover text-green-800 bg-no-repeat bg-center relative">
-        <div className="py-40 px-4 bg-gradient-to-b from-gray-50/60 to-white">
+      <header className="text-center bg-[url(/merc1.jpg)] bg-cover text-green-800 dark:text-green-200 bg-no-repeat bg-center relative">
+        <div className="py-40 px-4 bg-gradient-to-b from-gray-50/60 to-[var(--background)]">
           <section className="max-w-6xl mx-auto ">
             <h1 className="text-4xl md:text-6xl font-bold mb-4">Gestión Empresarial Integral</h1>
             <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
@@ -41,8 +41,8 @@ export default function Home() {
       <section className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <label className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Sistema de Gestión Completo</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200 mb-4">Sistema de Gestión Completo</h2>
+            <p className="text-gray-600 dark:text-gray-100 max-w-2xl mx-auto">
               Nuestra plataforma integra todas las áreas de tu negocio en una sola solución, optimizando procesos y aumentando la productividad.
             </p>
           </label>
@@ -52,18 +52,15 @@ export default function Home() {
             <BentoItem
               rowSpan={3}
               colSpan={2}
-              title="Nuestra historia"
-              className="px-0 pl-4"
-              description="Conoce cómo empezó nuestra historia y cómo hemos crecido para servirte mejor..."
-              icon={<HistoryIcon className="h-6 w-6 text-primary" />}
+              title="Ahorra tiempo y dinero con nuestra solución integral"
+              description="Desde pequeñas empresas hasta grandes corporaciones, nuestro sistema está diseñado para adaptarse a tus necesidades y crecer contigo."
+              icon={<HistoryIcon className="h-6 w-6 text-primary dark:text-gray-600" />}
+              className="px-0 pl-4 dark:text-gray-200"
             >
               <article className="relative h-[32vh]">
                 <div className="float-right -right-4 h-[30vh] md:w-[70%] rounded-s-full inset-0 bg-[#f2f2f7]">
-                  <img src="/historia.png" className="h-full w-full object-cover rounded-s-lg shadow-md" />
+                  <img src="/example.png" className="h-full w-full object-cover rounded-s-lg shadow-md" />
                 </div>
-                <a href="/historia" className="absolute bottom-0 m-4 inline-flex items-center text-purple-600">
-                  Ver más <ArrowRightIcon />
-                </a>
               </article>
             </BentoItem>
 
@@ -73,11 +70,11 @@ export default function Home() {
               colSpan={1}
               title="Gestión de Compras"
               description="Controla todo el proceso de compras, desde solicitudes hasta recepción de productos."
-              icon={<ShoppingCart className="h-6 w-6 text-blue-500" />}
-              className="bg-blue-50"
+              icon={<ShoppingCart className="h-6 w-6 text-blue-900" />}
+              className="dark:bg-blue-400/90 bg-blue-100"
             >
               <div className="absolute bottom-2 right-4">
-                <a href="/compras" className="inline-flex items-center text-blue-600 font-medium">
+                <a href="/compras" className="inline-flex items-center text-blue-800 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -89,11 +86,11 @@ export default function Home() {
               colSpan={1}
               title="Gestión de Ventas"
               description="Optimiza tu proceso de ventas con seguimiento de clientes y análisis de rendimiento."
-              icon={<Tag className="h-6 w-6 text-green-500" />}
-              className="bg-green-50"
+              icon={<Tag className="h-6 w-6 text-green-900" />}
+              className="dark:bg-green-400/90 bg-green-100"
             >
               <div className="absolute bottom-2 right-4">
-                <a href="/ventas" className="inline-flex items-center text-green-600 font-medium">
+                <a href="/ventas" className="inline-flex items-center text-green-800 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -105,11 +102,11 @@ export default function Home() {
               colSpan={1}
               title="Sistema de Subastas"
               description="Plataforma completa para gestionar subastas de productos y servicios."
-              icon={<Gavel className="h-6 w-6 text-yellow-500" />}
-              className="bg-yellow-50"
+              icon={<Gavel className="h-6 w-6 text-yellow-900" />}
+              className="dark:bg-yellow-400/90 bg-yellow-100"
             >
               <div className="absolute bottom-2 right-4">
-                <a href="/subastas" className="inline-flex items-center text-yellow-600 font-medium">
+                <a href="/subastas" className="inline-flex items-center text-yellow-800 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -121,11 +118,11 @@ export default function Home() {
               colSpan={1}
               title="Gestión de Proyectos"
               description="Planifica, ejecuta y monitorea todos tus proyectos en una sola plataforma."
-              icon={<CalendarCheck className="h-6 w-6 text-purple-500" />}
-              className="bg-purple-50"
+              icon={<CalendarCheck className="h-6 w-6 text-purple-900" />}
+              className="dark:bg-purple-400/90 bg-purple-100"
             >
               <div className="absolute bottom-2 right-4">
-                <a href="/proyectos" className="inline-flex items-center text-purple-600 font-medium">
+                <a href="/proyectos" className="inline-flex items-center text-purple-800 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -137,11 +134,11 @@ export default function Home() {
               colSpan={1}
               title="Gestión de Empleados"
               description="Administra toda la información de tus colaboradores de forma centralizada."
-              icon={<Users className="h-6 w-6 text-red-500" />}
-              className="bg-red-50"
+              icon={<Users className="h-6 w-6 text-red-900" />}
+              className="dark:bg-red-400/90 bg-red-100"
             >
               <div className="absolute bottom-2 right-4">
-                <a href="/empleados" className="inline-flex items-center text-red-600 font-medium">
+                <a href="/empleados" className="inline-flex items-center text-red-800 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -153,11 +150,11 @@ export default function Home() {
               colSpan={1}
               title="Gestión de Nómina"
               description="Calcula y gestiona nóminas de forma automatizada y precisa."
-              icon={<Wallet className="h-6 w-6 text-cyan-500" />}
-              className="bg-cyan-50"
+              icon={<Wallet className="h-6 w-6 text-cyan-900" />}
+              className="dark:bg-cyan-400/90 bg-cyan-100"
             >
               <div className="absolute bottom-2 right-4">
-                <a href="/nomina" className="inline-flex items-center text-cyan-600 font-medium">
+                <a href="/nomina" className="inline-flex items-center text-cyan-800 font-medium">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -168,8 +165,8 @@ export default function Home() {
       {/* Benefits Section */}
       <section className="py-16 px-4 max-w-6xl mx-auto">
         <label className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Beneficios Clave</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200 mb-4">Beneficios Clave</h2>
+          <p className="text-gray-600 dark:text-gray-100 max-w-2xl mx-auto">
             Descubre cómo nuestro sistema puede transformar la gestión de tu empresa
           </p>
         </label>
@@ -179,8 +176,8 @@ export default function Home() {
             colSpan={1}
             title="Eficiencia Operativa"
             description="Automatiza procesos manuales y reduce tiempos de ejecución en todas las áreas de tu negocio."
-            icon={<Zap className="h-6 w-6 text-blue-500" />}
-            className="bg-blue-50"
+            icon={<Zap className="h-6 w-6 text-blue-900" />}
+            className="dark:bg-blue-400/90 bg-blue-100"
           />
 
           <BentoItem
@@ -188,16 +185,16 @@ export default function Home() {
             colSpan={1}
             title="Toma de Decisiones"
             description="Accede a reportes en tiempo real y dashboards personalizados para una mejor toma de decisiones."
-            icon={<ChartCandlestick className="h-6 w-6 text-green-500" />}
-            className="bg-green-50"
+            icon={<ChartCandlestick className="h-6 w-6 text-green-900" />}
+            className="dark:bg-green-400/90 bg-green-100"
           />
           <BentoItem
             rowSpan={1}
             colSpan={1}
             title="Seguridad de Datos"
             description="Protege la información de tu empresa con nuestro sistema de seguridad de última generación."
-            icon={<Lock className="h-6 w-6 text-purple-500" />}
-            className="bg-purple-50"
+            icon={<Lock className="h-6 w-6 text-purple-900" />}
+            className="dark:bg-purple-400/90 bg-purple-100"
           />
         </BentoGrid>
       </section>

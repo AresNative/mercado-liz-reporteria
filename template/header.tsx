@@ -4,6 +4,7 @@ import AppMenu from './menu';
 import { ArrowLeft, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { SwitchToggle } from '@/components/switch-mode';
 
 interface HeaderProps {
     title: string;
@@ -43,7 +44,7 @@ const Header: React.FC<HeaderProps> = ({
             className={cn(
                 `sticky top-0 z-40 transition-all duration-300 safe-area-top`,
                 showBackButton || isScrolled
-                    ? 'bg-white/90 border-b border-gray-200'
+                    ? 'bg-[var(--background)]/80 border-b border-gray-200 dark:border-gray-700'
                     : 'bg-gradient-to-r from-green-800 to-green-600 ',
                 className
             )}
@@ -77,7 +78,8 @@ const Header: React.FC<HeaderProps> = ({
                     </h1>
                 </ul>
 
-                <div className={cn("flex items-center gap-2")}>
+                <div className={cn("flex items-center")}>
+                    <SwitchToggle />
                     {showMenuButton && <AppMenu isScrolled={isScrolled} />}
                 </div>
             </section>

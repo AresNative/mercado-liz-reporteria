@@ -217,16 +217,16 @@ const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps
                         (row: any, key: any) => (
                             <article className="mt-3" key={key}>
                                 <section className="grid grid-cols-2 gap-4 text-sm list-none">
-                                    <span className="text-gray-600">Nombre</span>
+                                    <span className="text-gray-600 dark:text-gray-100">Nombre</span>
                                     <li>{row.nombre}</li>
 
-                                    <span className="text-gray-600">Ciudad</span>
+                                    <span className="text-gray-600 dark:text-gray-100">Ciudad</span>
                                     <li>{row.ciudad}</li>
 
-                                    <span className="text-gray-600">Estado</span>
+                                    <span className="text-gray-600 dark:text-gray-100">Estado</span>
                                     <li>{row.estado}</li>
 
-                                    <span className="text-gray-600">Direccion</span>
+                                    <span className="text-gray-600 dark:text-gray-100">Direccion</span>
                                     <li>{row.direccion}</li>
                                 </section>
                             </article>

@@ -116,35 +116,6 @@ export const api = createApi({
         getHsitoryTask: builder.query({
             query: (params) => `v1/tasks/${params}/hsitory`,
         }),
-
-        postProjects: builder.mutation({
-            query: (data) => ({
-                url: "v1/projects",
-                method: "POST",
-                body: data,
-            }),
-        }),
-        postSprints: builder.mutation({
-            query: (data) => ({
-                url: `v1/projects/${data.project_id}/sprints`,
-                method: "POST",
-                body: data,
-            }),
-        }),
-        postTasks: builder.mutation({
-            query: (data) => ({
-                url: "v1/sprints/tasks",
-                method: "POST",
-                body: data,
-            }),
-        }),
-        postComments: builder.mutation({
-            query: (data) => ({
-                url: `v1/tasks/${data.taskId}/comments`,
-                method: "POST",
-                body: data,
-            }),
-        }),
         putTask: builder.mutation({
             query: ({ dataForm, idEdit }) => {
                 return {
@@ -186,11 +157,6 @@ export const {
     useGetSprintsQuery,
     useGetTasksQuery,
     useGetHsitoryTaskQuery,
-    /* <----------> */
-    usePostProjectsMutation,
-    usePostSprintsMutation,
-    usePostTasksMutation,
-    usePostCommentsMutation,
     /* <----------> */
     usePutTaskMutation,
     usePutTaskStatusMutation,

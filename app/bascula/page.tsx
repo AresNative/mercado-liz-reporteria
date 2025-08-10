@@ -144,7 +144,7 @@ export default function ScaleReader() {
                     <p className="text-xl text-gray-700 font-medium flex items-center justify-center gap-2 mb-6">
                         Affordable and Seamless Tourism in Tamil Nadu <Plane className="w-5 h-5 text-blue-500" />
                     </p>
-                    <p className="text-gray-600 max-w-2xl mx-auto">
+                    <p className="text-gray-600 dark:text-gray-100 max-w-2xl mx-auto">
                         Since our inception, we have prioritized the convenience of our tourists by
                         offering affordable prices and a seamless experience.
                     </p>
@@ -154,7 +154,7 @@ export default function ScaleReader() {
                             <Headset className="w-10 h-10 text-indigo-600" />
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900">24/7 Customer Support</h3>
-                                <p className="text-sm text-gray-600">Round-the-clock assistance for your travel experience.</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-100">Round-the-clock assistance for your travel experience.</p>
                             </div>
                         </div>
 
@@ -162,7 +162,7 @@ export default function ScaleReader() {
                             <CreditCard className="w-10 h-10 text-green-600" />
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900">Flexible Payment Options</h3>
-                                <p className="text-sm text-gray-600">Convenient and secure transactions for your travel needs.</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-100">Convenient and secure transactions for your travel needs.</p>
                             </div>
                         </div>
                     </div>
@@ -185,7 +185,7 @@ export default function ScaleReader() {
 
                     <div className="mt-6 p-6 bg-gray-50 rounded-xl text-center w-full border border-gray-200">
                         <span className="text-sm text-gray-500 block">Peso actual</span>
-                        <span className="text-4xl font-bold text-gray-800">{weight}</span>
+                        <span className="text-4xl font-bold text-gray-800 dark:text-gray-200">{weight}</span>
                     </div>
                 </div>
 

@@ -8,6 +8,9 @@ import {
     RefreshCw,
     Tag,
 } from "lucide-react";
+import { useGetProjectsQuery } from "@/hooks/reducers/api";
+import { CommentsField } from "../constants/comments";
+import MainForm from "@/components/form/main-form";
 
 type ModalViewProps = {
     nameModal: string;
@@ -22,13 +25,12 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                     <span className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                         <AlertCircle className="w-8 h-8 text-gray-500" />
                     </span>
-                    <h3 className="text-xl font-medium text-gray-800 mb-2">Tarea no disponible</h3>
+                    <h3 className="text-xl font-medium text-gray-800 dark:text-gray-200 mb-2">Tarea no disponible</h3>
                     <p className="text-gray-500">No se encontraron datos para esta tarea.</p>
                 </main>
             </Modal>
         );
     }
-
     // Formatear fechas
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -65,10 +67,10 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
             <main className="space-y-6">
                 {/* Encabezado */}
                 <article className="border-b border-gray-200 pb-4">
-                    <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center">
                         {task.title}
                     </h2>
-                    {task.description && (<p className="text-gray-600 mt-2 bg-gray-50 p-3 rounded-lg">{task.description}</p>)}
+                    {task.description && (<p className="text-gray-600 dark:text-gray-100 mt-2 bg-gray-50 p-3 rounded-lg">{task.description}</p>)}
                 </article>
 
                 {/* Grid de información */}
@@ -92,7 +94,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                             ? 'bg-red-100 text-red-800'
                             : task.prioridad === 'medium'
                                 ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-green-100 text-green-800'
+                                : 'bg-green-100 text-green-800 dark:text-green-200'
                             }`}>
                             {task.prioridad === 'high' ? 'Alta' : task.prioridad === 'medium' ? 'Media' : 'Baja'}
                         </span>
@@ -104,7 +106,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                             <User className="w-4 h-4 mr-2" />
                             <span className="text-sm font-medium">Asignado a</span>
                         </div>
-                        <p className="font-medium text-gray-800">{task.assignee}</p>
+                        <p className="font-medium text-gray-800 dark:text-gray-200">{task.assignee}</p>
                     </li>
 
                     {/* Story Points */}
@@ -117,7 +119,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                             <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-2">
                                 {task.storyPoints}
                             </span>
-                            <span className="text-sm text-gray-600">
+                            <span className="text-sm text-gray-600 dark:text-gray-100">
                                 {task.storyPoints === 1 ? 'Punto de historia' : 'Puntos de historia'}
                             </span>
                         </label>
@@ -132,8 +134,8 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                             <CalendarDays className="w-4 h-4 mr-2" />
                             <span className="text-sm font-medium">Creado en</span>
                         </div>
-                        <p className="text-gray-800">{formatDate(task.createdAt)}</p>
-                        <p className="text-sm text-gray-600">{formatTime(task.createdAt)}</p>
+                        <p className="text-gray-800 dark:text-gray-200">{formatDate(task.createdAt)}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-100">{formatTime(task.createdAt)}</p>
                     </li>
 
                     {/* Fecha de actualización */}
@@ -142,8 +144,8 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                             <RefreshCw className="w-4 h-4 mr-2" />
                             <span className="text-sm font-medium">Actualizado en</span>
                         </div>
-                        <p className="text-gray-800">{formatDate(task.updatedAt)}</p>
-                        <p className="text-sm text-gray-600">{formatTime(task.updatedAt)}</p>
+                        <p className="text-gray-800 dark:text-gray-200">{formatDate(task.updatedAt)}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-100">{formatTime(task.updatedAt)}</p>
                     </li>
                 </ul>
 
@@ -167,6 +169,14 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                         )}
                     </label>
                 </footer>
+                <section className="mt-4 border-t border-gray-200 pt-4">
+                    <MainForm
+                        actionType="v1/projects"
+                        formName="Project"
+                        dataForm={CommentsField()}
+                        message_button="Enviar"
+                    />
+                </section>
             </main>
         </Modal>
     );
