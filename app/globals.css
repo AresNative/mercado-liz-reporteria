@@ -3,39 +3,33 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 /* @custom-variant dark (&:where(.dark, .dark *)); */
-/* :root {
-  --background: 255, 255, 255;
-  --foreground: 0, 0, 0;
-  --primary: 59, 130, 246;
-  --primary-foreground: 255, 255, 255;
-  --card: 249, 250, 251;
-  --card-foreground: 0, 0, 0;
-  --border: 229, 231, 235;
-  --input: 229, 231, 235;
-  --ring: 59, 130, 246;
-}
+:root {
+  --background: #fff;
 
-.dark {
-  --background: 15, 23, 42;
-  --foreground: 255, 255, 255;
-  --primary: 96, 165, 250;
-  --primary-foreground: 15, 23, 42;
-  --card: 30, 41, 59;
-  --card-foreground: 255, 255, 255;
-  --border: 30, 41, 59;
-  --input: 30, 41, 59;
-  --ring: 96, 165, 250;
-} */
+  --switch-btn-bg: #fff;
+  --switch-border-color: #3c3c434a;
+  --switch-icon-color: #0f0f0f;
+  --switch-bg-color: #f6f6f7;
+}
+[data-theme='dark'] {
+  --background: #000;
+
+  --switch-btn-bg: #000;
+  --switch-border-color: #525259ad;
+  --switch-icon-color: #f2f2f2;
+  --switch-bg-color: #313136;
+
+}
 body{
   scrollbar-gutter: stable both-edges;
 }
 .container-switch {
+  scroll-behavior: smooth;
   display: flex;
   margin: 0;
   top: 0;
   left: 0;
   right: 0;
-  position: relative;
   justify-content: center;
   align-items: center;
   gap: 2rem;
@@ -52,7 +46,7 @@ body{
   flex-shrink: 0;
   border: 1px solid var(--switch-border-color);
   background: var(--switch-bg-color);
-  transition: border-color 0.25s, background-color 0.3s var(--switch-animation-easing);
+  transition: border-color .25s;
 }
 
 .switch:hover {
@@ -72,7 +66,7 @@ body{
   left: 0;
   right: 0;
   bottom: 0;
-  transition: 0.4s;
+  transition: .4s;
 }
 
 .sun {
@@ -81,7 +75,7 @@ body{
   left: 3px;
   top: 3px;
   position: absolute;
-  transition: var(--switch-animation-duration) var(--switch-animation-easing);
+  transition: .4s;
 }
 
 .sun-color {
@@ -91,16 +85,16 @@ body{
 
 .sun-color2 {
   fill: var(--switch-icon-color);
-  stroke: transparent;
+  stroke: transparent
 }
 
 .moon {
   width: 20px;
   height: 20px;
-  right: 5px;
+  left: 9px;
   top: 3px;
   position: absolute;
-  transition: var(--switch-animation-duration) var(--switch-animation-easing);
+  transition: .4s;
   transform: translateX(1em);
   opacity: 0;
 }
@@ -111,7 +105,7 @@ body{
 }
 
 .slider:before {
-  content: "";
+  content: '';
   width: 18px;
   height: 18px;
   position: absolute;
@@ -120,7 +114,7 @@ body{
   border-radius: 25rem;
   background: var(--switch-btn-bg);
   box-shadow: 0px 5px 10px #00000019;
-  transition: transform var(--switch-animation-duration) var(--switch-animation-easing);
+  transition: .3s;
 }
 
 .checkbox:checked+.slider:before {
@@ -128,54 +122,20 @@ body{
 }
 
 .checkbox:checked+.slider .sun {
-  animation: slideOutAndFade var(--switch-animation-duration) var(--switch-animation-easing) forwards;
+  animation: slideAndFade .3s ease-in-out forwards;
 }
 
 .checkbox:checked+.slider .moon {
-  animation: slideInAndAppear var(--switch-animation-duration) var(--switch-animation-easing) forwards;
-}
-
-.checkbox:not(:checked)+.slider .sun {
-  animation: slideInAndAppear var(--switch-animation-duration) var(--switch-animation-easing) forwards;
   opacity: 1;
-  transform: translateX(0);
 }
 
-.checkbox:not(:checked)+.slider .moon {
-  animation: slideOutAndFade var(--switch-animation-duration) var(--switch-animation-easing) forwards;
-}
-
-@keyframes slideOutAndFade {
+@keyframes slideAndFade {
   0% {
     opacity: 1;
-    transform: translateX(0);
-  }
-
-  70% {
-    opacity: 0.3;
-    transform: translateX(-10px);
   }
 
   100% {
     opacity: 0;
-    transform: translateX(-15px);
-  }
-}
-
-@keyframes slideInAndAppear {
-  0% {
-    opacity: 0;
-    transform: translateX(15px);
-  }
-
-  70% {
-    opacity: 0.7;
-    transform: translateX(-5px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateX(0);
   }
 }
 

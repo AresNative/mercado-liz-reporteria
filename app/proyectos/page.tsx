@@ -105,12 +105,12 @@ export default function ProjectsPage() {
                         onClick={() => setProjectId(project.id)}
                     >
                         <label className="flex gap-2 items-center cursor-pointer uppercase">
-                            <SquareChevronRight className="size-4 text-green-800" />
+                            <SquareChevronRight className="size-4 text-green-800 dark:text-green-200" />
                             {project.nombre}
                         </label>
 
                         <div className="flex justify-between items-center gap-2 mt-2">
-                            <section className="flex text-ellipsis text-xs items-center gap-2 text-gray-800/60">
+                            <section className="flex text-ellipsis text-xs items-center gap-2 text-gray-800 dark:text-gray-200/60">
                                 <span>{project.descripcion}</span>
                             </section>
                             <section className="flex flex-col">
@@ -166,7 +166,7 @@ export default function ProjectsPage() {
             <ul className="flex justify-between items-center">
                 <header className="mb-8 flex flex-col">
                     <h1 className="flex items-center text-2xl font-bold md:text-3xl">Scrum</h1>
-                    <p className="mt-2 text-gray-600">Gestiona proyectos y actividades de mejor manera</p>
+                    <p className="mt-2 text-gray-600 dark:text-gray-100">Gestiona proyectos y actividades de mejor manera</p>
                     {showBackButton && (
                         <button
                             onClick={handleGoBack}

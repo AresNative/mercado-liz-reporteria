@@ -115,7 +115,7 @@ export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
 
                                             <div>
                                                 {!isCurrentUser && (
-                                                    <div className="text-xs font-medium text-gray-600 mb-1 ml-1">
+                                                    <div className="text-xs font-medium text-gray-600 dark:text-gray-100 mb-1 ml-1">
                                                         {user.nombre}
                                                     </div>
                                                 )}
@@ -125,7 +125,7 @@ export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
                                                         rounded-2xl px-4 py-3
                                                         ${isCurrentUser
                                                             ? 'bg-purple-500 text-white rounded-br-none'
-                                                            : 'bg-white text-gray-800 rounded-bl-none shadow-sm'}
+                                                            : 'bg-white text-gray-800 dark:text-gray-200 rounded-bl-none shadow-sm'}
                                                     `}>
                                                         {message.text}
                                                     </div>

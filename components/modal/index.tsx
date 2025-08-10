@@ -72,11 +72,11 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
             aria-modal="true"
             aria-labelledby={`modal-${modalName}`}>
 
-            <div className="fixed inset-0 bg-black/50 bg-opacity-75 transition-opacity" onClick={handleBackdropClick} />
+            <div className="fixed inset-0 bg-black/20 bg-opacity-85 transition-opacity" onClick={handleBackdropClick} />
 
             <section
                 className={cn(
-                    "fixed inset-0 h-screen md:h-fit md:max-h-[90vh] mx-auto overflow-auto md:w-11/12 md:my-4 md:rounded-lg bg-white dark:bg-zinc-800 text-left shadow-xl transition-all",
+                    "fixed inset-0 h-screen md:h-fit md:max-h-[90vh] mx-auto overflow-auto md:w-11/12 md:my-4 md:rounded-lg bg-[var(--background)] text-left shadow-xl transition-all",
                     maxWidthClasses[maxWidth],
                 )}
             >
@@ -89,7 +89,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
                         {title}
                     </h3>
                     <button
-                        className="cursor-pointer relative z-10 ml-auto bg-white text-gray-400 hover:text-gray-500 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                        className="cursor-pointer relative z-10 ml-auto bg-[var(--background)] text-green-700 hover:text-green-500 dark:text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                         onClick={handleBackdropClick}
                     >
                         <span className="sr-only">Close</span>

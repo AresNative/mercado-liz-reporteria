@@ -29,11 +29,11 @@ export const navigationDefault = [
   },
 ];
 export const navigationUser = [
-  {
+  /*   {
     name: "Pantalla Inicial",
     href: "/",
     icon: House,
-  },
+  }, */
   {
     name: "Proyectos",
     href: "/proyectos",
@@ -97,19 +97,19 @@ export const navigationAdmin = [
     icon: ChartArea,
   },
   {
-    name: "Proyectos",
-    href: "/proyectos",
-    icon: ClipboardList,
-  },
-  {
     name: "Subastas",
     href: "/subastas",
-    icon: Banknote,
+    icon: ChartColumnStacked,
   },
   {
     name: "Listas",
     href: "/listas",
     icon: ListCheck,
+  },
+  {
+    name: "Proyectos",
+    href: "/proyectos",
+    icon: ClipboardList,
   },
   {
     name: "Contaduria",

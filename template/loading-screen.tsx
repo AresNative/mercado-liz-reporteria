@@ -11,7 +11,7 @@ export const LoadingScreen = () => (
                 className="h-12 w-12 text-green-600 animate-spin"
                 aria-hidden="true"
             />
-            <p className="text-lg text-gray-600 font-medium">Cargando pantalla...</p>
+            <p className="text-lg text-gray-600 dark:text-gray-100 font-medium">Cargando pantalla...</p>
         </div>
     </main>
 );
@@ -30,7 +30,7 @@ export const LoadingSection = ({ message }: LoadingSectionProps) => (
                 className="h-12 w-12 text-green-600 animate-spin"
                 aria-hidden="true"
             />
-            <p className="text-lg text-gray-600 font-medium">{message ? message : "Cargando pantalla"}...</p>
+            <p className="text-lg text-gray-600 dark:text-gray-100 font-medium">{message ? message : "Cargando pantalla"}...</p>
         </div>
     </section>
 );
