@@ -1,6 +1,7 @@
 /* app/globals.css */
 @import "tailwindcss";
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 /* @custom-variant dark (&:where(.dark, .dark *)); */
 /* :root {
   --background: 255, 255, 255;

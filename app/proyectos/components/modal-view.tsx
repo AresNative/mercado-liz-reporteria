@@ -8,6 +8,9 @@ import {
     RefreshCw,
     Tag,
 } from "lucide-react";
+import { useGetProjectsQuery } from "@/hooks/reducers/api";
+import { CommentsField } from "../constants/comments";
+import MainForm from "@/components/form/main-form";
 
 type ModalViewProps = {
     nameModal: string;
@@ -28,7 +31,6 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
             </Modal>
         );
     }
-
     // Formatear fechas
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -167,6 +169,14 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                         )}
                     </label>
                 </footer>
+                <section className="mt-4 border-t border-gray-200 pt-4">
+                    <MainForm
+                        actionType="v1/projects"
+                        formName="Project"
+                        dataForm={CommentsField()}
+                        message_button="Enviar"
+                    />
+                </section>
             </main>
         </Modal>
     );
