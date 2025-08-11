@@ -178,7 +178,7 @@ export const AutoComplete = ({ value, onChange, fetchOptions, placeholder }: Aut
             {isOpen && (
                 <ul
                     ref={listRef}
-                    className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-white dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-lg shadow-lg"
+                    className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-white dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-lg shadow-lg text-gray-900 dark:text-gray-100"
                 >
                     {options.length > 0 ? (
                         <>

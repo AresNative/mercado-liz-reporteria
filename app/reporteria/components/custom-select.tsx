@@ -111,7 +111,7 @@ export const CustomSelect = ({
                             <span className="truncate">{selectedOption.label}</span>
                         </>
                     ) : (
-                        <span className="text-gray-500 dark:text-gray-400">{placeholder}</span>
+                        <span className="text-gray-900 dark:text-gray-100">{placeholder}</span>
                     )}
                 </div>
                 <div className="flex items-center gap-1 ml-2">
@@ -137,7 +137,7 @@ export const CustomSelect = ({
                 >
                     {options.map((group) => (
                         <li key={group.label} role="group">
-                            <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-600">
+                            <div className="px-3 py-2 text-xs font-semibold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-600">
                                 {group.label}
                             </div>
                             {group.options.map((option, index) => {
@@ -150,7 +150,7 @@ export const CustomSelect = ({
                                         key={option.value}
                                         role="option"
                                         aria-selected={isSelected}
-                                        className={`px-3 py-2 cursor-pointer flex items-center transition-colors ${isFocused ? "bg-blue-50 dark:bg-blue-900/20" :
+                                        className={`px-3 py-2 text-gray-900 dark:text-gray-100 cursor-pointer flex items-center transition-colors ${isFocused ? "bg-blue-50 dark:bg-blue-900/20" :
                                             isSelected ? "bg-blue-100 dark:bg-blue-900/30" :
                                                 "hover:bg-gray-50 dark:hover:bg-zinc-600"
                                             }`}

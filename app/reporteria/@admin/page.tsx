@@ -174,9 +174,9 @@ export default function User() {
     <main className="flex flex-col items-center max-w-7xl m-auto px-4 py-8">
       <section className="w-full mb-6 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold">Reporte de {config}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Reporte de {config}</h1>
           <select
-            className="border border-gray-300 rounded px-2 py-1"
+            className="border border-gray-300 rounded px-2 py-1 bg-[var(--background)] text-gray-900 dark:text-gray-100"
             value={config}
             onChange={(e) => {
               setConfig(e.target.value as ReportType);
