@@ -102,11 +102,6 @@ export const navigationAdmin = [
     icon: ChartColumnStacked,
   },
   {
-    name: "Listas",
-    href: "/listas",
-    icon: ListCheck,
-  },
-  {
     name: "Proyectos",
     href: "/proyectos",
     icon: ClipboardList,
