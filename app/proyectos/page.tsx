@@ -101,7 +101,7 @@ export default function ProjectsPage() {
                 return (
                     <li
                         key={project.id}
-                        className="bg-white shadow border-l-2 border-l-green-500 rounded-2xl px-3 py-2 cursor-pointer hover:underline hover:shadow-md transition-all flex-1 min-w-[200px]"
+                        className="bg-white dark:bg-zinc-800 shadow border-l-2 border-l-green-500 rounded-2xl px-3 py-2 cursor-pointer hover:underline hover:shadow-md transition-all flex-1 min-w-[200px]"
                         onClick={() => setProjectId(project.id)}
                     >
                         <label className="flex gap-2 items-center cursor-pointer uppercase">
@@ -162,7 +162,7 @@ export default function ProjectsPage() {
     );
 
     return (
-        <main className="mx-auto px-4 md:p-6 text-gray-900 relative">
+        <main className="mx-auto px-4 md:p-6 text-gray-900 dark:text-gray-100 relative">
             <ul className="flex justify-between items-center">
                 <header className="mb-8 flex flex-col">
                     <h1 className="flex items-center text-2xl font-bold md:text-3xl">Scrum</h1>
@@ -179,7 +179,7 @@ export default function ProjectsPage() {
                 </header>
 
                 <button
-                    className="flex gap-1 p-2 ml-auto min-w-[130px] cursor-pointer border bg-green-600 text-white text-xs rounded-4xl items-center mb-4 before:content-['+'] before:text-xs before:bg-white before:text-green-600 before:px-2 before:py-1 before:rounded-full hover:bg-green-700 transition-colors"
+                    className="flex gap-1 p-2 ml-auto min-w-[130px] cursor-pointer border bg-green-600 text-gray-100 text-xs rounded-4xl items-center mb-4 before:content-['+'] before:text-xs before:bg-white before:text-green-600 before:px-2 before:py-1 before:rounded-full hover:bg-green-700 transition-colors"
                     onClick={() => {
                         dispatch(openModalReducer({ modalName: projectId === 0 ? "create-proyect" : sprintId > 0 ? "create-task" : "create-sprint" }))
                     }}

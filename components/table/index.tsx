@@ -88,7 +88,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
 
         // Formato de precios
         if (
-            (key.toLowerCase().includes('price') || key.toLowerCase().includes('importe') || key.toLowerCase().includes('costo')) &&
+            (key.toLowerCase().includes('price') || key.toLowerCase().includes('puja') || key.toLowerCase().includes('importe') || key.toLowerCase().includes('costo')) &&
             typeof value === 'number'
         ) {
             return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -141,8 +141,8 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
     if (!paginatedData.length) {
         return (
             <div className="w-full">
-                <section className="w-fit text-center py-5 m-auto items-center flex gap-2">
-                    <Grid2x2X className="text-gray-500 dark:text-gray-200" /> Sin datos disponibles
+                <section className="w-fit text-center py-5 m-auto items-center flex gap-2 text-gray-500 dark:text-gray-200">
+                    <Grid2x2X /> Sin datos disponibles
                 </section>
             </div>
         )
@@ -247,7 +247,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-                    <div className="text-sm text-gray-700">
+                    <div className="text-sm text-gray-700 dark:text-gray-200">
                         {selectedRows.length} columna(s) seleccionada(s)
                     </div>
                 </div>

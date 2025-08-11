@@ -70,13 +70,13 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center">
                         {task.title}
                     </h2>
-                    {task.description && (<p className="text-gray-600 dark:text-gray-100 mt-2 bg-gray-50 p-3 rounded-lg">{task.description}</p>)}
+                    {task.description && (<p className="text-gray-600 dark:text-gray-100 mt-2 bg-gray-50 dark:bg-zinc-800 p-3 rounded-lg">{task.description}</p>)}
                 </article>
 
                 {/* Grid de información */}
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Estado */}
-                    <li className="bg-gray-50 p-4 rounded-lg">
+                    <li className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
                         <div className="flex items-center text-gray-500 mb-2">
                             <Hourglass className="w-4 h-4 mr-2" />
                             <span className="text-sm font-medium">Estado</span>
@@ -85,7 +85,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                     </li>
 
                     {/* Prioridad */}
-                    <li className="bg-gray-50 p-4 rounded-lg">
+                    <li className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
                         <div className="flex items-center text-gray-500 mb-2">
                             <AlertCircle className="w-4 h-4 mr-2" />
                             <span className="text-sm font-medium">Prioridad</span>
@@ -101,7 +101,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                     </li>
 
                     {/* Asignado */}
-                    <li className="bg-gray-50 p-4 rounded-lg">
+                    <li className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
                         <div className="flex items-center text-gray-500 mb-2">
                             <User className="w-4 h-4 mr-2" />
                             <span className="text-sm font-medium">Asignado a</span>
@@ -110,7 +110,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                     </li>
 
                     {/* Story Points */}
-                    <li className="bg-gray-50 p-4 rounded-lg">
+                    <li className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
                         <div className="flex items-center text-gray-500 mb-2">
                             <BarChart2 className="w-4 h-4 mr-2" />
                             <span className="text-sm font-medium">Story Points</span>
@@ -129,7 +129,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                 {/* Fechas */}
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Fecha de creación */}
-                    <li className="bg-gray-50 p-4 rounded-lg">
+                    <li className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
                         <div className="flex items-center text-gray-500 mb-2">
                             <CalendarDays className="w-4 h-4 mr-2" />
                             <span className="text-sm font-medium">Creado en</span>
@@ -139,7 +139,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                     </li>
 
                     {/* Fecha de actualización */}
-                    <li className="bg-gray-50 p-4 rounded-lg">
+                    <li className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
                         <div className="flex items-center text-gray-500 mb-2">
                             <RefreshCw className="w-4 h-4 mr-2" />
                             <span className="text-sm font-medium">Actualizado en</span>
@@ -150,7 +150,7 @@ export const ModalView: React.FC<ModalViewProps> = ({ nameModal, task }) => {
                 </ul>
 
                 {/* Tags */}
-                <footer className="bg-gray-50 p-4 rounded-lg">
+                <footer className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
                     <label className="flex items-center text-gray-500 mb-2">
                         <Tag className="w-4 h-4 mr-2" />
                         <span className="text-sm font-medium">Tags</span>

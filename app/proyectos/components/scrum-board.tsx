@@ -346,7 +346,7 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
             <div className="mb-4 flex justify-between items-center">
                 <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm"
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-zinc-600 hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer rounded-md text-sm"
                 >
                     <Filter size={16} />
                     {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
@@ -355,7 +355,7 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                 {(selectedPriorities.length > 0 || selectedTags.length > 0) && (
                     <button
                         onClick={clearFilters}
-                        className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm"
+                        className="flex items-center gap-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-600 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md text-sm"
                     >
                         <X size={16} />
                         Limpiar filtros
@@ -370,7 +370,7 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200"
+                        className="mb-6 p-4 bg-white dark:bg-zinc-800 rounded-lg border border-gray-200"
                         aria-labelledby="customization-title">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
@@ -383,8 +383,8 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                                             className={cn(
                                                 "px-3 py-1 text-xs rounded-full border",
                                                 selectedPriorities.includes(priority)
-                                                    ? "bg-gray-800 text-white border-gray-800"
-                                                    : "bg-white border-gray-300 hover:bg-gray-100"
+                                                    ? "bg-gray-800/40 text-white border-gray-800"
+                                                    : "bg-white/40 border-gray-300 hover:bg-gray-100/60"
                                             )}
                                         >
                                             {priority}
@@ -403,8 +403,8 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                                             className={cn(
                                                 "px-3 py-1 text-xs rounded-full border",
                                                 selectedTags.includes(tag)
-                                                    ? "bg-indigo-100 text-indigo-800 border-indigo-300"
-                                                    : "bg-white border-gray-300 hover:bg-gray-100"
+                                                    ? "bg-indigo-100/40 text-indigo-800 border-indigo-300"
+                                                    : "bg-white/40 border-gray-300 hover:bg-gray-100/60"
                                             )}
                                         >
                                             {tag}
@@ -421,16 +421,16 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                 {COLUMNS.map((column) => (
                     <li key={column.id} className="space-y-2">
                         <section className="flex items-center justify-between">
-                            <h3 className="font-medium text-gray-900">{column.name}</h3>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:text-gray-200">
+                            <h3 className="font-medium text-gray-900 dark:text-gray-100">{column.name}</h3>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-zinc-950 text-gray-900 dark:text-gray-100">
                                 {tasksByEstado[column.id]?.length || 0}
                             </span>
                         </section>
                         <section
                             id={`column-${column.id}`}
                             className={cn(`min-h-[200px] h-full rounded-lg border p-2 space-y-2 transition-colors ${dragOverColumn === column.id
-                                ? "border-green-300 bg-green-50"
-                                : "border-gray-200 bg-gray-50"
+                                ? "border-green-300 dark:bg-green-700 bg-green-50 dark:border-green-500"
+                                : "border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700"
                                 }`)}
                             onDragOver={(e: any) => handleDragOver(e, column.id)}
                             onDragEnter={handleDragEnter}
@@ -445,7 +445,7 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                                         key={task.id}
                                         id={`task-${task.id}`}
                                         className={
-                                            cn(`cursor-pointer visibility rounded-md bg-white p-3 shadow-sm hover:shadow transition-all transition-duration-250
+                                            cn(`cursor-pointer visibility rounded-md bg-white/60 p-3 shadow-sm hover:shadow transition-all transition-duration-250
                                             ${draggedTask === task.id ? "opacity-50" : "opacity-100"} 
                                                 ${dragOverTaskId === task.id
                                                     ? dragPosition === "above"

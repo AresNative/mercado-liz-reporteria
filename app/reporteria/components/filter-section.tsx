@@ -307,7 +307,7 @@ export const FilterSection = ({
 
                 {sectionVisibility.selectFields && (
                     <>
-                        <div className="flex flex-col md:flex-row justify-between w-full gap-4 bg-gray-50 px-2 py-4 rounded-xl border border-gray-200 dark:border-zinc-700 pb-4 mb-4">
+                        <div className="flex flex-col md:flex-row justify-between w-full gap-4 bg-gray-50 dark:bg-zinc-700 px-2 py-4 rounded-xl border  dark:border-zinc-700 pb-4 mb-4">
                             <fieldset className="space-y-3 w-full">
                                 <legend className="text-sm font-medium text-gray-900 dark:text-gray-100">Seleccionar perfil existente</legend>
                                 <div className="flex gap-3">
@@ -317,7 +317,7 @@ export const FilterSection = ({
                                         </label>
                                         <select
                                             id="profile-select"
-                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-blue-400"
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-zinc-700 dark:border-zinc-600 dark:text-white dark:focus:ring-blue-400"
                                             value={selectedProfile}
                                             onChange={(e) => {
                                                 const name = e.target.value
@@ -380,7 +380,7 @@ export const FilterSection = ({
                                                     }
                                                 }
                                             }}
-                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-500 dark:focus:ring-blue-400"
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-zinc-700 dark:border-zinc-600 dark:text-white dark:placeholder-zinc-500 dark:focus:ring-blue-400"
                                         />
                                     </div>
 
