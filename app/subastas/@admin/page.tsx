@@ -12,9 +12,80 @@ const IMPORT_PAGE_SIZE = 10;
 
 export default function User() {
   const [section, setsection] = useState("listas");
+  interface Puja {
+    Proveedor: string;
+    Puja: number;
+    Cantidad: number;
+  }
+
+  interface ArticuloAgrupado {
+    Articulo: string;
+    Fabricante: string;
+    Nombre: string;
+    Pujas: Puja[];
+  }
+
+  interface ArticuloOriginal {
+    ID: number;
+    Articulo: string;
+    Fabricante: string;
+    Nombre: string;
+    Proveedor: string;
+    Puja: number;
+    Cantidad: number;
+  }
+
+  function agruparPorArticulo(data: ArticuloOriginal[]): ArticuloAgrupado[] {
+    const resultado: ArticuloAgrupado[] = [];
+    const articulosMap: Record<string, ArticuloAgrupado> = {};
+
+    data.forEach((item: ArticuloOriginal) => {
+      if (!articulosMap[item.Articulo]) {
+        articulosMap[item.Articulo] = {
+          Articulo: item.Articulo,
+          Fabricante: item.Fabricante,
+          Nombre: item.Nombre,
+          Pujas: []
+        };
+        resultado.push(articulosMap[item.Articulo]);
+      }
+
+      articulosMap[item.Articulo].Pujas.push({
+        Proveedor: item.Proveedor,
+        Puja: item.Puja,
+        Cantidad: item.Cantidad
+      });
+    });
+
+    return resultado;
+  }
+
+  // Ejemplo de uso:
+  const data: ArticuloOriginal[] = [
+    {
+      "ID": 0,
+      "Articulo": "2904",
+      "Fabricante": "SU KARNE",
+      "Nombre": "COSTILLA DE RES CARGADA KG",
+      "Proveedor": "#1",
+      "Puja": 100.50,
+      "Cantidad": 35
+    },
+    {
+      "ID": 0,
+      "Articulo": "2904",
+      "Fabricante": "SU KARNE",
+      "Nombre": "COSTILLA DE RES CARGADA KG",
+      "Proveedor": "#2",
+      "Puja": 120.50,
+      "Cantidad": 5
+    }
+  ];
+
+  const datosAgrupados = agruparPorArticulo(data);
 
   return (
-    <main className="flex flex-col items-center max-w-7xl m-auto px-4 py-8">
+    <main className="flex flex-col items-center m-auto px-4 py-8">
       <section className="flex items-center justify-between w-full">
         <Segment
           items={[
@@ -58,24 +129,7 @@ export default function User() {
             <Button label="Crear Subasta" />
             <Button label="Mis Subastas" />
           </ul>
-          <DynamicTable data={[{
-            "ID": 0,
-            "Articulo": "2904",
-            "Fabricante": "SU KARNE",
-            "Nombre": "COSTILLA DE RES CARGADA KG",
-            "Proveedor": "#1",
-            "Puja": 100.50,
-            "Cantidad": 35
-          },
-          {
-            "ID": 0,
-            "Articulo": "2904",
-            "Fabricante": "SU KARNE",
-            "Nombre": "COSTILLA DE RES CARGADA KG",
-            "Proveedor": "#2",
-            "Puja": 120.50,
-            "Cantidad": 5
-          }]} itemsPerPage={IMPORT_PAGE_SIZE} />
+          <DynamicTable data={datosAgrupados} itemsPerPage={IMPORT_PAGE_SIZE} />
         </section>)
       }
     </main >
