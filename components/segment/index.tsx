@@ -150,7 +150,7 @@ export function Segment({
             aria-disabled={disabled ? "true" : "false"}
             onKeyDown={handleKeyDown}
             className={cn(
-                "inline-flex items-center rounded-md border border-zinc-200 bg-zinc-100/60 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-zinc-100/40 dark:border-zinc-700 dark:bg-zinc-900/40",
+                "inline-flex items-center rounded-md bg-zinc-100 inset-shadow-sm backdrop-blur supports-[backdrop-filter]:bg-zinc-100/40 dark:border-zinc-700 dark:bg-zinc-900/40",
                 sizeConf.groupPadding,
                 fullWidth && "w-full",
                 className,

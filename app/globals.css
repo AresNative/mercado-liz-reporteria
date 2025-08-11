@@ -19,6 +19,12 @@
   --switch-icon-color: #f2f2f2;
   --switch-bg-color: #313136;
 
+  *::-webkit-scrollbar {
+      background-color: var(--background);
+    }
+  *::-webkit-scrollbar-thumb {
+      background-color: var(--switch-border-color);
+    }
 }
 body{
   scrollbar-gutter: stable both-edges;
