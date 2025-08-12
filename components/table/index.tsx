@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { Check, ChevronDown, Download, Grid2x2X, X } from "lucide-react";
 import { ViewTR } from "./toggle-view";
 
+export type DataItem = Record<string, any>;
+
 interface DynamicTableProps {
     data: Record<string, any>[];
     itemsPerPage?: number;
