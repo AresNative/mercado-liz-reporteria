@@ -55,10 +55,6 @@ body{
   transition: border-color .25s;
 }
 
-.switch:hover {
-  border: 1px solid var(--hover);
-}
-
 .checkbox {
   opacity: 0;
   width: 0;

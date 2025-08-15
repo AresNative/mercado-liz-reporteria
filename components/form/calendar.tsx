@@ -80,12 +80,12 @@ export function CalendarComponent({ cuestion, setValue, register, errors }: Inpu
     };
 
     return (
-        <div className="flex flex-col" ref={dropdownRef}>
+        <div className="relative flex flex-col mb-12 z-40" ref={dropdownRef}>
             <label className="leading-loose flex items-center gap-2 dark:text-white">
                 <Calendar1 className="w-4 h-4" />
                 {cuestion.label}
             </label>
-            <div className="relative">
+            <div className="absolute z-20 w-full top-7 left-0  h-0">
                 <input
                     type="text"
                     value={formatDisplayDate(birthDate)}
@@ -101,8 +101,8 @@ export function CalendarComponent({ cuestion, setValue, register, errors }: Inpu
                         }
                     }}
                     readOnly
-                    className="bg-white dark:bg-zinc-800 px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm border-gray-300  dark:border-zinc-700 rounded-md focus:outline-none text-gray-600 dark:text-gray-100 dark:text-white
-[&:-webkit-autofill]:bg-white [&:-webkit-autofill]:text-gray-600 dark:text-gray-100 [&:-webkit-autofill]:dark:bg-zinc-800 [&:-webkit-autofill]:dark:text-white [&:-webkit-autofill]:transition-colors [&:-webkit-autofill]:duration-[999999s] cursor-pointer pr-8"
+                    className="bg-white dark:bg-zinc-800 px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm border-gray-300  dark:border-zinc-700 rounded-md focus:outline-none text-gray-600 dark:text-white
+[&:-webkit-autofill]:bg-white [&:-webkit-autofill]:text-gray-600 [&:-webkit-autofill]:dark:bg-zinc-800 [&:-webkit-autofill]:dark:text-white [&:-webkit-autofill]:transition-colors [&:-webkit-autofill]:duration-[999999s] cursor-pointer pr-8"
                     placeholder={cuestion.placeholder}
                     {...register(cuestion.name, cuestion.require ? { required: "El campo es obligatorio." } : {})}
                 />
@@ -110,14 +110,14 @@ export function CalendarComponent({ cuestion, setValue, register, errors }: Inpu
                     <button
                         type="button"
                         onClick={handleClear}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-100 dark:text-white"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-white"
                         aria-label="Limpiar fecha"
                     >
                         ×
                     </button>
                 )}
                 {showDatePicker && (
-                    <div className="absolute z-10 mt-1 w-full dark:text-white bg-white dark:bg-zinc-800 border border-gray-300  dark:border-zinc-700 rounded-md shadow-lg p-2">
+                    <div className="z-20 mt-1 w-full dark:text-white bg-white dark:bg-zinc-800 border border-gray-300  dark:border-zinc-700 rounded-md shadow-lg p-2">
                         <div className="grid grid-cols-3 gap-2">
                             <select
                                 aria-label="Seleccionar año"
@@ -207,6 +207,6 @@ export function CalendarComponent({ cuestion, setValue, register, errors }: Inpu
                 )}
             </div>
             {errors[cuestion.name] && <span className="text-red-400 p-1">{errors[cuestion.name]?.message}</span>}
-        </div>
+        </div >
     );
 }

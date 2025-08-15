@@ -11,12 +11,14 @@ import { cn } from '@/utils/functions/cn';
 import { closeModalReducer, openAlertReducer, openModalReducer } from '@/hooks/reducers/drop-down';
 import { useAppDispatch } from '@/hooks/selector';
 import { Modal } from '@/components/modal';
+import { useRouter } from "next/navigation";
 
 interface MenuProps {
     isScrolled?: boolean;
 }
 
 const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
+    const navigation = useRouter();
     const [logoutProcess] = usePostLogutMutation();
     const [loginModalOpen, setLoginModalOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -79,6 +81,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
             );
             // Actualizar estado después de logout
             setUserData({ role: null, id: null, token: null });
+            navigation.push("/");
         } catch (error) {
             console.error("Logout failed:", error);
         }
@@ -201,8 +204,8 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                                 id: getLocalStorageItem("user-id"),
                                 token: getLocalStorageItem("token"),
                             });
-
                             dispatch(closeModalReducer({ modalName: "login-modal" }));
+                            navigation.push(navigationItems()[0].href); // Redirigir al primer item del menú
                         } catch {
                             dispatch(
                                 openAlertReducer({
@@ -213,6 +216,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                                     duration: 4000
                                 })
                             );
+                            navigation.push("/"); // Redirigir a la página de login
                         }
                     }}
                 />

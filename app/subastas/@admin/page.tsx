@@ -1,10 +1,13 @@
 "use client";
 
+import { BentoGrid, BentoItem } from "@/components/bento-grid";
 import { Button } from "@/components/button";
+import MainForm from "@/components/form/main-form";
 import Segment from "@/components/segment";
 import DynamicTable from "@/components/table";
-import { FileBarChart2Icon } from "lucide-react";
+import { ChartCandlestick, Container, FileBarChart2Icon, Hash, Lock, ChartSpline, Store } from "lucide-react";
 import { useState } from "react";
+import { SubastaField } from "../constants/subasta";
 
 // Tamaño de página para datos importados
 const IMPORT_PAGE_SIZE = 10;
@@ -87,51 +90,135 @@ export default function User() {
   return (
     <main className="flex flex-col items-center m-auto px-4 py-8">
       <section className="flex items-center justify-between w-full">
-        <Segment
-          items={[
-            { value: "listas", label: "Listas" },
-            { value: "subastas", label: "Subastas" },
-          ]}
-          defaultValue="listas"
-          size="sm"
-          accent="emerald"
-          onValueChange={(value) => setsection(value)}
-        />
-        <Button color="success"> Exportar <FileBarChart2Icon /></Button>
+        {(<>
+          <Segment
+            items={[
+              { value: "listas", label: "Listas" },
+              { value: "subastas", label: "Subastas" },
+            ]}
+            defaultValue="listas"
+            size="sm"
+            accent="slate"
+            onValueChange={(value) => setsection(value)}
+          />
+          {section === "subastas" &&
+            <ul className="flex gap-4">
+              <Button color="success" label="Crear Subasta" />
+              <Button color="success" label="Mis Subastas" />
+            </ul>}
+          <Button color="success"> Exportar <FileBarChart2Icon /></Button>
+        </>)}
       </section>
 
       {section === "listas" ?
         (<section className="flex flex-col gap-4 mt-4 items-center w-full">
-          <Button label="Solicitar Lista" />
 
-          <DynamicTable data={[{
-            "ID": 0,
-            "Sucursal": "test",
-            "Articulo": "2904",
-            "Fabricante": "SU KARNE",
-            "Nombre": "COSTILLA DE RES CARGADA KG",
-            "Categoria": "PERECEDEROS",
-            "Grupo": "CARNE DE RES",
-            "Linea": "RES",
-            "Familia": "CARNE DE RES",
-            "Unidad": "Kilogramo",
-            "Cantidad": 40,
-            "CostoUnitario": 170,
-            "IVA": 0,
-            "IEPS": null,
-            "FechaInicio": "2025-04-15T08:00:00",
-            "FechaFin": "2025-04-25T08:00:00"
-          }]} itemsPerPage={IMPORT_PAGE_SIZE} />
+          <BentoGrid>
+            <BentoItem
+              rowSpan={8}
+              colSpan={1}
+              title="Crear Subasta"
+              description="Crea una subasta para obtener mejores precios y condiciones de compra."
+              icon={<ChartCandlestick className="h-6 w-6 text-purple-900" />}
+            >
+              <MainForm
+                actionType="submit"
+                dataForm={SubastaField()}
+                message_button="Crear"
+                onSuccess={(data: any) => console.log(data)}
+              />
+            </BentoItem>
+
+            <BentoItem
+              rowSpan={1}
+              colSpan={1}
+              title="Mayoreo"
+              description=""
+              icon={<Container className="h-6 w-6 text-purple-900" />}
+              className="dark:bg-purple-700 bg-purple-100"
+            >
+              <section>
+                <ul className="flex flex-wrap gap-2">
+                  <li className="flex items-center bg-indigo-200 dark:bg-indigo-700 text-white px-4 py-2 rounded-2xl">.</li>
+                  <li className="flex items-center bg-indigo-200 dark:bg-indigo-700 text-white px-4 py-2 rounded-2xl" >.</li>
+                  <li className="flex items-center bg-indigo-200 dark:bg-indigo-700 text-white px-4 py-2 rounded-2xl">.</li>
+                  <li className="flex items-center bg-indigo-200 dark:bg-indigo-700 text-white px-4 py-2 rounded-2xl">.</li>
+                </ul>
+              </section>
+            </BentoItem>
+
+            <BentoItem
+              rowSpan={1}
+              colSpan={1}
+              title=""
+              description=""
+              icon={<ChartCandlestick className="h-6 w-6 text-green-900" />}
+              className="dark:bg-green-700 bg-green-100"
+            >
+            </BentoItem>
+
+            <BentoItem
+              rowSpan={1}
+              colSpan={1}
+              title="Guadalupe"
+              description=""
+              icon={<Store className="h-6 w-6 text-purple-900" />}
+              className="dark:bg-purple-700 bg-purple-100"
+            >
+            </BentoItem>
+            <BentoItem
+              rowSpan={1}
+              colSpan={1}
+              title=""
+              description=""
+              icon={<ChartSpline className="h-6 w-6 text-green-900" />}
+              className="dark:bg-green-700 bg-green-100"
+            >
+            </BentoItem>
+            <BentoItem
+              rowSpan={1}
+              colSpan={1}
+              title="Testereazo"
+              description=""
+              icon={<Store className="h-6 w-6 text-purple-900" />}
+              className="dark:bg-purple-700 bg-purple-100"
+            >
+            </BentoItem>
+
+            <BentoItem
+              rowSpan={1}
+              colSpan={1}
+              title=""
+              description=""
+              icon={<ChartCandlestick className="h-6 w-6 text-green-900" />}
+              className="dark:bg-green-700 bg-green-100"
+            >
+            </BentoItem>
+
+            <BentoItem
+              rowSpan={1}
+              colSpan={1}
+              title="Palmas"
+              description=""
+              icon={<Store className="h-6 w-6 text-purple-900" />}
+              className="dark:bg-purple-700 bg-purple-100"
+            >
+            </BentoItem>
+            <BentoItem
+              rowSpan={1}
+              colSpan={1}
+              title=""
+              description=""
+              icon={<ChartSpline className="h-6 w-6 text-green-900" />}
+              className="dark:bg-green-700 bg-green-100"
+            />
+          </BentoGrid>
         </section>)
         :
         (<section className="flex flex-col gap-4 mt-4 items-center w-full">
-          <ul className="flex gap-4">
-            <Button label="Crear Subasta" />
-            <Button label="Mis Subastas" />
-          </ul>
           <DynamicTable data={datosAgrupados} itemsPerPage={IMPORT_PAGE_SIZE} />
         </section>)
       }
-    </main >
+    </main>
   );
 }
