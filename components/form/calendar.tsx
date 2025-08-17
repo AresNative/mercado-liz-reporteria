@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 export function CalendarComponent({ cuestion, setValue, register, errors }: InputFormProps) {
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const modalRef = useRef<HTMLDivElement>(null);
     const [birthDate, setBirthDate] = useState("");
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [isTimeEnabled, setIsTimeEnabled] = useState(false);
@@ -62,6 +63,34 @@ export function CalendarComponent({ cuestion, setValue, register, errors }: Inpu
         }
     }, [cuestion.valueDefined]);
 
+    // Cerrar modal al hacer clic fuera o presionar Escape
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (showDatePicker &&
+                modalRef.current &&
+                !modalRef.current.contains(event.target as Node) &&
+                !dropdownRef.current?.contains(event.target as Node)) {
+                setShowDatePicker(false);
+            }
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && showDatePicker) {
+                setShowDatePicker(false);
+            }
+        };
+
+        if (showDatePicker) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showDatePicker]);
+
     const handleAccept = () => {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         if (isTimeEnabled) {
@@ -79,30 +108,31 @@ export function CalendarComponent({ cuestion, setValue, register, errors }: Inpu
         setValue(cuestion.name, "");
     };
 
+    const handleInputClick = () => {
+        setShowDatePicker(!showDatePicker);
+        const currentDate = birthDate ? new Date(birthDate) : new Date();
+        if (!isNaN(currentDate.getTime())) {
+            setYear(currentDate.getFullYear());
+            setMonth(currentDate.getMonth());
+            setDay(currentDate.getDate());
+            setHour(currentDate.getHours());
+            setMinute(currentDate.getMinutes());
+        }
+    };
+
     return (
-        <div className="relative flex flex-col mb-12 z-40" ref={dropdownRef}>
+        <div className="relative flex flex-col mb-12" ref={dropdownRef}>
             <label className="leading-loose flex items-center gap-2 dark:text-white">
                 <Calendar1 className="w-4 h-4" />
                 {cuestion.label}
             </label>
-            <div className="absolute z-20 w-full top-7 left-0  h-0">
+            <div className="w-full top-7 left-0 h-0">
                 <input
                     type="text"
                     value={formatDisplayDate(birthDate)}
-                    onClick={() => {
-                        setShowDatePicker(true);
-                        const currentDate = birthDate ? new Date(birthDate) : new Date();
-                        if (!isNaN(currentDate.getTime())) {
-                            setYear(currentDate.getFullYear());
-                            setMonth(currentDate.getMonth());
-                            setDay(currentDate.getDate());
-                            setHour(currentDate.getHours());
-                            setMinute(currentDate.getMinutes());
-                        }
-                    }}
+                    onClick={handleInputClick}
                     readOnly
-                    className="bg-white dark:bg-zinc-800 px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm border-gray-300  dark:border-zinc-700 rounded-md focus:outline-none text-gray-600 dark:text-white
-[&:-webkit-autofill]:bg-white [&:-webkit-autofill]:text-gray-600 [&:-webkit-autofill]:dark:bg-zinc-800 [&:-webkit-autofill]:dark:text-white [&:-webkit-autofill]:transition-colors [&:-webkit-autofill]:duration-[999999s] cursor-pointer pr-8"
+                    className="bg-white dark:bg-zinc-800 px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm border-gray-300 dark:border-zinc-700 rounded-md focus:outline-none text-gray-600 dark:text-white [&:-webkit-autofill]:bg-white [&:-webkit-autofill]:text-gray-600 [&:-webkit-autofill]:dark:bg-zinc-800 [&:-webkit-autofill]:dark:text-white [&:-webkit-autofill]:transition-colors [&:-webkit-autofill]:duration-[999999s] cursor-pointer pr-8"
                     placeholder={cuestion.placeholder}
                     {...register(cuestion.name, cuestion.require ? { required: "El campo es obligatorio." } : {})}
                 />
@@ -117,7 +147,10 @@ export function CalendarComponent({ cuestion, setValue, register, errors }: Inpu
                     </button>
                 )}
                 {showDatePicker && (
-                    <div className="z-20 mt-1 w-full dark:text-white bg-white dark:bg-zinc-800 border border-gray-300  dark:border-zinc-700 rounded-md shadow-lg p-2">
+                    <div
+                        ref={modalRef}
+                        className="absolute z-30 mt-1 w-full dark:text-white bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md shadow-lg p-2"
+                    >
                         <div className="grid grid-cols-3 gap-2">
                             <select
                                 aria-label="Seleccionar año"
@@ -196,17 +229,26 @@ export function CalendarComponent({ cuestion, setValue, register, errors }: Inpu
                                 </select>
                             </div>
                         )}
-                        <button
-                            type="button"
-                            className="mt-2 w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                            onClick={handleAccept}
-                        >
-                            Aceptar
-                        </button>
+                        <div className="flex gap-2 mt-2">
+                            <button
+                                type="button"
+                                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-zinc-700 text-gray-800 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-zinc-600"
+                                onClick={() => setShowDatePicker(false)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                                onClick={handleAccept}
+                            >
+                                Aceptar
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
             {errors[cuestion.name] && <span className="text-red-400 p-1">{errors[cuestion.name]?.message}</span>}
-        </div >
+        </div>
     );
 }

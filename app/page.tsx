@@ -26,7 +26,7 @@ export default function Home() {
             <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
               La solución todo en uno para gestionar compras, ventas, subastas, proyectos, empleados y nómina
             </p>
-            {/* <ul className="flex flex-col sm:flex-row justify-center gap-4 relative z-10">
+            {/* <ul className="flex flex-col sm:flex-row relative justify-center gap-4 z-10">
               <button className="bg-white cursor-pointer text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
                 Solicitar Demo
               </button>
@@ -48,34 +48,35 @@ export default function Home() {
             </p>
           </label>
 
-          <BentoGrid>
-            {/* Historia - Ocupa 3 filas y 2 columnas */}
+          <BentoGrid cols={{ md: 3, lg: 4 }} rows={{ md: 3, lg: 3 }}>
+            {/* Historia */}
             <BentoItem
-              rowSpan={3}
-              colSpan={2}
+              rowSpan={{ sm: 1, md: 3, lg: 2 }}
+              colSpan={{ sm: 1, md: 3, lg: 3 }}
               title="Ahorra tiempo y dinero con nuestra solución integral"
               description="Desde pequeñas empresas hasta grandes corporaciones, nuestro sistema está diseñado para adaptarse a tus necesidades y crecer contigo."
-              icon={<HistoryIcon className="h-6 w-6 text-primary dark:text-gray-600" />}
-              className="px-0 pl-4 dark:text-gray-200"
+              icon={<HistoryIcon className="size-6 text-primary dark:text-gray-600" />}
+              className="bg-gray-50 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800 px-0 pl-4"
             >
               <article className="relative h-[32vh]">
                 <div className="float-right -right-4 h-[30vh] md:w-[70%] rounded-s-full inset-0 bg-[#f2f2f7]">
-                  <img src="/example.png" className="h-full w-full object-cover rounded-s-lg shadow-md" />
+                  <img
+                    src="/example.png"
+                    className="h-full w-full object-cover rounded-s-lg shadow-md"
+                  />
                 </div>
               </article>
             </BentoItem>
 
             {/* Gestión de Compras */}
             <BentoItem
-              rowSpan={1}
-              colSpan={1}
               title="Gestión de Compras"
               description="Controla todo el proceso de compras, desde solicitudes hasta recepción de productos."
-              icon={<ShoppingCart className="h-6 w-6 text-blue-900" />}
-              className="dark:bg-blue-400/90 bg-blue-100"
+              icon={<ShoppingCart className="size-6 text-blue-600" />}
+              className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800"
             >
-              <div className="absolute bottom-2 right-4">
-                <a href="/compras" className="inline-flex items-center text-blue-800 font-medium">
+              <div className="absolute bottom-1 right-4">
+                <a href="/proyectos" className="inline-flex hover:underline items-center text-blue-600">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -83,15 +84,13 @@ export default function Home() {
 
             {/* Gestión de Ventas */}
             <BentoItem
-              rowSpan={1}
-              colSpan={1}
               title="Gestión de Ventas"
               description="Optimiza tu proceso de ventas con seguimiento de clientes y análisis de rendimiento."
-              icon={<Tag className="h-6 w-6 text-green-900" />}
-              className="dark:bg-green-400/90 bg-green-100"
+              icon={<Tag className="size-6 text-green-600" />}
+              className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800"
             >
-              <div className="absolute bottom-2 right-4">
-                <a href="/ventas" className="inline-flex items-center text-green-800 font-medium">
+              <div className="absolute bottom-1 right-4">
+                <a href="/proyectos" className="inline-flex hover:underline items-center text-green-600">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -99,15 +98,13 @@ export default function Home() {
 
             {/* Sistema de Subastas */}
             <BentoItem
-              rowSpan={1}
-              colSpan={1}
               title="Sistema de Subastas"
               description="Plataforma completa para gestionar subastas de productos y servicios."
-              icon={<Gavel className="h-6 w-6 text-yellow-900" />}
-              className="dark:bg-yellow-400/90 bg-yellow-100"
+              icon={<Gavel className="size-6 text-yellow-600" />}
+              className="bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800"
             >
-              <div className="absolute bottom-2 right-4">
-                <a href="/subastas" className="inline-flex items-center text-yellow-800 font-medium">
+              <div className="absolute bottom-1 right-4">
+                <a href="/proyectos" className="inline-flex hover:underline items-center text-yellow-600">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -115,15 +112,13 @@ export default function Home() {
 
             {/* Gestión de Proyectos */}
             <BentoItem
-              rowSpan={1}
-              colSpan={1}
               title="Gestión de Proyectos"
               description="Planifica, ejecuta y monitorea todos tus proyectos en una sola plataforma."
-              icon={<CalendarCheck className="h-6 w-6 text-purple-900" />}
-              className="dark:bg-purple-400/90 bg-purple-100"
+              icon={<CalendarCheck className="size-6 text-purple-600" />}
+              className="bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800"
             >
-              <div className="absolute bottom-2 right-4">
-                <a href="/proyectos" className="inline-flex items-center text-purple-800 font-medium">
+              <div className="absolute bottom-1 right-4">
+                <a href="/proyectos" className="inline-flex hover:underline items-center text-purple-600">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -131,15 +126,13 @@ export default function Home() {
 
             {/* Gestión de Empleados */}
             <BentoItem
-              rowSpan={1}
-              colSpan={1}
               title="Gestión de Empleados"
               description="Administra toda la información de tus colaboradores de forma centralizada."
-              icon={<Users className="h-6 w-6 text-red-900" />}
-              className="dark:bg-red-400/90 bg-red-100"
+              icon={<Users className="size-6 text-red-600" />}
+              className="bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800"
             >
-              <div className="absolute bottom-2 right-4">
-                <a href="/empleados" className="inline-flex items-center text-red-800 font-medium">
+              <div className="absolute bottom-1 right-4">
+                <a href="/proyectos" className="inline-flex hover:underline items-center text-red-600">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
@@ -147,58 +140,51 @@ export default function Home() {
 
             {/* Gestión de Nómina */}
             <BentoItem
-              rowSpan={1}
-              colSpan={1}
               title="Gestión de Nómina"
               description="Calcula y gestiona nóminas de forma automatizada y precisa."
-              icon={<Wallet className="h-6 w-6 text-cyan-900" />}
-              className="dark:bg-cyan-400/90 bg-cyan-100"
+              icon={<Wallet className="size-6 text-cyan-600" />}
+              className="bg-cyan-50 dark:bg-cyan-900/30 border-cyan-200 dark:border-cyan-800"
             >
-              <div className="absolute bottom-2 right-4">
-                <a href="/nomina" className="inline-flex items-center text-cyan-800 font-medium">
+              <div className="absolute bottom-1 right-4">
+                <a href="/proyectos" className="inline-flex hover:underline items-center text-cyan-600">
                   Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
                 </a>
               </div>
             </BentoItem>
           </BentoGrid>
+
         </div>
-      </section>
+      </section >
       {/* Benefits Section */}
-      <section className="py-16 px-4 max-w-6xl mx-auto">
+      <section className="py-16 px-4 max-w-6xl mx-auto" >
         <label className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200 mb-4">Beneficios Clave</h2>
           <p className="text-gray-600 dark:text-gray-100 max-w-2xl mx-auto">
             Descubre cómo nuestro sistema puede transformar la gestión de tu empresa
           </p>
         </label>
-        <BentoGrid>
+        <BentoGrid cols={{ sm: 1, md: 1, lg: 3 }} rows={{ sm: 1, md: 1, lg: 1 }} className="justify-between">
           <BentoItem
-            rowSpan={1}
-            colSpan={1}
             title="Eficiencia Operativa"
             description="Automatiza procesos manuales y reduce tiempos de ejecución en todas las áreas de tu negocio."
-            icon={<Zap className="h-6 w-6 text-blue-900" />}
-            className="dark:bg-blue-400/90 bg-blue-100"
+            icon={<Zap className="size-6 text-blue-600" />}
+            className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800"
           />
 
           <BentoItem
-            rowSpan={1}
-            colSpan={1}
             title="Toma de Decisiones"
             description="Accede a reportes en tiempo real y dashboards personalizados para una mejor toma de decisiones."
-            icon={<ChartCandlestick className="h-6 w-6 text-green-900" />}
-            className="dark:bg-green-400/90 bg-green-100"
+            icon={<ChartCandlestick className="size-6 text-emerald-600" />}
+            className="bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800"
           />
           <BentoItem
-            rowSpan={1}
-            colSpan={1}
             title="Seguridad de Datos"
             description="Protege la información de tu empresa con nuestro sistema de seguridad de última generación."
-            icon={<Lock className="h-6 w-6 text-purple-900" />}
-            className="dark:bg-purple-400/90 bg-purple-100"
+            icon={<Lock className="size-6 text-indigo-600" />}
+            className="bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800"
           />
         </BentoGrid>
-      </section>
+      </section >
 
       {/* CTA Section */}
       {/* <section className="py-20 px-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
@@ -217,8 +203,6 @@ export default function Home() {
           </div>
         </div>
       </section> */}
-
-      {/* Footer */}
       <Footer />
     </>
   );

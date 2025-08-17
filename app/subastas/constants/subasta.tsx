@@ -8,11 +8,11 @@ export function SubastaField(data?: any): Field[] {
         require: false,
         elements: [
             {
-                name: "producto",
+                name: "listas",
                 type: "SELECT",
                 require: true,
                 multi: true,
-                label: "Producto(s) buscado(s)",
+                label: "Lista(s)",
                 options: ["alta", "media", "baja"],
                 icon: <Ampersand className="text-green-500" />,
             },
@@ -28,12 +28,30 @@ export function SubastaField(data?: any): Field[] {
         ],
     },
     {
-        name: "fecha",
-        type: "DATE_RANGE",
+        name: "proveedores",
+        type: "SELECT",
+        label: "Proveedor(es)",
+        require: true,
+        multi: true,
+        options: ["alta", "media", "baja"],
+        icon: <ChartNoAxesGantt className="text-orange-500" />,
+    },
+    {
+        name: "fecha_inicio",
+        type: "DATE",
         require: true,
         multiple: true,
-        label: "Periodo de la subasta",
-        placeholder: "Factor:",
+        label: "Fecha de inicio",
+        placeholder: "Fecha de inico de periodo:",
+        icon: <Hash className="text-green-500" />,
+    },
+    {
+        name: "fecha_fin",
+        type: "DATE",
+        require: true,
+        multiple: true,
+        label: "Fecha fin",
+        placeholder: "Fecha de fin de periodo:",
         icon: <Hash className="text-green-500" />,
     },];
 }

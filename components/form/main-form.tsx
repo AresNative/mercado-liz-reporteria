@@ -164,7 +164,7 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="relative z-20 w-full space-y-2 my-2 m-auto">
+    <form onSubmit={handleSubmit(onSubmit)} className="relative w-full space-y-2 my-2 m-auto">
       {pages[page].map((field: any, key: any) => (
         <SwitchTypeInputRender
           key={key}
