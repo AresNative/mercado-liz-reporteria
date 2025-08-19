@@ -50,7 +50,45 @@ export const colorClasses = {
     ring: "ring-gray-300/10",
   },
 };
-
+export const buttonClasses = {
+  success: {
+    bg: "bg-green-600",
+    hover: "hover:bg-green-100 hover:text-white",
+    text: "text-green-50",
+    ring: "ring-green-500/10",
+  },
+  error: {
+    bg: "bg-red-600",
+    hover: "hover:bg-red-100 hover:text-white",
+    text: "text-red-50",
+    ring: "ring-red-500/10",
+  },
+  warning: {
+    bg: "bg-yellow-600",
+    hover: "hover:bg-yellow-100 hover:text-white",
+    text: "text-yellow-50",
+    ring: "ring-yellow-500/10",
+  },
+  completed: {
+    // Cambiado de "finish" a "completed" por claridad
+    bg: "bg-blue-600",
+    hover: "hover:bg-blue-100 hover:text-white",
+    text: "text-blue-50",
+    ring: "ring-blue-500/10",
+  },
+  info: {
+    bg: "bg-purple-600",
+    hover: "hover:bg-purple-100 hover:text-white ",
+    text: "text-purple-50",
+    ring: "ring-purple-500/10",
+  },
+  indigo: {
+    bg: "bg-indigo-600",
+    hover: "hover:bg-indigo-100 hover:text-indigo-800",
+    text: "text-indigo-50",
+    ring: "ring-indigo-500/10",
+  },
+};
 export const alertClasses = {
   success: {
     bg: "bg-green-50",

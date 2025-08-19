@@ -10,6 +10,7 @@ export function SelectComponent(props: SearchableSelectProps) {
     const { cuestion } = props;
     const dispatch = useAppDispatch();
     const skillsRef = useRef<HTMLDivElement>(null);
+    const [isTouched, setIsTouched] = useState(false);
 
     const [showSkillsDropdown, setShowSkillsDropdown] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -20,6 +21,7 @@ export function SelectComponent(props: SearchableSelectProps) {
     });
 
     const handleSkillToggle = (skill: string) => {
+        setIsTouched(true); // Marcar como tocado cuando se selecciona algo
         if (cuestion.multi === false) {
             setFormData({ skills: [skill] });
             setShowSkillsDropdown(false);
@@ -38,6 +40,7 @@ export function SelectComponent(props: SearchableSelectProps) {
     };
 
     const handleRemoveSkill = (skill: string) => {
+        setIsTouched(true); // Marcar como tocado cuando se remueve algo
         setFormData(prev => ({
             ...prev,
             skills: prev.skills.filter(s => s !== skill)
@@ -57,31 +60,31 @@ export function SelectComponent(props: SearchableSelectProps) {
     useEffect(() => {
         props.setValue(cuestion.name, cuestion.multi ? formData.skills.join(', ') : formData.skills[0] || '');
     }, [formData.skills, cuestion.multi, cuestion.name, props]);
+
     useEffect(() => {
         if (cuestion.valueDefined) {
             props.setValue(cuestion.name, cuestion.valueDefined);
         }
     }, [cuestion.valueDefined, cuestion.name, props]);
+
     useEffect(() => {
-        // Prepara el valor a setear: si es multi, lo junta en un string, de lo contrario toma el primer elemento
         const value = cuestion.multi
             ? formData.skills.join(", ")
             : formData.skills[0] || "";
-        props.setValue(cuestion.name, value);
 
-        // Valida el campo. Si se definió que es requerido y el valor está vacío,
-        // se dispara el setError. De lo contrario se limpian los errores.
-        if (cuestion.require && !value) {
-            props.setError(cuestion.name, {
-                type: "required",
-                message: "Este campo es obligatorio.",
-            });
-        } else {
-            props.clearErrors(cuestion.name);
+        // Solo validar si el campo ha sido tocado o si hay un error existente
+        if (isTouched || props.errors[cuestion.name]) {
+            if (cuestion.require && !value) {
+                props.setError(cuestion.name, {
+                    type: "required",
+                    message: "Este campo es obligatorio.",
+                });
+            } else {
+                props.clearErrors(cuestion.name);
+            }
         }
-    }, [
-        formData.skills,
-    ]);
+    }, [formData.skills, isTouched]);
+
     return (
         <div className="flex flex-col dark:text-white" ref={skillsRef}>
             <label className="leading-loose flex items-center gap-2 dark:text-white">
@@ -93,7 +96,10 @@ export function SelectComponent(props: SearchableSelectProps) {
             <div className="relative bg-white dark:bg-zinc-800">
                 <div
                     className="px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm border-gray-300  dark:border-zinc-700 rounded-md focus:outline-none text-gray-600 dark:text-gray-100 dark:text-white cursor-pointer flex items-center justify-between"
-                    onClick={() => setShowSkillsDropdown(!showSkillsDropdown)}
+                    onClick={() => {
+                        setShowSkillsDropdown(!showSkillsDropdown);
+                        setIsTouched(true); // Marcar como tocado cuando se hace clic en el input
+                    }}
                 >
                     <span>
                         {formData.skills.length
@@ -167,4 +173,3 @@ export function SelectComponent(props: SearchableSelectProps) {
         </div>
     );
 }
-

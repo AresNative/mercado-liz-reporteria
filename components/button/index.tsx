@@ -1,4 +1,4 @@
-import { alertClasses } from "@/utils/constants/colors";
+import { buttonClasses } from "@/utils/constants/colors";
 import { cn } from "@/utils/functions/cn";
 import { ButtonProps } from "@/utils/types/interfaces";
 
@@ -12,10 +12,7 @@ export function Button({
     children,
     disabled = false,
 }: ButtonProps) {
-    const styles = alertClasses[color];
-
-    const pointerEvents = disabled ? "none" : "auto";
-    const opacity = disabled ? 0.5 : 1;
+    const styles = buttonClasses[color];
 
     // Define estilos para el tamaño del botón
     const sizeClass = size === "small" ? "px-3 py-1 text-sm" :
@@ -31,8 +28,7 @@ export function Button({
             type={type}
             onClick={onClick}
             onMouseDown={handleMouseDown}  // Agregar onMouseDown para evitar el drag
-            className={cn(`flex gap-2 cursor-pointer justify-center items-center ${aling} ${sizeClass} ${styles.text} ${styles.bg} ${styles.ring} rounded-md ${styles.hover} transition-all`)}
-            style={{ pointerEvents, opacity }}
+            className={cn(`flex gap-2 cursor-pointer justify-center items-center ${aling} ${sizeClass} ${styles.text} ${styles.bg} ${styles.ring} ${styles.hover} rounded-md transition-all`)}
             disabled={disabled}
         >
             {label || children}

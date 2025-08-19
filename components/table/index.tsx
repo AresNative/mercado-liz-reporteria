@@ -3,7 +3,7 @@
 import type React from "react";
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Check, ChevronDown, Download, Grid2x2X, X } from "lucide-react";
+import { Check, ChevronDown, Download, EyeOff, Grid2x2X, X } from "lucide-react";
 import { ViewTR } from "./toggle-view";
 
 export type DataItem = Record<string, any>;
@@ -204,13 +204,19 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
     }
 
     return (
-        <div className="w-full space-y-8">
+        <div className="w-full space-y-8 relative">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-600">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Datos de la Tabla</h2>
+                <div className="flex items-center space-x-2">
+                    <ViewTR {...{ setShowColumnMenu, column: 'toggle', toggleColumn, showColumnMenu, visibleColumns, allColumns: true }} />
+                </div>
+            </div>
             <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-600 shadow-xl rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-zinc-100 dark:bg-zinc-900">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider">
+                                <th className="relative px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider">
                                     <input
                                         type="checkbox"
                                         className="rounded border-gray-300 dark:border-zinc-600 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
@@ -224,38 +230,32 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
                                         }
                                     />
                                 </th>
-                                {columns.map((column) =>
-                                    visibleColumns[column] ? (
-                                        <th
-                                            key={column}
-                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 tracking-wider"
-                                        >
-                                            <ul className="flex">
-                                                <li className="flex items-center space-x-1">
-                                                    <button
-                                                        className="flex items-center space-x-1 hover:text-gray-700"
-                                                        onClick={() => toggleSort(column)}
-                                                    >
-                                                        <span>{column.replace('Proveedor_', 'Prov. ')}</span>
-                                                        <ChevronDown
-                                                            className={`h-4 w-4 ${sortColumn === column
-                                                                ? sortDirection === "asc"
-                                                                    ? "transform rotate-180"
-                                                                    : ""
+                                {columns.map((column) => (
+                                    visibleColumns[column] && (<th
+                                        key={column}
+                                        className={`relative px-6 py-3 text-left text-xs font-medium ${visibleColumns[column] ? 'text-gray-500 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500'} tracking-wider`}
+                                    >
+                                        <ul className="flex items-center">
+                                            <li className="flex items-center space-x-1">
+                                                <button
+                                                    className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300"
+                                                    onClick={() => toggleSort(column)}
+                                                >
+                                                    <span>{column.replace('Proveedor_', 'Prov. ')}</span>
+                                                    <ChevronDown
+                                                        className={`h-4 w-4 ${sortColumn === column
+                                                            ? sortDirection === "asc"
+                                                                ? "transform rotate-180"
                                                                 : ""
-                                                                }`}
-                                                        />
-                                                    </button>
-                                                </li>
+                                                            : ""
+                                                            }`}
+                                                    />
+                                                </button>
                                                 <ViewTR {...{ setShowColumnMenu, column, toggleColumn, showColumnMenu, visibleColumns }} />
-                                            </ul>
-                                        </th>
-                                    ) : (
-                                        <th key={column}>
-                                            <ViewTR {...{ setShowColumnMenu, column, toggleColumn, showColumnMenu, visibleColumns }} />
-                                        </th>
-                                    )
-                                )}
+                                            </li>
+                                        </ul>
+                                    </th>)
+                                ))}
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-zinc-600">
@@ -275,18 +275,16 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
                                             onChange={() => toggleRowSelection(item.ID || JSON.stringify(item))}
                                         />
                                     </td>
-                                    {columns.map((column: any) =>
-                                        visibleColumns[column] ? (
-                                            <td
-                                                key={`${item.ID || JSON.stringify(item)}-${column}`}
-                                                className="px-6 py-4 whitespace-nowrap"
-                                            >
-                                                <div className="text-sm text-gray-900 dark:text-white">
-                                                    {formatValue(column, item[column])}
-                                                </div>
-                                            </td>
-                                        ) : null
-                                    )}
+                                    {columns.map((column: any) => (visibleColumns[column] && (
+                                        <td
+                                            key={`${item.ID || JSON.stringify(item)}-${column}`}
+                                            className={`px-6 py-4 whitespace-nowrap ${!visibleColumns[column] ? 'relative' : ''}`}
+                                        >
+                                            <div className="text-sm text-gray-900 dark:text-white">
+                                                {formatValue(column, item[column])}
+                                            </div>
+                                        </td>
+                                    )))}
                                 </motion.tr>
                             ))}
                         </tbody>

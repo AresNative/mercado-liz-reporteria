@@ -79,9 +79,9 @@ export default function Alert() {
                             {iconsMap[icon] ?? null}
                         </span>
 
-                        <div className="flex-1">
+                        <div className="flex-1 text-gray-500 dark:text-gray-200">
                             <h3 className={`text-lg font-semibold ${styles.text}`}>{title}</h3>
-                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-200">{message}</p>
+                            <p className="mt-2 text-sm">{message}</p>
                         </div>
                     </label>
 

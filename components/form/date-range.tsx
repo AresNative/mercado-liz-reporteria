@@ -88,11 +88,11 @@ export function DateRangeComponent(props: InputFormProps) {
                     value={inputValue}
                     onClick={() => setShowInterviewDatePicker(true)}
                     readOnly
-                    className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm rounded-md focus:outline-none text-gray-600 dark:text-gray-100 dark:text-white cursor-pointer"
+                    className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm rounded-md focus:outline-none text-gray-600 dark:text-white cursor-pointer"
                     placeholder={cuestion.multiple ? "Seleccionar fechas" : "Seleccionar fecha"}
                 />
                 {showInterviewDatePicker && (
-                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 border rounded-md shadow-lg">
+                    <div className="z-10 mt-1 w-full bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 border rounded-md shadow-lg">
                         <div className="p-2">
                             {cuestion.multiple ? (
                                 <div className="grid grid-cols-2 gap-4 dark:text-white">
