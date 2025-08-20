@@ -9,6 +9,7 @@ import {
   Truck,
   Info,
   ChartColumnStacked,
+  Clock10,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -95,6 +96,11 @@ export const navigationAdmin = [
     name: "Reporteria",
     href: "/reporteria",
     icon: ChartArea,
+  },
+  {
+    name: "Nominas",
+    href: "/nominas",
+    icon: Clock10,
   },
   {
     name: "Subastas",
