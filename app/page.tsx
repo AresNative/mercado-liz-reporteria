@@ -1,209 +1,236 @@
-// app/page.jsx
-import { BentoGrid, BentoItem } from "@/components/bento-grid";
-import Footer from "@/template/footer";
-import {
-  HistoryIcon,
-  ArrowRightIcon,
-  ShoppingCart,
-  Tag,
-  Gavel,
-  CalendarCheck,
-  Users,
-  Wallet,
-  Lock,
-  ChartCandlestick,
-  Zap,
-} from "lucide-react";
+"use client"
 
-export default function Home() {
+import { useEffect } from "react"
+import { useDispatch } from "react-redux"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Users, CreditCard, Activity, Calendar, Clock, Scan } from "lucide-react"
+import { Navbar } from "@/components/layout/navbar"
+import { AuthGuard } from "@/components/auth/auth-guard"
+import { LoginForm } from "@/components/auth/login-form"
+import { checkAuthState } from "@/lib/features/auth/authSlice"
+import type { AppDispatch } from "@/lib/store"
+
+function DashboardContent() {
+  const router = useRouter()
+
   return (
-    <>
-      {/* Hero Section */}
-      <header className="text-center bg-[url(/merc1.jpg)] bg-cover text-green-800 dark:text-green-200 bg-no-repeat bg-center relative">
-        <div className="py-40 px-4 bg-gradient-to-b from-gray-50/60 to-[var(--background)]">
-          <section className="max-w-6xl mx-auto ">
-            <h1 className="text-4xl md:text-6xl font-bold mb-4">Gestión Empresarial Integral</h1>
-            <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
-              La solución todo en uno para gestionar compras, ventas, subastas, proyectos, empleados y nómina
-            </p>
-            {/* <ul className="flex flex-col sm:flex-row relative justify-center gap-4 z-10">
-              <button className="bg-white cursor-pointer text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
-                Solicitar Demo
-              </button>
-              <button className="bg-white/70 cursor-pointer border-2 border-green-800 hover:bg-white/90 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300">
-                Conocer más
-              </button>
-            </ul> */}
-          </section>
+    <div className="min-h-screen bg-background">
+      <Navbar />
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Miembros Activos</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">1,234</div>
+              <p className="text-xs text-muted-foreground">+12% desde el mes pasado</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Ingresos Mensuales</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-secondary">€45,231</div>
+              <p className="text-xs text-muted-foreground">+8% desde el mes pasado</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Entrenamientos Hoy</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-chart-3">89</div>
+              <p className="text-xs text-muted-foreground">+5% desde ayer</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">En el Gimnasio</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-chart-4">23</div>
+              <p className="text-xs text-muted-foreground">Miembros actualmente</p>
+            </CardContent>
+          </Card>
         </div>
-      </header>
 
-      {/* Features Grid */}
-      <section className="py-16 px-4">
-        <div className="max-w-6xl mx-auto">
-          <label className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200 mb-4">Sistema de Gestión Completo</h2>
-            <p className="text-gray-600 dark:text-gray-100 max-w-2xl mx-auto">
-              Nuestra plataforma integra todas las áreas de tu negocio en una sola solución, optimizando procesos y aumentando la productividad.
-            </p>
-          </label>
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/members")}>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Users className="w-5 h-5 mr-2 text-primary" />
+                Gestión de Miembros
+              </CardTitle>
+              <CardDescription>Administrar miembros, planes y pagos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full">Acceder</Button>
+            </CardContent>
+          </Card>
 
-          <BentoGrid cols={{ md: 3, lg: 4 }} rows={{ md: 3, lg: 3 }}>
-            {/* Historia */}
-            <BentoItem
-              rowSpan={{ sm: 1, md: 3, lg: 2 }}
-              colSpan={{ sm: 1, md: 3, lg: 3 }}
-              title="Ahorra tiempo y dinero con nuestra solución integral"
-              description="Desde pequeñas empresas hasta grandes corporaciones, nuestro sistema está diseñado para adaptarse a tus necesidades y crecer contigo."
-              icon={<HistoryIcon className="size-6 text-primary dark:text-gray-600" />}
-              className="bg-gray-50 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800 px-0 pl-4"
-            >
-              <article className="relative h-[32vh]">
-                <div className="float-right -right-4 h-[30vh] md:w-[70%] rounded-s-full inset-0 bg-[#f2f2f7]">
-                  <img
-                    src="/example.png"
-                    className="h-full w-full object-cover rounded-s-lg shadow-md"
-                  />
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/routines")}>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Calendar className="w-5 h-5 mr-2 text-secondary" />
+                Rutinas y Entrenamientos
+              </CardTitle>
+              <CardDescription>Crear y asignar rutinas personalizadas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" variant="secondary">
+                Acceder
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push("/performance")}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Activity className="w-5 h-5 mr-2 text-chart-3" />
+                Dashboard de Rendimiento
+              </CardTitle>
+              <CardDescription>Análisis y seguimiento de progreso</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-transparent" variant="outline">
+                Acceder
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/plans")}>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CreditCard className="w-5 h-5 mr-2 text-chart-4" />
+                Planes de Membresía
+              </CardTitle>
+              <CardDescription>Gestionar planes y precios</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" variant="secondary">
+                Acceder
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/access")}>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Scan className="w-5 h-5 mr-2 text-accent" />
+                Control de Acceso
+              </CardTitle>
+              <CardDescription>Check-in/out y monitoreo en tiempo real</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-transparent" variant="outline">
+                Acceder
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/reports")}>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Activity className="w-5 h-5 mr-2 text-warning" />
+                Reportes y Analytics
+              </CardTitle>
+              <CardDescription>Informes detallados y estadísticas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-transparent" variant="outline">
+                Acceder
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Actividad Reciente</CardTitle>
+            <CardDescription>Últimas acciones en el sistema</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Nuevo miembro registrado</p>
+                  <p className="text-xs text-muted-foreground">María García se unió al Plan Premium</p>
                 </div>
-              </article>
-            </BentoItem>
-
-            {/* Gestión de Compras */}
-            <BentoItem
-              title="Gestión de Compras"
-              description="Controla todo el proceso de compras, desde solicitudes hasta recepción de productos."
-              icon={<ShoppingCart className="size-6 text-blue-600" />}
-              className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-blue-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
+                <p className="text-xs text-muted-foreground">Hace 5 min</p>
               </div>
-            </BentoItem>
 
-            {/* Gestión de Ventas */}
-            <BentoItem
-              title="Gestión de Ventas"
-              description="Optimiza tu proceso de ventas con seguimiento de clientes y análisis de rendimiento."
-              icon={<Tag className="size-6 text-green-600" />}
-              className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-green-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
+              <div className="flex items-center space-x-4">
+                <div className="w-2 h-2 bg-secondary rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Pago procesado</p>
+                  <p className="text-xs text-muted-foreground">Juan Pérez - Plan Básico renovado</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Hace 12 min</p>
               </div>
-            </BentoItem>
 
-            {/* Sistema de Subastas */}
-            <BentoItem
-              title="Sistema de Subastas"
-              description="Plataforma completa para gestionar subastas de productos y servicios."
-              icon={<Gavel className="size-6 text-yellow-600" />}
-              className="bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-yellow-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
+              <div className="flex items-center space-x-4">
+                <div className="w-2 h-2 bg-chart-3 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Rutina asignada</p>
+                  <p className="text-xs text-muted-foreground">Nueva rutina para Ana López</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Hace 25 min</p>
               </div>
-            </BentoItem>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  )
+}
 
-            {/* Gestión de Proyectos */}
-            <BentoItem
-              title="Gestión de Proyectos"
-              description="Planifica, ejecuta y monitorea todos tus proyectos en una sola plataforma."
-              icon={<CalendarCheck className="size-6 text-purple-600" />}
-              className="bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-purple-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
-              </div>
-            </BentoItem>
-
-            {/* Gestión de Empleados */}
-            <BentoItem
-              title="Gestión de Empleados"
-              description="Administra toda la información de tus colaboradores de forma centralizada."
-              icon={<Users className="size-6 text-red-600" />}
-              className="bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-red-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
-              </div>
-            </BentoItem>
-
-            {/* Gestión de Nómina */}
-            <BentoItem
-              title="Gestión de Nómina"
-              description="Calcula y gestiona nóminas de forma automatizada y precisa."
-              icon={<Wallet className="size-6 text-cyan-600" />}
-              className="bg-cyan-50 dark:bg-cyan-900/30 border-cyan-200 dark:border-cyan-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-cyan-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
-              </div>
-            </BentoItem>
-          </BentoGrid>
-
-        </div>
-      </section >
-      {/* Benefits Section */}
-      <section className="py-16 px-4 max-w-6xl mx-auto" >
-        <label className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-200 mb-4">Beneficios Clave</h2>
-          <p className="text-gray-600 dark:text-gray-100 max-w-2xl mx-auto">
-            Descubre cómo nuestro sistema puede transformar la gestión de tu empresa
-          </p>
-        </label>
-        <BentoGrid cols={{ sm: 1, md: 1, lg: 3 }} rows={{ sm: 1, md: 1, lg: 1 }} className="justify-between">
-          <BentoItem
-            title="Eficiencia Operativa"
-            description="Automatiza procesos manuales y reduce tiempos de ejecución en todas las áreas de tu negocio."
-            icon={<Zap className="size-6 text-blue-600" />}
-            className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800"
-          />
-
-          <BentoItem
-            title="Toma de Decisiones"
-            description="Accede a reportes en tiempo real y dashboards personalizados para una mejor toma de decisiones."
-            icon={<ChartCandlestick className="size-6 text-emerald-600" />}
-            className="bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800"
-          />
-          <BentoItem
-            title="Seguridad de Datos"
-            description="Protege la información de tu empresa con nuestro sistema de seguridad de última generación."
-            icon={<Lock className="size-6 text-indigo-600" />}
-            className="bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800"
-          />
-        </BentoGrid>
-      </section >
-
-      {/* CTA Section */}
-      {/* <section className="py-20 px-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">¿Listo para transformar tu empresa?</h2>
-          <p className="text-xl mb-10 max-w-2xl mx-auto">
-            Descubre cómo nuestro sistema integral puede optimizar todos los procesos de tu negocio.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
-              Solicitar Demo Gratis
-            </button>
-            <button className="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300">
-              Ver Planes y Precios
-            </button>
+function AuthFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Activity className="w-8 h-8 text-primary-foreground" />
           </div>
+          <h1 className="text-3xl font-bold text-foreground">GymPro</h1>
+          <p className="text-muted-foreground">Sistema de Gestión</p>
         </div>
-      </section> */}
-      <Footer />
-    </>
-  );
+        <LoginForm />
+      </div>
+    </div>
+  )
+}
+
+export default function Dashboard() {
+  const dispatch = useDispatch<AppDispatch>()
+
+  useEffect(() => {
+    dispatch(checkAuthState())
+  }, [dispatch])
+
+  return (
+    <AuthGuard fallback={<AuthFallback />}>
+      <DashboardContent />
+    </AuthGuard>
+  )
 }
