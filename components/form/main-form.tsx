@@ -59,7 +59,6 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
     const payload = formName ? data : { [modelName ?? actionType.toLowerCase()]: modelName ? data : [data] };
-    console.log(actionType);
 
     switch (actionType) {
       case "post-login":
