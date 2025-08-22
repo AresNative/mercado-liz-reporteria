@@ -40,7 +40,7 @@ function DashboardContent() {
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-secondary">€45,231</div>
+              <div className="text-2xl font-bold text-secondary">$45,231</div>
               <p className="text-xs text-muted-foreground">+8% desde el mes pasado</p>
             </CardContent>
           </Card>
@@ -224,9 +224,9 @@ function AuthFallback() {
 export default function Dashboard() {
   const dispatch = useDispatch<AppDispatch>()
 
-  useEffect(() => {
+  /* useEffect(() => {
     dispatch(checkAuthState())
-  }, [dispatch])
+  }, [dispatch]) */
 
   return (
     <AuthGuard fallback={<AuthFallback />}>

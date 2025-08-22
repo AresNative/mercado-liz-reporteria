@@ -18,9 +18,9 @@ export function AuthGuard({ children, requiredRole, fallback }: AuthGuardProps) 
   const dispatch = useDispatch<AppDispatch>()
   const { user, role, loading, isAuthenticated } = useSelector((state: RootState) => state.auth)
 
-  useEffect(() => {
+  /* useEffect(() => {
     dispatch(checkAuthState())
-  }, [dispatch])
+  }, [dispatch]) */
 
   if (loading) {
     return (
