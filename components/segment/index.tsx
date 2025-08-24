@@ -35,7 +35,7 @@ const sizeStyles: Record<Size, { button: string; label: string; groupPadding: st
 }
 
 const indicatorByAccent: Record<Accent, string> = {
-    emerald: "bg-emerald-500/12 ring-1 ring-emerald-500/30",
+    emerald: "bg-green-500/12 ring-1 ring-green-500/30",
     violet: "bg-violet-500/12 ring-1 ring-violet-500/30",
     rose: "bg-rose-500/12 ring-1 ring-rose-500/30",
     amber: "bg-amber-500/14 ring-1 ring-amber-500/30",

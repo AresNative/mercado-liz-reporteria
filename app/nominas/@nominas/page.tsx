@@ -7,7 +7,7 @@ import Segment from "@/components/segment";
 import DynamicTable from "@/components/table";
 import { ChartCandlestick, Container, FileBarChart2Icon, Hash, Lock, ChartSpline, Store, Plus, FolderIcon } from "lucide-react";
 import React, { useState } from "react";
-import { SubastaField } from "../constants/subasta";
+import { ChecadorField } from "../constants/checador";
 import Badge from "@/components/badge";
 import { formatValue } from "@/utils/constants/format-values";
 
@@ -173,8 +173,8 @@ export default function User() {
           <BentoGrid cols={{ md: 4, lg: 4 }}>
             {/* Formulario principal */}
             <BentoItem
-              rowSpan={{ md: 3, lg: 3 }}
-              colSpan={{ md: 2, lg: 2 }}
+              rowSpan={{ sm: 1, md: 2, lg: 2 }}
+              colSpan={{ sm: 1, md: 2, lg: 2 }}
               title="Crear Subasta"
               description="Crea una subasta para obtener mejores precios y condiciones de compra."
               icon={<ChartCandlestick className="h-6 w-6 text-gray-600" />}
@@ -182,7 +182,7 @@ export default function User() {
             >
               <MainForm
                 actionType="submit"
-                dataForm={SubastaField()}
+                dataForm={ChecadorField()}
                 message_button="Crear Subasta"
                 onSuccess={(data: any) => console.log(data)}
               />
@@ -190,8 +190,8 @@ export default function User() {
 
             {/* Tarjetas de resumen */}
             <BentoItem
-              rowSpan={{ md: 2, lg: 2 }}  // Aumentamos el rowSpan para mejor visualización
-              colSpan={{ md: 2, lg: 2 }}
+              rowSpan={{ sm: 1, md: 2, lg: 2 }}  // Aumentamos el rowSpan para mejor visualización
+              colSpan={{ sm: 1, md: 2, lg: 2 }}
               title="Resumen de Compras"
               description="Historial de subastas por área"
               icon={<Container className="h-6 w-6 text-blue-600" />}
@@ -258,8 +258,8 @@ export default function User() {
             </BentoItem>
 
             <BentoItem
-              rowSpan={{ md: 2, lg: 4 }}
-              colSpan={{ md: 2, lg: 4 }}
+              rowSpan={{ sm: 1, md: 1, lg: 4 }}
+              colSpan={{ sm: 1, md: 4, lg: 2 }}
               title="Tendencias"
               description="Últimas tendencias de precios"
               icon={<ChartSpline className="h-6 w-6 text-gray-600" />}
@@ -272,6 +272,8 @@ export default function User() {
             {['Mayoreo', 'Guadalupe', 'Testereazo', 'Palmas'].map((sucursal, index) => (
               <React.Fragment key={`${sucursal}-${index}`}>
                 <BentoItem
+                  rowSpan={{ sm: 1, md: 1, lg: 1 }}
+                  colSpan={{ sm: 1, md: 2, lg: 1 }}
                   title={sucursal}
                   description={`Actividad en ${sucursal}`}
                   icon={<Store className="h-6 w-6 text-purple-600" />}

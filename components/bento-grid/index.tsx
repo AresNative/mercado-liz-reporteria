@@ -20,7 +20,7 @@ function generateResponsiveClasses(
 
     const breakpoints: Breakpoint[] = ["sm", "md", "lg", "xl"];
 
-    return breakpoints
+    const value = breakpoints
         .map((bp) => {
             const value = values[bp];
             if (!value) return "";
@@ -30,30 +30,31 @@ function generateResponsiveClasses(
         })
         .filter(Boolean)
         .join(" ");
+
+    return value;
 }
 
 interface BentoGridProps {
-    className?: string;
     children: React.ReactNode;
     cols?: ResponsiveValue;
     rows?: ResponsiveValue;
 }
 
 export function BentoGrid({
-    className,
     children,
     cols = { sm: 1, md: 3, lg: 6 },
     rows,
 }: BentoGridProps) {
-    const gridClasses = cn(
-        "grid gap-4 p-4",
-        generateResponsiveClasses("grid-cols", cols),
-        generateResponsiveClasses("grid-rows", rows),
-        className
-    );
+
+    const colSpanClasses = generateResponsiveClasses("grid-cols", cols);
+    const rowSpanClasses = generateResponsiveClasses("grid-rows", rows);
 
     return (
-        <div className={gridClasses} role="grid">
+        <div className={cn(
+            "grid gap-4 p-4 grid-cols-1",
+            colSpanClasses,
+            rowSpanClasses
+        )}>
             {children}
         </div>
     );
@@ -83,7 +84,6 @@ export function BentoItem({
     children,
     colSpan = { sm: 1, md: 1, lg: 1 },
     rowSpan = { sm: 1, md: 1, lg: 1 },
-    minWidth = "250px",
     as: Tag = "div",
     href,
     onClick,
@@ -100,25 +100,20 @@ export function BentoItem({
             href={href}
             onClick={onClick}
             className={cn(
-                "group relative flex flex-col gap-2",
+                "relative flex flex-col gap-2 group",
                 "text-gray-900 dark:text-white",
                 "rounded-xl border border-gray-200 dark:border-gray-800",
                 "bg-white dark:bg-gray-900 p-4",
                 "transition-all duration-300 ease-in-out hover:-translate-y-0.5",
                 "hover:shadow-md dark:hover:shadow-lg",
-                "focus:outline-none focus:ring-2 focus:ring-primary/30",
-                {
-                    "cursor-pointer": isInteractive,
-                    "hover:border-primary/30": isInteractive,
-                },
+                "focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer",
                 colSpanClasses,
                 rowSpanClasses,
                 className
             )}
-            style={{ minWidth }}
+            /* style={{ minWidth }} */
             role={isInteractive ? "button" : "gridcell"}
-            tabIndex={isInteractive ? 0 : undefined}
-            {...(isLink ? { "aria-label": typeof title === 'string' ? title : undefined } : {})}
+        /* {...(isLink ? { "aria-label": typeof title === 'string' ? title : undefined } : {})} */
         >
             {/* Efecto de iluminación */}
             <div
@@ -129,7 +124,7 @@ export function BentoItem({
             {/* Cabecera */}
             {header && (
                 <div className="relative mb-2 overflow-hidden rounded-lg">
-                    {header}
+                    {header}d
                     <div
                         className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-70 group-hover:opacity-80 transition-opacity"
                         aria-hidden="true"

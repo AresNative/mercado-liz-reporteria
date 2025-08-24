@@ -56,6 +56,7 @@ export interface MainFormProps {
   valueAssign?: any;
   formName?: string;
   modelName?: string;
+  iconButton?: React.ReactNode;
   action?: (...args: any[]) => any;
   onSuccess?: (result: any, formData: any) => void;
 }
