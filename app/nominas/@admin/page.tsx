@@ -93,102 +93,98 @@ export default function User() {
 
       {/* Contenido principal */}
       {section === "listas" ? (
-        <>
-          <BentoGrid cols={{ md: 4, lg: 4 }} className="w-full p-0">
-            {/* Formulario principal */}
-            <BentoItem
-              rowSpan={{ sm: 1, md: 2, lg: 2 }}
-              colSpan={{ sm: 1, md: 2, lg: 2 }}
-              title="Registro de tiempo"
-              description="El sistema detecta automáticamente si es entrada, salida o traslado"
-              className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800"
-            >
-              <MainForm
-                actionType="checador"
-                dataForm={ChecadorField()}
-                message_button="Registrar Tiempo"
-                onSuccess={handleRegistroExitoso}
-                formName="checador"
-              /* onFieldChange={(name, value, formData) => {
-                if (name === "empleado_id" || name === "sucursal") {
-                  handleEmpleadoChange(formData.empleado_id, formData.sucursal);
-                }
-              }} */
-              />
+        <BentoGrid cols={3} rows={4}>
+          {/* Formulario principal */}
+          <BentoItem
+            title="Registro de tiempo"
+            description="El sistema detecta automáticamente si es entrada, salida o traslado"
+            className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800"
+          >
+            <MainForm
+              actionType="checador"
+              dataForm={ChecadorField()}
+              message_button="Registrar Tiempo"
+              onSuccess={handleRegistroExitoso}
+              formName="checador"
+            /* onFieldChange={(name, value, formData) => {
+              if (name === "empleado_id" || name === "sucursal") {
+                handleEmpleadoChange(formData.empleado_id, formData.sucursal);
+              }
+            }} */
+            />
 
-              {/* Predicción del próximo registro */}
-              {tipoProximo && (
-                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <div className="flex items-center gap-2 mb-2">
-                    <ArrowRight className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-blue-900 dark:text-blue-100">Próximo registro:</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge color="green" text={tipoProximo.tipo.toUpperCase()} />
-                    <span className="text-sm text-blue-700 dark:text-blue-300">{tipoProximo.mensaje}</span>
-                  </div>
+            {/* Predicción del próximo registro */}
+            {tipoProximo && (
+              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <ArrowRight className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-900 dark:text-blue-100">Próximo registro:</span>
                 </div>
-              )}
-
-              {/* Último registro del empleado */}
-              {ultimoRegistro && (
-                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
-                  <h4 className="font-medium mb-2 flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Último registro de este empleado:
-                  </h4>
-                  <div className="flex items-center gap-4 text-sm">
-                    <Badge color="green" text={ultimoRegistro.tipo.toUpperCase()} />
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {ultimoRegistro.sucursal}
-                    </span>
-                    <span>
-                      {ultimoRegistro.fecha} - {ultimoRegistro.hora}
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Badge color="green" text={tipoProximo.tipo.toUpperCase()} />
+                  <span className="text-sm text-blue-700 dark:text-blue-300">{tipoProximo.mensaje}</span>
                 </div>
-              )}
-            </BentoItem>
+              </div>
+            )}
 
-            {/* Tarjetas de resumen */}
-            <BentoItem
-              rowSpan={{ sm: 1, md: 2, lg: 2 }}
-              colSpan={{ sm: 1, md: 2, lg: 2 }}
-              title="Registros Recientes"
-              description="Últimos movimientos registrados en el sistema"
-            >
-              <div className="flex flex-col h-full space-y-3 max-h-96 overflow-y-auto">
-                {registros.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No hay registros disponibles</p>
-                ) : (
-                  registros.map((registro) => (
-                    <div
-                      key={registro.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Badge color="green" text={registro.tipo.toUpperCase()} />
-                        <div>
-                          <p className="font-medium text-sm">{registro.nombre}</p>
-                          <p className="text-xs text-gray-500">ID: {registro.empleado_id}</p>
-                        </div>
-                      </div>
-                      <div className="text-right text-xs text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {registro.sucursal}
-                        </div>
-                        <div>{registro.fecha}</div>
-                        <div>{registro.hora}</div>
+            {/* Último registro del empleado */}
+            {ultimoRegistro && (
+              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Último registro de este empleado:
+                </h4>
+                <div className="flex items-center gap-4 text-sm">
+                  <Badge color="green" text={ultimoRegistro.tipo.toUpperCase()} />
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {ultimoRegistro.sucursal}
+                  </span>
+                  <span>
+                    {ultimoRegistro.fecha} - {ultimoRegistro.hora}
+                  </span>
+                </div>
+              </div>
+            )}
+          </BentoItem>
+
+          {/* Tarjetas de resumen */}
+          <BentoItem
+            colSpan={2}
+            rowSpan={2}
+            title="Registros Recientes"
+            description="Últimos movimientos registrados en el sistema"
+          >
+            <div className="flex flex-col h-full space-y-3 max-h-96 overflow-y-auto">
+              {registros.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No hay registros disponibles</p>
+              ) : (
+                registros.map((registro) => (
+                  <div
+                    key={registro.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Badge color="green" text={registro.tipo.toUpperCase()} />
+                      <div>
+                        <p className="font-medium text-sm">{registro.nombre}</p>
+                        <p className="text-xs text-gray-500">ID: {registro.empleado_id}</p>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </BentoItem>
-          </BentoGrid>
-        </>
+                    <div className="text-right text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {registro.sucursal}
+                      </div>
+                      <div>{registro.fecha}</div>
+                      <div>{registro.hora}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </BentoItem>
+        </BentoGrid>
       ) : (
         <section className="w-full mt-4">
           <DynamicTable

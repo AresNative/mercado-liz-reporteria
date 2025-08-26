@@ -170,11 +170,11 @@ export default function User() {
       {/* Contenido principal */}
       {section === "listas" ? (
         <>
-          <BentoGrid cols={{ md: 4, lg: 4 }}>
+          <BentoGrid cols={4}>
             {/* Formulario principal */}
             <BentoItem
-              rowSpan={{ md: 3, lg: 3 }}
-              colSpan={{ md: 2, lg: 2 }}
+              colSpan={2}
+              rowSpan={2}
               title="Crear Subasta"
               description="Crea una subasta para obtener mejores precios y condiciones de compra."
               icon={<ChartCandlestick className="h-6 w-6 text-gray-600" />}
@@ -190,8 +190,8 @@ export default function User() {
 
             {/* Tarjetas de resumen */}
             <BentoItem
-              rowSpan={{ md: 2, lg: 2 }}  // Aumentamos el rowSpan para mejor visualización
-              colSpan={{ md: 2, lg: 2 }}
+              colSpan={2}
+              rowSpan={2}
               title="Resumen de Compras"
               description="Historial de subastas por área"
               icon={<Container className="h-6 w-6 text-blue-600" />}
@@ -258,8 +258,8 @@ export default function User() {
             </BentoItem>
 
             <BentoItem
-              rowSpan={{ md: 2, lg: 4 }}
-              colSpan={{ md: 2, lg: 4 }}
+              rowSpan={2}
+              colSpan={2}
               title="Tendencias"
               description="Últimas tendencias de precios"
               icon={<ChartSpline className="h-6 w-6 text-gray-600" />}

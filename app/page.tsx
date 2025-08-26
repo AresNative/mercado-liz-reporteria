@@ -48,11 +48,11 @@ export default function Home() {
             </p>
           </label>
 
-          <BentoGrid cols={{ md: 3, lg: 4 }} rows={{ md: 4, lg: 4 }}>
+          <BentoGrid cols={3} rows={4}>
             {/* Historia */}
             <BentoItem
-              colSpan={{ sm: 1, md: 3, lg: 3 }}
-              rowSpan={{ sm: 1, md: 2, lg: 3 }}
+              rowSpan={3}
+              colSpan={2}
               title="Ahorra tiempo y dinero con nuestra solución integral"
               description="Desde pequeñas empresas hasta grandes corporaciones, nuestro sistema está diseñado para adaptarse a tus necesidades y crecer contigo."
               icon={<HistoryIcon className="size-6 text-primary dark:text-gray-600" />}
@@ -161,7 +161,7 @@ export default function Home() {
             Descubre cómo nuestro sistema puede transformar la gestión de tu empresa
           </p>
         </label>
-        <BentoGrid cols={{ sm: 1, md: 1, lg: 3 }} rows={{ sm: 1, md: 1, lg: 1 }}>
+        <BentoGrid>
           <BentoItem
             title="Eficiencia Operativa"
             description="Automatiza procesos manuales y reduce tiempos de ejecución en todas las áreas de tu negocio."
