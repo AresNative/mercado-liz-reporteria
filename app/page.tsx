@@ -161,7 +161,7 @@ export default function Home() {
             Descubre cómo nuestro sistema puede transformar la gestión de tu empresa
           </p>
         </label>
-        <BentoGrid>
+        <BentoGrid cols={3}>
           <BentoItem
             title="Eficiencia Operativa"
             description="Automatiza procesos manuales y reduce tiempos de ejecución en todas las áreas de tu negocio."
@@ -183,24 +183,6 @@ export default function Home() {
           />
         </BentoGrid>
       </section >
-
-      {/* CTA Section */}
-      {/* <section className="py-20 px-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">¿Listo para transformar tu empresa?</h2>
-          <p className="text-xl mb-10 max-w-2xl mx-auto">
-            Descubre cómo nuestro sistema integral puede optimizar todos los procesos de tu negocio.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
-              Solicitar Demo Gratis
-            </button>
-            <button className="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300">
-              Ver Planes y Precios
-            </button>
-          </div>
-        </div>
-      </section> */}
       <Footer />
     </>
   );

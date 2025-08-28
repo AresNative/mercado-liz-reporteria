@@ -9,7 +9,7 @@ import { FileBarChart2Icon, Users } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { ChecadorField } from "../constants/checador";
 import { CheckadorService, type RegistroTiempo } from "../utils/checador-logic";
-import { Clock, MapPin, ArrowRight, CheckCircle } from "lucide-react";
+import { MapPin, ArrowRight } from "lucide-react";
 import Badge from "@/components/badge";
 
 // Tamaño de página para datos importados
@@ -93,7 +93,7 @@ export default function User() {
 
       {/* Contenido principal */}
       {section === "listas" ? (
-        <BentoGrid cols={3} rows={4}>
+        <BentoGrid cols={3} rows={1}>
           {/* Formulario principal */}
           <BentoItem
             title="Registro de tiempo"
