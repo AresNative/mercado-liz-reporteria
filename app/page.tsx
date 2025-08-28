@@ -48,11 +48,11 @@ export default function Home() {
             </p>
           </label>
 
-          <BentoGrid cols={{ md: 3, lg: 4 }} rows={{ md: 4, lg: 4 }}>
+          <BentoGrid cols={3} rows={4}>
             {/* Historia */}
             <BentoItem
-              colSpan={{ sm: 1, md: 3, lg: 3 }}
-              rowSpan={{ sm: 1, md: 2, lg: 3 }}
+              rowSpan={3}
+              colSpan={2}
               title="Ahorra tiempo y dinero con nuestra solución integral"
               description="Desde pequeñas empresas hasta grandes corporaciones, nuestro sistema está diseñado para adaptarse a tus necesidades y crecer contigo."
               icon={<HistoryIcon className="size-6 text-primary dark:text-gray-600" />}
@@ -161,7 +161,7 @@ export default function Home() {
             Descubre cómo nuestro sistema puede transformar la gestión de tu empresa
           </p>
         </label>
-        <BentoGrid cols={{ sm: 1, md: 1, lg: 3 }} rows={{ sm: 1, md: 1, lg: 1 }}>
+        <BentoGrid cols={3}>
           <BentoItem
             title="Eficiencia Operativa"
             description="Automatiza procesos manuales y reduce tiempos de ejecución en todas las áreas de tu negocio."
@@ -183,24 +183,6 @@ export default function Home() {
           />
         </BentoGrid>
       </section >
-
-      {/* CTA Section */}
-      {/* <section className="py-20 px-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">¿Listo para transformar tu empresa?</h2>
-          <p className="text-xl mb-10 max-w-2xl mx-auto">
-            Descubre cómo nuestro sistema integral puede optimizar todos los procesos de tu negocio.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
-              Solicitar Demo Gratis
-            </button>
-            <button className="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300">
-              Ver Planes y Precios
-            </button>
-          </div>
-        </div>
-      </section> */}
       <Footer />
     </>
   );

@@ -1,78 +1,85 @@
-import { cn } from "@/utils/functions/cn";
-import React from "react";
+"use client"
 
-// Tipos mejorados para valores responsivos
-type Breakpoint = "sm" | "md" | "lg" | "xl";
-type SpanValue = number | "auto" | "full";
-interface ResponsiveValue {
-    sm?: SpanValue;
-    md?: SpanValue;
-    lg?: SpanValue;
-    xl?: SpanValue;
+import React from "react"
+import { cn } from "@/utils/functions/cn"
+
+// 🔹 Generar clases de columnas válidas por breakpoint
+const colClasses: Record<number, string> = {
+    1: "sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-1 xl:grid-cols-1",
+    2: "sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2",
+    3: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3",
+    4: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4",
+    5: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+    6: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6",
+    12: "sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12",
 }
 
-// 🔹 Utilidad mejorada para generar clases responsivas
-function generateResponsiveClasses(
-    base: string,
-    values?: ResponsiveValue
-): string {
-    if (!values) return "";
-
-    const breakpoints: Breakpoint[] = ["sm", "md", "lg", "xl"];
-
-    const value = breakpoints
-        .map((bp) => {
-            const value = values[bp];
-            if (!value) return "";
-
-            const prefix = bp === "sm" ? "" : `${bp}:`;
-            return `${prefix}${base}-${value}`;
-        })
-        .filter(Boolean)
-        .join(" ");
-
-    return value;
+// 🔹 Generar clases de filas válidas
+const rowClasses: Record<number, string> = {
+    1: "grid-rows-1",
+    2: "grid-rows-2",
+    3: "grid-rows-3",
+    4: "grid-rows-4",
+    5: "grid-rows-5",
+    6: "grid-rows-6",
+    7: "grid-rows-7",
+    8: "grid-rows-8",
+    9: "grid-rows-9",
+    10: "grid-rows-10",
 }
 
 interface BentoGridProps {
-    children: React.ReactNode;
-    cols?: ResponsiveValue;
-    rows?: ResponsiveValue;
+    className?: string
+    cols?: number
+    rows?: number
+    children: React.ReactNode
 }
 
-export function BentoGrid({
-    children,
-    cols = { sm: 1, md: 3, lg: 6 },
-    rows,
-}: BentoGridProps) {
-
-    const colSpanClasses = generateResponsiveClasses("grid-cols", cols);
-    const rowSpanClasses = generateResponsiveClasses("grid-rows", rows);
-
+export function BentoGrid({ className, cols = 6, rows, children }: BentoGridProps) {
     return (
-        <div className={cn(
-            "grid gap-4 p-4 grid-cols-1",
-            colSpanClasses,
-            rowSpanClasses
-        )}>
+        <div
+            className={cn(
+                "grid gap-4 p-4",
+                "grid-cols-1", // fallback mobile
+                colClasses[cols] ?? colClasses[6],
+                rows ? rowClasses[rows] : "auto-rows-[minmax(120px,auto)]",
+                className
+            )}
+        >
             {children}
         </div>
-    );
+    )
+}
+
+// 🔹 Span por columnas (ahora también responsivo)
+const colSpanClasses: Record<number, string> = {
+    1: "sm:col-span-1 md:col-span-1",
+    2: "sm:col-span-2 md:col-span-2",
+    3: "sm:col-span-2 md:col-span-3",
+    4: "sm:col-span-2 md:col-span-4",
+    6: "sm:col-span-2 md:col-span-6",
+    12: "sm:col-span-2 md:col-span-12",
+}
+
+// 🔹 Span por filas
+const rowSpanClasses: Record<number, string> = {
+    1: "row-span-1",
+    2: "row-span-2",
+    3: "row-span-3",
+    4: "row-span-4",
+    5: "row-span-5",
+    6: "row-span-6",
 }
 
 interface BentoItemProps {
-    className?: string;
-    title?: string | React.ReactNode;
-    description?: string | React.ReactNode;
-    header?: React.ReactNode;
-    icon?: React.ReactNode;
-    children?: React.ReactNode;
-    colSpan?: ResponsiveValue;
-    rowSpan?: ResponsiveValue;
-    minWidth?: string;
-    as?: React.ElementType;
-    href?: string;
-    onClick?: () => void;
+    className?: string
+    title?: string
+    description?: string
+    header?: React.ReactNode
+    icon?: React.ReactNode
+    children?: React.ReactNode
+    colSpan?: number
+    rowSpan?: number
 }
 
 export function BentoItem({
@@ -82,100 +89,27 @@ export function BentoItem({
     header,
     icon,
     children,
-    colSpan = { sm: 1, md: 1, lg: 1 },
-    rowSpan = { sm: 1, md: 1, lg: 1 },
-    as: Tag = "div",
-    href,
-    onClick,
+    colSpan = 1,
+    rowSpan = 1,
 }: BentoItemProps) {
-    const colSpanClasses = generateResponsiveClasses("col-span", colSpan);
-    const rowSpanClasses = generateResponsiveClasses("row-span", rowSpan);
-
-    const isInteractive = Tag !== "div" || !!onClick;
-    const isLink = Tag === "a";
-    const Element = isLink ? "a" : Tag;
-
     return (
-        <Element
-            href={href}
-            onClick={onClick}
+        <div
             className={cn(
-                "relative flex flex-col gap-2 group",
-                "text-gray-900 dark:text-white",
-                "rounded-xl border border-gray-200 dark:border-gray-800",
-                "bg-white dark:bg-gray-900 p-4",
-                "transition-all duration-300 ease-in-out hover:-translate-y-0.5",
-                "hover:shadow-md dark:hover:shadow-lg",
-                "focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer",
-                colSpanClasses,
-                rowSpanClasses,
+                "group relative overflow-hidden rounded-xl border border-gray-200 bg-[var(--background)] p-4 transition-all hover:shadow-md",
+                colSpanClasses[colSpan] ?? "sm:col-span-1",
+                rowSpanClasses[rowSpan] ?? "row-span-1",
                 className
             )}
-            /* style={{ minWidth }} */
-            role={isInteractive ? "button" : "gridcell"}
-        /* {...(isLink ? { "aria-label": typeof title === 'string' ? title : undefined } : {})} */
         >
-            {/* Efecto de iluminación */}
-            <div
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5"
-                aria-hidden="true"
-            />
-
-            {/* Cabecera */}
-            {header && (
-                <div className="relative mb-2 overflow-hidden rounded-lg">
-                    {header}d
-                    <div
-                        className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-70 group-hover:opacity-80 transition-opacity"
-                        aria-hidden="true"
-                    />
+            {header && <div className="mb-2">{header}</div>}
+            <div className="flex items-start gap-3">
+                {icon && <div className="shrink-0 bg-gray-100 p-2 rounded-lg">{icon}</div>}
+                <div className="space-y-2">
+                    {title && <h3 className="font-semibold">{title}</h3>}
+                    {description && <p className="text-sm text-muted-foreground">{description}</p>}
                 </div>
-            )}
-
-            <div className="z-10 flex flex-col">
-                <div className="flex items-start gap-2">
-                    {icon && (
-                        <div
-                            className={cn(
-                                "shrink-0 p-2 rounded-lg transition-all",
-                                "bg-gray-100 dark:bg-gray-800",
-                                {
-                                    "group-hover:bg-primary/10 group-hover:text-primary group-hover:scale-105":
-                                        isInteractive
-                                }
-                            )}
-                            aria-hidden="true"
-                        >
-                            {icon}
-                        </div>
-                    )}
-
-                    <div className="flex-1">
-                        {title && (
-                            <h3 className="font-semibold text-lg transition-colors group-hover:text-primary">
-                                {title}
-                            </h3>
-                        )}
-                        {description && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 transition-opacity group-hover:opacity-90">
-                                {description}
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                {children && (
-                    <div className="mt-4 text-sm">
-                        {children}
-                    </div>
-                )}
             </div>
-
-            {/* Borde animado */}
-            <div
-                className="absolute inset-0 rounded-xl border border-transparent group-hover:border-primary/30 transition-all duration-700"
-                aria-hidden="true"
-            />
-        </Element>
-    );
+            {children && <div className="mt-4">{children}</div>}
+        </div>
+    )
 }
