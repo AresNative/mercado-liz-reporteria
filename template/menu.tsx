@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from "next/link";
 import MainForm from '@/components/form/main-form';
 import { Menu, LogOut, LogIn, UserPlus } from 'lucide-react';
-import { usePostLogutMutation } from '@/hooks/reducers/auth';
+import { useLogoutUserMutation } from '@/hooks/reducers/auth';
 import { LogInField } from '@/utils/constants/forms/logIn';
 import { navigationAdmin, navigationAlmacen, navigationDefault, navigationUser, navigationVentas } from '@/utils/constants/router';
 import { getLocalStorageItem } from '@/utils/functions/local-storage';
@@ -19,7 +19,7 @@ interface MenuProps {
 
 const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
     const navigation = useRouter();
-    const [logoutProcess] = usePostLogutMutation();
+    const [logoutProcess] = useLogoutUserMutation();
     const [loginModalOpen, setLoginModalOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
 
@@ -65,10 +65,8 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
 
 
     const handleLogout = async () => {
-        if (!userData.id) return;
-
         try {
-            await logoutProcess(userData.id).unwrap();
+            await logoutProcess(null);
             setMenuOpen(false);
             dispatch(
                 openAlertReducer({

@@ -3,8 +3,7 @@ import { setupListeners } from "@reduxjs/toolkit/query";
 
 import { api } from "@/hooks/reducers/api";
 import { api_int } from "@/hooks/reducers/api_int";
-import { api_landing } from "@/hooks/reducers/api_landing";
-import { auth } from "@/hooks/reducers/auth";
+import { authApi } from "@/hooks/reducers/auth";
 import { EnvConfig } from "@/utils/constants/env.config";
 
 import dropDownReducer from "@/hooks/reducers/drop-down";
@@ -22,8 +21,7 @@ export const store = configureStore({
     app: appReducer,
     [api.reducerPath]: api.reducer,
     [api_int.reducerPath]: api_int.reducer,
-    [api_landing.reducerPath]: api_landing.reducer,
-    [auth.reducerPath]: auth.reducer,
+    [authApi.reducerPath]: authApi.reducer,
   },
   devTools: config.mode !== "production",
   middleware: (getDefaultMiddleware) =>
@@ -34,12 +32,7 @@ export const store = configureStore({
         // Ignora estas acciones específicas
         ignoredActions: ["dropDown/openAlertReducer"],
       },
-    }).concat([
-      api.middleware,
-      api_int.middleware,
-      api_landing.middleware,
-      auth.middleware,
-    ]),
+    }).concat([api.middleware, api_int.middleware, authApi.middleware]),
 });
 
 setupListeners(store.dispatch);

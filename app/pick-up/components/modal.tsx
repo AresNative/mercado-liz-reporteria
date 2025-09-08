@@ -1,5 +1,5 @@
 import { Modal } from "@/components/modal";
-import { useGetMutation, usePutMutation } from "@/hooks/reducers/api";
+import { useGetWithFiltersMutation, usePutMutation } from "@/hooks/reducers/api";
 import { cn } from "@/utils/functions/cn";
 import { Check, FileText, MessageCircle, ScanBarcode } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -30,7 +30,7 @@ interface PedidoData {
 const ModalPedidos = ({ name, title, idListas, idCliente, idPedido }: ModalProps) => {
     const [pedidoDetails, setPedidoDetails] = useState<PedidoData | null>(null);
     const [clienteDetails, setClienteDetails] = useState<any[] | []>([]);
-    const [getWithFilter] = useGetMutation();
+    const [getWithFilter] = useGetWithFiltersMutation();
     const [putOrder] = usePutMutation();
     const dispatch = useAppDispatch();
     const handleCheckboxChange = (index: number) => {

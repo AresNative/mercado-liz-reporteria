@@ -7,15 +7,17 @@ import {
 } from "lucide-react"
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
-import { useGetMutation } from "@/hooks/reducers/api"
+import { useGetWithFiltersGeneralMutation } from "@/hooks/reducers/api"
 import { useEffect, useState } from "react"
 import { TablaPickUp } from "./components/table"
 import { LoadingSection } from "@/template/loading-screen"
 
-import ModalPedidos from "./components/modal"
 import { ModalChat } from "./components/modal-chat"
-import Pagination from "@/components/pagination"
+
 import { useForm } from "react-hook-form"
+
+import ModalPedidos from "./components/modal"
+import Pagination from "@/components/pagination"
 
 type Filtro = { Key: string; Value: any; Operator: string };
 type ActiveFilters = {
@@ -34,12 +36,12 @@ export default function PickUp() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPage, setTotalPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
-    const [getWithFilter] = useGetMutation();
+    const [getWithFilter] = useGetWithFiltersGeneralMutation();
 
     // Estado inicial incluye filtro base
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [
-            { Key: "Estado", Value: "listo", Operator: "<>" }
+            //{ Key: "Estado", Value: "listo", Operator: "<>" }
         ],
         Selects: [],
         OrderBy: null,
@@ -58,8 +60,8 @@ export default function PickUp() {
         setActiveFilters(prev => ({
             ...prev,
             Filtros: [
-                { Key: "Estado", Value: "listo", Operator: "<>" },
-                ...(data.search ? [{ Key: "id_cliente", Value: data.search, Operator: "like" }] : [])
+                //{ Key: "Estado", Value: "listo", Operator: "<>" },
+                ...(data.search ? [{ Key: "id", Value: data.search, Operator: "=" }] : [])
             ]
         }));
         setCurrentPage(1);
@@ -74,12 +76,12 @@ export default function PickUp() {
             try {
                 // Usar activeFilters en la petición
                 const { data: Pedidos } = await getWithFilter({
-                    url: "citas",
+                    table: "usuarios",
                     pageSize: "5",
-                    sum: activeFilters.sum,
-                    distinct: activeFilters.distinct,
+                    /* sum: activeFilters.sum,
+                    distinct: activeFilters.distinct, */
                     page: currentPage,
-                    filters: {
+                    filtros: {
                         Filtros: activeFilters.Filtros,
                         Selects: activeFilters.Selects,
                         Order: activeFilters.OrderBy ? [activeFilters.OrderBy] : []
@@ -87,14 +89,14 @@ export default function PickUp() {
                 });
 
                 setTotalPage(Pedidos.totalPages);
-                const idClientes = Pedidos.data.map((row: any) => ({ "Key": "id", "Value": row.id_cliente }))
+                const idClientes = Pedidos.data.map((row: any) => ({ "Key": "usuario_id", "Operator": "=", "Value": row.id }))
 
                 const { data: Clientes } = await getWithFilter({
-                    url: "clientes",
-                    sum: false,
-                    distinct: false,
+                    table: "empleados",
+                    /* sum: false,
+                    distinct: false, */
                     page: "1",
-                    filters: {
+                    filtros: {
                         Filtros: idClientes,
                         Selects: [{ "Key": "" }],
                         Order: [{ "Key": "", "Direction": "" }]
@@ -102,13 +104,13 @@ export default function PickUp() {
                 });
 
                 const pedidosCombinados = Pedidos.data.map((pedido: any) => {
-                    const cliente = Clientes.data.find((c: any) => c.id === pedido.id_cliente);
+                    const cliente = Clientes.data.find((c: any) => c.id === pedido.id);
                     return {
                         ...pedido,
                         cliente: cliente || {
                             nombre: "Cliente no encontrado",
                             telefono: "N/A",
-                            id: pedido.id_cliente
+                            id: pedido.id
                         }
                     };
                 });

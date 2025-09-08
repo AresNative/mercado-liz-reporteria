@@ -10,6 +10,8 @@ import {
   Info,
   ChartColumnStacked,
   Clock10,
+  UserRound,
+  UsersRound,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -30,11 +32,6 @@ export const navigationDefault = [
   },
 ];
 export const navigationUser = [
-  /*   {
-    name: "Pantalla Inicial",
-    href: "/",
-    icon: House,
-  }, */
   {
     name: "Proyectos",
     href: "/proyectos",
@@ -42,11 +39,6 @@ export const navigationUser = [
   },
 ];
 export const navigationVentas = [
-  /*  {
-    name: "Pantalla Inicial",
-    href: "/",
-    icon: House,
-  }, */
   {
     name: "Reporteria",
     href: "/reporteria",
@@ -69,11 +61,6 @@ export const navigationVentas = [
   },
 ];
 export const navigationAlmacen = [
-  /* {
-    name: "Pantalla Inicial",
-    href: "/",
-    icon: House,
-  }, */
   {
     name: "Reporteria",
     href: "/reporteria",
@@ -87,11 +74,6 @@ export const navigationAlmacen = [
 ];
 
 export const navigationAdmin = [
-  /* {
-    name: "Pantalla Inicial",
-    href: "/",
-    icon: House,
-  }, */
   {
     name: "Reporteria",
     href: "/reporteria",
@@ -103,9 +85,19 @@ export const navigationAdmin = [
     icon: Clock10,
   },
   {
+    name: "Empleados",
+    href: "/empleados",
+    icon: UsersRound,
+  },
+  {
     name: "Subastas",
     href: "/subastas",
     icon: ChartColumnStacked,
+  },
+  {
+    name: "Pick Up",
+    href: "/pick-up",
+    icon: Truck,
   },
   {
     name: "Proyectos",

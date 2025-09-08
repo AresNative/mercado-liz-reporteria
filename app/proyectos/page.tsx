@@ -2,7 +2,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { ScrumBoard } from "./components/scrum-board";
 import { useTaskService, type Task } from "./services/taskService";
-import { useGetProjectsQuery, useGetScrumQuery, useGetSprintsQuery } from "@/hooks/reducers/api";
 import { ArrowLeft, ClipboardListIcon, Hash, SquareChevronRight } from "lucide-react";
 import { formatDate } from "../pick-up/components/table";
 import { useAppDispatch } from "@/hooks/selector";
@@ -53,12 +52,9 @@ export default function ProjectsPage() {
     const [tasks, setTasks] = useState<Task[]>([]);
 
     const { getTasks } = useTaskService(projectId);
-    const { data: projectsData, refetch: refetchProjects } = useGetProjectsQuery({});
-    const { data: sprintsData, refetch: refetchSprints } = useGetSprintsQuery(projectId);
-    const { refetch: refetchDef } = useGetScrumQuery({
-        url: `sprints/${sprintId}/tasks`,
-        signal: undefined,
-    });
+    const { data: projectsData, refetch: refetchProjects } = { data: [], refetch: () => Promise.resolve() }; // Placeholder for projects fetching logic
+    const { data: sprintsData, refetch: refetchSprints } = { data: [], refetch: () => Promise.resolve() };
+    const { refetch: refetchDef } = { refetch: () => Promise.resolve() };
 
     // Fetch tasks when sprintId changes
     useEffect(() => {

@@ -1,7 +1,7 @@
 "use client";
 import { cn } from '@/utils/functions/cn';
 import AppMenu from './menu';
-import { ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { SwitchToggle } from '@/components/switch-mode';
