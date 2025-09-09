@@ -8,7 +8,7 @@ import {
     RefreshCw,
     Tag,
 } from "lucide-react";
-import { useGetProjectsQuery } from "@/hooks/reducers/api";
+/* import { useGetProjectsQuery } from "@/hooks/reducers/api"; */
 import { CommentsField } from "../constants/comments";
 import MainForm from "@/components/form/main-form";
 

@@ -1,86 +1,127 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { EnvConfig } from "@/utils/constants/env.config";
-import { getLocalStorageItem, removeFromLocalStorage, setLocalStorageItem } from "@/utils/functions/local-storage";
-import { getCookie } from "@/utils/functions/cookies";
+import {
+    getLocalStorageItem,
+    removeFromLocalStorage,
+    setLocalStorageItem
+} from "@/utils/functions/local-storage";
 
-const { api: apiUrl } = EnvConfig();
+const { api2: apiUrl } = EnvConfig();
 
-export const auth = createApi({
-    reducerPath: "auth",
+// Constantes para evitar errores de escritura
+const TOKEN_KEY = "token";
+const USER_ROLE_KEY = "user-role";
+const USER_ID_KEY = "user-id";
+
+// Utilidad para manejar cookies de forma segura
+const cookieManager = {
+    set: (name: string, value: string, days = 7, path = "/") => {
+        const expires = new Date(Date.now() + days * 864e5).toUTCString();
+        document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=${path}; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
+    },
+
+    remove: (name: string, path = "/") => {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path};`;
+    },
+
+    get: (name: string): string | null => {
+        const cookies = document.cookie.split(";");
+        for (const cookie of cookies) {
+            const [cookieName, cookieValue] = cookie.split("=").map(c => c.trim());
+            if (cookieName === name) {
+                return decodeURIComponent(cookieValue);
+            }
+        }
+        return null;
+    }
+};
+
+export const authApi = createApi({
+    reducerPath: "authApi",
     refetchOnFocus: true,
     baseQuery: fetchBaseQuery({
         baseUrl: apiUrl,
         prepareHeaders: (headers) => {
-            const token = getLocalStorageItem('token'); // <- usa cookie
             headers.set("Content-Type", "application/json");
+
+            // Priorizar token de cookies sobre localStorage por seguridad
+            const token = cookieManager.get(TOKEN_KEY) || getLocalStorageItem(TOKEN_KEY);
+
             if (token) {
                 headers.set("Authorization", `Bearer ${token}`);
             }
+
             return headers;
         },
     }),
     endpoints: (builder) => ({
-        postUserRegister: builder.mutation({
-            query: (data) => ({
-                url: "v1/users/register",
+        registerUser: builder.mutation({
+            query: (userData) => ({
+                url: "Auth/register",
                 method: "POST",
-                body: data,
+                body: userData,
             }),
         }),
-        postUserLogin: builder.mutation({
-            query: (data) => ({
-                url: "v1/users/login",
+        loginUser: builder.mutation({
+            query: (credentials) => ({
+                url: "Auth/login",
                 method: "POST",
-                body: data,
+                body: credentials,
             }),
-            onQueryStarted: async (_, { queryFulfilled }) => {
+            onQueryStarted: async (_, { queryFulfilled, dispatch }) => {
                 try {
                     const { data: responseData } = await queryFulfilled;
 
                     if (responseData.token) {
-                        const options = "path=/; SameSite=Lax";
-                        // Si estás en HTTPS, agrega "; Secure"
-                        document.cookie = `token=${responseData.token}; ${options}`;
-                        document.cookie = `user-role=${responseData.role.trimEnd()}; ${options}`;
-                        document.cookie = `user-id=${responseData.userId}; ${options}`;
-                        setLocalStorageItem("user-role", responseData.role.trimEnd());
-                        setLocalStorageItem("user-id", responseData.userId);
-                        setLocalStorageItem("token", responseData.token);
+                        // Almacenar en cookies (más seguro para HTTP-only en producción)
+                        cookieManager.set(TOKEN_KEY, responseData.token);
+                        cookieManager.set(USER_ROLE_KEY, responseData.rol);
+                        cookieManager.set(USER_ID_KEY, responseData.id);
+
+                        // Almacenar en localStorage para fácil acceso del cliente
+                        setLocalStorageItem(TOKEN_KEY, responseData.token);
+                        setLocalStorageItem(USER_ROLE_KEY, responseData.rol);
+                        setLocalStorageItem(USER_ID_KEY, responseData.id);
                     }
                 } catch (error) {
-                    console.error("Error al hacer login:", error);
+                    console.error("Error during login:", error);
+                    // Podrías dispatchar una acción de error aquí si es necesario
                 }
             },
         }),
-        postLogut: builder.mutation({
-            query: (userId) => ({
-                url: `v1/users/logout`,
+        logoutUser: builder.mutation({
+            query: () => ({
+                url: `Auth/logout`,
                 method: "POST",
-                params: { id: userId },
+                responseHandler: (response) => response.text(),
             }),
             onQueryStarted: async (_, { queryFulfilled }) => {
                 try {
                     await queryFulfilled;
-                    // Eliminar cookies (se hace expirándolas)
-                    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-                    document.cookie = "user-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-                    document.cookie = "user-id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-                    removeFromLocalStorage("user-role");
-                    removeFromLocalStorage("user-id");
-                    removeFromLocalStorage("token");
+                    // Limpiar cookies
+                    cookieManager.remove(TOKEN_KEY);
+                    cookieManager.remove(USER_ROLE_KEY);
+                    cookieManager.remove(USER_ID_KEY);
+
+                    // Limpiar localStorage
+                    removeFromLocalStorage(TOKEN_KEY);
+                    removeFromLocalStorage(USER_ROLE_KEY);
+                    removeFromLocalStorage(USER_ID_KEY);
                 } catch (error) {
-                    console.log("Error al hacer logout:", error);
+                    console.error("Error during logout:", error);
                 }
             },
+        }),
+        // Endpoint adicional para verificar token
+        verifyToken: builder.query({
+            query: () => "Auth/verify",
         }),
     }),
 });
 
-// Utilidad para leer cookies del cliente
-
-
 export const {
-    usePostLogutMutation,
-    usePostUserLoginMutation,
-    usePostUserRegisterMutation,
-} = auth;
+    useRegisterUserMutation,
+    useLoginUserMutation,
+    useLogoutUserMutation,
+    useVerifyTokenQuery,
+} = authApi;

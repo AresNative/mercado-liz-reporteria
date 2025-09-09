@@ -2,8 +2,8 @@ import { ReactNode } from "react";
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 import { getCookieinPage } from "@/utils/functions/cookies";
 
-const Layout = async ({ ventas, admin }: {
-    ventas: React.ReactNode,
+const Layout = async ({ contador, admin }: {
+    contador: React.ReactNode,
     admin?: React.ReactNode
 }) => {
     // Función para obtener el rol del usuario desde las cookies o localStorage
@@ -11,9 +11,8 @@ const Layout = async ({ ventas, admin }: {
     const userRole = await getCookieinPage("user-role") ?? getLocalStorageItem("user-role") ?? "none";
 
     const roleContent: Record<string, ReactNode> = {
-        ventas,
         admin,
-        rh: admin,
+        contador,
     };
 
     return (

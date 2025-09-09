@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { CircleCheckBig } from "lucide-react";
 
 import { MainFormProps } from "@/utils/types/interfaces";
 
@@ -19,20 +20,20 @@ import { CheckboxGroupComponent as CheckboxGroup } from "./checkbox-group";
 import { CalendarComponent as Calendar } from "./calendar";
 import { DateRangeComponent as DateRange } from "./date-range";
 
+import { Rating } from "./rating";
+
 import { FileComponent as FileInput } from "./file";
 import { ImgComponent as Image } from "./img";
 
-import { Rating } from "./rating";
+import { Button } from "../button";
 
 import { TagInputComponent as TagInput } from "./tag-input"
 
-import { usePostUserLoginMutation } from "@/hooks/reducers/auth";
-import { Button } from "../button";
-import Link from "next/link";
-import { usePostLandingMutation, usePostLandingJsonMutation } from "@/hooks/reducers/api_landing";
+import { useLoginUserMutation } from "@/hooks/reducers/auth";
 import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer } from "@/hooks/reducers/drop-down";
-import { CircleCheckBig } from "lucide-react";
+import { usePostMutation } from "@/hooks/reducers/api";
+import Link from "next/link";
 
 export const MainForm = ({ message_button, dataForm, actionType, aditionalData, action, valueAssign, onSuccess, formName, modelName, iconButton }: MainFormProps) => {
   const dispatch = useAppDispatch()
@@ -53,9 +54,8 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
     formState: { errors },
   } = useForm();
 
-  const [postUserLogin] = usePostUserLoginMutation();
-  const [postLandingJson] = usePostLandingJsonMutation();
-  const [postLanding] = usePostLandingMutation();
+  const [postUserLogin] = useLoginUserMutation();
+  const [post] = usePostMutation();
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
     const payload = formName ? data : { [modelName ?? actionType.toLowerCase()]: modelName ? data : [data] };
@@ -64,7 +64,7 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
       case "post-login":
         return await postUserLogin(data).unwrap();
       default:
-        const functionFetch = formName ? postLanding : postLandingJson;
+        const functionFetch = post;
         return await functionFetch({
           url: actionType,
           data: payload,

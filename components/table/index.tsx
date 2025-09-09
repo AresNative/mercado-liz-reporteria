@@ -5,15 +5,16 @@ import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Check, ChevronDown, Download, EyeOff, Grid2x2X, X } from "lucide-react";
 import { ViewTR } from "./toggle-view";
+import { cn } from "@/utils/functions/cn";
 
 export type DataItem = Record<string, any>;
 
 interface DynamicTableProps {
     data: Record<string, any>[];
-    itemsPerPage?: number;
+    onRowClick?: (rowData: any) => void;
 }
 
-const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
+const DynamicTable: React.FC<DynamicTableProps> = ({ data, onRowClick }) => {
     // Detectamos si los datos tienen estructura agrupada (con array de Pujas)
     const isGroupedData = useMemo(() => {
         return data.length > 0 && data[0].Pujas && Array.isArray(data[0].Pujas);
@@ -262,7 +263,12 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data }) => {
                             {filteredAndSortedData.map((item: any) => (
                                 <motion.tr
                                     key={item.ID || JSON.stringify(item)}
-                                    className="hover:bg-zinc-50 dark:hover:bg-zinc-600"
+                                    className={cn(onRowClick && "cursor-pointer", "hover:bg-zinc-50 dark:hover:bg-zinc-600")}
+                                    onClick={() => {
+                                        if (typeof onRowClick === 'function') {
+                                            onRowClick(item);
+                                        }
+                                    }}
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}

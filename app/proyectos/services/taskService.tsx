@@ -1,5 +1,4 @@
 "use client"
-import { useGetScrumQuery, usePutTaskOrderMutation, usePutTaskStatusMutation } from "@/hooks/reducers/api";
 import { useState, useEffect, useCallback } from "react";
 
 export type TaskEstado = "backlog" | "pruebas" | "todo" | "in-progress" | "done";
@@ -28,13 +27,10 @@ export interface TimeEntry {
 
 // Custom hook para manejar el estado de las tareas
 export function useTaskService(sprintId: number) {
-    const { data: scrumTasks, refetch } = useGetScrumQuery({
-        url: `sprints/${sprintId}/tasks`,
-        signal: undefined,
-    });
-    const [putStatusTask] = usePutTaskStatusMutation()
+    const { data: scrumTasks, refetch } = { data: [], refetch: () => Promise.resolve() }; // Placeholder for tasks fetching logic
+    const [putStatusTask]: any = [[]]; // Placeholder for status update mutation
+    const [putTaskOrder]: any = [[]];
     const [tasks, setTasks] = useState<Task[]>([]);
-    const [putTaskOrder] = usePutTaskOrderMutation();
     useEffect(() => {
         if (scrumTasks) {
             // Mapear los datos de la API al formato Task
