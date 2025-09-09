@@ -12,7 +12,8 @@ const Layout = async ({ ventas, admin }: {
 
     const roleContent: Record<string, ReactNode> = {
         ventas,
-        admin
+        admin,
+        rh: admin,
     };
 
     return (

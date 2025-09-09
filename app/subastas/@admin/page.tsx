@@ -287,7 +287,6 @@ export default function User() {
         <section className="w-full mt-4">
           <DynamicTable
             data={datosAgrupados}
-            itemsPerPage={IMPORT_PAGE_SIZE}
           />
         </section>
       )}

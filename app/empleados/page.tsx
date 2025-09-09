@@ -7,17 +7,21 @@ import {
     Plus,
     RefreshCw
 } from "lucide-react"
+import { useEffect, useState, useCallback } from "react"
+
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
 import { useGetWithFiltersGeneralMutation } from "@/hooks/reducers/api"
-import { useEffect, useState, useCallback } from "react"
+
 import { LoadingSection } from "@/template/loading-screen"
+
 import { useForm } from "react-hook-form"
 
 import Pagination from "@/components/pagination"
 import DynamicTable from "@/components/table"
 import { Modal } from "@/components/modal"
 import { BentoGrid, BentoItem } from "@/components/bento-grid"
+import { ModalDetallesEmpleado } from "./components/detalles-empleado"
 
 // Definir interfaces para tipado fuerte basado en los datos reales
 interface Empleado {
@@ -300,8 +304,9 @@ const useEstadisticasEmpleados = () => {
 
                 // Obtener los 3 departamentos más grandes
                 const topDepartamentos = Object.entries(porDepartamento)
+                    .filter((rows: any) => rows.estado !== "Inactivo")
                     .sort((a, b) => b[1] - a[1])
-                    .slice(0, 3);
+                    .slice(0, 4);
 
                 setEstadisticas({
                     totalRecords: empleadosData.totalRecords,
@@ -429,6 +434,8 @@ export default function Empleados() {
         refetch: refetchEstadisticas
     } = useEstadisticasEmpleados();
 
+    const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null);
+
     const { handleSubmit, register, reset } = useForm<FiltrosForm>();
 
     const onSubmit = (data: FiltrosForm) => {
@@ -467,7 +474,10 @@ export default function Empleados() {
         setCurrentPage(1);
     };
 
-    const handleOpenModal = (modalName: string, id?: number) => {
+    const handleOpenModal = (modalName: string, empleado?: Empleado) => {
+        if (modalName === 'detalles-empleado' && empleado) {
+            setEmpleadoSeleccionado(empleado);
+        }
         dispatch(openModalReducer({ modalName }));
     };
 
@@ -574,8 +584,7 @@ export default function Empleados() {
                             <>
                                 <DynamicTable
                                     data={empleados}
-                                /* columns={empleadosTableColumns}
-                                onRowClick={(empleado) => handleOpenModal('detalles-empleado', empleado.id)} */
+                                    onRowClick={(empleado) => handleOpenModal('detalles-empleado', empleado)}
                                 />
                                 <div className="p-4">
                                     <Pagination
@@ -607,7 +616,7 @@ export default function Empleados() {
                 title="Detalles del Empleado"
                 maxWidth="lg"
             >
-                <></>
+                <ModalDetallesEmpleado selectedEmpleado={empleadoSeleccionado} />
             </Modal>
 
             <Modal

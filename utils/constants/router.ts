@@ -12,6 +12,7 @@ import {
   Clock10,
   UserRound,
   UsersRound,
+  FileDigit,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -72,7 +73,33 @@ export const navigationAlmacen = [
     icon: ClipboardList,
   },
 ];
-
+export const navigationRh = [
+  {
+    name: "Reporteria",
+    href: "/reporteria",
+    icon: ChartArea,
+  },
+  {
+    name: "Nominas",
+    href: "/nominas",
+    icon: Clock10,
+  },
+  {
+    name: "Empleados",
+    href: "/empleados",
+    icon: UsersRound,
+  },
+  {
+    name: "Proyectos",
+    href: "/proyectos",
+    icon: ClipboardList,
+  },
+  {
+    name: "Contaduria",
+    href: "/contaduria",
+    icon: Receipt,
+  },
+];
 export const navigationAdmin = [
   {
     name: "Reporteria",
@@ -108,5 +135,10 @@ export const navigationAdmin = [
     name: "Contaduria",
     href: "/contaduria",
     icon: Receipt,
+  },
+  {
+    name: "Polizas",
+    href: "/polizas",
+    icon: FileDigit,
   },
 ];
