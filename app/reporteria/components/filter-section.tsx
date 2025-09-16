@@ -137,8 +137,7 @@ export const FilterSection = ({
             Filtros: [...baseFilters, ...dateFilters],
             Selects: data.Selects.filter((s) => s.Key),
             OrderBy: data.OrderBy.Key ? data.OrderBy : { Key: "", Direction: "asc" },
-            sum: data.sum,
-            distinct: data.distinct,
+            Agregaciones: [],
         });
     };
 
@@ -307,7 +306,7 @@ export const FilterSection = ({
 
                 {sectionVisibility.selectFields && (
                     <>
-                        <div className="flex flex-col md:flex-row justify-between w-full gap-4 bg-gray-50 dark:bg-zinc-700 px-2 py-4 rounded-xl border  dark:border-zinc-700 pb-4 mb-4">
+                        <div className="flex flex-col md:flex-row justify-between w-full gap-4 bg-gray-50 dark:bg-zinc-700 px-2 py-4 rounded-xl border border-gray-200  dark:border-zinc-700 pb-4 mb-4">
                             <fieldset className="space-y-3 w-full">
                                 <legend className="text-sm font-medium text-gray-900 dark:text-gray-100">Seleccionar perfil existente</legend>
                                 <div className="flex gap-3">
@@ -477,7 +476,32 @@ export const FilterSection = ({
                     />
                 )}
             </div>
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => toggleSection('dateFilters')}
+                            className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100"
+                            aria-expanded={sectionVisibility.dateFilters}
+                        >
+                            {sectionVisibility.dateFilters ?
+                                <ChevronUp size={20} aria-hidden="true" /> :
+                                <ChevronDown size={20} aria-hidden="true" />
+                            }
+                            <span>Filtro de sucursal</span>
+                        </button>
+                    </div>
+                </div>
 
+                {sectionVisibility.dateFilters && (
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        {config === "ventas" && "Sucursal: Todas las sucursales"}
+                        {config === "compras" && "Sucursal: Todas las sucursales"}
+                        {config === "inventario" && "Sucursal: Todas las sucursales"}
+                    </div>
+                )}
+            </div>
             {/* Botones finales */}
             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200 dark:border-zinc-700">
                 <button

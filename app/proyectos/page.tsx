@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ScrumBoard } from "./components/scrum-board";
 import { useTaskService, type Task } from "./services/taskService";
 import { ArrowLeft, ClipboardListIcon, Hash, SquareChevronRight } from "lucide-react";
-import { formatDate } from "../pick-up/components/table";
+
 import { useAppDispatch } from "@/hooks/selector";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
 import { ModalForm } from "./components/modal-form";
@@ -11,6 +11,7 @@ import { TasksField } from "./constants/tasks";
 import { SprintField } from "./constants/sprint";
 import { ProjectField } from "./constants/project";
 import { getLocalStorageItem, setLocalStorageItem } from "@/utils/functions/local-storage";
+import { formatAPIDate } from "@/utils/constants/format-values";
 
 interface Project {
     id: number;
@@ -93,7 +94,7 @@ export default function ProjectsPage() {
     const renderProjectsList = () => (
         <ul className="flex gap-2 flex-wrap mt-10">
             {projects.length ? projects.map((project) => {
-                const formatted = formatDate(project.fecha_inicio);
+                const formatted = formatAPIDate(project.fecha_inicio);
                 return (
                     <li
                         key={project.id}
@@ -110,8 +111,7 @@ export default function ProjectsPage() {
                                 <span>{project.descripcion}</span>
                             </section>
                             <section className="flex flex-col">
-                                <span className="text-sm">{formatted.date}</span>
-                                <span className="text-xs text-gray-500">{formatted.time}</span>
+                                <span className="text-sm">{formatted}</span>
                             </section>
                         </div>
                     </li>
@@ -127,7 +127,7 @@ export default function ProjectsPage() {
     const renderSprintsList = () => (
         <ul className="flex flex-col gap-1 flex-wrap">
             {sprints.length ? sprints.map((sprint) => {
-                const formatted = formatDate(sprint.fecha_inicio);
+                const formatted = formatAPIDate(sprint.fecha_inicio);
                 return (
                     <li
                         key={sprint.id}
@@ -143,8 +143,7 @@ export default function ProjectsPage() {
                         </label>
                         <div className="flex items-center gap-2 justify-between">
                             <section className="flex flex-col">
-                                <span className="text-sm">{formatted.date}</span>
-                                <span className="text-xs text-gray-500">{formatted.time}</span>
+                                <span className="text-sm">{formatted}</span>
                             </section>
                         </div>
                     </li>

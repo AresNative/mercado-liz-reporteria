@@ -10,8 +10,6 @@ export const fetchNames = async (
     url: `reporteria/${config}`,
     pageSize: 5,
     page,
-    sum: false,
-    distinct: true,
     signal,
     filters: {
       Filtros: [{ Key: key, Value: query.toLowerCase(), Operator: "like" }],

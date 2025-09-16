@@ -1,96 +1,132 @@
-import Badge from "@/components/badge";
-import { ArrowUpDown, User } from "lucide-react";
-import { branches } from "../constants/sucursales";
+"use client"
 
-export const formatDate = (fecha: any) => {
-    const date = new Date(fecha);
+import { Eye, Truck, Clock, CheckCircle, XCircle } from "lucide-react"
 
-    const optionsDate: any = {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
+interface Pedido {
+    id: number;
+    numero_pedido: string;
+    cliente_nombre: string;
+    tipo_entrega: 'pickup' | 'domicilio';
+    estado: string;
+    fecha_creacion: string;
+    total: number;
+    direccion_entrega?: string;
+    sucursal_recoger?: string;
+}
+
+interface TablaPedidosProps {
+    data: Pedido[];
+    onViewDetails: (_: any) => void;
+    onUpdateStatus: (pedidoId: number, nuevoEstado: string) => void;
+}
+
+export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedidosProps) => {
+    const getEstadoIcon = (estado: string) => {
+        switch (estado) {
+            case 'entregado': return <CheckCircle className="h-4 w-4 text-green-500" />;
+            case 'cancelado': return <XCircle className="h-4 w-4 text-red-500" />;
+            default: return <Clock className="h-4 w-4 text-yellow-500" />;
+        }
     };
 
-    const optionsTime: any = {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
+    const getEstadoColor = (estado: string) => {
+        switch (estado) {
+            case 'pendiente': return 'bg-yellow-100 text-yellow-800';
+            case 'preparando': return 'bg-blue-100 text-blue-800';
+            case 'listo': return 'bg-green-100 text-green-800';
+            case 'en_camino': return 'bg-purple-100 text-purple-800';
+            case 'entregado': return 'bg-green-100 text-green-800';
+            case 'cancelado': return 'bg-red-100 text-red-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
     };
 
-    return {
-        date: date.toLocaleDateString('es-GB', optionsDate),
-        time: date.toLocaleTimeString('es-US', optionsTime)
+    const formatFecha = (fecha: string) => {
+        return new Date(fecha).toLocaleDateString('es-MX', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
-};
 
-export const TablaPickUp = ({ data, handleOpenModal }: { data: any, handleOpenModal: any }) => {
     return (
-        <div className="w-full space-y-8">
-            <div className="overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr className="border-b border-gray-200 text-gray-500 text-left text-sm">
-                                <th className="px-4 py-3 whitespace-nowrap font-medium">
-                                    <div className="flex items-center">
-                                        ID
-                                        <ArrowUpDown className="ml-1 h-4 w-4" />
-                                    </div>
-                                </th>
-                                <th className="px-4 py-3 whitespace-nowrap font-medium">Cliente</th>
-                                <th className="px-4 py-3 whitespace-nowrap font-medium">Fecha y hora de entrega</th>
-                                <th className="px-4 py-3 whitespace-nowrap font-medium">Servicio</th>
-                                <th className="px-4 py-3 whitespace-nowrap font-medium">Estado</th>
-                                <th className="px-4 py-3 whitespace-nowrap font-medium">Sucursal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.map((row: any, key: any) => {
-                                const formatted = formatDate(row.fecha);
-                                return (
-                                    <tr
-                                        key={key}
-                                        onClick={() => handleOpenModal(row.id_lista, row.id, row.id_cliente)} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm">#{row.id}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                            <section className="flex items-center">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-                                                    <User className="h-4 w-4" />
-                                                </div>
-                                                <span className="ml-2">
-                                                    <p className="text-sm font-medium">{row.cliente.nombre}</p>
-                                                    <p className="text-xs text-gray-500">{row.cliente.telefono}</p>
-                                                </span>
-                                            </section>
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                            <section className="flex flex-col">
-                                                <span className="text-sm">{formatted.date}</span>
-                                                <span className="text-xs text-gray-500">{formatted.time}</span>
-                                            </section>
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                            <Badge text={row.plan} color={row.plan == 'Pickup' ? "purple" : "indigo"} />
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                            <Badge text={row.estado} color={row.estado == 'nuevo' ? "green" : "gray"} />
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                            {branches.map((branch: any, keyBranch) => (branch.precio === row.sucursal ? (
-                                                <section key={keyBranch} className="flex items-center space-x-2">
-                                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-                                                        <branch.icon className="h-4 w-4" />
-                                                    </span>
-                                                    <p className="text-sm font-medium">{branch.name}</p>
-                                                </section>) : (<div key={keyBranch}></div>)))}
-                                        </td>
-                                    </tr>)
-                            }
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        <div className="overflow-x-auto">
+            <table className="w-full">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pedido</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {data.map((pedido) => (
+                        <tr key={pedido.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">{pedido.numero_pedido}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{pedido.cliente_nombre}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                    {pedido.tipo_entrega === 'pickup' ? (
+                                        <>
+                                            <Truck className="h-4 w-4 text-green-500 mr-1" />
+                                            <span className="text-sm text-green-700">Pick-Up</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Truck className="h-4 w-4 text-blue-500 mr-1" />
+                                            <span className="text-sm text-blue-700">Domicilio</span>
+                                        </>
+                                    )}
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                    {getEstadoIcon(pedido.estado)}
+                                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(pedido.estado)}`}>
+                                        {pedido.estado.replace('_', ' ')}
+                                    </span>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-500">{formatFecha(pedido.fecha_creacion)}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">${pedido.total.toFixed(2)}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => onViewDetails(pedido)}
+                                        className="text-blue-600 hover:text-blue-900"
+                                        title="Ver detalles"
+                                    >
+                                        <Eye className="h-4 w-4" />
+                                    </button>
+                                    {pedido.estado === 'listo' && pedido.tipo_entrega === 'domicilio' && (
+                                        <button
+                                            onClick={() => onUpdateStatus(pedido.id, 'en_camino')}
+                                            className="text-green-600 hover:text-green-900"
+                                            title="Marcar como en camino"
+                                        >
+                                            <Truck className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     )
-};
+}

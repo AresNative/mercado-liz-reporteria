@@ -13,6 +13,7 @@ const Layout = async ({ contador, admin }: {
     const roleContent: Record<string, ReactNode> = {
         admin,
         contador,
+        rh: contador
     };
 
     return (

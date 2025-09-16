@@ -6,7 +6,7 @@ import {
     setLocalStorageItem
 } from "@/utils/functions/local-storage";
 
-const { api2: apiUrl } = EnvConfig();
+const { api: apiUrl } = EnvConfig();
 
 // Constantes para evitar errores de escritura
 const TOKEN_KEY = "token";

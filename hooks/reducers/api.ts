@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { getCookie } from "@/utils/functions/cookies";
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 
-const { api2: apiUrl } = EnvConfig();
+const { api: apiUrl } = EnvConfig();
 
 export const api = createApi({
   reducerPath: "api",
