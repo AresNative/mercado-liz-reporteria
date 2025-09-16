@@ -1,26 +1,37 @@
 "use client"
 
+import { useState, useEffect, useCallback } from "react"
+import { useForm } from "react-hook-form"
 import {
+  DollarSign,
+  PieChart,
+  BarChart3,
+  FileText,
+  BookOpen,
+  Calculator,
+  TrendingUp,
+  TrendingDown,
   Filter,
   Search,
   Plus,
-  RefreshCw,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  PieChart,
-  BarChart3,
   Download,
-  FileText,
-  Calendar,
+  Upload,
+  RefreshCw,
   Building,
-  Package,
   Users,
+  Package,
   CreditCard,
-  Wallet
+  Wallet,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Edit,
+  Trash2,
+  Save,
+  Calendar,
+  Eye,
+  MoreVertical
 } from "lucide-react"
-import { useEffect, useState, useCallback } from "react"
-import { useForm } from "react-hook-form"
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
 import { useGetWithFiltersGeneralMutation } from "@/hooks/reducers/api"
@@ -30,7 +41,7 @@ import DynamicTable from "@/components/table"
 import { Modal } from "@/components/modal"
 import { BentoGrid, BentoItem } from "@/components/bento-grid"
 
-// Interfaces para los datos de contaduría
+// Interfaces para el sistema de contaduría
 interface Transaccion {
   id: number;
   tipo: 'venta' | 'compra' | 'gasto' | 'ingreso';
@@ -40,6 +51,34 @@ interface Transaccion {
   referencia: string;
   estado: string;
   categoria: string;
+  cuenta_contable: string;
+}
+
+interface Poliza {
+  id: number;
+  numero: string;
+  tipo: string;
+  fecha: string;
+  concepto: string;
+  periodo: string;
+  total_debe: number;
+  total_haber: number;
+  estado: 'borrador' | 'pendiente' | 'aprobada' | 'rechazada' | 'contabilizada';
+  usuario_creador: string;
+  fecha_creacion: string;
+  fecha_contabilizacion?: string;
+}
+
+interface Movimiento {
+  id: number;
+  poliza_id: number;
+  cuenta_contable: string;
+  descripcion: string;
+  referencia: string;
+  centro_costo: string;
+  debe: number;
+  haber: number;
+  tipo_movimiento: 'cargo' | 'abono';
 }
 
 interface ReporteFinanciero {
@@ -50,315 +89,66 @@ interface ReporteFinanciero {
   ventas_mes_actual: number;
   ventas_mes_anterior: number;
   crecimiento_ventas: number;
+  activos_totales: number;
+  pasivos_totales: number;
+  patrimonio: number;
 }
 
-interface Filtro {
-  Key: string;
-  Value: any;
-  Operator: string;
+interface BalanceGeneral {
+  activos_corrientes: number;
+  activos_no_corrientes: number;
+  pasivos_corrientes: number;
+  pasivos_no_corrientes: number;
+  patrimonio: number;
+  fecha_corte: string;
 }
 
-interface ActiveFilters {
-  Filtros: Filtro[];
-  Selects: any[];
-  OrderBy: any | null;
-  sum: boolean;
-  distinct: boolean;
+interface EstadoResultados {
+  ingresos_operativos: number;
+  costos_ventas: number;
+  utilidad_bruta: number;
+  gastos_operativos: number;
+  utilidad_operativa: number;
+  otros_ingresos: number;
+  otros_gastos: number;
+  utilidad_neta: number;
+  periodo: string;
 }
 
-interface FiltrosForm {
-  search: string;
-  tipo: string;
-  categoria: string;
-  fecha_inicio: string;
-  fecha_fin: string;
-  estado: string;
-}
+// Componentes de navegación
+const NavigationTabs = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (tab: string) => void }) => {
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 className="h-4 w-4" /> },
+    { id: 'transacciones', label: 'Transacciones', icon: <DollarSign className="h-4 w-4" /> },
+    { id: 'polizas', label: 'Pólizas', icon: <FileText className="h-4 w-4" /> },
+    { id: 'balance', label: 'Balance General', icon: <PieChart className="h-4 w-4" /> },
+    { id: 'resultados', label: 'Estado de Resultados', icon: <TrendingUp className="h-4 w-4" /> },
+    { id: 'reportes', label: 'Reportes', icon: <Download className="h-4 w-4" /> }
+  ];
 
-// Componente para el formulario de filtros
-const FiltrosContabilidad = ({ onSubmit, register }: {
-  onSubmit: () => void;
-  register: any;
-}) => {
   return (
-    <form onSubmit={onSubmit} className="w-full">
-      <div className="hidden md:flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            {...register("search")}
-            placeholder="Buscar transacción..."
-            className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-
-        <select
-          {...register("tipo")}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-w-[150px]"
-        >
-          <option value="">Todos los tipos</option>
-          <option value="venta">Ventas</option>
-          <option value="compra">Compras</option>
-          <option value="gasto">Gastos</option>
-          <option value="ingreso">Ingresos</option>
-        </select>
-
-        <select
-          {...register("categoria")}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-w-[150px]"
-        >
-          <option value="">Todas las categorías</option>
-          <option value="operativo">Operativo</option>
-          <option value="administrativo">Administrativo</option>
-          <option value="comercial">Comercial</option>
-          <option value="financiero">Financiero</option>
-        </select>
-
-        <select
-          {...register("estado")}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-w-[140px]"
-        >
-          <option value="">Todos los estados</option>
-          <option value="completado">Completado</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="cancelado">Cancelado</option>
-        </select>
-
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            {...register("fecha_inicio")}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            placeholder="Fecha inicio"
-          />
-          <span className="text-gray-500">-</span>
-          <input
-            type="date"
-            {...register("fecha_fin")}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            placeholder="Fecha fin"
-          />
-        </div>
-
-        <button type="submit" className="flex items-center rounded-md px-3 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors whitespace-nowrap">
-          <Filter className="mr-1 h-4 w-4" />
-          Filtrar
-        </button>
-      </div>
-
-      {/* Versión móvil */}
-      <div className="md:hidden space-y-3">
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            {...register("search")}
-            placeholder="Buscar transacción..."
-            className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <select
-            {...register("tipo")}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+    <div className="border-b border-gray-200 mb-6">
+      <nav className="flex space-x-8 overflow-x-auto">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
           >
-            <option value="">Todos tipos</option>
-            <option value="venta">Ventas</option>
-            <option value="compra">Compras</option>
-            <option value="gasto">Gastos</option>
-            <option value="ingreso">Ingresos</option>
-          </select>
-
-          <select
-            {...register("categoria")}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="">Todas categorías</option>
-            <option value="operativo">Operativo</option>
-            <option value="administrativo">Administrativo</option>
-            <option value="comercial">Comercial</option>
-            <option value="financiero">Financiero</option>
-          </select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <select
-            {...register("estado")}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="">Todos estados</option>
-            <option value="completado">Completado</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
-
-          <button type="submit" className="flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-            <Filter className="mr-1 h-4 w-4" />
-            Filtrar
+            {tab.icon}
+            <span>{tab.label}</span>
           </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <input
-            type="date"
-            {...register("fecha_inicio")}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            placeholder="Inicio"
-          />
-          <input
-            type="date"
-            {...register("fecha_fin")}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            placeholder="Fin"
-          />
-        </div>
-      </div>
-    </form>
+        ))}
+      </nav>
+    </div>
   );
 };
 
-// Hook personalizado para la gestión de transacciones
-const useTransacciones = () => {
-  const [transacciones, setTransacciones] = useState<Transaccion[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalRecords, setTotalRecords] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [getWithFilter] = useGetWithFiltersGeneralMutation();
-
-  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-    Filtros: [],
-    Selects: [],
-    OrderBy: null,
-    sum: false,
-    distinct: false
-  });
-
-  const fetchTransacciones = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Simulamos datos de transacciones (en producción esto vendría de la API)
-      const mockData: Transaccion[] = [
-        {
-          id: 1,
-          tipo: 'venta',
-          descripcion: 'Venta de productos electrónicos',
-          monto: 15000,
-          fecha: '2024-01-15',
-          referencia: 'V-001',
-          estado: 'completado',
-          categoria: 'comercial'
-        },
-        {
-          id: 2,
-          tipo: 'compra',
-          descripcion: 'Compra de materia prima',
-          monto: 8000,
-          fecha: '2024-01-14',
-          referencia: 'C-001',
-          estado: 'completado',
-          categoria: 'operativo'
-        },
-        {
-          id: 3,
-          tipo: 'gasto',
-          descripcion: 'Pago de nómina',
-          monto: 25000,
-          fecha: '2024-01-10',
-          referencia: 'G-001',
-          estado: 'completado',
-          categoria: 'administrativo'
-        },
-        {
-          id: 4,
-          tipo: 'ingreso',
-          descripcion: 'Intereses bancarios',
-          monto: 1200,
-          fecha: '2024-01-08',
-          referencia: 'I-001',
-          estado: 'completado',
-          categoria: 'financiero'
-        }
-      ];
-
-      setTransacciones(mockData);
-      setTotalPages(1);
-      setTotalRecords(mockData.length);
-    } catch (err) {
-      console.error("Error fetching transacciones:", err);
-      setError("No se pudieron cargar las transacciones. Intente nuevamente.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage, activeFilters, getWithFilter]);
-
-  useEffect(() => {
-    fetchTransacciones();
-  }, [fetchTransacciones]);
-
-  return {
-    transacciones,
-    currentPage,
-    totalPages,
-    totalRecords,
-    isLoading,
-    error,
-    setCurrentPage,
-    setActiveFilters,
-    refetch: fetchTransacciones
-  };
-};
-
-// Hook para reportes financieros
-const useReportesFinancieros = () => {
-  const [reporte, setReporte] = useState<ReporteFinanciero | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchReporte = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Simulamos datos del reporte financiero
-      const mockReporte: ReporteFinanciero = {
-        ingresos_totales: 185000,
-        gastos_totales: 125000,
-        utilidad_neta: 60000,
-        margen_utilidad: 32.4,
-        ventas_mes_actual: 185000,
-        ventas_mes_anterior: 162000,
-        crecimiento_ventas: 14.2
-      };
-
-      setReporte(mockReporte);
-    } catch (err) {
-      console.error("Error fetching reporte financiero:", err);
-      setError("No se pudieron cargar los reportes financieros.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchReporte();
-  }, [fetchReporte]);
-
-  return {
-    reporte,
-    isLoading,
-    error,
-    refetch: fetchReporte
-  };
-};
-
-// Componente para estadísticas financieras
-const EstadisticasFinancieras = ({ reporte }: { reporte: ReporteFinanciero }) => {
+// Dashboard Principal
+const DashboardContabilidad = ({ reporte }: { reporte: ReporteFinanciero }) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -368,364 +158,548 @@ const EstadisticasFinancieras = ({ reporte }: { reporte: ReporteFinanciero }) =>
   };
 
   return (
-    <BentoGrid cols={4} className="mb-6">
-      <BentoItem
-        title="Ingresos Totales"
-        description="Este mes"
-        className="bg-green-50 border-green-200"
-        icon={<TrendingUp className="h-6 w-6 text-green-600" />}
-      >
-        <div className="text-2xl font-bold text-green-600">
-          {formatCurrency(reporte.ingresos_totales)}
-        </div>
-      </BentoItem>
+    <div className="space-y-6">
+      <BentoGrid cols={4} className="mb-6">
+        <BentoItem
+          title="Ingresos Totales"
+          description="Este mes"
+          className="bg-green-50 border-green-200"
+          icon={<TrendingUp className="h-6 w-6 text-green-600" />}
+        >
+          <div className="text-2xl font-bold text-green-600">
+            {formatCurrency(reporte.ingresos_totales)}
+          </div>
+        </BentoItem>
 
-      <BentoItem
-        title="Gastos Totales"
-        description="Este mes"
-        className="bg-red-50 border-red-200"
-        icon={<TrendingDown className="h-6 w-6 text-red-600" />}
-      >
-        <div className="text-2xl font-bold text-red-600">
-          {formatCurrency(reporte.gastos_totales)}
-        </div>
-      </BentoItem>
+        <BentoItem
+          title="Gastos Totales"
+          description="Este mes"
+          className="bg-red-50 border-red-200"
+          icon={<TrendingDown className="h-6 w-6 text-red-600" />}
+        >
+          <div className="text-2xl font-bold text-red-600">
+            {formatCurrency(reporte.gastos_totales)}
+          </div>
+        </BentoItem>
 
-      <BentoItem
-        title="Utilidad Neta"
-        description="Margen: 32.4%"
-        className="bg-blue-50 border-blue-200"
-        icon={<DollarSign className="h-6 w-6 text-blue-600" />}
-      >
-        <div className="text-2xl font-bold text-blue-600">
-          {formatCurrency(reporte.utilidad_neta)}
-        </div>
-      </BentoItem>
+        <BentoItem
+          title="Utilidad Neta"
+          description="Margen: 32.4%"
+          className="bg-blue-50 border-blue-200"
+          icon={<DollarSign className="h-6 w-6 text-blue-600" />}
+        >
+          <div className="text-2xl font-bold text-blue-600">
+            {formatCurrency(reporte.utilidad_neta)}
+          </div>
+        </BentoItem>
 
-      <BentoItem
-        title="Crecimiento Ventas"
-        description="Vs mes anterior"
-        className={reporte.crecimiento_ventas >= 0 ? "bg-purple-50 border-purple-200" : "bg-orange-50 border-orange-200"}
-        icon={reporte.crecimiento_ventas >= 0 ?
-          <TrendingUp className="h-6 w-6 text-purple-600" /> :
-          <TrendingDown className="h-6 w-6 text-orange-600" />
-        }
-      >
-        <div className={`text-2xl font-bold ${reporte.crecimiento_ventas >= 0 ? 'text-purple-600' : 'text-orange-600'}`}>
-          {reporte.crecimiento_ventas >= 0 ? '+' : ''}{reporte.crecimiento_ventas}%
+        <BentoItem
+          title="Crecimiento Ventas"
+          description="Vs mes anterior"
+          className={reporte.crecimiento_ventas >= 0 ? "bg-purple-50 border-purple-200" : "bg-orange-50 border-orange-200"}
+          icon={reporte.crecimiento_ventas >= 0 ?
+            <TrendingUp className="h-6 w-6 text-purple-600" /> :
+            <TrendingDown className="h-6 w-6 text-orange-600" />
+          }
+        >
+          <div className={`text-2xl font-bold ${reporte.crecimiento_ventas >= 0 ? 'text-purple-600' : 'text-orange-600'}`}>
+            {reporte.crecimiento_ventas >= 0 ? '+' : ''}{reporte.crecimiento_ventas}%
+          </div>
+        </BentoItem>
+      </BentoGrid>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Gráfico de distribución de gastos */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4">Distribución de Gastos</h3>
+          <div className="space-y-3">
+            {[
+              { category: 'Nómina', amount: 45000, percentage: 45, color: 'bg-red-500' },
+              { category: 'Proveedores', amount: 25000, percentage: 25, color: 'bg-blue-500' },
+              { category: 'Servicios', amount: 15000, percentage: 15, color: 'bg-green-500' },
+              { category: 'Impuestos', amount: 10000, percentage: 10, color: 'bg-purple-500' },
+              { category: 'Otros', amount: 5000, percentage: 5, color: 'bg-gray-500' }
+            ].map((item, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-3 h-3 rounded-full ${item.color}`}></div>
+                  <span className="text-sm font-medium">{item.category}</span>
+                </div>
+                <div className="text-sm text-gray-600">
+                  {formatCurrency(item.amount)} ({item.percentage}%)
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </BentoItem>
-    </BentoGrid>
+
+        {/* Resumen de ratios financieros */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4">Ratios Financieros</h3>
+          <div className="space-y-4">
+            {[
+              { name: 'Liquidez Corriente', value: '1.8', ideal: '1.5-2.0', status: 'good' },
+              { name: 'Margen Neto', value: '18.5%', ideal: '>15%', status: 'good' },
+              { name: 'ROE', value: '22.3%', ideal: '>20%', status: 'good' },
+              { name: 'Endeudamiento', value: '45.2%', ideal: '<50%', status: 'warning' }
+            ].map((ratio, index) => (
+              <div key={index} className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium">{ratio.name}</p>
+                  <p className="text-xs text-gray-500">Ideal: {ratio.ideal}</p>
+                </div>
+                <span className={`px-2 py-1 rounded text-xs font-medium ${ratio.status === 'good' ? 'bg-green-100 text-green-800' :
+                  ratio.status === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                  {ratio.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Últimas transacciones */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold mb-4">Últimas Transacciones</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-2">Fecha</th>
+                <th className="text-left py-2">Descripción</th>
+                <th className="text-left py-2">Tipo</th>
+                <th className="text-right py-2">Monto</th>
+                <th className="text-left py-2">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { fecha: '2024-01-15', descripcion: 'Pago nómina quincenal', tipo: 'gasto', monto: 45000, estado: 'completado' },
+                { fecha: '2024-01-14', descripcion: 'Venta productos electrónicos', tipo: 'ingreso', monto: 25000, estado: 'completado' },
+                { fecha: '2024-01-13', descripcion: 'Compra materia prima', tipo: 'gasto', monto: 18000, estado: 'pendiente' },
+                { fecha: '2024-01-12', descripcion: 'Pago servicios', tipo: 'gasto', monto: 8500, estado: 'completado' }
+              ].map((trans, index) => (
+                <tr key={index} className="border-b hover:bg-gray-50">
+                  <td className="py-2">{new Date(trans.fecha).toLocaleDateString('es-MX')}</td>
+                  <td className="py-2">{trans.descripcion}</td>
+                  <td className="py-2">
+                    <span className={`px-2 py-1 rounded text-xs ${trans.tipo === 'ingreso' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                      {trans.tipo}
+                    </span>
+                  </td>
+                  <td className="py-2 text-right">
+                    <span className={trans.tipo === 'ingreso' ? 'text-green-600' : 'text-red-600'}>
+                      {formatCurrency(trans.monto)}
+                    </span>
+                  </td>
+                  <td className="py-2">
+                    <span className={`px-2 py-1 rounded text-xs ${trans.estado === 'completado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                      {trans.estado}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 };
 
-// Configuración de columnas para la tabla de transacciones
-const transaccionesTableColumns = [
-  { key: "referencia", header: "Referencia" },
-  {
-    key: "fecha",
-    header: "Fecha",
-    transform: (value: string) => new Date(value).toLocaleDateString('es-MX')
-  },
-  { key: "descripcion", header: "Descripción" },
-  {
-    key: "tipo",
-    header: "Tipo",
-    transform: (value: string) => (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${value === 'venta' ? 'bg-green-100 text-green-800' :
-        value === 'compra' ? 'bg-blue-100 text-blue-800' :
-          value === 'gasto' ? 'bg-red-100 text-red-800' :
-            'bg-purple-100 text-purple-800'
-        }`}>
-        {value.charAt(0).toUpperCase() + value.slice(1)}
-      </span>
-    )
-  },
-  {
-    key: "monto",
-    header: "Monto",
-    transform: (value: number, row: Transaccion) => (
-      <span className={`font-medium ${row.tipo === 'venta' || row.tipo === 'ingreso' ?
-        'text-green-600' : 'text-red-600'
-        }`}>
-        {new Intl.NumberFormat('es-MX', {
-          style: 'currency',
-          currency: 'MXN',
-          minimumFractionDigits: 2
-        }).format(value)}
-      </span>
-    )
-  },
-  {
-    key: "estado",
-    header: "Estado",
-    transform: (value: string) => (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${value === 'completado' ? 'bg-green-100 text-green-800' :
-        value === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
-          'bg-red-100 text-red-800'
-        }`}>
-        {value.charAt(0).toUpperCase() + value.slice(1)}
-      </span>
-    )
-  }
-];
+// Componente de Balance General
+const BalanceGeneral = ({ balance }: { balance: BalanceGeneral }) => {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
 
-export default function Contaduria() {
+  const totalActivos = balance.activos_corrientes + balance.activos_no_corrientes;
+  const totalPasivos = balance.pasivos_corrientes + balance.pasivos_no_corrientes;
+  const totalPasivosPatrimonio = totalPasivos + balance.patrimonio;
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Balance General</h2>
+        <p className="text-gray-500">Al {new Date(balance.fecha_corte).toLocaleDateString('es-MX')}</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Activos */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4 text-green-600">ACTIVOS</h3>
+
+          <div className="space-y-3">
+            <div className="flex justify-between border-b pb-2">
+              <span className="font-medium">Activos Corrientes</span>
+              <span>{formatCurrency(balance.activos_corrientes)}</span>
+            </div>
+
+            <div className="pl-4 space-y-2 text-sm text-gray-600">
+              <div className="flex justify-between">
+                <span>Efectivo y equivalentes</span>
+                <span>{formatCurrency(balance.activos_corrientes * 0.4)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Cuentas por cobrar</span>
+                <span>{formatCurrency(balance.activos_corrientes * 0.3)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Inventarios</span>
+                <span>{formatCurrency(balance.activos_corrientes * 0.2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Otros activos corrientes</span>
+                <span>{formatCurrency(balance.activos_corrientes * 0.1)}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between border-b pb-2 pt-4">
+              <span className="font-medium">Activos No Corrientes</span>
+              <span>{formatCurrency(balance.activos_no_corrientes)}</span>
+            </div>
+
+            <div className="pl-4 space-y-2 text-sm text-gray-600">
+              <div className="flex justify-between">
+                <span>Propiedad, planta y equipo</span>
+                <span>{formatCurrency(balance.activos_no_corrientes * 0.7)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Activos intangibles</span>
+                <span>{formatCurrency(balance.activos_no_corrientes * 0.2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Otros activos no corrientes</span>
+                <span>{formatCurrency(balance.activos_no_corrientes * 0.1)}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between pt-4 font-bold text-lg">
+              <span>TOTAL ACTIVOS</span>
+              <span className="text-green-600">{formatCurrency(totalActivos)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Pasivos y Patrimonio */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4 text-red-600">PASIVOS Y PATRIMONIO</h3>
+
+          <div className="space-y-3">
+            <div className="flex justify-between border-b pb-2">
+              <span className="font-medium">Pasivos Corrientes</span>
+              <span>{formatCurrency(balance.pasivos_corrientes)}</span>
+            </div>
+
+            <div className="pl-4 space-y-2 text-sm text-gray-600">
+              <div className="flex justify-between">
+                <span>Cuentas por pagar</span>
+                <span>{formatCurrency(balance.pasivos_corrientes * 0.5)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Préstamos a corto plazo</span>
+                <span>{formatCurrency(balance.pasivos_corrientes * 0.3)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Otros pasivos corrientes</span>
+                <span>{formatCurrency(balance.pasivos_corrientes * 0.2)}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between border-b pb-2 pt-4">
+              <span className="font-medium">Pasivos No Corrientes</span>
+              <span>{formatCurrency(balance.pasivos_no_corrientes)}</span>
+            </div>
+
+            <div className="pl-4 space-y-2 text-sm text-gray-600">
+              <div className="flex justify-between">
+                <span>Préstamos a largo plazo</span>
+                <span>{formatCurrency(balance.pasivos_no_corrientes * 0.8)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Otros pasivos no corrientes</span>
+                <span>{formatCurrency(balance.pasivos_no_corrientes * 0.2)}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between border-b pb-2 pt-4">
+              <span className="font-medium">Patrimonio</span>
+              <span>{formatCurrency(balance.patrimonio)}</span>
+            </div>
+
+            <div className="pl-4 space-y-2 text-sm text-gray-600">
+              <div className="flex justify-between">
+                <span>Capital social</span>
+                <span>{formatCurrency(balance.patrimonio * 0.6)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Utilidades acumuladas</span>
+                <span>{formatCurrency(balance.patrimonio * 0.3)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Otros componentes</span>
+                <span>{formatCurrency(balance.patrimonio * 0.1)}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between pt-4 font-bold text-lg">
+              <span>TOTAL PASIVOS Y PATRIMONIO</span>
+              <span className="text-red-600">{formatCurrency(totalPasivosPatrimonio)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Ratios de solvencia */}
+      <div className="mt-8 pt-6 border-t">
+        <h3 className="text-lg font-semibold mb-4">Indicadores de Solvencia</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { name: 'Ratio de Liquidez', value: (totalActivos / totalPasivos).toFixed(2), ideal: '>1.0' },
+            { name: 'Endeudamiento', value: ((totalPasivos / totalActivos) * 100).toFixed(1) + '%', ideal: '<60%' },
+            { name: 'Patrimonio/Activos', value: ((balance.patrimonio / totalActivos) * 100).toFixed(1) + '%', ideal: '>40%' }
+          ].map((ratio, index) => (
+            <div key={index} className="bg-gray-50 p-4 rounded-lg">
+              <p className="font-medium text-sm">{ratio.name}</p>
+              <p className="text-2xl font-bold text-blue-600">{ratio.value}</p>
+              <p className="text-xs text-gray-500">Ideal: {ratio.ideal}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente de Estado de Resultados
+const EstadoResultadosComponent = ({ estadoResultados }: { estadoResultados: EstadoResultados }) => {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const margenBruto = (estadoResultados.utilidad_bruta / estadoResultados.ingresos_operativos) * 100;
+  const margenOperativo = (estadoResultados.utilidad_operativa / estadoResultados.ingresos_operativos) * 100;
+  const margenNeto = (estadoResultados.utilidad_neta / estadoResultados.ingresos_operativos) * 100;
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Estado de Resultados</h2>
+        <p className="text-gray-500">Período: {estadoResultados.periodo}</p>
+      </div>
+
+      <div className="space-y-4">
+        {/* Ingresos */}
+        <div className="space-y-2">
+          <div className="flex justify-between border-b pb-2">
+            <span className="font-medium">Ingresos Operativos</span>
+            <span className="font-medium">{formatCurrency(estadoResultados.ingresos_operativos)}</span>
+          </div>
+
+          <div className="flex justify-between border-b pb-2">
+            <span className="pl-4">(-) Costo de Ventas</span>
+            <span>{formatCurrency(estadoResultados.costos_ventas)}</span>
+          </div>
+
+          <div className="flex justify-between pt-2 font-bold text-lg">
+            <span>UTILIDAD BRUTA</span>
+            <span className="text-green-600">{formatCurrency(estadoResultados.utilidad_bruta)}</span>
+          </div>
+
+          <div className="text-sm text-gray-500 text-right">
+            Margen Bruto: {margenBruto.toFixed(1)}%
+          </div>
+        </div>
+
+        {/* Gastos Operativos */}
+        <div className="space-y-2 pt-4">
+          <div className="flex justify-between border-b pb-2">
+            <span className="font-medium">(-) Gastos Operativos</span>
+            <span>{formatCurrency(estadoResultados.gastos_operativos)}</span>
+          </div>
+
+          <div className="pl-4 space-y-1 text-sm text-gray-600">
+            <div className="flex justify-between">
+              <span>Gastos de venta</span>
+              <span>{formatCurrency(estadoResultados.gastos_operativos * 0.4)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Gastos administrativos</span>
+              <span>{formatCurrency(estadoResultados.gastos_operativos * 0.35)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Gastos de investigación</span>
+              <span>{formatCurrency(estadoResultados.gastos_operativos * 0.15)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Otros gastos operativos</span>
+              <span>{formatCurrency(estadoResultados.gastos_operativos * 0.1)}</span>
+            </div>
+          </div>
+
+          <div className="flex justify-between pt-2 font-bold text-lg">
+            <span>UTILIDAD OPERATIVA</span>
+            <span className="text-green-600">{formatCurrency(estadoResultados.utilidad_operativa)}</span>
+          </div>
+
+          <div className="text-sm text-gray-500 text-right">
+            Margen Operativo: {margenOperativo.toFixed(1)}%
+          </div>
+        </div>
+
+        {/* Otros ingresos/gastos */}
+        <div className="space-y-2 pt-4">
+          <div className="flex justify-between">
+            <span>(+) Otros Ingresos</span>
+            <span className="text-green-600">{formatCurrency(estadoResultados.otros_ingresos)}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>(-) Otros Gastos</span>
+            <span className="text-red-600">{formatCurrency(estadoResultados.otros_gastos)}</span>
+          </div>
+
+          <div className="flex justify-between pt-4 font-bold text-lg border-t">
+            <span>UTILIDAD NETA ANTES DE IMPUESTOS</span>
+            <span className="text-green-600">{formatCurrency(estadoResultados.utilidad_neta + estadoResultados.otros_gastos - estadoResultados.otros_ingresos)}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>(-) Impuesto sobre la renta</span>
+            <span className="text-red-600">{formatCurrency((estadoResultados.utilidad_neta + estadoResultados.otros_gastos - estadoResultados.otros_ingresos) * 0.3)}</span>
+          </div>
+
+          <div className="flex justify-between pt-4 font-bold text-xl border-t">
+            <span>UTILIDAD NETA DEL EJERCICIO</span>
+            <span className="text-green-600">{formatCurrency(estadoResultados.utilidad_neta)}</span>
+          </div>
+
+          <div className="text-sm text-gray-500 text-right">
+            Margen Neto: {margenNeto.toFixed(1)}%
+          </div>
+        </div>
+      </div>
+
+      {/* Análisis de rentabilidad */}
+      <div className="mt-8 pt-6 border-t">
+        <h3 className="text-lg font-semibold mb-4">Análisis de Rentabilidad</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { name: 'ROA (Return on Assets)', value: ((estadoResultados.utilidad_neta / 500000) * 100).toFixed(1) + '%', desc: 'Rentabilidad sobre activos' },
+            { name: 'ROE (Return on Equity)', value: ((estadoResultados.utilidad_neta / 300000) * 100).toFixed(1) + '%', desc: 'Rentabilidad sobre patrimonio' },
+            { name: 'Rotación de Activos', value: (estadoResultados.ingresos_operativos / 500000).toFixed(2), desc: 'Eficiencia uso de activos' }
+          ].map((metric, index) => (
+            <div key={index} className="bg-gray-50 p-4 rounded-lg">
+              <p className="font-medium text-sm">{metric.name}</p>
+              <p className="text-2xl font-bold text-blue-600">{metric.value}</p>
+              <p className="text-xs text-gray-500">{metric.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente principal
+export default function SistemaContabilidad() {
+  const [activeTab, setActiveTab] = useState('dashboard');
   const dispatch = useAppDispatch();
-  const {
-    transacciones,
-    currentPage,
-    totalPages,
-    totalRecords,
-    isLoading,
-    error,
-    setCurrentPage,
-    setActiveFilters,
-    refetch
-  } = useTransacciones();
 
-  const {
-    reporte,
-    isLoading: isLoadingReporte,
-    error: errorReporte,
-    refetch: refetchReporte
-  } = useReportesFinancieros();
-
-  const { handleSubmit, register, reset } = useForm<FiltrosForm>();
-
-  const onSubmit = (data: FiltrosForm) => {
-    const nuevosFiltros: Filtro[] = [];
-
-    if (data.search) {
-      nuevosFiltros.push({ Key: "descripcion", Value: data.search, Operator: "contains" });
-    }
-
-    if (data.tipo) {
-      nuevosFiltros.push({ Key: "tipo", Value: data.tipo, Operator: "=" });
-    }
-
-    if (data.categoria) {
-      nuevosFiltros.push({ Key: "categoria", Value: data.categoria, Operator: "=" });
-    }
-
-    if (data.estado) {
-      nuevosFiltros.push({ Key: "estado", Value: data.estado, Operator: "=" });
-    }
-
-    if (data.fecha_inicio && data.fecha_fin) {
-      nuevosFiltros.push(
-        { Key: "fecha", Value: data.fecha_inicio, Operator: ">=" },
-        { Key: "fecha", Value: data.fecha_fin, Operator: "<=" }
-      );
-    }
-
-    setActiveFilters(prev => ({
-      ...prev,
-      Filtros: nuevosFiltros
-    }));
-    setCurrentPage(1);
+  // Datos de ejemplo
+  const reporteFinanciero: ReporteFinanciero = {
+    ingresos_totales: 185000,
+    gastos_totales: 125000,
+    utilidad_neta: 60000,
+    margen_utilidad: 32.4,
+    ventas_mes_actual: 185000,
+    ventas_mes_anterior: 162000,
+    crecimiento_ventas: 14.2,
+    activos_totales: 500000,
+    pasivos_totales: 200000,
+    patrimonio: 300000
   };
 
-  const limpiarFiltros = () => {
-    reset();
-    setActiveFilters(prev => ({ ...prev, Filtros: [] }));
-    setCurrentPage(1);
+  const balanceGeneral: BalanceGeneral = {
+    activos_corrientes: 200000,
+    activos_no_corrientes: 300000,
+    pasivos_corrientes: 80000,
+    pasivos_no_corrientes: 120000,
+    patrimonio: 300000,
+    fecha_corte: '2024-01-15'
   };
 
-  const handleOpenModal = (modalName: string) => {
-    dispatch(openModalReducer({ modalName }));
+  const estadoResultados: EstadoResultados = {
+    ingresos_operativos: 250000,
+    costos_ventas: 150000,
+    utilidad_bruta: 100000,
+    gastos_operativos: 60000,
+    utilidad_operativa: 40000,
+    otros_ingresos: 5000,
+    otros_gastos: 10000,
+    utilidad_neta: 35000,
+    periodo: 'Enero 2024'
   };
 
-  const handleRefetchAll = () => {
-    refetch();
-    refetchReporte();
-  };
-
-  const handleGenerarReporte = () => {
-    // Lógica para generar reporte
-    console.log("Generando reporte financiero...");
+  const renderActiveTab = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <DashboardContabilidad reporte={reporteFinanciero} />;
+      case 'balance':
+        return <BalanceGeneral balance={balanceGeneral} />;
+      case 'resultados':
+        return <EstadoResultadosComponent estadoResultados={estadoResultados} />;
+      case 'transacciones':
+        return <div className="bg-white rounded-lg p-6">Módulo de Transacciones</div>;
+      case 'polizas':
+        return <div className="bg-white rounded-lg p-6">Módulo de Pólizas</div>;
+      case 'reportes':
+        return <div className="bg-white rounded-lg p-6">Módulo de Reportes</div>;
+      default:
+        return <DashboardContabilidad reporte={reporteFinanciero} />;
+    }
   };
 
   return (
     <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
       <header className="mb-8">
         <h1 className="flex items-center text-2xl font-bold md:text-3xl">
-          <DollarSign className="mr-2 h-8 w-8 text-blue-600" />
-          Módulo de Contaduría
+          <Calculator className="mr-2 h-8 w-8 text-blue-600" />
+          Sistema Integral de Contaduría
         </h1>
         <p className="mt-2 text-gray-600 dark:text-gray-100">
-          Gestión financiera integral y reportes contables
+          Gestión financiera completa y reportes contables
         </p>
       </header>
 
-      {/* Estadísticas Financieras */}
-      {isLoadingReporte ? (
-        <div className="mb-6">
-          <LoadingSection message="Cargando reportes financieros..." />
-        </div>
-      ) : errorReporte ? (
-        <div className="mb-6 p-4 bg-red-50 rounded-lg text-center">
-          <p className="text-red-500 mb-2">{errorReporte}</p>
-          <button
-            onClick={refetchReporte}
-            className="text-blue-600 hover:text-blue-800 underline"
-          >
-            Reintentar
-          </button>
-        </div>
-      ) : reporte ? (
-        <EstadisticasFinancieras reporte={reporte} />
-      ) : null}
+      <NavigationTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Acciones Rápidas */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold mb-4">Acciones Rápidas</h3>
-          <div className="space-y-3">
-            <button className="w-full flex items-center justify-between p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-              <span className="text-blue-700">Generar Reporte Mensual</span>
-              <FileText className="h-5 w-5 text-blue-600" />
-            </button>
-            <button className="w-full flex items-center justify-between p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-              <span className="text-green-700">Conciliación Bancaria</span>
-              <CreditCard className="h-5 w-5 text-green-600" />
-            </button>
-            <button className="w-full flex items-center justify-between p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
-              <span className="text-purple-700">Estado de Resultados</span>
-              <BarChart3 className="h-5 w-5 text-purple-600" />
-            </button>
-          </div>
-        </div>
+      {renderActiveTab()}
 
-        {/* Resumen por Categorías */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 lg:col-span-2">
-          <h3 className="text-lg font-semibold mb-4">Distribución de Gastos</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-3 bg-red-50 rounded-lg">
-              <div className="text-red-600 font-bold text-lg">45%</div>
-              <div className="text-sm text-red-700">Operativos</div>
-            </div>
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <div className="text-blue-600 font-bold text-lg">25%</div>
-              <div className="text-sm text-blue-700">Administrativos</div>
-            </div>
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <div className="text-green-600 font-bold text-lg">20%</div>
-              <div className="text-sm text-green-700">Comerciales</div>
-            </div>
-            <div className="text-center p-3 bg-purple-50 rounded-lg">
-              <div className="text-purple-600 font-bold text-lg">10%</div>
-              <div className="text-sm text-purple-700">Financieros</div>
-            </div>
-          </div>
-        </div>
+      {/* Barra de herramientas global */}
+      <div className="fixed bottom-6 right-6 flex space-x-3">
+        <button className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors">
+          <Plus className="h-6 w-6" />
+        </button>
+        <button className="bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors">
+          <Download className="h-6 w-6" />
+        </button>
+        <button className="bg-purple-600 text-white p-3 rounded-full shadow-lg hover:bg-purple-700 transition-colors">
+          <FileText className="h-6 w-6" />
+        </button>
       </div>
-
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        <article className="p-4">
-          <header className="mb-6 flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <div className="mr-4">
-              <h2 className="text-lg font-semibold">Registro de Transacciones</h2>
-              <p className="text-sm text-gray-500">
-                {totalRecords} transacciones registradas
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <FiltrosContabilidad
-                onSubmit={handleSubmit(onSubmit)}
-                register={register}
-              />
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={limpiarFiltros}
-                  className="text-sm text-gray-600 hover:text-gray-800 underline"
-                >
-                  Limpiar
-                </button>
-
-                <button
-                  onClick={handleRefetchAll}
-                  className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-100"
-                  title="Actualizar"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </button>
-
-                <button
-                  onClick={handleGenerarReporte}
-                  className="flex items-center gap-1 bg-blue-600 text-white text-sm px-4 py-2 rounded-md cursor-pointer hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                  Exportar
-                </button>
-              </div>
-            </div>
-          </header>
-
-          <section className="overflow-x-auto">
-            {isLoading ? (
-              <LoadingSection message="Cargando transacciones..." />
-            ) : error ? (
-              <div className="p-4 text-center">
-                <p className="text-red-500 mb-2">{error}</p>
-                <button
-                  onClick={refetch}
-                  className="text-blue-600 hover:text-blue-800 underline"
-                >
-                  Reintentar
-                </button>
-              </div>
-            ) : transacciones.length > 0 ? (
-              <>
-                <DynamicTable
-                  data={transacciones}
-                />
-                <div className="p-4">
-                  <Pagination
-                    currentPage={currentPage}
-                    loading={isLoading}
-                    setCurrentPage={setCurrentPage}
-                    totalPages={totalPages}
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="p-8 text-center">
-                <p className="text-gray-500 mb-4">No se encontraron transacciones con los filtros aplicados.</p>
-                <button
-                  onClick={limpiarFiltros}
-                  className="text-blue-600 hover:text-blue-800 underline"
-                >
-                  Ver todas las transacciones
-                </button>
-              </div>
-            )}
-          </section>
-        </article>
-      </div>
-
-      {/* Modales */}
-      <Modal
-        modalName="reporte-detallado"
-        title="Reporte Financiero Detallado"
-        maxWidth="4xl"
-      >
-        <div className="p-4">
-          <p>Contenido del reporte detallado...</p>
-        </div>
-      </Modal>
-
-      <Modal
-        modalName="nueva-transaccion"
-        title="Registrar Nueva Transacción"
-        maxWidth="lg"
-      >
-        <div className="p-4">
-          <p>Formulario para nueva transacción...</p>
-        </div>
-      </Modal>
     </main>
   );
 }

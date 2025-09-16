@@ -37,8 +37,7 @@ export interface FilterSectionProps {
     Filtros: FilterType[];
     Selects: SelectType[];
     OrderBy: OrderByType;
-    sum: boolean;
-    distinct: boolean;
+    Agregaciones: { Key: string; Operation: string; Alias: string }[];
   }) => void;
   onReset: () => void;
   config: string;
