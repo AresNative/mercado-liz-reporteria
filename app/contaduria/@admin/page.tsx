@@ -266,7 +266,7 @@ const DashboardContabilidad = ({ reporte }: { reporte: ReporteFinanciero }) => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b">
+              <tr className="border-b border-gray-300">
                 <th className="text-left py-2">Fecha</th>
                 <th className="text-left py-2">Descripción</th>
                 <th className="text-left py-2">Tipo</th>
@@ -281,7 +281,7 @@ const DashboardContabilidad = ({ reporte }: { reporte: ReporteFinanciero }) => {
                 { fecha: '2024-01-13', descripcion: 'Compra materia prima', tipo: 'gasto', monto: 18000, estado: 'pendiente' },
                 { fecha: '2024-01-12', descripcion: 'Pago servicios', tipo: 'gasto', monto: 8500, estado: 'completado' }
               ].map((trans, index) => (
-                <tr key={index} className="border-b hover:bg-gray-50">
+                <tr key={index} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="py-2">{new Date(trans.fecha).toLocaleDateString('es-MX')}</td>
                   <td className="py-2">{trans.descripcion}</td>
                   <td className="py-2">
@@ -338,7 +338,7 @@ const BalanceGeneral = ({ balance }: { balance: BalanceGeneral }) => {
           <h3 className="text-lg font-semibold mb-4 text-green-600">ACTIVOS</h3>
 
           <div className="space-y-3">
-            <div className="flex justify-between border-b pb-2">
+            <div className="flex justify-between border-b border-gray-300 pb-2">
               <span className="font-medium">Activos Corrientes</span>
               <span>{formatCurrency(balance.activos_corrientes)}</span>
             </div>
@@ -362,7 +362,7 @@ const BalanceGeneral = ({ balance }: { balance: BalanceGeneral }) => {
               </div>
             </div>
 
-            <div className="flex justify-between border-b pb-2 pt-4">
+            <div className="flex justify-between border-b border-gray-300 pb-2 pt-4">
               <span className="font-medium">Activos No Corrientes</span>
               <span>{formatCurrency(balance.activos_no_corrientes)}</span>
             </div>
@@ -394,7 +394,7 @@ const BalanceGeneral = ({ balance }: { balance: BalanceGeneral }) => {
           <h3 className="text-lg font-semibold mb-4 text-red-600">PASIVOS Y PATRIMONIO</h3>
 
           <div className="space-y-3">
-            <div className="flex justify-between border-b pb-2">
+            <div className="flex justify-between border-b border-gray-300 pb-2">
               <span className="font-medium">Pasivos Corrientes</span>
               <span>{formatCurrency(balance.pasivos_corrientes)}</span>
             </div>
@@ -414,7 +414,7 @@ const BalanceGeneral = ({ balance }: { balance: BalanceGeneral }) => {
               </div>
             </div>
 
-            <div className="flex justify-between border-b pb-2 pt-4">
+            <div className="flex justify-between border-b border-gray-300 pb-2 pt-4">
               <span className="font-medium">Pasivos No Corrientes</span>
               <span>{formatCurrency(balance.pasivos_no_corrientes)}</span>
             </div>
@@ -430,7 +430,7 @@ const BalanceGeneral = ({ balance }: { balance: BalanceGeneral }) => {
               </div>
             </div>
 
-            <div className="flex justify-between border-b pb-2 pt-4">
+            <div className="flex justify-between border-b border-gray-300 pb-2 pt-4">
               <span className="font-medium">Patrimonio</span>
               <span>{formatCurrency(balance.patrimonio)}</span>
             </div>
@@ -459,7 +459,7 @@ const BalanceGeneral = ({ balance }: { balance: BalanceGeneral }) => {
       </div>
 
       {/* Ratios de solvencia */}
-      <div className="mt-8 pt-6 border-t">
+      <div className="mt-8 pt-6 border-t border-gray-300">
         <h3 className="text-lg font-semibold mb-4">Indicadores de Solvencia</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
@@ -503,12 +503,12 @@ const EstadoResultadosComponent = ({ estadoResultados }: { estadoResultados: Est
       <div className="space-y-4">
         {/* Ingresos */}
         <div className="space-y-2">
-          <div className="flex justify-between border-b pb-2">
+          <div className="flex justify-between border-b border-gray-300 pb-2">
             <span className="font-medium">Ingresos Operativos</span>
             <span className="font-medium">{formatCurrency(estadoResultados.ingresos_operativos)}</span>
           </div>
 
-          <div className="flex justify-between border-b pb-2">
+          <div className="flex justify-between border-b border-gray-300 pb-2">
             <span className="pl-4">(-) Costo de Ventas</span>
             <span>{formatCurrency(estadoResultados.costos_ventas)}</span>
           </div>
@@ -525,7 +525,7 @@ const EstadoResultadosComponent = ({ estadoResultados }: { estadoResultados: Est
 
         {/* Gastos Operativos */}
         <div className="space-y-2 pt-4">
-          <div className="flex justify-between border-b pb-2">
+          <div className="flex justify-between border-b border-gray-300 pb-2">
             <span className="font-medium">(-) Gastos Operativos</span>
             <span>{formatCurrency(estadoResultados.gastos_operativos)}</span>
           </div>
@@ -571,7 +571,7 @@ const EstadoResultadosComponent = ({ estadoResultados }: { estadoResultados: Est
             <span className="text-red-600">{formatCurrency(estadoResultados.otros_gastos)}</span>
           </div>
 
-          <div className="flex justify-between pt-4 font-bold text-lg border-t">
+          <div className="flex justify-between pt-4 font-bold text-lg border-t border-gray-300">
             <span>UTILIDAD NETA ANTES DE IMPUESTOS</span>
             <span className="text-green-600">{formatCurrency(estadoResultados.utilidad_neta + estadoResultados.otros_gastos - estadoResultados.otros_ingresos)}</span>
           </div>
@@ -581,7 +581,7 @@ const EstadoResultadosComponent = ({ estadoResultados }: { estadoResultados: Est
             <span className="text-red-600">{formatCurrency((estadoResultados.utilidad_neta + estadoResultados.otros_gastos - estadoResultados.otros_ingresos) * 0.3)}</span>
           </div>
 
-          <div className="flex justify-between pt-4 font-bold text-xl border-t">
+          <div className="flex justify-between pt-4 font-bold text-xl border-t border-gray-300">
             <span>UTILIDAD NETA DEL EJERCICIO</span>
             <span className="text-green-600">{formatCurrency(estadoResultados.utilidad_neta)}</span>
           </div>
@@ -593,7 +593,7 @@ const EstadoResultadosComponent = ({ estadoResultados }: { estadoResultados: Est
       </div>
 
       {/* Análisis de rentabilidad */}
-      <div className="mt-8 pt-6 border-t">
+      <div className="mt-8 pt-6 border-t border-gray-300">
         <h3 className="text-lg font-semibold mb-4">Análisis de Rentabilidad</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[

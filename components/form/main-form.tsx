@@ -32,7 +32,7 @@ import { TagInputComponent as TagInput } from "./tag-input"
 import { useLoginUserMutation } from "@/hooks/reducers/auth";
 import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer } from "@/hooks/reducers/drop-down";
-import { usePostMutation } from "@/hooks/reducers/api";
+import { usePostImgMutation, usePostMutation } from "@/hooks/reducers/api";
 import Link from "next/link";
 
 export const MainForm = ({ message_button, dataForm, actionType, aditionalData, action, valueAssign, onSuccess, formName, modelName, iconButton }: MainFormProps) => {
@@ -56,6 +56,7 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
 
   const [postUserLogin] = useLoginUserMutation();
   const [post] = usePostMutation();
+  const [postImg] = usePostImgMutation(); // Hook para subir imágenes
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
     const payload = formName ? data : { [modelName ?? actionType.toLowerCase()]: modelName ? data : [data] };
@@ -72,6 +73,23 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
         }).unwrap();
     }
   }
+
+  // Función para subir imágenes
+  async function uploadImage(fileData: any, additionalParams: any) {
+    const { idRef, tabla, descripcion } = additionalParams;
+
+    const formData = new FormData();
+    formData.append("file", fileData.file);
+
+    return await postImg({
+      idRef,
+      tabla,
+      descripcion,
+      file: formData,
+      signal: new AbortController().signal,
+    }).unwrap();
+  }
+
   // Efecto para restaurar los valores del formulario al cambiar de página
   useEffect(() => {
     const currentPageData = pages[page].reduce((acc: any, field: any) => {
@@ -88,25 +106,54 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
 
   async function onSubmit(submitData: any) {
     setLoading(true);
-    const formatData = new FormData();
 
-    submitData.file && Array.isArray(submitData.file) ?
-      submitData.file.forEach((file: any) => {
-        formatData.append("File", file);
-      }) :
-      formatData.append("File", submitData.file);
-
-    const { file, ...sanitizedData } = submitData;
-
-    const combinedData: any = aditionalData
-      ? { ...sanitizedData, ...aditionalData }
-      : sanitizedData;
-
-    formName && formatData.append(formName, JSON.stringify(combinedData));
+    // Detectar si hay archivos para subir
+    const hasFiles = submitData.file &&
+      (Array.isArray(submitData.file) ? submitData.file.length > 0 : submitData.file instanceof File);
 
     try {
-      const result = await getMutationFunction(actionType, formName && formatData ? formatData : combinedData);
-      if (onSuccess) onSuccess(result, combinedData);
+      let result;
+      let combinedData: any = {};
+
+      if (hasFiles) {
+        // Si hay archivos, usar el endpoint de subida de imágenes
+        const uploadParams = {
+          idRef: aditionalData?.idRef || submitData.idRef || "defaultId",
+          tabla: aditionalData?.tabla || submitData.tabla || "defaultTable",
+          descripcion: aditionalData?.descripcion || submitData.descripcion || "",
+        };
+        if (Array.isArray(submitData.file)) {
+          // Subir múltiples archivos
+          const uploadPromises = submitData.file.map((file: File) =>
+            uploadImage({ file }, uploadParams)
+          );
+          result = await Promise.all(uploadPromises);
+        } else {
+          // Subir un solo archivo
+          result = await uploadImage({ file: submitData.file }, uploadParams);
+        }
+      } else {
+        // Si no hay archivos, proceder con el flujo normal
+        const formatData = new FormData();
+
+        submitData.file && Array.isArray(submitData.file) ?
+          submitData.file.forEach((file: any) => {
+            formatData.append("File", file);
+          }) :
+          formatData.append("File", submitData.file);
+
+        const { file, ...sanitizedData } = submitData;
+
+        combinedData = aditionalData
+          ? { ...sanitizedData, ...aditionalData }
+          : sanitizedData;
+
+        formName && formatData.append(formName, JSON.stringify(combinedData));
+
+        result = await getMutationFunction(actionType, formName && formatData ? formatData : combinedData);
+      }
+
+      if (onSuccess) onSuccess(result, hasFiles ? submitData : combinedData);
 
       if (action) {
         const cleanKey = (key: string) => key.replace(/^'|'$/g, '');
@@ -123,13 +170,12 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
           await (payload !== undefined ? action(payload) : action());
         } catch (error) {
           console.log('Error processing action:', error);
-          // Considerar propagar el error o manejar según necesidad
         }
       }
       reset();
     } catch (error: any) {
       console.log("Error en el envío del formulario:", error)
-      dispatch(openAlertReducer(error.data.message ?
+      dispatch(openAlertReducer(error.data?.message ?
         {
           title: "Error en el envío del formulario",
           message: error.data.message,
@@ -147,6 +193,7 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
       setLoading(false);
     }
   }
+
   // Dividir dataForm en páginas basadas en H1
   const pages = dataForm.reduce((acc: any[], field: any) => {
     if (field.type === "H1" || acc.length === 0) {
@@ -157,7 +204,6 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
   }, []);
 
   const handlePageChange = (newPage: number) => {
-    // Guardar los valores actuales del formulario antes de cambiar de página
     const currentValues = getValues();
     setFormData((prevData: any) => ({ ...prevData, ...currentValues }));
     setPage(newPage);

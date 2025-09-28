@@ -67,6 +67,24 @@ export const api_int = createApi({
             }),
             extraOptions: { maxRetries: 2 }
         }),
+        getWithFiltersGeneralInIntelisis: builder.mutation({
+            query: ({ table, page, pageSize, filtros, signal }) => ({
+                url: `/v1/consultar/filtros`,
+                method: "POST",
+                params: {
+                    page,
+                    table, // tabla a consultar
+                    pageSize,
+                },
+                body: filtros,
+                signal,
+            }),
+            transformErrorResponse: (response: any) => ({
+                status: response.status,
+                message: response.data?.message || "Error fetching data",
+            }),
+            extraOptions: { maxRetries: 2 },
+        }),
     }),
 });
 
@@ -74,4 +92,5 @@ export const {
     useGetMutation,
     usePostMutation,
     useGetArticulosQuery,
+    useGetWithFiltersGeneralInIntelisisMutation
 } = api_int;

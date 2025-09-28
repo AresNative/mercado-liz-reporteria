@@ -4,7 +4,34 @@ import { getCookie } from "@/utils/functions/cookies";
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 
 const { api: apiUrl } = EnvConfig();
+/* 
+@  endpoints:
+@    - get: consulta general
+@    - getGeneral: consulta general sin url base
+@    - getPerIds: consulta por ID
+@    - getWithFilters: consulta con filtros y paginación
+@    - getWithFiltersGeneral: consulta con filtros y paginación sin url base
+@    - post: creación de registros
+@    - postGeneral: creación de registros sin url base
+@    - put: actualización de registros
+@    - putGeneral: actualización de registros sin url base
+@    - postImg: subida de imágenes
 
+* el uso de los endpoints general es para cuando se requiere especificar la tabla en los parámetros
+* en lugar de tener una url base fija.
+* Cada endpoint maneja errores y reintentos de manera uniforme.
+
+! Nota: Asegúrate de que los endpoints del backend coincidan con los definidos aquí.
+
+Ejemplo de uso en un componente:
+
+import { useGetQuery, usePostMutation } from "@/hooks/reducers/api";
+const { data, error, isLoading } = useGetQuery({ url: 'tu-endpoint', signal: new AbortController().signal });
+const [postData, { data: postResponse, error: postError, isLoading: isPosting }] = usePostMutation();
+postData({ url: 'tu-endpoint', data: { key: 'value' }, signal: new AbortController().signal });
+
+? Los endpoints con "General" permiten especificar la tabla en los parámetros, por lo que solo deben en desarrollo.
+*/
 export const api = createApi({
   reducerPath: "api",
   refetchOnFocus: true,
@@ -14,7 +41,6 @@ export const api = createApi({
     baseUrl: apiUrl,
     prepareHeaders: async (headers, {}) => {
       const token = (await getCookie("token")) ?? getLocalStorageItem("token"); // <- usa cookie
-
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
@@ -161,6 +187,21 @@ export const api = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
+
+    postImg: builder.mutation({
+      // <-- endpoint para subir imagenes
+      query: ({ idRef, tabla, descripcion, file, signal }) => ({
+        url: `v1/recursos/upload`,
+        method: "POST",
+        params: { idRef, tabla, descripcion, file },
+        signal,
+      }),
+      transformErrorResponse: (response: any) => ({
+        status: response.status,
+        message: response.data?.message || "Error fetching data",
+      }),
+      extraOptions: { maxRetries: 2 },
+    }),
   }),
 });
 
@@ -174,4 +215,5 @@ export const {
   usePostGeneralMutation,
   usePutMutation,
   usePutGeneralMutation,
+  usePostImgMutation,
 } = api;
