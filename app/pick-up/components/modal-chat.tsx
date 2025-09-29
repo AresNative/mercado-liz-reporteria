@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { listenRealTimeData, updateUserStatus, sendMessage } from "../utils/use-db-firebase";
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 import { Send, UserCircle } from "lucide-react";
+
 // Tipos para nuestro chat
 export type Message = {
     id: string;
@@ -20,14 +21,33 @@ export type User = {
     lastSeen?: number;
 };
 
-export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
+interface ModalChatProps {
+    telefonoClient: string | null;
+    pedido?: any; // Agregar esta prop opcional para información del pedido
+}
+
+export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [users, setUsers] = useState<Record<string, User>>({});
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const userId = getLocalStorageItem('user-id');
+
+    // Generar el nombre del modal consistentemente
+    const modalName = telefonoClient ? `chat_${telefonoClient}` : 'chat_general';
+
+    // Título del modal con información del cliente/pedido
+    const getModalTitle = () => {
+        if (pedido?.nombre) {
+            return `Chat con ${pedido.nombre} - ${telefonoClient || 'Sin teléfono'}`;
+        }
+        return telefonoClient ? `Chat - ${telefonoClient}` : 'Chat General';
+    };
+
     // Cargar mensajes en tiempo real
     useEffect(() => {
+        if (!telefonoClient) return;
+
         const unsubscribeMessages = listenRealTimeData(
             `chats/${telefonoClient}/messages`,
             (messagesData) => {
@@ -51,12 +71,17 @@ export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
             if (usersData) setUsers(usersData);
         });
 
-        updateUserStatus(userId, "Soporte", '000-000-0000');
+        // Actualizar estado del usuario como soporte
+        if (userId) {
+            updateUserStatus(userId, "Soporte", '000-000-0000');
+        }
 
         return () => {
             unsubscribeMessages();
             unsubscribeUsers();
-            updateUserStatus(userId, "Soporte", '000-000-0000');
+            if (userId) {
+                updateUserStatus(userId, "Soporte", '000-000-0000');
+            }
         };
     }, [telefonoClient, userId]);
 
@@ -70,7 +95,7 @@ export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
     };
 
     const handleSendMessage = async () => {
-        if (!newMessage.trim()) return;
+        if (!newMessage.trim() || !telefonoClient) return;
 
         try {
             await sendMessage(telefonoClient, userId, "Soporte", newMessage.trim());
@@ -85,10 +110,15 @@ export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
         return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
+    // Si no hay teléfono cliente, no renderizar el modal
+    if (!telefonoClient) {
+        return null;
+    }
+
     return (
-        <Modal modalName={telefonoClient} title={telefonoClient}>
-            <>
-                <div className="flex flex-col p-4 pb-20">
+        <Modal modalName={modalName} title={getModalTitle()} maxWidth="md">
+            <div className="flex flex-col min-h-[500px]  relative">
+                <div className="flex-1 h-full overflow-y-auto p-4 pb-20">
                     {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center py-12 px-4">
                             <UserCircle className="w-16 h-16 text-gray-300 mb-4" />
@@ -101,7 +131,7 @@ export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
                         <div className="space-y-3">
                             {messages.map((message) => {
                                 const isCurrentUser = message.userId === userId;
-                                const user = users[message.userId] || { name: message.userName };
+                                const user = users[message.userId] || { nombre: message.userName };
 
                                 return (
                                     <div
@@ -115,7 +145,7 @@ export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
 
                                             <div>
                                                 {!isCurrentUser && (
-                                                    <div className="text-xs font-medium text-gray-600 dark:text-gray-100 mb-1 ml-1">
+                                                    <div className="text-xs font-medium text-gray-600 mb-1 ml-1">
                                                         {user.nombre}
                                                     </div>
                                                 )}
@@ -125,7 +155,7 @@ export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
                                                         rounded-2xl px-4 py-3
                                                         ${isCurrentUser
                                                             ? 'bg-purple-500 text-white rounded-br-none'
-                                                            : 'bg-white text-gray-800 dark:text-gray-200 rounded-bl-none shadow-sm'}
+                                                            : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-200'}
                                                     `}>
                                                         {message.text}
                                                     </div>
@@ -145,7 +175,7 @@ export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
                 </div>
 
                 {/* Área de entrada de mensajes */}
-                <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3">
+                <div className="relative bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3">
                     <div className="flex items-center gap-2">
                         <input
                             value={newMessage}
@@ -166,7 +196,7 @@ export const ModalChat = ({ telefonoClient }: { telefonoClient: any }) => {
                         </button>
                     </div>
                 </div>
-            </>
+            </div>
         </Modal>
     )
 }

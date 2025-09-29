@@ -52,6 +52,7 @@ interface Pedido {
     urgencia?: 'alta' | 'media' | 'baja'; // Nueva propiedad para urgencia
     tiempo_restante?: number; // Minutos restantes para la cita
 }
+
 const getUrgenciaBadge = (urgencia: string, tiempo_restante: number) => {
     switch (urgencia) {
         case 'alta':
@@ -72,6 +73,7 @@ const getUrgenciaBadge = (urgencia: string, tiempo_restante: number) => {
             return null;
     }
 };
+
 interface TablaPedidosProps {
     data: Pedido[];
     onViewDetails: (pedido: Pedido) => void;
@@ -81,9 +83,12 @@ interface TablaPedidosProps {
 export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedidosProps) => {
     const dispatch = useAppDispatch();
     const [chatAbierto, setChatAbierto] = useState<string | null>(null);
+    const [pedidoChat, setPedidoChat] = useState<Pedido | null>(null);
 
-    const handleOpenChat = (telefonoCliente: string) => {
+    const handleOpenChat = (pedido: Pedido) => {
+        const telefonoCliente = pedido.cliente_telefono || 'general';
         setChatAbierto(telefonoCliente);
+        setPedidoChat(pedido);
         dispatch(openModalReducer({ modalName: `chat_${telefonoCliente}` }));
     };
 
@@ -182,9 +187,17 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
 
     return (
         <div className="overflow-x-auto">
-            <ModalChat
-                telefonoClient={chatAbierto}
-            />
+            {/* Modal de chat para cada cliente específico */}
+            {data.map((pedido) => {
+                const telefonoCliente = pedido.cliente_telefono || 'general';
+                return (
+                    <ModalChat
+                        key={`chat-${pedido.id}`}
+                        telefonoClient={telefonoCliente}
+                    />
+                );
+            })}
+
             <table className="w-full">
                 <thead className="bg-gray-50">
                     <tr>
@@ -203,6 +216,7 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                     {data.map((pedido) => {
                         const nextEstado = getNextEstado(pedido.estado);
                         const itemsCount = pedido.items?.length || 0;
+                        const telefonoCliente = pedido.cliente_telefono || 'general';
 
                         return (
                             <tr key={pedido.id} className="hover:bg-gray-50">
@@ -216,10 +230,10 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm text-gray-900">
-                                        {pedido.nombre}
+                                        {pedido.nombre || `Cliente ${pedido.id_cliente}`}
                                     </div>
                                     <div className="text-xs text-gray-500">
-                                        {pedido.cliente_telefono}
+                                        {pedido.cliente_telefono || 'N/A'}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -264,15 +278,13 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                                         </button>
 
                                         {/* Botón de Chat */}
-                                        {pedido.cliente_telefono && pedido.cliente_telefono !== 'N/A' && (
-                                            <button
-                                                onClick={() => handleOpenChat(pedido.cliente_telefono ?? '')}
-                                                className="text-purple-600 hover:text-purple-900 transition-colors"
-                                                title="Abrir chat con cliente"
-                                            >
-                                                <MessageCircle className="h-4 w-4" />
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={() => handleOpenChat(pedido)}
+                                            className="text-purple-600 hover:text-purple-900 transition-colors"
+                                            title={`Abrir chat con ${pedido.nombre || 'cliente'}`}
+                                        >
+                                            <MessageCircle className="h-4 w-4" />
+                                        </button>
 
                                         {nextEstado && pedido.estado !== 'cancelado' && (
                                             <button
