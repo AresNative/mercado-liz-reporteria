@@ -181,8 +181,13 @@ export default function GestionPedidos() {
             items = [];
         }
 
-        // Calcular urgencia basada en la fecha de cita
-        const calcularUrgencia = (fechaCita: string): { urgencia: 'alta' | 'media' | 'baja', tiempo_restante: number } => {
+        // Calcular urgencia solo para pedidos nuevos o en proceso
+        const calcularUrgencia = (fechaCita: string, estado: string): { urgencia: 'alta' | 'media' | 'baja', tiempo_restante: number } => {
+            // Solo calcular urgencia para pedidos nuevos o en proceso
+            if (estado !== 'nuevo' && estado !== 'proceso') {
+                return { urgencia: 'baja', tiempo_restante: 0 };
+            }
+
             if (!fechaCita) return { urgencia: 'baja', tiempo_restante: 0 };
 
             const ahora = new Date();
@@ -198,7 +203,7 @@ export default function GestionPedidos() {
             return { urgencia, tiempo_restante: minutosRestantes };
         };
 
-        const { urgencia, tiempo_restante } = calcularUrgencia(lista.fecha_cita || lista.fecha_creacion);
+        const { urgencia, tiempo_restante } = calcularUrgencia(lista.fecha_cita || lista.fecha_creacion, lista.estado);
 
         return {
             id: lista.id,
@@ -274,10 +279,26 @@ export default function GestionPedidos() {
                 // Mapear y procesar los datos de las listas
                 const pedidosProcesados: Pedido[] = response.data.map(parseListaData);
 
-                // Ordenar por urgencia (alta primero)
+                // Ordenar: primero por estado (nuevo y proceso primero), luego por urgencia
                 const pedidosOrdenados = pedidosProcesados.sort((a, b) => {
-                    const prioridad = { 'alta': 3, 'media': 2, 'baja': 1 };
-                    return (prioridad[b.urgencia || 'baja'] - prioridad[a.urgencia || 'baja']);
+                    // Prioridad de estados: nuevo > proceso > otros
+                    const prioridadEstado = { 'nuevo': 3, 'proceso': 2, 'listo': 1, 'entregado': 0, 'cancelado': 0 };
+                    const prioridadEstadoA = prioridadEstado[a.estado] || 0;
+                    const prioridadEstadoB = prioridadEstado[b.estado] || 0;
+
+                    // Si tienen diferente estado, ordenar por estado
+                    if (prioridadEstadoA !== prioridadEstadoB) {
+                        return prioridadEstadoB - prioridadEstadoA;
+                    }
+
+                    // Si ambos son nuevos o en proceso, ordenar por urgencia
+                    if (a.estado === 'nuevo' || a.estado === 'proceso') {
+                        const prioridadUrgencia = { 'alta': 3, 'media': 2, 'baja': 1 };
+                        return (prioridadUrgencia[b.urgencia || 'baja'] - prioridadUrgencia[a.urgencia || 'baja']);
+                    }
+
+                    // Para otros estados, ordenar por fecha de creación
+                    return new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime();
                 });
 
                 setPedidos(pedidosOrdenados);
@@ -293,7 +314,10 @@ export default function GestionPedidos() {
                     total_pickup: pedidosOrdenados.filter((p: Pedido) => p.servicio === 'Pickup').length,
                     total_domicilio: pedidosOrdenados.filter((p: Pedido) => p.servicio === 'Domicilio').length,
                     promedio_tiempo_entrega: 45,
-                    pedidos_urgentes: pedidosOrdenados.filter((p: Pedido) => p.urgencia === 'alta').length
+                    // Solo contar como urgentes los pedidos nuevos o en proceso con urgencia alta
+                    pedidos_urgentes: pedidosOrdenados.filter((p: Pedido) =>
+                        (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
+                    ).length
                 };
                 setEstadisticas(stats);
             }
@@ -875,106 +899,49 @@ export default function GestionPedidos() {
                                                             item.id,
                                                             e.target.checked
                                                         )}
-                                                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                                                        className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="font-medium">{item.nombre}</div>
-                                                    <div className="text-xs text-gray-500">{item.unidad}</div>
                                                     {item.articulo && (
-                                                        <div className="text-xs text-gray-400">SKU: {item.articulo}</div>
+                                                        <div className="text-xs text-gray-500">Artículo: {item.articulo}</div>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`px-2 py-1 text-xs rounded ${item.categoria === 'REFRIGERADOS' ? 'bg-blue-100 text-blue-800' :
-                                                        item.categoria === 'CONGELADOS' ? 'bg-purple-100 text-purple-800' :
-                                                            item.categoria === 'SECOS' ? 'bg-yellow-100 text-yellow-800' :
-                                                                'bg-gray-100 text-gray-800'
-                                                        }`}>
-                                                        {item.categoria}
-                                                    </span>
-                                                </td>
+                                                <td className="px-4 py-3">{item.categoria}</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <span className="font-medium">{item.quantity}</span>
+                                                    <span className="text-xs text-gray-500 ml-1">{item.unidad}</span>
                                                 </td>
-                                                <td className="px-4 py-3 text-right">${item.precio.toFixed(2)}</td>
-                                                <td className="px-4 py-3 text-right">${(item.precio * item.quantity).toFixed(2)}</td>
+                                                <td className="px-4 py-3 text-right">
+                                                    ${item.precio?.toFixed(2) || '0.00'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-medium">
+                                                    ${((item.precio || 0) * (item.quantity || 0)).toFixed(2)}
+                                                </td>
                                             </tr>
                                         ))}
-                                        <tr className="border-gray-300 border-t bg-gray-50 font-semibold">
-                                            <td colSpan={5} className="px-4 py-3 text-right">Total:</td>
-                                            <td className="px-4 py-3 text-right">${pedidoSeleccionado.total.toFixed(2)}</td>
-                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
 
-                        {/* Control de estado del pedido */}
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <h3 className="font-semibold text-lg mb-3">Control del Pedido</h3>
-                            <div className="flex flex-wrap gap-3 items-center justify-between">
-                                <div className="flex flex-wrap gap-2">
-                                    <span className="text-sm text-gray-600">Cambiar estado:</span>
-                                    {['nuevo', 'proceso', 'listo', 'entregado', 'cancelado'].map((estado) => (
-                                        <button
-                                            key={estado}
-                                            onClick={() => handleActualizarEstado(pedidoSeleccionado.id, estado)}
-                                            disabled={pedidoSeleccionado.estado === estado}
-                                            className={`px-3 py-1 text-xs rounded transition-colors ${pedidoSeleccionado.estado === estado
-                                                ? 'bg-blue-600 text-white cursor-default'
-                                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                                                }`}
-                                        >
-                                            {getEstadoDisplay(estado)}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <div className="flex items-center gap-2 text-sm">
-                                    <div className={`w-2 h-2 rounded-full ${pedidoSeleccionado.items.every((item: any) => item.recolectado)
-                                        ? 'bg-green-500'
-                                        : 'bg-yellow-500'
-                                        }`}></div>
-                                    <span className="text-gray-600">
-                                        {pedidoSeleccionado.items.every((item: any) => item.recolectado)
-                                            ? 'Todos los productos recolectados'
-                                            : 'Productos pendientes por recolectar'
-                                        }
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Acciones finales */}
-                        <div className="flex justify-between items-center pt-4 border-gray-300 border-t">
-                            <div className="text-sm text-gray-500">
-                                Última actualización: {formatDate(pedidoSeleccionado.fecha_actualizacion)}
-                            </div>
-
-                            <div className="flex space-x-3">
+                        {/* Botones de acción de estado */}
+                        <div className="flex flex-wrap gap-3 pt-4 border-gray-300 border-t">
+                            <h4 className="w-full font-semibold mb-2">Cambiar Estado:</h4>
+                            {['nuevo', 'proceso', 'listo', 'entregado', 'cancelado'].map((estado) => (
                                 <button
-                                    onClick={() => dispatch(closeModalReducer({ modalName: "detalle_pedido" }))}
-                                    className="px-4 py-2 text-sm bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                                    key={estado}
+                                    onClick={() => handleActualizarEstado(pedidoSeleccionado.id, estado)}
+                                    disabled={pedidoSeleccionado.estado === estado}
+                                    className={`px-4 py-2 rounded text-sm font-medium transition-colors ${pedidoSeleccionado.estado === estado
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                        }`}
                                 >
-                                    Cerrar
+                                    {getEstadoDisplay(estado)}
                                 </button>
-
-                                {pedidoSeleccionado.items.every((item: any) => item.recolectado) && (
-                                    <button
-                                        onClick={() => handleActualizarEstado(pedidoSeleccionado.id, 'listo')}
-                                        className="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                                    >
-                                        Marcar como Listo
-                                    </button>
-                                )}
-
-                                <button
-                                    onClick={() => handleActualizarEstado(pedidoSeleccionado.id, 'proceso')}
-                                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                                    Imprimir Lista
-                                </button>
-                            </div>
+                            ))}
                         </div>
                     </div>
                 )}
