@@ -13,6 +13,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@microsoft/signalr": "^9.0.6",
     "@reduxjs/toolkit": "^2.5.0",
     "@vercel/speed-insights": "^1.2.0",
     "apexcharts": "^4.3.0",

@@ -35,7 +35,7 @@ postData({ url: 'tu-endpoint', data: { key: 'value' }, signal: new AbortControll
 export const api = createApi({
   reducerPath: "api",
   refetchOnFocus: true,
-  keepUnusedDataFor: 10, // Reducir tiempo de caché para datos no usados
+  keepUnusedDataFor: 5, // Reducir tiempo de caché para datos no usados
   refetchOnMountOrArgChange: true, // Mejor control de refetch
   baseQuery: fetchBaseQuery({
     baseUrl: apiUrl,
