@@ -989,7 +989,6 @@ export default function GestionPedidos() {
                         </div>
 
                         {/* Lista de productos con checkboxes */}
-                       // En la sección del modal de detalles del pedido, actualiza la tabla de productos:
                         <div>
                             <div className="flex justify-between items-center mb-3">
                                 <h3 className="font-semibold text-lg">Productos en la Lista</h3>
@@ -1107,7 +1106,6 @@ export default function GestionPedidos() {
                             </div>
                         </div>
                         {/* Botones de acción de estado */}
-                        // En la sección de control del pedido, agrega una validación para productos no encontrados:
                         <div className="bg-gray-50 p-4 rounded-lg">
                             <h3 className="font-semibold text-lg mb-3">Control del Pedido</h3>
                             <div className="flex flex-wrap gap-3 items-center justify-between">
