@@ -3,7 +3,7 @@
 import Pagination from "@/components/pagination";
 import DynamicTable, { DataItem } from "@/components/table";
 import { FilterSection } from "../components/filter-section";
-import { useGetMutation } from "@/hooks/reducers/api_int";
+import { useGetWithFiltersGeneralInIntelisisMutation } from "@/hooks/reducers/api_int";
 import { LoadingSection } from "@/template/loading-screen";
 import { Filter, X } from "lucide-react"; // Añadido X para el botón de regresar
 import { useEffect, useState, useRef, useMemo } from "react"; // Añadido useMemo
@@ -17,7 +17,7 @@ import Badge from "@/components/badge";
 const IMPORT_PAGE_SIZE = 10;
 
 export default function User() {
-  const [getData, { isLoading }] = useGetMutation();
+  const [getData, { isLoading }] = useGetWithFiltersGeneralInIntelisisMutation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Estado para tipo de reporte
@@ -54,33 +54,46 @@ export default function User() {
     try {
       const { sum, distinct, ...others } = activeFilters;
       const { data } = await getData({
-        url: `${config}`,
+        //url: `${config}`,
+        table: "[TC032841E].dbo.COMPRAD InvD INNER JOIN [TC032841E].dbo.COMPRA INV ON INVD.ID = INV.ID LEFT JOIN [TC032841E].dbo.ART ON INVD.Articulo = ART.Articulo LEFT JOIN [TC032841E].dbo.PROV C ON INV.Proveedor = C.Proveedor",
         pageSize: 10,
         page,
-        filters: {
+        filtros: {
           "Filtros": [
             {
-              "Key": "",
-              "Value": "",
-              "Operator": ""
+              "Key": "Cantidad",
+              "Value": "0",
+              "Operator": ">"
             }
           ],
           "Selects": [
-            {
-              "Key": ""
-            }
+            { "Key": "INVD.Codigo" },
+            { "Key": "C.Nombre" },
+            { "Key": "ART.Fabricante" },
+            { "Key": "INV.Mov" },
+            { "Key": "INVD.Articulo" },
+            { "Key": "ART.Descripcion1" },
+            { "Key": "ART.Categoria" },
+            { "Key": "ART.Grupo" },
+            { "Key": "ART.Linea" },
+            { "Key": "ART.Familia" },
+            { "Key": "INVD.Unidad" },
+            { "Key": "INVD.Factor" },
+            { "Key": "INVD.Cantidad" },
+            { "Key": "INVD.CantidadInventario" },
+            { "Key": "INVD.Costo" },
+            { "Key": "INVD.Almacen" },
+            { "Key": "INVD.Impuesto1" },
+            { "Key": "INVD.Impuesto2" },
+            { "Key": "INVD.DescuentoImporte" },
+            { "Key": "FechaEmision" }
           ],
-          "Agregaciones": [
+          "Order": [
             {
-              "Key": "",
-              "Operation": "",
-              "Alias": ""
+              "Key": "FechaEmision",
+              "Direction": "DESC"
             }
-          ],
-          'OrderBy': {
-            Key: "FechaEmision",
-            Direction: "desc"
-          }
+          ]
         },
         signal: undefined,
       });

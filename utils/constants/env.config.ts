@@ -10,7 +10,7 @@ export const EnvConfig = (): EnvConfigType => {
   const mode = process.env.NEXT_PUBLIC_MODE ?? "development";
   const api =
     mode === "production"
-      ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:5230/api/"
+      ? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5230/api/"
       : "http://localhost:5230/api/";
 
   const api_int =
