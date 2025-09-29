@@ -457,7 +457,7 @@ export default function GestionPedidos() {
                 } : null);
             }
 
-            alert('Todos los productos marcados como recolectados.');
+            /* alert('Todos los productos marcados como recolectados.'); */
 
         } catch (error) {
             console.error('Error al marcar todos como recolectados:', error);
@@ -505,7 +505,7 @@ export default function GestionPedidos() {
                 } : null);
             }
 
-            alert('Todos los productos desmarcados como recolectados.');
+            /* alert('Todos los productos desmarcados como recolectados.'); */
 
         } catch (error) {
             console.error('Error al desmarcar todos como recolectados:', error);
