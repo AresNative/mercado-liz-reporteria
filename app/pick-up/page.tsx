@@ -73,7 +73,7 @@ interface Pedido {
     array_lista: string;
     fecha_creacion: string;
     fecha_actualizacion: string;
-    estado: 'nuevo' | 'proceso' | 'listo' | 'entregado' | 'cancelado';
+    estado: 'nuevo' | 'proceso' | 'listo' | 'entregado' | 'cancelado' | 'incompleto';
     es_publica: number;
     items: ListaItem[];
     cliente?: Cliente;
@@ -250,7 +250,7 @@ export default function GestionPedidos() {
 
                 // Ordenar: primero por estado (nuevo y proceso primero), luego por urgencia
                 const pedidosOrdenados = pedidosProcesados.sort((a, b) => {
-                    const prioridadEstado = { 'nuevo': 3, 'proceso': 2, 'listo': 1, 'entregado': 0, 'cancelado': 0 };
+                    const prioridadEstado = { 'nuevo': 3, 'proceso': 2, 'listo': 1, 'entregado': 0, 'cancelado': 0, 'incompleto': 0 };
                     const prioridadEstadoA = prioridadEstado[a.estado] || 0;
                     const prioridadEstadoB = prioridadEstado[b.estado] || 0;
 
