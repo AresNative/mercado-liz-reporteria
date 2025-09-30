@@ -5,6 +5,7 @@ import { useAppDispatch } from "@/hooks/selector";
 import { Eye, Truck, Clock, CheckCircle, XCircle, Store, Home, MessageCircle } from "lucide-react"
 import { useState } from "react";
 import { ModalChat } from "./modal-chat";
+import { CountdownTimer } from "@/app/contaduria/components/counter-down";
 
 interface ListaItem {
     id: string;
@@ -40,8 +41,7 @@ interface Pedido {
     array_lista: string;
     fecha_creacion: string;
     fecha_actualizacion: string;
-    fecha_cita?: string; // Nueva fecha de cita
-    estado: 'nuevo' | 'proceso' | 'listo' | 'entregado' | 'cancelado';
+    estado: 'nuevo' | 'proceso' | 'listo' | 'entregado' | 'cancelado' | 'incompleto';
     es_publica: number;
     items: ListaItem[];
     cliente?: Cliente; // Información del cliente desde JOIN
@@ -52,21 +52,43 @@ interface Pedido {
     urgencia?: 'alta' | 'media' | 'baja'; // Nueva propiedad para urgencia
     tiempo_restante?: number; // Minutos restantes para la cita
 }
+const getUrgenciaBadge = (
+    urgencia: string,
+    fechaEntrega: any, // nombre_lista es la fecha de entrega
+    pedidoId: number,
+    estadoActual: string,
+    onUpdateStatus: (pedidoId: number, nuevoEstado: string) => void
+) => {
+    // Convertir la fecha de entrega (nombre_lista) a timestamp
+    const fechaExpiracion = new Date(fechaEntrega);
 
-const getUrgenciaBadge = (urgencia: string, tiempo_restante: number) => {
+    const handleTiempoExpirado = () => {
+        // Si el tiempo expiró y el pedido no está entregado o cancelado, marcarlo como incompleto
+        if (estadoActual !== 'entregado' && estadoActual !== 'incompleto' && estadoActual !== 'cancelado') {
+            console.log(`⏰ Tiempo expirado para pedido ${pedidoId}, marcando como INCOMPLETO`);
+            onUpdateStatus(pedidoId, 'incompleto');
+        }
+    };
+
     switch (urgencia) {
         case 'alta':
             return (
                 <span className="flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                     <Clock className="h-3 w-3 mr-1" />
-                    Urgente ({tiempo_restante}min)
+                    <CountdownTimer
+                        endDate={fechaExpiracion}
+                        refrech={handleTiempoExpirado}
+                    />
                 </span>
             );
         case 'media':
             return (
                 <span className="flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                     <Clock className="h-3 w-3 mr-1" />
-                    Próximo ({tiempo_restante}min)
+                    <CountdownTimer
+                        endDate={fechaExpiracion}
+                        refrech={handleTiempoExpirado}
+                    />
                 </span>
             );
         default:
@@ -96,6 +118,7 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
         switch (estado) {
             case 'entregado': return <CheckCircle className="h-4 w-4 text-green-500" />;
             case 'cancelado': return <XCircle className="h-4 w-4 text-red-500" />;
+            case 'incompleto': return <XCircle className="h-4 w-4 text-orange-500" />;
             case 'listo': return <CheckCircle className="h-4 w-4 text-blue-500" />;
             default: return <Clock className="h-4 w-4 text-yellow-500" />;
         }
@@ -108,8 +131,21 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
             case 'listo': return 'bg-green-100 text-green-800';
             case 'entregado': return 'bg-green-100 text-green-800';
             case 'cancelado': return 'bg-red-100 text-red-800';
+            case 'incompleto': return 'bg-orange-100 text-orange-800';
             default: return 'bg-gray-100 text-gray-800';
         }
+    };
+
+    const getEstadoDisplay = (estado: string) => {
+        const estados: { [key: string]: string } = {
+            'nuevo': 'Nuevo',
+            'proceso': 'En Proceso',
+            'listo': 'Listo',
+            'entregado': 'Entregado',
+            'cancelado': 'Cancelado',
+            'incompleto': 'Incompleto'
+        };
+        return estados[estado] || estado;
     };
 
     const getServicioIcon = (servicio: string) => {
@@ -129,24 +165,17 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
     };
 
     const formatFecha = (fecha: string) => {
-        return new Date(fecha).toLocaleDateString('es-MX', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
-
-    const getEstadoDisplay = (estado: string) => {
-        const estados: { [key: string]: string } = {
-            'nuevo': 'Nuevo',
-            'proceso': 'En Proceso',
-            'listo': 'Listo',
-            'entregado': 'Entregado',
-            'cancelado': 'Cancelado'
-        };
-        return estados[estado] || estado;
+        try {
+            return new Date(fecha).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return 'Fecha inválida';
+        }
     };
 
     const getNextEstado = (currentEstado: string): string | null => {
@@ -155,6 +184,10 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
             'proceso': 'listo',
             'listo': 'entregado'
         };
+        // No permitir cambiar estado si está incompleto, cancelado o entregado
+        if (currentEstado === 'incompleto' || currentEstado === 'cancelado' || currentEstado === 'entregado') {
+            return null;
+        }
         return workflow[currentEstado] || null;
     };
 
@@ -183,6 +216,20 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
             case 'entregado': return 'text-purple-600 hover:text-purple-900';
             default: return 'text-gray-600 hover:text-gray-900';
         }
+    };
+
+    // Función para determinar si mostrar el contador
+    const debeMostrarContador = (pedido: Pedido): boolean => {
+        // Solo mostrar contador para pedidos activos que tengan fecha de entrega
+        const estadosActivos = ['nuevo', 'proceso', 'listo'];
+        return (
+            estadosActivos.includes(pedido.estado) &&
+            typeof pedido.urgencia !== 'undefined' &&
+            pedido.urgencia !== 'baja' &&
+            pedido.nombre_lista !== undefined &&
+            pedido.nombre_lista !== null &&
+            pedido.nombre_lista !== ''
+        );
     };
 
     return (
@@ -217,12 +264,25 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                         const nextEstado = getNextEstado(pedido.estado);
                         const itemsCount = pedido.items?.length || 0;
                         const telefonoCliente = pedido.cliente_telefono || 'general';
+                        const mostrarContador = debeMostrarContador(pedido);
 
                         return (
                             <tr key={pedido.id} className="hover:bg-gray-50">
                                 {/* Columna de Prioridad */}
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    {getUrgenciaBadge(pedido.urgencia || 'baja', pedido.tiempo_restante || 0)}
+                                    {mostrarContador && pedido.urgencia && pedido.nombre_lista ? (
+                                        getUrgenciaBadge(
+                                            pedido.urgencia,
+                                            pedido.nombre_lista,
+                                            pedido.id,
+                                            pedido.estado,
+                                            onUpdateStatus
+                                        )
+                                    ) : (
+                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                            {pedido.estado === 'incompleto' ? 'Incompleto' : 'Normal'}
+                                        </span>
+                                    )}
                                 </td>
 
                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -259,7 +319,7 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm text-gray-500">
-                                        {pedido.fecha_cita ? formatFecha(pedido.fecha_cita) : 'No asignada'}
+                                        {pedido.nombre_lista ? formatFecha(pedido.nombre_lista) : 'No asignada'}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">

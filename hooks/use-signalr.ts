@@ -1,67 +1,55 @@
 // hooks/use-signalr.ts
-import { useEffect, useRef, useState } from "react";
-import { HubConnection, HubConnectionBuilder } from "@microsoft/signalr";
+import { useState, useEffect, useRef } from "react";
+import {
+  HubConnection,
+  HubConnectionBuilder,
+  LogLevel,
+} from "@microsoft/signalr";
+import { EnvConfig } from "@/utils/constants/env.config";
 
-export const useSignalR = (hubUrl: string) => {
+export const useSignalR = (url: string) => {
   const [connection, setConnection] = useState<HubConnection | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const connectionRef = useRef<HubConnection | null>(null);
 
+  const { hubs: apiUrl } = EnvConfig();
   useEffect(() => {
-    const connect = async () => {
-      try {
-        const newConnection = new HubConnectionBuilder()
-          .withUrl(`${process.env.NEXT_PUBLIC_API_URL}${hubUrl}`)
-          .withAutomaticReconnect({
-            nextRetryDelayInMilliseconds: (retryContext) => {
-              // Reintentar después de 2, 5, 10 segundos...
-              return Math.min(
-                10000,
-                retryContext.previousRetryCount * 2000 + 2000
-              );
-            },
-          })
-          .build();
+    const newConnection = new HubConnectionBuilder()
+      .withUrl(`${apiUrl || ""}${url}`)
+      .withAutomaticReconnect()
+      .configureLogging(LogLevel.Information)
+      .build();
 
-        await newConnection.start();
+    connectionRef.current = newConnection;
+    setConnection(newConnection);
 
-        setConnection(newConnection);
-        connectionRef.current = newConnection;
+    newConnection
+      .start()
+      .then(() => {
+        console.log("SignalR Connected");
         setIsConnected(true);
-
-        console.log("SignalR Connected to:", hubUrl);
-
-        // Manejar reconexión
-        newConnection.onreconnected(() => {
-          console.log("SignalR reconnected");
-          setIsConnected(true);
-        });
-
-        newConnection.onreconnecting((error) => {
-          console.log("SignalR reconnecting:", error);
-          setIsConnected(false);
-        });
-
-        newConnection.onclose((error) => {
-          console.log("SignalR connection closed:", error);
-          setIsConnected(false);
-        });
-      } catch (error) {
+      })
+      .catch((error) => {
         console.error("SignalR Connection Error:", error);
         setIsConnected(false);
-      }
-    };
+      });
 
-    connect();
+    newConnection.onclose(() => {
+      console.log("SignalR Disconnected");
+      setIsConnected(false);
+    });
+
+    newConnection.onreconnected(() => {
+      console.log("SignalR Reconnected");
+      setIsConnected(true);
+    });
 
     return () => {
       if (connectionRef.current) {
         connectionRef.current.stop();
-        setConnection(null);
-        setIsConnected(false);
       }
     };
-  }, [hubUrl]);
+  }, [url]);
 
   return { connection, isConnected };
 };

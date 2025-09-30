@@ -73,7 +73,6 @@ interface Pedido {
     array_lista: string;
     fecha_creacion: string;
     fecha_actualizacion: string;
-    fecha_cita?: string;
     estado: 'nuevo' | 'proceso' | 'listo' | 'entregado' | 'cancelado';
     es_publica: number;
     items: ListaItem[];
@@ -170,7 +169,7 @@ export default function GestionPedidos() {
             return { urgencia, tiempo_restante: minutosRestantes };
         };
 
-        const { urgencia, tiempo_restante } = calcularUrgencia(lista.fecha_cita, lista.estado);
+        const { urgencia, tiempo_restante } = calcularUrgencia(lista.nombre_lista, lista.estado);
 
         return {
             id: lista.id,
@@ -184,7 +183,6 @@ export default function GestionPedidos() {
             array_lista: lista.array_lista,
             fecha_creacion: lista.fecha_creacion,
             fecha_actualizacion: lista.fecha_actualizacion,
-            fecha_cita: lista.fecha_cita,
             estado: lista.estado,
             es_publica: lista.es_publica,
             items: items,
@@ -299,7 +297,7 @@ export default function GestionPedidos() {
         fetchPedidos();
     }, [fetchPedidos]);
 
-    /* // SignalR handlers
+    // SignalR handlers
     const handlePedidoActualizado = useCallback((pedidoActualizado: any) => {
         console.log('Pedido actualizado recibido:', pedidoActualizado);
         setPedidos(prev => prev.map(pedido =>
@@ -342,7 +340,7 @@ export default function GestionPedidos() {
                 salirDePedido(pedidoSeleccionado.id);
             }
         };
-    }, [pedidoSeleccionado, unirseAPedido, salirDePedido]); */
+    }, [pedidoSeleccionado, unirseAPedido, salirDePedido]);
 
     const handleOpenModal = (pedido: Pedido) => {
         setPedidoSeleccionado(pedido);
@@ -824,22 +822,17 @@ export default function GestionPedidos() {
 
     return (
         <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
-            {/* <div className={`fixed top-4 right-4 z-50 px-3 py-1 rounded-full text-xs font-medium ${isConnected
-                ? 'bg-green-100 text-green-800 border border-green-300'
-                : 'bg-red-100 text-red-800 border border-red-300'
-                }`}>
-                {isConnected ? '🟢 Conectado' : '🔴 Desconectado'}
-            </div> */}
+
 
             <header className="mb-8">
                 <h1 className="flex items-center text-2xl font-bold md:text-3xl">
                     <Truck className="mr-2 h-8 w-8 text-blue-600" />
                     Gestión de Listas/Pedidos
-                    {/*  {isConnected && (
+                    {isConnected && (
                         <span className="ml-2 text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                            En tiempo real
+                            En tiempo real: {isConnected ? '🟢 Conectado' : '🔴 Desconectado'}
                         </span>
-                    )} */}
+                    )}
                 </h1>
                 <p className="mt-2 text-gray-600">
                     Administra listas Pick-Up y entregas a domicilio
@@ -1023,10 +1016,10 @@ export default function GestionPedidos() {
                                         </div>
                                     </div>
 
-                                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                        <div className="flex justify-between items-center">
+                                    <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-1">
+                                        <div className="flex justify-between items-center text-xs">
                                             <div>
-                                                <span className="text-red-700 font-medium">Productos no encontrados:</span>
+                                                <span className="text-red-700">Productos no encontrados:</span>
                                                 <span className="text-red-600 ml-2">
                                                     {pedidoSeleccionado.items.filter((item: any) => item.noEncontrado).length}
                                                 </span>
@@ -1034,7 +1027,7 @@ export default function GestionPedidos() {
                                             {pedidoSeleccionado.items.some((item: any) => item.noEncontrado) && (
                                                 <button
                                                     onClick={() => handleMarcarTodosEncontrados(pedidoSeleccionado.id)}
-                                                    className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                                                 >
                                                     Limpiar no encontrados
                                                 </button>

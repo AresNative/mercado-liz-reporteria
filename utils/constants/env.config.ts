@@ -2,6 +2,7 @@
 type EnvConfigType = {
   api: string;
   api_int: string;
+  hubs: string;
   mode: string;
   itemsPerPage: number;
 };
@@ -16,11 +17,17 @@ export const EnvConfig = (): EnvConfigType => {
   const api_int =
     process.env.NEXT_PUBLIC_API_URL_INT || "http://localhost:5000/api/";
 
+  const hubs =
+    mode === "production"
+      ? process.env.NEXT_PUBLIC_HUBS_URL ?? "http://localhost:5230/"
+      : "http://localhost:5230/";
+
   const itemsPerPage = parseInt(process.env.ITEMS_PER_PAGE || "10", 10); // Fallback a 10 si no está definido
 
   return {
     api,
     api_int,
+    hubs,
     mode,
     itemsPerPage,
   };
