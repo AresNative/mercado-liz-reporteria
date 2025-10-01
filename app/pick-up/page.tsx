@@ -73,8 +73,7 @@ interface Pedido {
     array_lista: string;
     fecha_creacion: string;
     fecha_actualizacion: string;
-    fecha_cita?: string;
-    estado: 'nuevo' | 'proceso' | 'listo' | 'entregado' | 'cancelado';
+    estado: 'nuevo' | 'proceso' | 'listo' | 'entregado' | 'cancelado' | 'incompleto';
     es_publica: number;
     items: ListaItem[];
     cliente?: Cliente;
@@ -170,7 +169,7 @@ export default function GestionPedidos() {
             return { urgencia, tiempo_restante: minutosRestantes };
         };
 
-        const { urgencia, tiempo_restante } = calcularUrgencia(lista.fecha_cita, lista.estado);
+        const { urgencia, tiempo_restante } = calcularUrgencia(lista.nombre_lista, lista.estado);
 
         return {
             id: lista.id,
@@ -184,7 +183,6 @@ export default function GestionPedidos() {
             array_lista: lista.array_lista,
             fecha_creacion: lista.fecha_creacion,
             fecha_actualizacion: lista.fecha_actualizacion,
-            fecha_cita: lista.fecha_cita,
             estado: lista.estado,
             es_publica: lista.es_publica,
             items: items,
@@ -252,7 +250,7 @@ export default function GestionPedidos() {
 
                 // Ordenar: primero por estado (nuevo y proceso primero), luego por urgencia
                 const pedidosOrdenados = pedidosProcesados.sort((a, b) => {
-                    const prioridadEstado = { 'nuevo': 3, 'proceso': 2, 'listo': 1, 'entregado': 0, 'cancelado': 0 };
+                    const prioridadEstado = { 'nuevo': 3, 'proceso': 2, 'listo': 1, 'entregado': 0, 'cancelado': 0, 'incompleto': 0 };
                     const prioridadEstadoA = prioridadEstado[a.estado] || 0;
                     const prioridadEstadoB = prioridadEstado[b.estado] || 0;
 
@@ -299,7 +297,7 @@ export default function GestionPedidos() {
         fetchPedidos();
     }, [fetchPedidos]);
 
-    /* // SignalR handlers
+    // SignalR handlers
     const handlePedidoActualizado = useCallback((pedidoActualizado: any) => {
         console.log('Pedido actualizado recibido:', pedidoActualizado);
         setPedidos(prev => prev.map(pedido =>
@@ -316,20 +314,68 @@ export default function GestionPedidos() {
     const handleNuevoPedido = useCallback((nuevoPedido: any) => {
         console.log('Nuevo pedido recibido:', nuevoPedido);
         const pedidoProcesado = parseListaData(nuevoPedido);
-        setPedidos(prev => [pedidoProcesado, ...prev]);
 
-        setEstadisticas(prev => ({
-            ...prev,
-            total_pedidos: prev.total_pedidos + 1,
-            pedidos_nuevos: prev.pedidos_nuevos + 1,
-            total_pickup: nuevoPedido.servicio === 'Pickup' ? prev.total_pickup + 1 : prev.total_pickup,
-            total_domicilio: nuevoPedido.servicio === 'Domicilio' ? prev.total_domicilio + 1 : prev.total_domicilio
-        }));
+        // ✅ CORREGIDO: Añadir al inicio y actualizar estadísticas correctamente
+        setPedidos(prev => {
+            const nuevoArray = [pedidoProcesado, ...prev];
+
+            // Actualizar estadísticas basado en el nuevo array
+            setEstadisticas(prevStats => ({
+                ...prevStats,
+                total_pedidos: prevStats.total_pedidos + 1,
+                pedidos_nuevos: nuevoArray.filter(p => p.estado === 'nuevo').length,
+                pedidos_proceso: nuevoArray.filter(p => p.estado === 'proceso').length,
+                total_pickup: nuevoArray.filter(p => p.servicio === 'Pickup').length,
+                total_domicilio: nuevoArray.filter(p => p.servicio === 'Domicilio').length,
+                pedidos_urgentes: nuevoArray.filter(p =>
+                    (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
+                ).length
+            }));
+
+            return nuevoArray;
+        });
     }, []);
 
+    // ✅ NUEVO: Handler para pedidos eliminados
+    const handlePedidoEliminado = useCallback((pedidoId: number) => {
+        console.log('Pedido eliminado recibido:', pedidoId);
+
+        setPedidos(prev => {
+            const pedidoEliminado = prev.find(p => p.id === pedidoId);
+            const nuevoArray = prev.filter(pedido => pedido.id !== pedidoId);
+
+            if (pedidoEliminado) {
+                // Actualizar estadísticas
+                setEstadisticas(prevStats => ({
+                    ...prevStats,
+                    total_pedidos: Math.max(0, prevStats.total_pedidos - 1),
+                    pedidos_nuevos: nuevoArray.filter(p => p.estado === 'nuevo').length,
+                    pedidos_proceso: nuevoArray.filter(p => p.estado === 'proceso').length,
+                    pedidos_listos: nuevoArray.filter(p => p.estado === 'listo').length,
+                    pedidos_entregados: nuevoArray.filter(p => p.estado === 'entregado').length,
+                    pedidos_cancelados: nuevoArray.filter(p => p.estado === 'cancelado').length,
+                    total_pickup: nuevoArray.filter(p => p.servicio === 'Pickup').length,
+                    total_domicilio: nuevoArray.filter(p => p.servicio === 'Domicilio').length,
+                    pedidos_urgentes: nuevoArray.filter(p =>
+                        (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
+                    ).length
+                }));
+            }
+
+            return nuevoArray;
+        });
+
+        // Si el pedido seleccionado fue eliminado, cerrar el modal
+        if (pedidoSeleccionado && pedidoSeleccionado.id === pedidoId) {
+            setPedidoSeleccionado(null);
+        }
+    }, [pedidoSeleccionado]);
+
+    // ✅ ACTUALIZADO: Pasar todos los handlers a SignalR
     const { isConnected, unirseAPedido, salirDePedido } = usePedidosSignalR(
         handlePedidoActualizado,
-        handleNuevoPedido
+        handleNuevoPedido,
+        handlePedidoEliminado // ✅ Añadido el nuevo handler
     );
 
     // Unirse/salir del grupo cuando se selecciona/deselecciona un pedido
@@ -342,7 +388,7 @@ export default function GestionPedidos() {
                 salirDePedido(pedidoSeleccionado.id);
             }
         };
-    }, [pedidoSeleccionado, unirseAPedido, salirDePedido]); */
+    }, [pedidoSeleccionado, unirseAPedido, salirDePedido]);
 
     const handleOpenModal = (pedido: Pedido) => {
         setPedidoSeleccionado(pedido);
@@ -824,22 +870,17 @@ export default function GestionPedidos() {
 
     return (
         <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
-            {/* <div className={`fixed top-4 right-4 z-50 px-3 py-1 rounded-full text-xs font-medium ${isConnected
-                ? 'bg-green-100 text-green-800 border border-green-300'
-                : 'bg-red-100 text-red-800 border border-red-300'
-                }`}>
-                {isConnected ? '🟢 Conectado' : '🔴 Desconectado'}
-            </div> */}
+
 
             <header className="mb-8">
                 <h1 className="flex items-center text-2xl font-bold md:text-3xl">
                     <Truck className="mr-2 h-8 w-8 text-blue-600" />
                     Gestión de Listas/Pedidos
-                    {/*  {isConnected && (
+                    {isConnected && (
                         <span className="ml-2 text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                            En tiempo real
+                            En tiempo real: {isConnected ? '🟢 Conectado' : '🔴 Desconectado'}
                         </span>
-                    )} */}
+                    )}
                 </h1>
                 <p className="mt-2 text-gray-600">
                     Administra listas Pick-Up y entregas a domicilio
@@ -1023,10 +1064,10 @@ export default function GestionPedidos() {
                                         </div>
                                     </div>
 
-                                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                        <div className="flex justify-between items-center">
+                                    <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-1">
+                                        <div className="flex justify-between items-center text-xs">
                                             <div>
-                                                <span className="text-red-700 font-medium">Productos no encontrados:</span>
+                                                <span className="text-red-700">Productos no encontrados:</span>
                                                 <span className="text-red-600 ml-2">
                                                     {pedidoSeleccionado.items.filter((item: any) => item.noEncontrado).length}
                                                 </span>
@@ -1034,7 +1075,7 @@ export default function GestionPedidos() {
                                             {pedidoSeleccionado.items.some((item: any) => item.noEncontrado) && (
                                                 <button
                                                     onClick={() => handleMarcarTodosEncontrados(pedidoSeleccionado.id)}
-                                                    className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                                                 >
                                                     Limpiar no encontrados
                                                 </button>
@@ -1090,6 +1131,7 @@ export default function GestionPedidos() {
                                         {pedidoSeleccionado.items.map((item: any, index) => {
                                             const isNoEncontrado = item.noEncontrado;
                                             const isRecolectado = item.recolectado;
+                                            console.log(item);
 
                                             return (
                                                 <tr

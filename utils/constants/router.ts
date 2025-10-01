@@ -13,6 +13,7 @@ import {
   UserRound,
   UsersRound,
   FileDigit,
+  ShoppingBasket,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -125,6 +126,11 @@ export const navigationAdmin = [
     name: "Pick Up",
     href: "/pick-up",
     icon: Truck,
+  },
+  {
+    name: "Articulos",
+    href: "/articulos",
+    icon: ShoppingBasket,
   },
   {
     name: "Proyectos",
