@@ -1120,6 +1120,7 @@ export default function GestionPedidos() {
                                         <tr>
                                             <th className="px-4 py-3 text-left font-semibold w-10">✓</th>
                                             <th className="px-4 py-3 text-left font-semibold w-10">⚠️</th>
+                                            <th className="px-4 py-3 text-left font-semibold">Codigo barras</th>
                                             <th className="px-4 py-3 text-left font-semibold">Producto</th>
                                             <th className="px-4 py-3 text-left font-semibold">Categoría</th>
                                             <th className="px-4 py-3 text-center font-semibold">Cantidad</th>
@@ -1177,6 +1178,7 @@ export default function GestionPedidos() {
                                                         />
                                                     </td>
 
+                                                    <td className="px-4 py-3">{item.id}</td>
                                                     <td className="px-4 py-3">
                                                         <div className={`font-medium ${isNoEncontrado ? 'line-through text-red-600' : ''
                                                             }`}>
