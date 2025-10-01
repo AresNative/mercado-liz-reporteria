@@ -314,20 +314,68 @@ export default function GestionPedidos() {
     const handleNuevoPedido = useCallback((nuevoPedido: any) => {
         console.log('Nuevo pedido recibido:', nuevoPedido);
         const pedidoProcesado = parseListaData(nuevoPedido);
-        setPedidos(prev => [pedidoProcesado, ...prev]);
 
-        setEstadisticas(prev => ({
-            ...prev,
-            total_pedidos: prev.total_pedidos + 1,
-            pedidos_nuevos: prev.pedidos_nuevos + 1,
-            total_pickup: nuevoPedido.servicio === 'Pickup' ? prev.total_pickup + 1 : prev.total_pickup,
-            total_domicilio: nuevoPedido.servicio === 'Domicilio' ? prev.total_domicilio + 1 : prev.total_domicilio
-        }));
+        // ✅ CORREGIDO: Añadir al inicio y actualizar estadísticas correctamente
+        setPedidos(prev => {
+            const nuevoArray = [pedidoProcesado, ...prev];
+
+            // Actualizar estadísticas basado en el nuevo array
+            setEstadisticas(prevStats => ({
+                ...prevStats,
+                total_pedidos: prevStats.total_pedidos + 1,
+                pedidos_nuevos: nuevoArray.filter(p => p.estado === 'nuevo').length,
+                pedidos_proceso: nuevoArray.filter(p => p.estado === 'proceso').length,
+                total_pickup: nuevoArray.filter(p => p.servicio === 'Pickup').length,
+                total_domicilio: nuevoArray.filter(p => p.servicio === 'Domicilio').length,
+                pedidos_urgentes: nuevoArray.filter(p =>
+                    (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
+                ).length
+            }));
+
+            return nuevoArray;
+        });
     }, []);
 
+    // ✅ NUEVO: Handler para pedidos eliminados
+    const handlePedidoEliminado = useCallback((pedidoId: number) => {
+        console.log('Pedido eliminado recibido:', pedidoId);
+
+        setPedidos(prev => {
+            const pedidoEliminado = prev.find(p => p.id === pedidoId);
+            const nuevoArray = prev.filter(pedido => pedido.id !== pedidoId);
+
+            if (pedidoEliminado) {
+                // Actualizar estadísticas
+                setEstadisticas(prevStats => ({
+                    ...prevStats,
+                    total_pedidos: Math.max(0, prevStats.total_pedidos - 1),
+                    pedidos_nuevos: nuevoArray.filter(p => p.estado === 'nuevo').length,
+                    pedidos_proceso: nuevoArray.filter(p => p.estado === 'proceso').length,
+                    pedidos_listos: nuevoArray.filter(p => p.estado === 'listo').length,
+                    pedidos_entregados: nuevoArray.filter(p => p.estado === 'entregado').length,
+                    pedidos_cancelados: nuevoArray.filter(p => p.estado === 'cancelado').length,
+                    total_pickup: nuevoArray.filter(p => p.servicio === 'Pickup').length,
+                    total_domicilio: nuevoArray.filter(p => p.servicio === 'Domicilio').length,
+                    pedidos_urgentes: nuevoArray.filter(p =>
+                        (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
+                    ).length
+                }));
+            }
+
+            return nuevoArray;
+        });
+
+        // Si el pedido seleccionado fue eliminado, cerrar el modal
+        if (pedidoSeleccionado && pedidoSeleccionado.id === pedidoId) {
+            setPedidoSeleccionado(null);
+        }
+    }, [pedidoSeleccionado]);
+
+    // ✅ ACTUALIZADO: Pasar todos los handlers a SignalR
     const { isConnected, unirseAPedido, salirDePedido } = usePedidosSignalR(
         handlePedidoActualizado,
-        handleNuevoPedido
+        handleNuevoPedido,
+        handlePedidoEliminado // ✅ Añadido el nuevo handler
     );
 
     // Unirse/salir del grupo cuando se selecciona/deselecciona un pedido
@@ -1083,6 +1131,7 @@ export default function GestionPedidos() {
                                         {pedidoSeleccionado.items.map((item: any, index) => {
                                             const isNoEncontrado = item.noEncontrado;
                                             const isRecolectado = item.recolectado;
+                                            console.log(item);
 
                                             return (
                                                 <tr

@@ -4,12 +4,11 @@ import { useEffect, useCallback } from "react";
 
 export const usePedidosSignalR = (
   onPedidoActualizado: (pedido: any) => void,
-  onNuevoPedido: (pedido: any) => void
+  onNuevoPedido: (pedido: any) => void,
+  onPedidoEliminado: (pedidoId: number) => void // ✅ NUEVO: callback para eliminaciones
 ) => {
-  // ✅ CORREGIDO: Usar el endpoint correcto - "/Hubs" es el endpoint configurado en el servidor
   const { connection, isConnected } = useSignalR("Hubs");
 
-  // Función para unirse a grupos específicos
   const unirseAGrupos = useCallback(async () => {
     if (connection && isConnected) {
       try {
@@ -44,17 +43,26 @@ export const usePedidosSignalR = (
         onPedidoActualizado(pedidoActualizado);
       });
 
-      connection.on("RegistroArchivado", (data: any) => {
-        console.log("Registro archivado:", data);
-        if (data.Tabla === "listas" || data.Tabla === "pedidos") {
-          onPedidoActualizado({ ...data.DatosOriginales, estado: "archivado" });
-        }
-      });
-
+      // ✅ CORREGIDO: Manejar eliminaciones correctamente
       connection.on("RegistroEliminado", (data: any) => {
         console.log("Registro eliminado:", data);
         if (data.Tabla === "listas" || data.Tabla === "pedidos") {
-          onPedidoActualizado({ ...data.DatosOriginales, estado: "eliminado" });
+          // Extraer el ID del pedido eliminado
+          const pedidoId = data.DatosOriginales?.id || data.Id;
+          if (pedidoId) {
+            onPedidoEliminado(pedidoId);
+          }
+        }
+      });
+
+      connection.on("RegistroArchivado", (data: any) => {
+        console.log("Registro archivado:", data);
+        if (data.Tabla === "listas" || data.Tabla === "pedidos") {
+          // Tratar como actualización con estado "archivado"
+          onPedidoActualizado({
+            ...data.DatosOriginales,
+            estado: "archivado",
+          });
         }
       });
 
@@ -83,6 +91,7 @@ export const usePedidosSignalR = (
     isConnected,
     onPedidoActualizado,
     onNuevoPedido,
+    onPedidoEliminado, // ✅ Añadido a las dependencias
     unirseAGrupos,
   ]);
 

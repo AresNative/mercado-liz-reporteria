@@ -104,13 +104,9 @@ interface TablaPedidosProps {
 
 export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedidosProps) => {
     const dispatch = useAppDispatch();
-    const [chatAbierto, setChatAbierto] = useState<string | null>(null);
-    const [pedidoChat, setPedidoChat] = useState<Pedido | null>(null);
 
     const handleOpenChat = (pedido: Pedido) => {
         const telefonoCliente = pedido.cliente_telefono || 'general';
-        setChatAbierto(telefonoCliente);
-        setPedidoChat(pedido);
         dispatch(openModalReducer({ modalName: `chat_${telefonoCliente}` }));
     };
 
@@ -263,7 +259,6 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                     {data.map((pedido) => {
                         const nextEstado = getNextEstado(pedido.estado);
                         const itemsCount = pedido.items?.length || 0;
-                        const telefonoCliente = pedido.cliente_telefono || 'general';
                         const mostrarContador = debeMostrarContador(pedido);
 
                         return (
