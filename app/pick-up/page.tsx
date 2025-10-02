@@ -1167,7 +1167,6 @@ export default function GestionPedidos() {
                                         {pedidoSeleccionado.items.map((item: any, index) => {
                                             const isNoEncontrado = item.noEncontrado;
                                             const isRecolectado = item.recolectado;
-                                            console.log(item);
 
                                             return (
                                                 <tr
