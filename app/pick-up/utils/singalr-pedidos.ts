@@ -1,18 +1,21 @@
-// hooks/usePedidosSignalR.ts
+// signalr-pedidos.ts
 import { useSignalR } from "@/hooks/use-signalr";
 import { useEffect, useCallback } from "react";
 
 export const usePedidosSignalR = (
   onPedidoActualizado: (pedido: any) => void,
   onNuevoPedido: (pedido: any) => void,
-  onPedidoEliminado: (pedidoId: number) => void // ✅ NUEVO: callback para eliminaciones
+  onPedidoEliminado: (pedidoId: number) => void,
+  onRefrescarDatos: () => void
 ) => {
   const { connection, isConnected } = useSignalR("Hubs");
 
   const unirseAGrupos = useCallback(async () => {
     if (connection && isConnected) {
       try {
-        console.log("Conectado al hub general de pedidos");
+        // ✅ USAR LOS MÉTODOS DISPONIBLES EN EL HUB
+        await connection.invoke("AddToGroup", "PedidosGeneral");
+        console.log("Conectado al grupo general de pedidos");
       } catch (error) {
         console.error("Error uniéndose a grupos:", error);
       }
@@ -23,67 +26,68 @@ export const usePedidosSignalR = (
     if (connection && isConnected) {
       unirseAGrupos();
 
-      // Escuchar eventos del servidor
-      connection.on("NuevoRegistro", (data: any) => {
-        console.log("Nuevo registro:", data);
-        if (data.Tabla === "listas" || data.Tabla === "pedidos") {
-          onNuevoPedido(data.Registro);
+      // ✅ ESCUCHAR LOS EVENTOS QUE EL HUB ENVÍA
+      connection.on("ReceiveListasUpdate", (action: string, data: any) => {
+        console.log(`📋 Actualización de lista: ${action}`, data);
+
+        switch (action) {
+          case "created":
+          case "nuevo":
+            onNuevoPedido(data);
+            break;
+          case "updated":
+          case "actualizado":
+            onPedidoActualizado(data);
+            break;
+          case "deleted":
+          case "eliminado":
+            if (data.id) {
+              onPedidoEliminado(data.id);
+            }
+            break;
+          default:
+            console.log("Acción no manejada:", action);
         }
       });
 
-      connection.on("RegistroActualizado", (data: any) => {
-        console.log("Registro actualizado:", data);
-        if (data.Tabla === "listas" || data.Tabla === "pedidos") {
-          onPedidoActualizado(data.DatosActualizados);
+      // ✅ ESCUCHAR EVENTOS GENÉRICOS DE CLIENTES Y CITAS (por si afectan pedidos)
+      connection.on("ReceiveClientesUpdate", (action: string, data: any) => {
+        console.log(`👤 Actualización de cliente: ${action}`, data);
+        // Si un cliente se actualiza, podría afectar pedidos relacionados
+        if (action === "updated" || action === "deleted") {
+          // Forzar refresh después de un breve delay
+          setTimeout(() => onRefrescarDatos(), 1000);
         }
       });
 
-      connection.on("PedidoActualizado", (pedidoActualizado: any) => {
-        console.log("Pedido específico actualizado:", pedidoActualizado);
-        onPedidoActualizado(pedidoActualizado);
-      });
-
-      // ✅ CORREGIDO: Manejar eliminaciones correctamente
-      connection.on("RegistroEliminado", (data: any) => {
-        console.log("Registro eliminado:", data);
-        if (data.Tabla === "listas" || data.Tabla === "pedidos") {
-          // Extraer el ID del pedido eliminado
-          const pedidoId = data.DatosOriginales?.id || data.Id;
-          if (pedidoId) {
-            onPedidoEliminado(pedidoId);
-          }
+      connection.on("ReceiveCitasUpdate", (action: string, data: any) => {
+        console.log(`📅 Actualización de cita: ${action}`, data);
+        // Las citas pueden estar relacionadas con pedidos
+        if (
+          action === "updated" ||
+          action === "deleted" ||
+          action === "created"
+        ) {
+          setTimeout(() => onRefrescarDatos(), 1000);
         }
       });
 
-      connection.on("RegistroArchivado", (data: any) => {
-        console.log("Registro archivado:", data);
-        if (data.Tabla === "listas" || data.Tabla === "pedidos") {
-          // Tratar como actualización con estado "archivado"
-          onPedidoActualizado({
-            ...data.DatosOriginales,
-            estado: "archivado",
-          });
-        }
-      });
-
-      connection.on("DatosActualizados", (data: any) => {
-        console.log("Datos actualizados:", data);
-      });
-
-      // Manejar reconexión
+      // ✅ MANEJAR RECONEXIÓN
       connection.onreconnected(() => {
-        console.log("SignalR reconectado");
+        console.log("🔌 SignalR reconectado, resincronizando...");
         unirseAGrupos();
+        onRefrescarDatos();
+      });
+
+      connection.onclose(() => {
+        console.log("🔴 SignalR desconectado");
       });
 
       return () => {
         // Limpiar listeners
-        connection.off("NuevoRegistro");
-        connection.off("RegistroActualizado");
-        connection.off("PedidoActualizado");
-        connection.off("RegistroArchivado");
-        connection.off("RegistroEliminado");
-        connection.off("DatosActualizados");
+        connection.off("ReceiveListasUpdate");
+        connection.off("ReceiveClientesUpdate");
+        connection.off("ReceiveCitasUpdate");
       };
     }
   }, [
@@ -91,15 +95,17 @@ export const usePedidosSignalR = (
     isConnected,
     onPedidoActualizado,
     onNuevoPedido,
-    onPedidoEliminado, // ✅ Añadido a las dependencias
+    onPedidoEliminado,
+    onRefrescarDatos,
     unirseAGrupos,
   ]);
 
   const unirseAPedido = async (pedidoId: number) => {
     if (connection && isConnected) {
       try {
+        // ✅ USAR EL MÉTODO DEL HUB PARA UNIRSE A PEDIDOS ESPECÍFICOS
         await connection.invoke("UnirseAPedido", pedidoId);
-        console.log(`Unido al pedido ${pedidoId}`);
+        console.log(`🔗 Unido al pedido ${pedidoId}`);
       } catch (error) {
         console.error("Error uniéndose al pedido:", error);
       }
@@ -109,10 +115,23 @@ export const usePedidosSignalR = (
   const salirDePedido = async (pedidoId: number) => {
     if (connection && isConnected) {
       try {
+        // ✅ USAR EL MÉTODO DEL HUB PARA SALIR DE PEDIDOS
         await connection.invoke("SalirDePedido", pedidoId);
-        console.log(`Salido del pedido ${pedidoId}`);
+        console.log(`🔓 Salido del pedido ${pedidoId}`);
       } catch (error) {
         console.error("Error saliendo del pedido:", error);
+      }
+    }
+  };
+
+  // ✅ NUEVO: Notificar cambios usando los métodos del hub
+  const notificarCambioLista = async (action: string, data: any) => {
+    if (connection && isConnected) {
+      try {
+        await connection.invoke("NotifyListasChanged", action, data);
+        console.log(`📢 Cambio en lista notificado: ${action}`, data);
+      } catch (error) {
+        console.error("Error notificando cambio de lista:", error);
       }
     }
   };
@@ -121,5 +140,6 @@ export const usePedidosSignalR = (
     isConnected,
     unirseAPedido,
     salirDePedido,
+    notificarCambioLista, // ✅ Exportar para notificar cambios
   };
 };

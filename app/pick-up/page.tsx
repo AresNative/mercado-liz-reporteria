@@ -238,6 +238,7 @@ export default function GestionPedidos() {
                 table: "listas as listas left join clientes as clientes on listas.id_cliente = clientes.id",
                 pageSize: 10, // CORREGIDO: número en lugar de string
                 page: currentPage,
+                tag: 'Pedidos',
                 filtros: filtros
             }).unwrap();
 
@@ -297,87 +298,106 @@ export default function GestionPedidos() {
         fetchPedidos();
     }, [fetchPedidos]);
 
-    // SignalR handlers
+
+    // ✅ NUEVO: Función para calcular estadísticas
+    const calcularEstadisticas = useCallback((listaPedidos: Pedido[]) => {
+        const stats: EstadisticasPedidos = {
+            total_pedidos: listaPedidos.length,
+            pedidos_nuevos: listaPedidos.filter(p => p.estado === 'nuevo').length,
+            pedidos_proceso: listaPedidos.filter(p => p.estado === 'proceso').length,
+            pedidos_listos: listaPedidos.filter(p => p.estado === 'listo').length,
+            pedidos_entregados: listaPedidos.filter(p => p.estado === 'entregado').length,
+            pedidos_cancelados: listaPedidos.filter(p => p.estado === 'cancelado').length,
+            total_pickup: listaPedidos.filter(p => p.servicio === 'Pickup').length,
+            total_domicilio: listaPedidos.filter(p => p.servicio === 'Domicilio').length,
+            promedio_tiempo_entrega: 45, // Esto podría calcularse basado en datos reales
+            pedidos_urgentes: listaPedidos.filter(p =>
+                (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
+            ).length
+        };
+        setEstadisticas(stats);
+    }, []);
+    // ✅ HANDLERS CORREGIDOS PARA SIGNALR
     const handlePedidoActualizado = useCallback((pedidoActualizado: any) => {
-        console.log('Pedido actualizado recibido:', pedidoActualizado);
-        setPedidos(prev => prev.map(pedido =>
-            pedido.id === pedidoActualizado.id
-                ? parseListaData(pedidoActualizado)
-                : pedido
-        ));
+        console.log('🔄 Pedido actualizado desde hub:', pedidoActualizado);
+
+        setPedidos(prev => {
+            const pedidoProcesado = parseListaData(pedidoActualizado);
+            const existeIndex = prev.findIndex(p => p.id === pedidoProcesado.id);
+
+            if (existeIndex >= 0) {
+                const nuevosPedidos = [...prev];
+                nuevosPedidos[existeIndex] = pedidoProcesado;
+
+                // Recalcular estadísticas después de actualizar
+                calcularEstadisticas(nuevosPedidos);
+                return nuevosPedidos;
+            } else {
+                const nuevosPedidos = [pedidoProcesado, ...prev];
+                calcularEstadisticas(nuevosPedidos);
+                return nuevosPedidos;
+            }
+        });
 
         if (pedidoSeleccionado && pedidoSeleccionado.id === pedidoActualizado.id) {
             setPedidoSeleccionado(parseListaData(pedidoActualizado));
         }
-    }, [pedidoSeleccionado]);
+    }, [pedidoSeleccionado, calcularEstadisticas]);
 
     const handleNuevoPedido = useCallback((nuevoPedido: any) => {
-        console.log('Nuevo pedido recibido:', nuevoPedido);
+        console.log('🆕 Nuevo pedido desde hub:', nuevoPedido);
         const pedidoProcesado = parseListaData(nuevoPedido);
 
-        // ✅ CORREGIDO: Añadir al inicio y actualizar estadísticas correctamente
         setPedidos(prev => {
-            const nuevoArray = [pedidoProcesado, ...prev];
-
-            // Actualizar estadísticas basado en el nuevo array
-            setEstadisticas(prevStats => ({
-                ...prevStats,
-                total_pedidos: prevStats.total_pedidos + 1,
-                pedidos_nuevos: nuevoArray.filter(p => p.estado === 'nuevo').length,
-                pedidos_proceso: nuevoArray.filter(p => p.estado === 'proceso').length,
-                total_pickup: nuevoArray.filter(p => p.servicio === 'Pickup').length,
-                total_domicilio: nuevoArray.filter(p => p.servicio === 'Domicilio').length,
-                pedidos_urgentes: nuevoArray.filter(p =>
-                    (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
-                ).length
-            }));
-
-            return nuevoArray;
-        });
-    }, []);
-
-    // ✅ NUEVO: Handler para pedidos eliminados
-    const handlePedidoEliminado = useCallback((pedidoId: number) => {
-        console.log('Pedido eliminado recibido:', pedidoId);
-
-        setPedidos(prev => {
-            const pedidoEliminado = prev.find(p => p.id === pedidoId);
-            const nuevoArray = prev.filter(pedido => pedido.id !== pedidoId);
-
-            if (pedidoEliminado) {
-                // Actualizar estadísticas
-                setEstadisticas(prevStats => ({
-                    ...prevStats,
-                    total_pedidos: Math.max(0, prevStats.total_pedidos - 1),
-                    pedidos_nuevos: nuevoArray.filter(p => p.estado === 'nuevo').length,
-                    pedidos_proceso: nuevoArray.filter(p => p.estado === 'proceso').length,
-                    pedidos_listos: nuevoArray.filter(p => p.estado === 'listo').length,
-                    pedidos_entregados: nuevoArray.filter(p => p.estado === 'entregado').length,
-                    pedidos_cancelados: nuevoArray.filter(p => p.estado === 'cancelado').length,
-                    total_pickup: nuevoArray.filter(p => p.servicio === 'Pickup').length,
-                    total_domicilio: nuevoArray.filter(p => p.servicio === 'Domicilio').length,
-                    pedidos_urgentes: nuevoArray.filter(p =>
-                        (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
-                    ).length
-                }));
+            // Verificar que no exista ya para evitar duplicados
+            const existe = prev.some(p => p.id === pedidoProcesado.id);
+            if (!existe) {
+                const nuevosPedidos = [pedidoProcesado, ...prev];
+                calcularEstadisticas(nuevosPedidos);
+                return nuevosPedidos;
             }
+            return prev;
+        });
+    }, [calcularEstadisticas]);
 
-            return nuevoArray;
+    const handlePedidoEliminado = useCallback((pedidoId: number) => {
+        console.log('🗑️ Pedido eliminado recibido:', pedidoId);
+
+        setPedidos(prev => {
+            const nuevosPedidos = prev.filter(pedido => pedido.id !== pedidoId);
+            calcularEstadisticas(nuevosPedidos);
+            return nuevosPedidos;
         });
 
-        // Si el pedido seleccionado fue eliminado, cerrar el modal
         if (pedidoSeleccionado && pedidoSeleccionado.id === pedidoId) {
             setPedidoSeleccionado(null);
         }
-    }, [pedidoSeleccionado]);
+    }, [pedidoSeleccionado, calcularEstadisticas]);
 
-    // ✅ ACTUALIZADO: Pasar todos los handlers a SignalR
-    const { isConnected, unirseAPedido, salirDePedido } = usePedidosSignalR(
+    const handleRefrescarDatos = useCallback(() => {
+        console.log('🔄 Refrescando datos por solicitud de sincronización');
+        fetchPedidos();
+    }, [fetchPedidos]);
+
+    // ✅ ACTUALIZADO: Pasar todos los handlers a SignalR (después de definir calcularEstadisticas)
+    const { isConnected, unirseAPedido, salirDePedido, notificarCambioLista } = usePedidosSignalR(
         handlePedidoActualizado,
         handleNuevoPedido,
-        handlePedidoEliminado // ✅ Añadido el nuevo handler
+        handlePedidoEliminado,
+        handleRefrescarDatos
     );
+    // ✅ EFECTO PARA SINCRONIZACIÓN PERIÓDICA MEJORADO
+    useEffect(() => {
+        if (isConnected) {
+            // Sincronizar cada 2 minutos para asegurar consistencia
+            const interval = setInterval(() => {
+                console.log('🕒 Sincronización periódica de datos');
+                fetchPedidos();
+            }, 120000); // 2 minutos
 
+            return () => clearInterval(interval);
+        }
+    }, [isConnected, fetchPedidos]);
     // Unirse/salir del grupo cuando se selecciona/deselecciona un pedido
     useEffect(() => {
         if (pedidoSeleccionado) {
@@ -397,6 +417,7 @@ export default function GestionPedidos() {
 
     const [putGeneral] = usePutGeneralMutation();
 
+    // ✅ MODIFICAR LAS FUNCIONES DE ACTUALIZACIÓN PARA NOTIFICAR CAMBIOS
     const handleActualizarEstado = async (pedidoId: number, nuevoEstado: string) => {
         try {
             await putGeneral({
@@ -408,6 +429,14 @@ export default function GestionPedidos() {
                 }
             }).unwrap();
 
+            // Notificar el cambio a otros usuarios
+            await notificarCambioLista("updated", {
+                id: pedidoId,
+                estado: nuevoEstado,
+                fecha_actualizacion: new Date().toISOString()
+            });
+
+            // Actualizar localmente
             setPedidos(prev => prev.map(pedido =>
                 pedido.id === pedidoId
                     ? {
@@ -471,7 +500,13 @@ export default function GestionPedidos() {
                     fecha_actualizacion: new Date().toISOString()
                 } : null);
             }
-
+            // Notificar el cambio
+            await notificarCambioLista("item_recolectado", {
+                listaId,
+                itemId,
+                recolectado,
+                usuario: "usuario_actual"
+            });
         } catch (error) {
             console.error('Error al actualizar estado de recolección:', error);
         }
