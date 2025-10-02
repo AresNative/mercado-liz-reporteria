@@ -5,7 +5,7 @@ import { useAppDispatch } from "@/hooks/selector";
 import { Eye, Truck, Clock, CheckCircle, XCircle, Store, Home, MessageCircle } from "lucide-react"
 import { useState } from "react";
 import { ModalChat } from "./modal-chat";
-import { CountdownTimer } from "@/app/contaduria/components/counter-down";
+import { CountdownTimer } from "@/components/counter-down";
 
 interface ListaItem {
     id: string;

@@ -103,7 +103,7 @@ export const api = createApi({
       extraOptions: { maxRetries: 2 },
     }),
     getWithFiltersGeneral: builder.mutation({
-      query: ({ table, page, pageSize, filtros, signal }) => ({
+      query: ({ table, tag, page, pageSize, filtros, signal }) => ({
         url: `/v1/consultar/filtros`,
         method: "POST",
         params: {
@@ -112,6 +112,7 @@ export const api = createApi({
           pageSize,
         },
         body: filtros,
+        providesTags: [tag],
         signal,
       }),
       transformErrorResponse: (response: any) => ({
