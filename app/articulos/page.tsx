@@ -1,56 +1,60 @@
-// app/articulos/page.tsx
 "use client"
 
+import { useState, useEffect, useCallback } from 'react';
 import {
-    Filter,
+    Package,
     Search,
+    Filter,
     Plus,
+    Upload,
+    Download,
     RefreshCw,
-    Image,
-    Package
-} from "lucide-react"
-import { useEffect, useState, useCallback } from "react"
+    Edit,
+    Trash2,
+    Image as ImageIcon,
+    BarChart3,
+    Layers,
+    Settings,
+    Save,
+    X
+} from "lucide-react";
+import { useForm } from "react-hook-form";
+import { useAppDispatch } from "@/hooks/selector";
+import { openModalReducer } from "@/hooks/reducers/drop-down";
+import {
+    useGetWithFiltersGeneralMutation,
+    usePutGeneralMutation,
+    usePostGeneralMutation,
+    usePostImgMutation,
+    useDeleteGeneralMutation
+} from "@/hooks/reducers/api";
+import { LoadingSection } from "@/template/loading-screen";
+import { Modal } from "@/components/modal";
+import { BentoGrid, BentoItem } from "@/components/bento-grid";
+import Pagination from "@/components/pagination";
+import { Field } from '@/utils/types/interfaces';
+import MainForm from '@/components/form/main-form';
 
-import { openModalReducer } from "@/hooks/reducers/drop-down"
-import { useAppDispatch } from "@/hooks/selector"
-import { useGetWithFiltersGeneralMutation, usePostMutation } from "@/hooks/reducers/api"
-
-import { LoadingSection } from "@/template/loading-screen"
-import { useForm } from "react-hook-form"
-
-import Pagination from "@/components/pagination"
-import DynamicTable from "@/components/table"
-import { Modal } from "@/components/modal"
-import { BentoGrid, BentoItem } from "@/components/bento-grid"
-import { ModalDetallesArticulo } from "./components/detalles-articulo"
-import MainForm from "@/components/form/main-form"
-import { Field } from "@/utils/types/interfaces"
-
-// Definir interfaces
-interface Articulo {
+// Interfaces basadas en tu consulta SQL
+interface Producto {
     id: number;
-    codigo: string;
     nombre: string;
     descripcion: string;
-    categoria: string;
-    precio_compra: number;
-    precio_venta: number;
-    stock: number;
-    stock_minimo: number;
-    unidad_medida: string;
-    marca: string;
-    modelo: string;
-    estado: string;
-    fecha_creacion: string;
-    fecha_actualizacion: string;
+    precio: number;
+    costo: number;
+    cantidad: number;
+    unidad_nombre: string;
+    categoria_nombre: string;
+    codigo_barras: string;
+    imagenes?: string[];
 }
 
-interface ArticulosResponse {
-    totalRecords: number;
-    totalPages: number;
-    pageSize: number;
-    page: number;
-    data: Articulo[];
+interface EstadisticasProductos {
+    total_productos: number;
+    productos_sin_stock: number;
+    productos_bajo_stock: number;
+    valor_total_inventario: number;
+    productos_sin_imagen: number;
 }
 
 interface Filtro {
@@ -67,141 +71,22 @@ interface ActiveFilters {
     distinct: boolean;
 }
 
-interface FiltrosForm {
-    search: string;
-    categoria: string;
-    estado: string;
-    marca: string;
-}
-
-interface EstadisticasArticulos {
-    totalRecords: number;
-    articulosActivos: number;
-    articulosInactivos: number;
-    stockBajo: number;
-    topCategorias: [string, number][];
-}
-
-// Componente para el formulario de filtros
-const FiltrosArticulos = ({ onSubmit, register }: {
-    onSubmit: () => void;
-    register: any;
-}) => {
-    return (
-        <form onSubmit={onSubmit} className="w-full">
-            <div className="hidden md:flex flex-wrap items-center gap-3">
-                <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        {...register("search")}
-                        placeholder="Buscar por código, nombre..."
-                        className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    />
-                </div>
-
-                {/* <select
-                    {...register("categoria")}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 min-w-[180px]"
-                >
-                    <option value="">Todas las categorías</option>
-                    <option value="ELECTRONICA">Electrónica</option>
-                    <option value="HOGAR">Hogar</option>
-                    <option value="OFICINA">Oficina</option>
-                    <option value="DEPORTES">Deportes</option>
-                    <option value="ROPA">Ropa</option>
-                </select>
-
-                <select
-                    {...register("marca")}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 min-w-[150px]"
-                >
-                    <option value="">Todas las marcas</option>
-                    <option value="SONY">Sony</option>
-                    <option value="SAMSUNG">Samsung</option>
-                    <option value="LG">LG</option>
-                    <option value="APPLE">Apple</option>
-                    <option value="GENERICO">Genérico</option>
-                </select>
-
-                <select
-                    {...register("estado")}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 min-w-[140px]"
-                >
-                    <option value="">Todos los estados</option>
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
-                </select> */}
-
-                <button type="submit" className="flex w-20 text-center items-center rounded-md px-3 py-2 text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors whitespace-nowrap">
-                    <Filter className="mr-1 h-4 w-4" />
-                    Filtrar
-                </button>
-            </div>
-
-            {/* Versión móvil */}
-            <div className="md:hidden space-y-3">
-                <div className="relative">
-                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        {...register("search")}
-                        placeholder="Buscar por código, nombre..."
-                        className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <select
-                        {...register("categoria")}
-                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    >
-                        <option value="">Todas categorías</option>
-                        <option value="ELECTRONICA">Electrónica</option>
-                        <option value="HOGAR">Hogar</option>
-                        <option value="OFICINA">Oficina</option>
-                    </select>
-
-                    <select
-                        {...register("marca")}
-                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    >
-                        <option value="">Todas marcas</option>
-                        <option value="SONY">Sony</option>
-                        <option value="SAMSUNG">Samsung</option>
-                        <option value="LG">LG</option>
-                    </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <select
-                        {...register("estado")}
-                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    >
-                        <option value="">Todos estados</option>
-                        <option value="Activo">Activo</option>
-                        <option value="Inactivo">Inactivo</option>
-                    </select>
-
-                    <button type="submit" className="flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors">
-                        <Filter className="mr-1 h-4 w-4" />
-                        Filtrar
-                    </button>
-                </div>
-            </div>
-        </form>
-    );
-};
-
-// Hook personalizado para la gestión de artículos
-const useArticulos = () => {
-    const [articulos, setArticulos] = useState<Articulo[]>([]);
+export default function AdministracionProductos() {
+    const [productos, setProductos] = useState<Producto[]>([]);
+    const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [totalRecords, setTotalRecords] = useState(0);
+    const [totalItems, setTotalItems] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [vistaActiva, setVistaActiva] = useState<'productos' | 'inventario' | 'actualizacion' | 'imagenes'>('productos');
+    const [productosSeleccionados, setProductosSeleccionados] = useState<number[]>([]);
+    const [modoEdicionMasiva, setModoEdicionMasiva] = useState(false);
+
     const [getWithFilter] = useGetWithFiltersGeneralMutation();
+    const [putGeneral] = usePutGeneralMutation();
+    const [postGeneral] = usePostGeneralMutation();
+    const [postImg] = usePostImgMutation();
+    const [deleteGeneral] = useDeleteGeneralMutation();
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [],
@@ -211,390 +96,247 @@ const useArticulos = () => {
         distinct: false
     });
 
-    const fetchArticulos = useCallback(async () => {
+    const [estadisticas, setEstadisticas] = useState<EstadisticasProductos>({
+        total_productos: 0,
+        productos_sin_stock: 0,
+        productos_bajo_stock: 0,
+        valor_total_inventario: 0,
+        productos_sin_imagen: 0
+    });
+
+    const { handleSubmit, register, reset, watch } = useForm();
+    const dispatch = useAppDispatch();
+
+    // Consulta SQL convertida a filtros
+    const fetchProductos = useCallback(async () => {
         setIsLoading(true);
-        setError(null);
-
         try {
-            const response = await getWithFilter({
-                table: "articulos",
-                pageSize: "10",
-                page: currentPage,
-                filtros: {
-                    Filtros: activeFilters.Filtros,
-                    Selects: activeFilters.Selects,
-                    Order: activeFilters.OrderBy ? [activeFilters.OrderBy] : []
-                }
-            });
+            const filtros: any = {
+                Selects: [
+                    { key: "articulos.id" },
+                    { key: "articulos.nombre" },
+                    { key: "articulos.descripcion" },
+                    { key: "articulos.precio" },
+                    { key: "historia_costos.costo" },
+                    { key: "inventario.cantidad" },
+                    { key: "unidades.nombre", alias: "unidad_nombre" },
+                    { key: "categorias.nombre", alias: "categoria_nombre" },
+                    { key: "codigos_barras.codigo_barras" }
+                ],
+                Order: [
+                    { Key: "articulos.nombre", Direction: "Asc" }
+                ]
+            };
 
-            if ('data' in response) {
-                const articulosData = response.data as ArticulosResponse;
-                setArticulos(articulosData.data);
-                setTotalPages(articulosData.totalPages);
-                setTotalRecords(articulosData.totalRecords);
-            } else if ('error' in response) {
-                throw new Error('Error en la respuesta del servidor');
+            if (activeFilters.Filtros.length > 0) {
+                filtros.Filtros = activeFilters.Filtros;
             }
-        } catch (err) {
-            console.error("Error fetching articulos:", err);
-            setError("No se pudieron cargar los artículos. Intente nuevamente.");
+
+            const response = await getWithFilter({
+                table: `articulos
+                    left join codigos_barras on articulos.id = codigos_barras.articulo_id
+                    left join historia_costos on articulos.id = historia_costos.articulo_id
+                    left join categorias on articulos.categoria_id = categorias.id
+                    left join unidades on articulos.unidad_id = unidades.id
+                    left join inventario on articulos.id = inventario.articulo_id`,
+                pageSize: 10,
+                page: currentPage,
+                tag: 'Productos',
+                filtros: filtros
+            }).unwrap();
+
+            if (response && response.data) {
+                setTotalPages(response.TotalPages || 1);
+                setTotalItems(response.TotalRecords || response.data.length);
+
+                const productosProcesados: Producto[] = response.data.map((item: any) => ({
+                    id: item.id,
+                    nombre: item.nombre,
+                    descripcion: item.descripcion,
+                    precio: item.precio || 0,
+                    costo: item.costo || 0,
+                    cantidad: item.cantidad || 0,
+                    unidad_nombre: item.unidad_nombre || 'N/A',
+                    categoria_nombre: item.categoria_nombre || 'Sin categoría',
+                    codigo_barras: item.codigo_barras || 'N/A'
+                }));
+
+                setProductos(productosProcesados);
+                calcularEstadisticas(productosProcesados);
+            }
+        } catch (error) {
+            console.error("Error fetching productos:", error);
+            setProductos([]);
         } finally {
             setIsLoading(false);
         }
     }, [currentPage, activeFilters, getWithFilter]);
 
     useEffect(() => {
-        fetchArticulos();
-    }, [fetchArticulos]);
+        fetchProductos();
+    }, [fetchProductos]);
 
-    return {
-        articulos,
-        currentPage,
-        totalPages,
-        totalRecords,
-        isLoading,
-        error,
-        setCurrentPage,
-        setActiveFilters,
-        refetch: fetchArticulos
+    const calcularEstadisticas = (listaProductos: Producto[]) => {
+        const stats: EstadisticasProductos = {
+            total_productos: listaProductos.length,
+            productos_sin_stock: listaProductos.filter(p => p.cantidad === 0).length,
+            productos_bajo_stock: listaProductos.filter(p => p.cantidad > 0 && p.cantidad <= 10).length,
+            valor_total_inventario: listaProductos.reduce((sum, p) => sum + (p.costo * p.cantidad), 0),
+            productos_sin_imagen: listaProductos.filter(p => !p.imagenes || p.imagenes.length === 0).length
+        };
+        setEstadisticas(stats);
     };
-};
 
-// Hook para estadísticas
-const useEstadisticasArticulos = () => {
-    const [estadisticas, setEstadisticas] = useState<EstadisticasArticulos | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [getWithFilter] = useGetWithFiltersGeneralMutation();
+    const handleOpenModal = (producto: Producto) => {
+        setProductoSeleccionado(producto);
+        dispatch(openModalReducer({ modalName: "detalle_producto" }));
+    };
 
-    const fetchEstadisticas = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
+    const handleEditarProducto = (producto: Producto) => {
+        setProductoSeleccionado(producto);
+        dispatch(openModalReducer({ modalName: "editar_producto" }));
+    };
+
+    const handleEliminarProducto = async (productoId: number) => {
+        if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+            try {
+                await deleteGeneral({
+                    table: "articulos",
+                    id: productoId
+                }).unwrap();
+
+                fetchProductos();
+            } catch (error) {
+                console.error("Error eliminando producto:", error);
+            }
+        }
+    };
+
+    const handleToggleSeleccion = (productoId: number) => {
+        setProductosSeleccionados(prev =>
+            prev.includes(productoId)
+                ? prev.filter(id => id !== productoId)
+                : [...prev, productoId]
+        );
+    };
+
+    const handleSeleccionarTodos = () => {
+        if (productosSeleccionados.length === productos.length) {
+            setProductosSeleccionados([]);
+        } else {
+            setProductosSeleccionados(productos.map(p => p.id));
+        }
+    };
+
+    // Actualización masiva usando MainForm
+    const handleActualizacionMasiva = async (data: any) => {
+        try {
+            const updates = productosSeleccionados.map(id =>
+                putGeneral({
+                    table: "articulos",
+                    id: id,
+                    data: {
+                        precio: data.precio !== undefined ? parseFloat(data.precio) : undefined,
+                        costo: data.costo !== undefined ? parseFloat(data.costo) : undefined,
+                        descripcion: data.descripcion || undefined,
+                    }
+                })
+            );
+
+            await Promise.all(updates);
+            setModoEdicionMasiva(false);
+            setProductosSeleccionados([]);
+            fetchProductos();
+        } catch (error) {
+            console.error("Error en actualización masiva:", error);
+        }
+    };
+
+    // Crear nuevo producto usando MainForm
+    const handleCrearProducto = async (data: any) => {
+        try {
+            await postGeneral({
+                table: "articulos",
+                data: {
+                    nombre: data.nombre,
+                    descripcion: data.descripcion,
+                    precio: parseFloat(data.precio),
+                    categoria_id: data.categoria_id,
+                    unidad_id: data.unidad_id
+                }
+            }).unwrap();
+
+            fetchProductos();
+            dispatch(openModalReducer({ modalName: "crear_producto" }));
+        } catch (error) {
+            console.error("Error creando producto:", error);
+        }
+    };
+
+    // Editar producto usando MainForm
+    const handleGuardarEdicion = async (data: any) => {
+        if (!productoSeleccionado) return;
 
         try {
-            const response = await getWithFilter({
+            await putGeneral({
                 table: "articulos",
-                pageSize: "10000",
-                page: 1,
-                filtros: {
-                    Filtros: [],
-                    Selects: [],
-                    Order: []
+                id: productoSeleccionado.id,
+                data: {
+                    nombre: data.nombre,
+                    descripcion: data.descripcion,
+                    precio: parseFloat(data.precio),
+                    categoria_id: data.categoria_id,
+                    unidad_id: data.unidad_id
                 }
-            });
+            }).unwrap();
 
-            if ('data' in response) {
-                const articulosData = response.data as ArticulosResponse;
-                const todosArticulos = articulosData.data;
-
-                const articulosActivos = todosArticulos.filter(a => a.estado === "Activo").length;
-                const articulosInactivos = todosArticulos.filter(a => a.estado === "Inactivo").length;
-                const stockBajo = todosArticulos.filter(a => a.stock <= a.stock_minimo).length;
-
-                const porCategoria = todosArticulos.reduce((acc, art) => {
-                    acc[art.categoria] = (acc[art.categoria] || 0) + 1;
-                    return acc;
-                }, {} as Record<string, number>);
-
-                const topCategorias = Object.entries(porCategoria)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 4);
-
-                setEstadisticas({
-                    totalRecords: articulosData.totalRecords,
-                    articulosActivos,
-                    articulosInactivos,
-                    stockBajo,
-                    topCategorias
-                });
-            } else if ('error' in response) {
-                throw new Error('Error en la respuesta del servidor');
-            }
-        } catch (err) {
-            console.error("Error fetching estadísticas:", err);
-            setError("No se pudieron cargar las estadísticas.");
-        } finally {
-            setIsLoading(false);
+            fetchProductos();
+            setProductoSeleccionado(null);
+            dispatch(openModalReducer({ modalName: "editar_producto" }));
+        } catch (error) {
+            console.error("Error editando producto:", error);
         }
-    }, [getWithFilter]);
-
-    useEffect(() => {
-        fetchEstadisticas();
-    }, [fetchEstadisticas]);
-
-    return {
-        estadisticas,
-        isLoading,
-        error,
-        refetch: fetchEstadisticas
     };
-};
 
-// Componente para estadísticas
-const EstadisticasArticulos = ({ estadisticas }: { estadisticas: EstadisticasArticulos }) => {
-    return (
-        <BentoGrid cols={4} className="mb-6">
-            <BentoItem
-                title="Total de Artículos"
-                description="Artículos en el sistema"
-                className="bg-blue-50 border-blue-200"
-            >
-                <div className="text-3xl font-bold text-blue-600">{estadisticas.totalRecords}</div>
-            </BentoItem>
+    const limpiarFiltros = () => {
+        reset();
+        setActiveFilters(prev => ({ ...prev, Filtros: [] }));
+        setCurrentPage(1);
+    };
 
-            <BentoItem
-                title="Artículos Activos"
-                description="Disponibles para venta"
-                className="bg-green-50 border-green-200"
-            >
-                <div className="text-3xl font-bold text-green-600">{estadisticas.articulosActivos}</div>
-            </BentoItem>
-
-            <BentoItem
-                title="Stock Bajo"
-                description="Necesitan reposición"
-                className="bg-yellow-50 border-yellow-200"
-            >
-                <div className="text-3xl font-bold text-yellow-600">{estadisticas.stockBajo}</div>
-            </BentoItem>
-
-            <BentoItem
-                title="Top Categorías"
-                description="Con más artículos"
-                className="bg-purple-50 border-purple-200"
-            >
-                <div className="space-y-1">
-                    {estadisticas.topCategorias.map(([categoria, count]) => (
-                        <div key={categoria} className="flex justify-between text-sm">
-                            <span className="capitalize">{categoria.toLowerCase()}:</span>
-                            <span className="font-medium">{count}</span>
-                        </div>
-                    ))}
-                </div>
-            </BentoItem>
-        </BentoGrid>
-    );
-};
-
-// Configuración de columnas para la tabla
-const articulosTableColumns = [
-    { key: "codigo", header: "Código" },
-    { key: "nombre", header: "Nombre" },
-    { key: "categoria", header: "Categoría" },
-    { key: "marca", header: "Marca" },
-    {
-        key: "precio_venta",
-        header: "Precio Venta",
-        transform: (value: number) => new Intl.NumberFormat('es-MX', {
-            style: 'currency',
-            currency: 'MXN'
-        }).format(value)
-    },
-    { key: "stock", header: "Stock" },
-    {
-        key: "estado",
-        header: "Estado",
-        transform: (value: string) => (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${value === "Activo" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                }`}>
-                {value}
-            </span>
-        )
-    }
-];
-
-// Configuración del formulario para artículos
-const articuloFormConfig: Field[] = [
-    {
-        type: "H1",
-        label: "Información Básica del Artículo",
-        require: false
-    },
-    {
-        type: "Flex",
-        require: true,
-        elements: [
-            {
-                type: "INPUT",
-                name: "codigo",
-                label: "Código del Artículo",
-                placeholder: "ART-001",
-                require: true
-            },
-            {
-                type: "INPUT",
-                name: "nombre",
-                label: "Nombre del Artículo",
-                placeholder: "Nombre descriptivo",
-                require: true
-            }
-        ]
-    },
-    {
-        type: "Flex",
-        require: true,
-        elements: [
-            {
-                type: "SELECT",
-                name: "categoria",
-                label: "Categoría",
-                options: [
-                    { value: "ELECTRONICA", label: "Electrónica" },
-                    { value: "HOGAR", label: "Hogar" },
-                    { value: "OFICINA", label: "Oficina" },
-                    { value: "DEPORTES", label: "Deportes" },
-                    { value: "ROPA", label: "Ropa" }
-                ],
-                require: true
-            },
-            {
-                type: "SELECT",
-                name: "unidad_medida",
-                label: "Unidad de Medida",
-                options: [
-                    { value: "PIEZA", label: "Pieza" },
-                    { value: "KILO", label: "Kilogramo" },
-                    { value: "LITRO", label: "Litro" },
-                    { value: "METRO", label: "Metro" },
-                    { value: "CAJA", label: "Caja" }
-                ],
-                require: true
-            }
-        ]
-    },
-    {
-        type: "TEXT_AREA",
-        name: "descripcion",
-        label: "Descripción",
-        placeholder: "Descripción detallada del artículo...",
-        require: false,
-    },
-    {
-        type: "Flex",
-        require: false,
-        elements: [
-            {
-                type: "INPUT",
-                name: "marca",
-                label: "Marca",
-                require: false,
-                placeholder: "Marca del producto"
-            },
-            {
-                type: "INPUT",
-                name: "modelo",
-                label: "Modelo",
-                require: false,
-                placeholder: "Modelo específico"
-            }
-        ]
-    },
-    {
-        type: "H1",
-        require: false,
-        label: "Precios y Stock"
-    },
-    {
-        type: "Flex",
-        require: false,
-        elements: [
-            {
-                type: "NUMBER",
-                name: "precio_compra",
-                label: "Precio de Compra",
-                placeholder: "0.00",
-                require: true
-            },
-            {
-                type: "NUMBER",
-                name: "precio_venta",
-                label: "Precio de Venta",
-                placeholder: "0.00",
-                require: true
-            }
-        ]
-    },
-    {
-        type: "Flex",
-        require: false,
-        elements: [
-            {
-                type: "NUMBER",
-                name: "stock",
-                label: "Stock Inicial",
-                placeholder: "0",
-                require: true
-            },
-            {
-                type: "NUMBER",
-                name: "stock_minimo",
-                label: "Stock Mínimo",
-                placeholder: "0",
-                require: true
-            }
-        ]
-    },
-    {
-        type: "H1",
-        require: false,
-        label: "Imágenes del Producto"
-    },
-    {
-        type: "FILE",
-        name: "imagenes",
-        label: "Imágenes del Artículo",
-        multiple: true,
-        require: false,
-    }
-];
-
-export default function Articulos() {
-    const dispatch = useAppDispatch();
-    const {
-        articulos,
-        currentPage,
-        totalPages,
-        totalRecords,
-        isLoading,
-        error,
-        setCurrentPage,
-        setActiveFilters,
-        refetch
-    } = useArticulos();
-
-    const {
-        estadisticas,
-        isLoading: isLoadingEstadisticas,
-        error: errorEstadisticas,
-        refetch: refetchEstadisticas
-    } = useEstadisticasArticulos();
-
-    const [articuloSeleccionado, setArticuloSeleccionado] = useState<Articulo | null>(null);
-    const [post] = usePostMutation();
-
-    const { handleSubmit, register, reset } = useForm<FiltrosForm>();
-
-    const onSubmit = (data: FiltrosForm) => {
+    const onSubmitFiltros = (data: any) => {
         const nuevosFiltros: Filtro[] = [];
 
         if (data.search) {
-            nuevosFiltros.push(
-                { Key: "codigo", Value: data.search, Operator: "like" },
-                { Key: "nombre", Value: data.search, Operator: "like" },
-                { Key: "descripcion", Value: data.search, Operator: "like" }
-            );
+            nuevosFiltros.push({
+                Key: "articulos.nombre",
+                Value: data.search,
+                Operator: "contains"
+            });
         }
 
         if (data.categoria) {
-            nuevosFiltros.push({ Key: "categoria", Value: data.categoria, Operator: "=" });
+            nuevosFiltros.push({
+                Key: "categorias.nombre",
+                Value: data.categoria,
+                Operator: "="
+            });
         }
 
-        if (data.marca) {
-            nuevosFiltros.push({ Key: "marca", Value: data.marca, Operator: "=" });
+        if (data.stock_min) {
+            nuevosFiltros.push({
+                Key: "inventario.cantidad",
+                Value: parseInt(data.stock_min),
+                Operator: ">="
+            });
         }
 
-        if (data.estado) {
-            nuevosFiltros.push({ Key: "estado", Value: data.estado, Operator: "=" });
+        if (data.stock_max) {
+            nuevosFiltros.push({
+                Key: "inventario.cantidad",
+                Value: parseInt(data.stock_max),
+                Operator: "<="
+            });
         }
 
         setActiveFilters(prev => ({
@@ -604,192 +346,837 @@ export default function Articulos() {
         setCurrentPage(1);
     };
 
-    const limpiarFiltros = () => {
-        reset();
-        setActiveFilters(prev => ({ ...prev, Filtros: [] }));
-        setCurrentPage(1);
-    };
-
-    const handleOpenModal = (modalName: string, articulo?: Articulo) => {
-        if (modalName === 'detalles-articulo' && articulo) {
-            setArticuloSeleccionado(articulo);
+    // Definición de formularios para MainForm
+    const formCrearProducto: Field[] = [
+        { type: "H1", label: "Crear Nuevo Producto", require: false },
+        {
+            type: "INPUT",
+            name: "nombre",
+            label: "Nombre del Producto",
+            placeholder: "Ingresa el nombre del producto",
+            require: true
+        },
+        {
+            type: "TEXT_AREA",
+            name: "descripcion",
+            label: "Descripción",
+            placeholder: "Describe el producto",
+            require: false
+        },
+        {
+            type: "NUMBER",
+            name: "precio",
+            label: "Precio",
+            placeholder: "0.00",
+            require: true
+        },
+        {
+            type: "NUMBER",
+            name: "costo",
+            label: "Costo",
+            placeholder: "0.00",
+            require: false
+        },
+        {
+            type: "SELECT",
+            name: "categoria_id",
+            label: "Categoría",
+            options: ["Electrónicos", "Ropa", "Hogar", "Deportes", "Otros"],
+            require: true
+        },
+        {
+            type: "SELECT",
+            name: "unidad_id",
+            label: "Unidad",
+            options: ["Pieza", "Kilogramo", "Litro", "Metro", "Caja"],
+            require: true
         }
-        dispatch(openModalReducer({ modalName }));
-    };
+    ];
 
-    const handleRefetchAll = () => {
-        refetch();
-        refetchEstadisticas();
-    };
-
-    const handleSuccessSubmit = async (result: any, data: any) => {
-        // Subir imágenes si existen
-        if (data.imagenes && data.imagenes.length > 0 && result.id) {
-            try {
-                for (const imagen of data.imagenes) {
-                    const formData = new FormData();
-                    formData.append('IdRef', result.id);
-                    formData.append('Tabla', 'articulos');
-                    formData.append('File', imagen);
-                    formData.append('Descripcion', `Imagen para ${data.nombre}`);
-
-                    await post({
-                        url: 'api/v1/recursos/imagenes/upload',
-                        data: formData
-                    });
-                }
-            } catch (error) {
-                console.error('Error subiendo imágenes:', error);
-            }
+    const formEditarProducto: Field[] = productoSeleccionado ? [
+        { type: "H1", label: `Editar: ${productoSeleccionado.nombre}`, require: false },
+        {
+            type: "INPUT",
+            name: "nombre",
+            label: "Nombre del Producto",
+            placeholder: "Ingresa el nombre del producto",
+            require: true,
+            valueDefined: productoSeleccionado.nombre
+        },
+        {
+            type: "TEXT_AREA",
+            name: "descripcion",
+            label: "Descripción",
+            placeholder: "Describe el producto",
+            require: false,
+            valueDefined: productoSeleccionado.descripcion
+        },
+        {
+            type: "NUMBER",
+            name: "precio",
+            label: "Precio",
+            placeholder: "0.00",
+            require: true,
+            valueDefined: productoSeleccionado.precio
+        },
+        {
+            type: "NUMBER",
+            name: "costo",
+            label: "Costo",
+            placeholder: "0.00",
+            require: false,
+            valueDefined: productoSeleccionado.costo
+        },
+        {
+            type: "SELECT",
+            name: "categoria_id",
+            label: "Categoría",
+            options: ["Electrónicos", "Ropa", "Hogar", "Deportes", "Otros"],
+            require: true,
+            valueDefined: productoSeleccionado.categoria_nombre
         }
+    ] : [];
 
-        refetch();
-        refetchEstadisticas();
-        dispatch(openModalReducer({ modalName: 'nuevo-articulo' }));
-    };
+    const formActualizacionMasiva: Field[] = [
+        { type: "H1", label: "Actualización Masiva", require: false },
+        {
+            type: "NUMBER",
+            name: "precio",
+            label: "Nuevo Precio",
+            placeholder: "Dejar vacío para no modificar",
+            require: false
+        },
+        {
+            type: "NUMBER",
+            name: "costo",
+            label: "Nuevo Costo",
+            placeholder: "Dejar vacío para no modificar",
+            require: false
+        },
+        {
+            type: "TEXT_AREA",
+            name: "descripcion",
+            label: "Nueva Descripción",
+            placeholder: "Dejar vacío para no modificar",
+            require: false
+        }
+    ];
+
+    const EstadisticasComponent = ({ stats }: { stats: EstadisticasProductos }) => (
+        <BentoGrid cols={5} className="mb-6">
+            <BentoItem
+                title="Total Productos"
+                description="En el sistema"
+                className="bg-blue-50 border-blue-200"
+                icon={<Package className="h-6 w-6 text-blue-600" />}
+            >
+                <div className="text-2xl font-bold text-blue-600">{stats.total_productos}</div>
+            </BentoItem>
+
+            <BentoItem
+                title="Sin Stock"
+                description="Agotados"
+                className="bg-red-50 border-red-200"
+                icon={<Package className="h-6 w-6 text-red-600" />}
+            >
+                <div className="text-2xl font-bold text-red-600">{stats.productos_sin_stock}</div>
+            </BentoItem>
+
+            <BentoItem
+                title="Bajo Stock"
+                description="≤ 10 unidades"
+                className="bg-orange-50 border-orange-200"
+                icon={<Package className="h-6 w-6 text-orange-600" />}
+            >
+                <div className="text-2xl font-bold text-orange-600">{stats.productos_bajo_stock}</div>
+            </BentoItem>
+
+            <BentoItem
+                title="Valor Inventario"
+                description="Costo total"
+                className="bg-green-50 border-green-200"
+                icon={<BarChart3 className="h-6 w-6 text-green-600" />}
+            >
+                <div className="text-2xl font-bold text-green-600">
+                    ${stats.valor_total_inventario.toLocaleString()}
+                </div>
+            </BentoItem>
+
+            <BentoItem
+                title="Sin Imagen"
+                description="Por subir"
+                className="bg-purple-50 border-purple-200"
+                icon={<ImageIcon className="h-6 w-6 text-purple-600" />}
+            >
+                <div className="text-2xl font-bold text-purple-600">{stats.productos_sin_imagen}</div>
+            </BentoItem>
+        </BentoGrid>
+    );
+
+    const NavegacionVistas = () => (
+        <div className="flex border-b border-gray-200 mb-6">
+            <button
+                onClick={() => setVistaActiva('productos')}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${vistaActiva === 'productos'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+            >
+                <Package className="w-4 h-4 inline mr-2" />
+                Productos
+            </button>
+            <button
+                onClick={() => setVistaActiva('inventario')}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${vistaActiva === 'inventario'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+            >
+                <Layers className="w-4 h-4 inline mr-2" />
+                Inventario
+            </button>
+            <button
+                onClick={() => setVistaActiva('actualizacion')}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${vistaActiva === 'actualizacion'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+            >
+                <Settings className="w-4 h-4 inline mr-2" />
+                Actualización Masiva
+            </button>
+            <button
+                onClick={() => setVistaActiva('imagenes')}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${vistaActiva === 'imagenes'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+            >
+                <ImageIcon className="w-4 h-4 inline mr-2" />
+                Gestión de Imágenes
+            </button>
+        </div>
+    );
 
     return (
         <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
             <header className="mb-8">
                 <h1 className="flex items-center text-2xl font-bold md:text-3xl">
-                    <Package className="mr-2 h-8 w-8" />
-                    Gestión de Artículos
+                    <Package className="mr-2 h-8 w-8 text-blue-600" />
+                    Administración de Productos
                 </h1>
                 <p className="mt-2 text-gray-600">
-                    Administra y visualiza todos los artículos del inventario
+                    Gestiona productos, inventario y actualizaciones masivas
                 </p>
             </header>
 
-            {/* Estadísticas */}
-            {isLoadingEstadisticas ? (
-                <div className="mb-6">
-                    <LoadingSection message="Cargando estadísticas..." />
-                </div>
-            ) : errorEstadisticas ? (
-                <div className="mb-6 p-4 bg-red-50 rounded-lg text-center">
-                    <p className="text-red-500 mb-2">{errorEstadisticas}</p>
+            <EstadisticasComponent stats={estadisticas} />
+            <NavegacionVistas />
+
+            {/* Filtros y Búsqueda */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+                <form onSubmit={handleSubmit(onSubmitFiltros)} className="flex flex-wrap items-center gap-4">
+                    <div className="relative flex-1 min-w-[250px]">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            {...register("search")}
+                            placeholder="Buscar productos..."
+                            className="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <input
+                        type="text"
+                        {...register("categoria")}
+                        placeholder="Categoría"
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            {...register("stock_min")}
+                            placeholder="Stock mín"
+                            className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                        <span className="text-gray-400">-</span>
+                        <input
+                            type="number"
+                            {...register("stock_max")}
+                            placeholder="Stock máx"
+                            className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                    </div>
+
                     <button
-                        onClick={refetchEstadisticas}
-                        className="text-green-600 hover:text-green-800 underline"
+                        type="submit"
+                        className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                     >
-                        Reintentar
+                        <Filter className="h-4 w-4" />
+                        Filtrar
                     </button>
-                </div>
-            ) : estadisticas ? (
-                <EstadisticasArticulos estadisticas={estadisticas} />
-            ) : null}
 
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-                <article className="p-4">
-                    <header className="mb-6 flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                        <div className="mr-4">
-                            <h2 className="text-lg font-semibold">Lista de Artículos</h2>
-                            <p className="text-sm text-gray-500">
-                                Mostrando {articulos.length} de {totalRecords} artículos
-                            </p>
-                        </div>
+                    <button
+                        type="button"
+                        onClick={limpiarFiltros}
+                        className="text-sm text-gray-600 hover:text-gray-800 underline"
+                    >
+                        Limpiar
+                    </button>
 
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                            <FiltrosArticulos
-                                onSubmit={handleSubmit(onSubmit)}
-                                register={register}
-                            />
-
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={limpiarFiltros}
-                                    className="text-sm text-gray-600 hover:text-gray-800 underline"
-                                >
-                                    Limpiar
-                                </button>
-
-                                <button
-                                    onClick={handleRefetchAll}
-                                    className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-100"
-                                    title="Actualizar"
-                                >
-                                    <RefreshCw className="h-4 w-4" />
-                                </button>
-
-                                <button
-                                    onClick={() => handleOpenModal('nuevo-articulo')}
-                                    className="flex w-40 text-center items-center gap-1 bg-green-600 text-white text-sm px-4 py-2 rounded-md cursor-pointer hover:bg-green-700 transition-colors"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Nuevo Artículo
-                                </button>
-                            </div>
-                        </div>
-                    </header>
-
-                    <section className="overflow-x-auto">
-                        {isLoading ? (
-                            <LoadingSection message="Cargando artículos..." />
-                        ) : error ? (
-                            <div className="p-4 text-center">
-                                <p className="text-red-500 mb-2">{error}</p>
-                                <button
-                                    onClick={refetch}
-                                    className="text-green-600 hover:text-green-800 underline"
-                                >
-                                    Reintentar
-                                </button>
-                            </div>
-                        ) : articulos.length > 0 ? (
-                            <>
-                                <DynamicTable
-                                    data={articulos}
-                                    onRowClick={(articulo) => handleOpenModal('detalles-articulo', articulo)}
-                                />
-                                <div className="p-4">
-                                    <Pagination
-                                        currentPage={currentPage}
-                                        loading={isLoading}
-                                        setCurrentPage={setCurrentPage}
-                                        totalPages={totalPages}
-                                    />
-                                </div>
-                            </>
-                        ) : (
-                            <div className="p-8 text-center">
-                                <p className="text-gray-500 mb-4">No se encontraron artículos con los filtros aplicados.</p>
-                                <button
-                                    onClick={limpiarFiltros}
-                                    className="text-green-600 hover:text-green-800 underline"
-                                >
-                                    Ver todos los artículos
-                                </button>
-                            </div>
-                        )}
-                    </section>
-                </article>
+                    <button
+                        type="button"
+                        onClick={fetchProductos}
+                        className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+                        title="Actualizar"
+                    >
+                        <RefreshCw className="h-4 w-4" />
+                    </button>
+                </form>
             </div>
 
-            {/* Modales */}
+            {/* Contenido según vista activa */}
+            {vistaActiva === 'productos' && (
+                <VistaProductos
+                    productos={productos}
+                    isLoading={isLoading}
+                    onViewDetails={handleOpenModal}
+                    onEdit={handleEditarProducto}
+                    onDelete={handleEliminarProducto}
+                    onCrearProducto={() => dispatch(openModalReducer({ modalName: "crear_producto" }))}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    setCurrentPage={setCurrentPage}
+                />
+            )}
+
+            {vistaActiva === 'inventario' && (
+                <VistaInventario
+                    productos={productos}
+                    isLoading={isLoading}
+                />
+            )}
+
+            {vistaActiva === 'actualizacion' && (
+                <VistaActualizacionMasiva
+                    productos={productos}
+                    productosSeleccionados={productosSeleccionados}
+                    onToggleSeleccion={handleToggleSeleccion}
+                    onSeleccionarTodos={handleSeleccionarTodos}
+                    onActualizacionMasiva={handleActualizacionMasiva}
+                    modoEdicionMasiva={modoEdicionMasiva}
+                    setModoEdicionMasiva={setModoEdicionMasiva}
+                />
+            )}
+
+            {vistaActiva === 'imagenes' && (
+                <VistaGestionImagenes
+                    productos={productos}
+                    onSubirImagen={postImg}
+                />
+            )}
+
+            {/* Modales con MainForm */}
             <Modal
-                modalName="detalles-articulo"
-                title="Detalles del Artículo"
-                maxWidth="lg"
+                modalName="crear_producto"
+                title="Crear Nuevo Producto"
+                maxWidth="2xl"
             >
-                <ModalDetallesArticulo selectedArticulo={articuloSeleccionado} />
+                <MainForm
+                    message_button="Crear Producto"
+                    actionType="post"
+                    dataForm={formCrearProducto}
+                    onSuccess={(result: any, formData: any) => {
+                        handleCrearProducto(formData);
+                    }}
+                    iconButton={<Plus className="size-4" />}
+                />
             </Modal>
 
             <Modal
-                modalName="nuevo-articulo"
-                title="Agregar Nuevo Artículo"
-                maxWidth="xl"
+                modalName="editar_producto"
+                title="Editar Producto"
+                maxWidth="2xl"
             >
-                <div className="p-4">
+                {productoSeleccionado && (
                     <MainForm
-                        message_button="Crear Artículo"
-                        dataForm={articuloFormConfig}
-                        actionType="articulos"
-                        onSuccess={handleSuccessSubmit}
-                        formName="articulo"
-                        iconButton={<Plus className="h-4 w-4" />}
+                        message_button="Guardar Cambios"
+                        actionType="put"
+                        dataForm={formEditarProducto}
+                        onSuccess={(result: any, formData: any) => {
+                            handleGuardarEdicion(formData);
+                        }}
+                        iconButton={<Save className="size-4" />}
                     />
-                </div>
+                )}
             </Modal>
+
+            <ModalDetalleProducto
+                producto={productoSeleccionado}
+                onClose={() => setProductoSeleccionado(null)}
+            />
         </main>
     );
 }
+
+// Componentes de vistas específicas
+const VistaProductos = ({
+    productos,
+    isLoading,
+    onViewDetails,
+    onEdit,
+    onDelete,
+    onCrearProducto,
+    currentPage,
+    totalPages,
+    setCurrentPage
+}: any) => (
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div className="p-4 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold">Lista de Productos</h2>
+                <button
+                    onClick={onCrearProducto}
+                    className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
+                >
+                    <Plus className="h-4 w-4" />
+                    Nuevo Producto
+                </button>
+            </div>
+        </div>
+
+        <div className="overflow-x-auto">
+            {isLoading ? (
+                <LoadingSection message="Cargando productos..." />
+            ) : productos.length > 0 ? (
+                <>
+                    <table className="w-full">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Producto
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Categoría
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Precio
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Costo
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Stock
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Acciones
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {productos.map((producto: Producto) => (
+                                <tr key={producto.id} className="hover:bg-gray-50">
+                                    <td className="px-4 py-4">
+                                        <div>
+                                            <div className="font-medium text-gray-900">{producto.nombre}</div>
+                                            <div className="text-sm text-gray-500">{producto.descripcion}</div>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4 text-sm text-gray-900">
+                                        {producto.categoria_nombre}
+                                    </td>
+                                    <td className="px-4 py-4 text-sm text-gray-900">
+                                        ${producto.precio.toFixed(2)}
+                                    </td>
+                                    <td className="px-4 py-4 text-sm text-gray-900">
+                                        ${producto.costo.toFixed(2)}
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${producto.cantidad === 0
+                                            ? 'bg-red-100 text-red-800'
+                                            : producto.cantidad <= 10
+                                                ? 'bg-yellow-100 text-yellow-800'
+                                                : 'bg-green-100 text-green-800'
+                                            }`}>
+                                            {producto.cantidad} {producto.unidad_nombre}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-4 text-sm font-medium">
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => onViewDetails(producto)}
+                                                className="text-blue-600 hover:text-blue-900"
+                                            >
+                                                Ver
+                                            </button>
+                                            <button
+                                                onClick={() => onEdit(producto)}
+                                                className="text-green-600 hover:text-green-900"
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => onDelete(producto.id)}
+                                                className="text-red-600 hover:text-red-900"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <div className="p-4 border-t border-gray-200">
+                        <Pagination
+                            currentPage={currentPage}
+                            loading={isLoading}
+                            setCurrentPage={setCurrentPage}
+                            totalPages={totalPages}
+                        />
+                    </div>
+                </>
+            ) : (
+                <div className="p-8 text-center">
+                    <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No se encontraron productos.</p>
+                </div>
+            )}
+        </div>
+    </div>
+);
+
+const VistaInventario = ({ productos, isLoading }: any) => (
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div className="p-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold">Control de Inventario</h2>
+        </div>
+        <div className="overflow-x-auto">
+            {isLoading ? (
+                <LoadingSection message="Cargando inventario..." />
+            ) : (
+                <table className="w-full">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Producto
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Stock Actual
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Stock Mínimo
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Estado
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Valor en Inventario
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {productos.map((producto: Producto) => (
+                            <tr key={producto.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-4">
+                                    <div className="font-medium text-gray-900">{producto.nombre}</div>
+                                </td>
+                                <td className="px-4 py-4 text-sm text-gray-900">
+                                    {producto.cantidad} {producto.unidad_nombre}
+                                </td>
+                                <td className="px-4 py-4 text-sm text-gray-900">
+                                    10 {/* Stock mínimo fijo, puedes hacerlo dinámico */}
+                                </td>
+                                <td className="px-4 py-4">
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${producto.cantidad === 0
+                                        ? 'bg-red-100 text-red-800'
+                                        : producto.cantidad <= 10
+                                            ? 'bg-yellow-100 text-yellow-800'
+                                            : 'bg-green-100 text-green-800'
+                                        }`}>
+                                        {producto.cantidad === 0 ? 'Agotado' :
+                                            producto.cantidad <= 10 ? 'Bajo Stock' : 'Disponible'}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-4 text-sm text-gray-900">
+                                    ${(producto.costo * producto.cantidad).toFixed(2)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </div>
+    </div>
+);
+
+const VistaActualizacionMasiva = ({
+    productos,
+    productosSeleccionados,
+    onToggleSeleccion,
+    onSeleccionarTodos,
+    onActualizacionMasiva,
+    modoEdicionMasiva,
+    setModoEdicionMasiva
+}: any) => {
+    const formActualizacionMasiva: Field[] = [
+        { type: "H1", label: "Actualización Masiva", require: false },
+        {
+            type: "NUMBER",
+            name: "precio",
+            label: "Nuevo Precio",
+            placeholder: "Dejar vacío para no modificar",
+            require: false
+        },
+        {
+            type: "NUMBER",
+            name: "costo",
+            label: "Nuevo Costo",
+            placeholder: "Dejar vacío para no modificar",
+            require: false
+        },
+        {
+            type: "TEXT_AREA",
+            name: "descripcion",
+            label: "Nueva Descripción",
+            placeholder: "Dejar vacío para no modificar",
+            require: false
+        }
+    ];
+
+    return (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="p-4 border-b border-gray-200">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold">Actualización Masiva</h2>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">
+                            {productosSeleccionados.length} productos seleccionados
+                        </span>
+                        {modoEdicionMasiva ? (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setModoEdicionMasiva(false)}
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                                >
+                                    <X className="h-4 w-4" />
+                                    Cancelar
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setModoEdicionMasiva(true)}
+                                disabled={productosSeleccionados.length === 0}
+                                className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            >
+                                <Settings className="h-4 w-4" />
+                                Editar Seleccionados
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {modoEdicionMasiva && (
+                <div className="p-4 bg-yellow-50 border-b border-yellow-200">
+                    <MainForm
+                        message_button={`Aplicar a ${productosSeleccionados.length} productos`}
+                        actionType="put"
+                        dataForm={formActualizacionMasiva}
+                        onSuccess={(result: any, formData: any) => {
+                            onActualizacionMasiva(formData);
+                        }}
+                        iconButton={<Save className="size-4" />}
+                    />
+                </div>
+            )}
+
+            <div className="overflow-x-auto">
+                <table className="w-full">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <input
+                                    type="checkbox"
+                                    checked={productosSeleccionados.length === productos.length && productos.length > 0}
+                                    onChange={onSeleccionarTodos}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Producto
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Precio Actual
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Stock
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {productos.map((producto: Producto) => (
+                            <tr key={producto.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-4">
+                                    <input
+                                        type="checkbox"
+                                        checked={productosSeleccionados.includes(producto.id)}
+                                        onChange={() => onToggleSeleccion(producto.id)}
+                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                </td>
+                                <td className="px-4 py-4">
+                                    <div className="font-medium text-gray-900">{producto.nombre}</div>
+                                </td>
+                                <td className="px-4 py-4 text-sm text-gray-900">
+                                    ${producto.precio.toFixed(2)}
+                                </td>
+                                <td className="px-4 py-4 text-sm text-gray-900">
+                                    {producto.cantidad} {producto.unidad_nombre}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+const VistaGestionImagenes = ({ productos, onSubirImagen }: any) => {
+    const formSubirImagen: Field[] = [
+        { type: "H1", label: "Subir Imágenes", require: false },
+        {
+            type: "FILE",
+            name: "file",
+            label: "Seleccionar Imágenes",
+            multiple: true,
+            require: true
+        }
+    ];
+
+    const handleSubirImagenProducto = async (productoId: number, formData: any) => {
+        try {
+            const fileData = new FormData();
+            if (Array.isArray(formData.file)) {
+                formData.file.forEach((file: File) => {
+                    fileData.append('file', file);
+                });
+            } else {
+                fileData.append('file', formData.file);
+            }
+
+            await onSubirImagen({
+                idRef: productoId,
+                tabla: 'articulos',
+                descripcion: `Imagenes para producto ${productoId}`,
+                file: fileData
+            }).unwrap();
+
+            alert('Imágenes subidas correctamente');
+        } catch (error) {
+            console.error("Error subiendo imágenes:", error);
+            alert('Error al subir las imágenes');
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="p-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold">Gestión de Imágenes</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                    Sube imágenes para tus productos. Formatos soportados: JPG, PNG, GIF.
+                </p>
+            </div>
+            <div className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {productos.map((producto: Producto) => (
+                        <div key={producto.id} className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="font-medium text-gray-900">{producto.nombre}</h3>
+                                    <p className="text-sm text-gray-500">{producto.categoria_nombre}</p>
+                                </div>
+                                <span className={`text-xs px-2 py-1 rounded-full ${producto.imagenes && producto.imagenes.length > 0
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                                    }`}>
+                                    {producto.imagenes && producto.imagenes.length > 0
+                                        ? `${producto.imagenes.length} imagen(es)`
+                                        : 'Sin imágenes'
+                                    }
+                                </span>
+                            </div>
+
+                            {/* Vista previa de imágenes existentes */}
+                            {producto.imagenes && producto.imagenes.length > 0 && (
+                                <div className="mb-4">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-2">Imágenes existentes:</h4>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {producto.imagenes.map((img, index) => (
+                                            <img
+                                                key={index}
+                                                src={img}
+                                                alt={`Imagen ${index + 1} de ${producto.nombre}`}
+                                                className="w-full h-16 object-cover rounded border"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Formulario de subida de imágenes */}
+                            <MainForm
+                                message_button="Subir Imágenes"
+                                actionType="post"
+                                dataForm={formSubirImagen}
+                                onSuccess={(result: any, formData: any) => {
+                                    handleSubirImagenProducto(producto.id, formData);
+                                }}
+                                iconButton={<Upload className="size-4" />}
+                            />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Modal de detalle (sin cambios)
+const ModalDetalleProducto = ({ producto, onClose }: any) => (
+    <Modal modalName="detalle_producto" title="Detalle del Producto" maxWidth="lg">
+        {producto && (
+            <div className="p-6">
+                <h2 className="text-xl font-bold mb-4">{producto.nombre}</h2>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-500">Descripción</label>
+                        <p className="text-gray-900">{producto.descripcion}</p>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-500">Categoría</label>
+                        <p className="text-gray-900">{producto.categoria_nombre}</p>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-500">Precio</label>
+                        <p className="text-gray-900">${producto.precio.toFixed(2)}</p>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-500">Costo</label>
+                        <p className="text-gray-900">${producto.costo.toFixed(2)}</p>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-500">Stock</label>
+                        <p className="text-gray-900">{producto.cantidad} {producto.unidad_nombre}</p>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-500">Código Barras</label>
+                        <p className="text-gray-900">{producto.codigo_barras}</p>
+                    </div>
+                </div>
+            </div>
+        )}
+    </Modal>
+);

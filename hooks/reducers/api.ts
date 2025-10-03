@@ -192,7 +192,7 @@ export const api = createApi({
     postImg: builder.mutation({
       // <-- endpoint para subir imagenes
       query: ({ idRef, tabla, descripcion, file, signal }) => ({
-        url: `v1/recursos/upload`,
+        url: `v1/recursos/imagenes/upload`,
         method: "POST",
         params: { idRef, tabla, descripcion, file },
         signal,
@@ -200,6 +200,20 @@ export const api = createApi({
       transformErrorResponse: (response: any) => ({
         status: response.status,
         message: response.data?.message || "Error fetching data",
+      }),
+      extraOptions: { maxRetries: 2 },
+    }),
+    // Agregar este endpoint a tu api.ts
+    deleteGeneral: builder.mutation({
+      query: ({ table, id, signal }) => ({
+        url: `v1/delete/${id}`,
+        method: "DELETE",
+        params: { table },
+        signal,
+      }),
+      transformErrorResponse: (response: any) => ({
+        status: response.status,
+        message: response.data?.message || "Error deleting data",
       }),
       extraOptions: { maxRetries: 2 },
     }),
@@ -217,4 +231,5 @@ export const {
   usePutMutation,
   usePutGeneralMutation,
   usePostImgMutation,
+  useDeleteGeneralMutation,
 } = api;

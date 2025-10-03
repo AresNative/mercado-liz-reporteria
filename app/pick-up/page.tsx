@@ -913,7 +913,7 @@ export default function GestionPedidos() {
                     Gestión de Listas/Pedidos
                     {isConnected && (
                         <span className="ml-2 text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                            En tiempo real: {isConnected ? '🟢 Conectado' : '🔴 Desconectado'}
+                            {isConnected ? '🟢  En tiempo real' : '🔴 Sin conexion'}
                         </span>
                     )}
                 </h1>
@@ -1155,7 +1155,6 @@ export default function GestionPedidos() {
                                         <tr>
                                             <th className="px-4 py-3 text-left font-semibold w-10">✓</th>
                                             <th className="px-4 py-3 text-left font-semibold w-10">⚠️</th>
-                                            <th className="px-4 py-3 text-left font-semibold">Codigo barras</th>
                                             <th className="px-4 py-3 text-left font-semibold">Producto</th>
                                             <th className="px-4 py-3 text-left font-semibold">Categoría</th>
                                             <th className="px-4 py-3 text-center font-semibold">Cantidad</th>
@@ -1167,7 +1166,6 @@ export default function GestionPedidos() {
                                         {pedidoSeleccionado.items.map((item: any, index) => {
                                             const isNoEncontrado = item.noEncontrado;
                                             const isRecolectado = item.recolectado;
-                                            console.log(item);
 
                                             return (
                                                 <tr
@@ -1212,12 +1210,11 @@ export default function GestionPedidos() {
                                                                 }`}
                                                         />
                                                     </td>
-
-                                                    <td className="px-4 py-3">{item.id}</td>
                                                     <td className="px-4 py-3">
-                                                        <div className={`font-medium ${isNoEncontrado ? 'line-through text-red-600' : ''
+                                                        <div className={`font-medium flex flex-col ${isNoEncontrado ? 'line-through text-red-600' : ''
                                                             }`}>
                                                             {item.nombre}
+                                                            <span className="px-4 py-3 text-xs"><strong>CB: </strong>{item.id}</span>
                                                         </div>
                                                         {item.articulo && (
                                                             <div className="text-xs text-gray-500">Artículo: {item.articulo}</div>

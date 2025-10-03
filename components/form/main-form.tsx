@@ -122,6 +122,7 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
           tabla: aditionalData?.tabla || submitData.tabla || "defaultTable",
           descripcion: aditionalData?.descripcion || submitData.descripcion || "",
         };
+
         if (Array.isArray(submitData.file)) {
           // Subir múltiples archivos
           const uploadPromises = submitData.file.map((file: File) =>
