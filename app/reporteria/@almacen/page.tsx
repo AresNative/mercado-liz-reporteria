@@ -54,7 +54,7 @@ export default function User() {
     try {
       const { sum, distinct, ...others } = activeFilters;
       const { data } = await getData({
-        url: `reporteria/${config}`,
+        url: `${config}`,
         pageSize: 10,
         page,
         sum,
@@ -86,7 +86,7 @@ export default function User() {
       // Exportar datos de API
       const { sum, distinct, ...others } = activeFilters;
       const { data } = await getData({
-        url: `reporteria/${config}`,
+        url: `${config}`,
         pageSize: 100000,
         page: 1,
         sum,

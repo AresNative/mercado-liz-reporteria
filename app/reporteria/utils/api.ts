@@ -7,7 +7,7 @@ export const fetchNames = async (
   signal?: AbortSignal
 ): Promise<{ options: string[]; hasMore: boolean }> => {
   const { data } = await filterFunction({
-    url: `reporteria/${config}`,
+    url: `${config}`,
     pageSize: 5,
     page,
     signal,

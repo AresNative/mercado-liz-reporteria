@@ -18,5 +18,5 @@ export function middleware(req: NextRequest) {
 
 // Rutas protegidas
 export const config = {
-  matcher: ["/admin/:path*", "/reporteria/:path*", "/model/:path*"],
+  matcher: ["/admin/:path*", "/:path*", "/model/:path*"],
 };
