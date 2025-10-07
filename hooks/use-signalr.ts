@@ -27,21 +27,21 @@ export const useSignalR = (url: string) => {
     newConnection
       .start()
       .then(() => {
-        console.log("SignalR Connected");
+        //console.log("SignalR Connected");
         setIsConnected(true);
       })
       .catch((error) => {
-        console.error("SignalR Connection Error:", error);
+        //console.error("SignalR Connection Error:", error);
         setIsConnected(false);
       });
 
     newConnection.onclose(() => {
-      console.log("SignalR Disconnected");
+      //console.log("SignalR Disconnected");
       setIsConnected(false);
     });
 
     newConnection.onreconnected(() => {
-      console.log("SignalR Reconnected");
+      //console.log("SignalR Reconnected");
       setIsConnected(true);
     });
 
