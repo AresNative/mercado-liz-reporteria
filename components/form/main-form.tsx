@@ -117,7 +117,6 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
     try {
       let result;
       let combinedData: any = {};
-
       // Detectar si hay archivos para subir
       const hasFiles = submitData.file &&
         (Array.isArray(submitData.file) ? submitData.file.length > 0 : submitData.file instanceof File);

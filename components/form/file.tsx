@@ -49,7 +49,7 @@ export function FileComponent(props: InputMediaProps) {
                     {documents.length === 0 ? (
                         <FileStack className="mx-auto h-12 w-12 text-gray-400" />
                     ) : (
-                        <div className="text-sm text-gray-600 dark:text-gray-100 dark:text-white">
+                        <div className="text-sm text-gray-600 dark:text-white">
                             {documents.map((file, index) => (
                                 <div key={index} className="flex justify-between items-center">
                                     <p className="truncate">{file.name}</p>
@@ -64,7 +64,7 @@ export function FileComponent(props: InputMediaProps) {
                             ))}
                         </div>
                     )}
-                    <div className="flex text-sm text-gray-600 dark:text-gray-100 dark:text-white">
+                    <div className="flex text-sm text-gray-600 dark:text-white">
                         <label
                             htmlFor="file-upload-docs"
                             className="relative cursor-pointer bg-white dark:bg-zinc-800 rounded-md font-medium text-green-600 hover:text-green-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-green-500"

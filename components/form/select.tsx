@@ -95,7 +95,7 @@ export function SelectComponent(props: SearchableSelectProps) {
             </label>
             <div className="relative bg-white dark:bg-zinc-800">
                 <div
-                    className="px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm border-gray-300  dark:border-zinc-700 rounded-md focus:outline-none text-gray-600 dark:text-gray-100 dark:text-white cursor-pointer flex items-center justify-between"
+                    className="px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm border-gray-300  dark:border-zinc-700 rounded-md focus:outline-none text-gray-600 dark:text-gray-100 cursor-pointer flex items-center justify-between"
                     onClick={() => {
                         setShowSkillsDropdown(!showSkillsDropdown);
                         setIsTouched(true); // Marcar como tocado cuando se hace clic en el input

@@ -7,7 +7,6 @@ import {
     Filter,
     Plus,
     Upload,
-    Download,
     RefreshCw,
     Edit,
     Trash2,
@@ -31,10 +30,12 @@ import {
 import { LoadingSection } from "@/template/loading-screen";
 import { Modal } from "@/components/modal";
 import { BentoGrid, BentoItem } from "@/components/bento-grid";
-import Pagination from "@/components/pagination";
+
 import { Field } from '@/utils/types/interfaces';
-import MainForm from '@/components/form/main-form';
 import { EnvConfig } from '@/utils/constants/env.config';
+
+import Pagination from "@/components/pagination";
+import MainForm from '@/components/form/main-form';
 
 // Interfaces basadas en la respuesta de la API
 interface Producto {
@@ -389,14 +390,6 @@ const VistaProductos = ({
                             ))}
                         </tbody>
                     </table>
-                    <div className="p-4 border-t border-gray-200">
-                        <Pagination
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            loading={isLoading}
-                            setCurrentPage={setCurrentPage}
-                        />
-                    </div>
                 </>
             ) : (
                 <div className="p-8 text-center">
@@ -669,9 +662,9 @@ const VistaGestionImagenes = ({ productos, onSubirImagen }: VistaGestionImagenes
         const formSubirImagen: Field[] = [
             {
                 type: "FILE",
-                name: "file",
+                name: `file_${productoId}`,
                 label: "Seleccionar imagen",
-                multiple: false,
+                multi: false,
                 require: true
             }
         ];
@@ -1292,6 +1285,14 @@ export default function AdministracionProductos() {
                     />
                 )}
 
+                <div className="p-4 border-t border-gray-200">
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        loading={isLoading}
+                        setCurrentPage={setCurrentPage}
+                    />
+                </div>
                 {/* Modales */}
                 <ModalDetalleProducto
                     producto={productoSeleccionado}
