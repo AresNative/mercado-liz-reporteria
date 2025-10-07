@@ -75,17 +75,24 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
   }
 
   // Función para subir imágenes
-  async function uploadImage(fileData: any, additionalParams: any) {
+  async function uploadImage(file: File, additionalParams: any) {
     const { idRef, tabla, descripcion } = additionalParams;
 
+    // Crear el FormData con los nombres exactos que el backend espera
     const formData = new FormData();
-    formData.append("file", fileData.file);
+    formData.append("IdRef", idRef); // 👈 mayúscula exacta
+    formData.append("Tabla", tabla);
+    formData.append("Descripcion", descripcion || "");
+    formData.append("File", file); // 👈 campo binario
 
+    // Usar la mutación, enviando el FormData en el cuerpo
     return await postImg({
+      // El endpoint RTK usa params, pero ignoraremos eso
+      // y enviaremos formData en el body real
       idRef,
       tabla,
       descripcion,
-      file: formData,
+      file: formData, // Aquí va el FormData completo
       signal: new AbortController().signal,
     }).unwrap();
   }
@@ -107,13 +114,13 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
   async function onSubmit(submitData: any) {
     setLoading(true);
 
-    // Detectar si hay archivos para subir
-    const hasFiles = submitData.file &&
-      (Array.isArray(submitData.file) ? submitData.file.length > 0 : submitData.file instanceof File);
-
     try {
       let result;
       let combinedData: any = {};
+
+      // Detectar si hay archivos para subir
+      const hasFiles = submitData.file &&
+        (Array.isArray(submitData.file) ? submitData.file.length > 0 : submitData.file instanceof File);
 
       if (hasFiles) {
         // Si hay archivos, usar el endpoint de subida de imágenes
@@ -126,28 +133,17 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
         if (Array.isArray(submitData.file)) {
           // Subir múltiples archivos
           const uploadPromises = submitData.file.map((file: File) =>
-            uploadImage({ file }, uploadParams)
+            uploadImage(file, uploadParams)
           );
           result = await Promise.all(uploadPromises);
-        } else {
-          // Subir un solo archivo
-          result = await uploadImage({ file: submitData.file }, uploadParams);
         }
       } else {
         // Si no hay archivos, proceder con el flujo normal
         const formatData = new FormData();
 
-        submitData.file && Array.isArray(submitData.file) ?
-          submitData.file.forEach((file: any) => {
-            formatData.append("File", file);
-          }) :
-          formatData.append("File", submitData.file);
-
-        const { file, ...sanitizedData } = submitData;
-
         combinedData = aditionalData
-          ? { ...sanitizedData, ...aditionalData }
-          : sanitizedData;
+          ? { ...submitData, ...aditionalData }
+          : submitData;
 
         formName && formatData.append(formName, JSON.stringify(combinedData));
 
