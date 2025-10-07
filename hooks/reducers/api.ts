@@ -194,7 +194,8 @@ export const api = createApi({
       query: ({ idRef, tabla, descripcion, file, signal }) => ({
         url: `v1/recursos/imagenes/upload`,
         method: "POST",
-        params: { idRef, tabla, descripcion, file },
+        params: { idRef, tabla, descripcion },
+        body: file, // Asegúrate de que 'file' sea un FormData con la imagen
         signal,
       }),
       transformErrorResponse: (response: any) => ({

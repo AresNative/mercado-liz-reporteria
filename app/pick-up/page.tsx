@@ -12,7 +12,8 @@ import {
     Home,
     Store,
     RefreshCw,
-    AlertCircle
+    AlertCircle,
+    Trash
 } from "lucide-react"
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
@@ -1110,9 +1111,9 @@ export default function GestionPedidos() {
                                             {pedidoSeleccionado.items.some((item: any) => item.noEncontrado) && (
                                                 <button
                                                     onClick={() => handleMarcarTodosEncontrados(pedidoSeleccionado.id)}
-                                                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                                    className="px-2 py-1 flex gap-2 items-center bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs"
                                                 >
-                                                    Limpiar no encontrados
+                                                    Limpiar <Trash className='size-4' />
                                                 </button>
                                             )}
                                         </div>

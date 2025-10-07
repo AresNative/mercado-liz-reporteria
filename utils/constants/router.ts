@@ -57,6 +57,11 @@ export const navigationVentas = [
     icon: Truck,
   },
   {
+    name: "Articulos",
+    href: "/articulos",
+    icon: ShoppingBasket,
+  },
+  {
     name: "Proyectos",
     href: "/proyectos",
     icon: ClipboardList,
