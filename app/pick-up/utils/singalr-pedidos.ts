@@ -29,47 +29,21 @@ export const usePedidosSignalR = (
       // ✅ ESCUCHAR LOS EVENTOS QUE EL HUB ENVÍA
       connection.on("ReceiveListasUpdate", (action: string, data: any) => {
         console.log(`📋 Actualización de lista: ${action}`, data);
-
-        switch (action) {
-          case "created":
-          case "nuevo":
-            onNuevoPedido(data);
-            break;
-          case "updated":
-          case "actualizado":
-            onPedidoActualizado(data);
-            break;
-          case "deleted":
-          case "eliminado":
-            if (data.id) {
-              onPedidoEliminado(data.id);
-            }
-            break;
-          default:
-            console.log("Acción no manejada:", action);
-        }
+        onRefrescarDatos();
       });
 
       // ✅ ESCUCHAR EVENTOS GENÉRICOS DE CLIENTES Y CITAS (por si afectan pedidos)
       connection.on("ReceiveClientesUpdate", (action: string, data: any) => {
         console.log(`👤 Actualización de cliente: ${action}`, data);
         // Si un cliente se actualiza, podría afectar pedidos relacionados
-        if (action === "updated" || action === "deleted") {
-          // Forzar refresh después de un breve delay
-          setTimeout(() => onRefrescarDatos(), 1000);
-        }
+        // Forzar refresh después de un breve delay
+        onRefrescarDatos();
       });
 
       connection.on("ReceiveCitasUpdate", (action: string, data: any) => {
         console.log(`📅 Actualización de cita: ${action}`, data);
         // Las citas pueden estar relacionadas con pedidos
-        if (
-          action === "updated" ||
-          action === "deleted" ||
-          action === "created"
-        ) {
-          setTimeout(() => onRefrescarDatos(), 1000);
-        }
+        onRefrescarDatos();
       });
 
       // ✅ MANEJAR RECONEXIÓN
@@ -137,6 +111,7 @@ export const usePedidosSignalR = (
   };
 
   return {
+    connection,
     isConnected,
     unirseAPedido,
     salirDePedido,

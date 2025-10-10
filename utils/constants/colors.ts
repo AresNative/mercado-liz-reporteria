@@ -36,7 +36,7 @@ export const colorClasses = {
   },
   gray: {
     bg: "bg-zinc-50",
-    text: "text-gray-600 dark:text-gray-100 dark:text-white",
+    text: "text-gray-600 dark:text-gray-100",
     ring: "ring-gray-500/10",
   },
   black: {

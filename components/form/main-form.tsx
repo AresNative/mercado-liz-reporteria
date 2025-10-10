@@ -117,25 +117,70 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
     try {
       let result;
       let combinedData: any = {};
+      // Detectar campos de archivo de manera más precisa
+      const fileFields = Object.keys(submitData).filter(key => {
+        const value = submitData[key];
 
-      // Detectar si hay archivos para subir
-      const hasFiles = submitData.file &&
-        (Array.isArray(submitData.file) ? submitData.file.length > 0 : submitData.file instanceof File);
+        // Verificar si el campo comienza con "file" y tiene contenido válido
+        if (!key.startsWith('file')) return false;
+
+        // Si es un array, verificar que tenga al menos un archivo válido
+        if (Array.isArray(value)) {
+          return value.length > 0 && value.some(file => file instanceof File && file.size > 0);
+        }
+
+        // Si es un solo archivo, verificar que sea válido
+        return value instanceof File && value.size > 0;
+      });
+
+      const hasFiles = fileFields.length > 0;
 
       if (hasFiles) {
         // Si hay archivos, usar el endpoint de subida de imágenes
         const uploadParams = {
           idRef: aditionalData?.idRef || submitData.idRef || "defaultId",
           tabla: aditionalData?.tabla || submitData.tabla || "defaultTable",
-          descripcion: aditionalData?.descripcion || submitData.descripcion || "",
+          descripcion: aditionalData?.descripcion || submitData.descripcion || "defaultDescription",
         };
 
-        if (Array.isArray(submitData.file)) {
-          // Subir múltiples archivos
-          const uploadPromises = submitData.file.map((file: File) =>
-            uploadImage(file, uploadParams)
-          );
+        // Obtener todos los archivos válidos
+        const filesToUpload: File[] = fileFields.flatMap((field) => {
+          const value = submitData[field];
+          if (Array.isArray(value)) {
+            return value.filter(file => file instanceof File && file.size > 0);
+          } else if (value instanceof File && value.size > 0) {
+            return [value];
+          }
+          return [];
+        });
+
+        // Solo proceder si hay archivos válidos para subir
+        if (filesToUpload.length > 0) {
+          // Subir cada archivo por separado
+          const uploadPromises = filesToUpload.map(file => uploadImage(file, uploadParams));
+
+          // Combinar datos para onSuccess (excluyendo los archivos ya que se subieron por separado)
+          const dataWithoutFiles = { ...submitData };
+          fileFields.forEach(field => delete dataWithoutFiles[field]);
+
+          combinedData = aditionalData
+            ? { ...dataWithoutFiles, ...aditionalData }
+            : dataWithoutFiles;
+
           result = await Promise.all(uploadPromises);
+        } else {
+          // Si no hay archivos válidos, proceder con el flujo normal sin archivos
+          const dataWithoutFiles = { ...submitData };
+          fileFields.forEach(field => delete dataWithoutFiles[field]);
+
+          combinedData = aditionalData
+            ? { ...dataWithoutFiles, ...aditionalData }
+            : dataWithoutFiles;
+
+          const formatData = new FormData();
+          formName && formatData.append(formName, JSON.stringify(combinedData));
+
+          result = await getMutationFunction(actionType, formName && formatData ? formatData : combinedData);
         }
       } else {
         // Si no hay archivos, proceder con el flujo normal
@@ -150,7 +195,7 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
         result = await getMutationFunction(actionType, formName && formatData ? formatData : combinedData);
       }
 
-      if (onSuccess) onSuccess(result, hasFiles ? submitData : combinedData);
+      if (onSuccess) onSuccess(result, combinedData);
 
       if (action) {
         const cleanKey = (key: string) => key.replace(/^'|'$/g, '');

@@ -29,9 +29,9 @@ export interface SegmentProps {
 }
 
 const sizeStyles: Record<Size, { button: string; label: string; groupPadding: string }> = {
-    sm: { button: "h-8 px-2.5 rounded-md", label: "text-xs", groupPadding: "p-1" },
-    md: { button: "h-10 px-3 rounded-md", label: "text-sm", groupPadding: "p-1" },
-    lg: { button: "h-12 px-4 rounded-md", label: "text-base", groupPadding: "p-1.5" },
+    sm: { button: "h-8 px-2 rounded-md", label: "text-xs", groupPadding: "p-1" },
+    md: { button: "h-10 px-2 rounded-md", label: "text-sm", groupPadding: "p-1" },
+    lg: { button: "h-12 px-2 rounded-md", label: "text-base", groupPadding: "p-1.5" },
 }
 
 const indicatorByAccent: Record<Accent, string> = {

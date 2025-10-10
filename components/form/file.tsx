@@ -2,38 +2,49 @@ import { InputMediaProps } from "@/utils/types/interfaces";
 import { Files, FileStack, Trash } from "lucide-react";
 import { useCallback, useState } from "react";
 
+// En file.tsx - actualizar el componente FileComponent
 export function FileComponent(props: InputMediaProps) {
     const { cuestion } = props;
 
     const [documents, setDocuments] = useState<File[]>([]);
-
-    const handleFileDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const files = Array.from(event.dataTransfer.files);
-        setDocuments((prev) => [...prev, ...files]);
-        props.setValue(cuestion.name, files);
-    }, []);
 
     const preventDefault = useCallback((event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         event.stopPropagation();
     }, []);
 
+    const handleFileDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const files = Array.from(event.dataTransfer.files);
+        setDocuments((prev) => [...prev, ...files]);
+        // Usar el nombre único de la pregunta para el setValue
+        props.setValue(cuestion.name, files);
+    }, [cuestion.name, props.setValue]);
+
     const handleFileInput = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || []);
         setDocuments((prev) => [...prev, ...files]);
+        // Usar el nombre único de la pregunta para el setValue
         props.setValue(cuestion.name, files);
-    }, []);
+    }, [cuestion.name, props.setValue]);
 
     const removeFile = (index: number) => {
-        setDocuments((prev) => prev.filter((_, i) => i !== index));
+        setDocuments((prev) => {
+            const newFiles = prev.filter((_, i) => i !== index);
+            // Actualizar el valor en react-hook-form cuando se remueve un archivo
+            props.setValue(cuestion.name, newFiles);
+            return newFiles;
+        });
     };
 
     const clearAllFiles = () => {
         setDocuments([]);
+        // Limpiar el valor en react-hook-form
+        props.setValue(cuestion.name, []);
     };
 
+    // Resto del componente permanece igual...
     return (
         <div className="flex flex-col">
             <label className="leading-loose flex gap-2 items-center">
@@ -49,7 +60,7 @@ export function FileComponent(props: InputMediaProps) {
                     {documents.length === 0 ? (
                         <FileStack className="mx-auto h-12 w-12 text-gray-400" />
                     ) : (
-                        <div className="text-sm text-gray-600 dark:text-gray-100 dark:text-white">
+                        <div className="text-sm text-gray-600 dark:text-white">
                             {documents.map((file, index) => (
                                 <div key={index} className="flex justify-between items-center">
                                     <p className="truncate">{file.name}</p>
@@ -64,17 +75,17 @@ export function FileComponent(props: InputMediaProps) {
                             ))}
                         </div>
                     )}
-                    <div className="flex text-sm text-gray-600 dark:text-gray-100 dark:text-white">
+                    <div className="flex text-sm text-gray-600 dark:text-white">
                         <label
-                            htmlFor="file-upload-docs"
+                            htmlFor={`file-upload-${cuestion.name}`} // ID único para cada input
                             className="relative cursor-pointer bg-white dark:bg-zinc-800 rounded-md font-medium text-green-600 hover:text-green-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-green-500"
                         >
                             <span>
                                 {documents.length === 0 ? "Subir archivos" : "Cambiar archivos"}
                             </span>
                             <input
-                                id="file-upload-docs"
-                                name="file-upload-docs"
+                                id={`file-upload-${cuestion.name}`} // ID único
+                                name={cuestion.name} // Nombre único del campo
                                 type="file"
                                 className="sr-only"
                                 onChange={handleFileInput}

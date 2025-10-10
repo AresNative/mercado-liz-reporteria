@@ -245,7 +245,7 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                 <thead className="bg-gray-50">
                     <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prioridad</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lista ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Servicio</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>

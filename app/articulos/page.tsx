@@ -7,7 +7,6 @@ import {
     Filter,
     Plus,
     Upload,
-    Download,
     RefreshCw,
     Edit,
     Trash2,
@@ -20,21 +19,22 @@ import {
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useAppDispatch } from "@/hooks/selector";
-import { openModalReducer } from "@/hooks/reducers/drop-down";
+import { openAlertReducer, openModalReducer } from "@/hooks/reducers/drop-down";
 import {
     useGetWithFiltersGeneralMutation,
     usePutGeneralMutation,
     usePostGeneralMutation,
-    usePostImgMutation,
     useDeleteGeneralMutation
 } from "@/hooks/reducers/api";
 import { LoadingSection } from "@/template/loading-screen";
 import { Modal } from "@/components/modal";
 import { BentoGrid, BentoItem } from "@/components/bento-grid";
-import Pagination from "@/components/pagination";
+
 import { Field } from '@/utils/types/interfaces';
-import MainForm from '@/components/form/main-form';
 import { EnvConfig } from '@/utils/constants/env.config';
+
+import Pagination from "@/components/pagination";
+import MainForm from '@/components/form/main-form';
 
 // Interfaces basadas en la respuesta de la API
 interface Producto {
@@ -112,7 +112,7 @@ interface VistaActualizacionMasivaProps {
 
 interface VistaGestionImagenesProps {
     productos: Producto[];
-    onSubirImagen: any;
+    fetchProductos: any;
 }
 
 interface ModalDetalleProductoProps {
@@ -389,14 +389,6 @@ const VistaProductos = ({
                             ))}
                         </tbody>
                     </table>
-                    <div className="p-4 border-t border-gray-200">
-                        <Pagination
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            loading={isLoading}
-                            setCurrentPage={setCurrentPage}
-                        />
-                    </div>
                 </>
             ) : (
                 <div className="p-8 text-center">
@@ -614,9 +606,9 @@ const VistaActualizacionMasiva = ({
 };
 
 // Componente VistaGestionImagenes - COMPLETAMENTE CORREGIDO
-const VistaGestionImagenes = ({ productos, onSubirImagen }: VistaGestionImagenesProps) => {
+const VistaGestionImagenes = ({ productos, fetchProductos }: VistaGestionImagenesProps) => {
     const [imagenesCargando, setImagenesCargando] = useState<{ [key: number]: boolean }>({});
-
+    const dispatch = useAppDispatch()
     // Función para obtener las imágenes de cada producto
     const obtenerImagenesProducto = (producto: Producto): string[] => {
         if (producto.imagenes && producto.imagenes.length > 0) {
@@ -627,58 +619,20 @@ const VistaGestionImagenes = ({ productos, onSubirImagen }: VistaGestionImagenes
         }
         return [];
     };
-
-    const handleSubirImagenProducto = async (productoId: number, formData: any) => {
-        setImagenesCargando(prev => ({ ...prev, [productoId]: true }));
-
-        try {
-            const fileData = new FormData();
-            fileData.append('IdRef', productoId.toString());
-            fileData.append('Tabla', 'articulos');
-            fileData.append('Descripcion', `Imágenes para producto ${productoId}`);
-
-            if (formData.file) {
-                if (Array.isArray(formData.file)) {
-                    formData.file.forEach((file: File) => {
-                        fileData.append('File', file);
-                    });
-                } else {
-                    fileData.append('File', formData.file);
-                }
-            }
-
-            await onSubirImagen({
-                idRef: productoId,
-                tabla: 'articulos',
-                descripcion: `Imágenes para producto ${productoId}`,
-                file: fileData
-            }).unwrap();
-
-            alert('Imágenes subidas correctamente');
-            // Recargar la página o actualizar los datos
-            window.location.reload();
-        } catch (error) {
-            console.error("Error subiendo imágenes:", error);
-            alert('Error al subir las imágenes');
-        } finally {
-            setImagenesCargando(prev => ({ ...prev, [productoId]: false }));
-        }
-    };
-
     const FormularioImagenesProducto = ({ productoId, productoNombre }: { productoId: number, productoNombre: string }) => {
         const formSubirImagen: Field[] = [
             {
                 type: "FILE",
-                name: "file",
+                name: `file_${productoId}`,
                 label: "Seleccionar imagen",
-                multiple: false,
+                multi: false,
                 require: true
             }
         ];
 
         return (
             <MainForm
-                message_button={imagenesCargando[productoId] ? "Subiendo..." : "Subir Imagen"}
+                message_button="Subir Imagen"
                 actionType="post"
                 aditionalData={{
                     idRef: productoId,
@@ -687,7 +641,16 @@ const VistaGestionImagenes = ({ productos, onSubirImagen }: VistaGestionImagenes
                 }}
                 dataForm={formSubirImagen}
                 onSuccess={(result: any, formData: any) => {
-                    handleSubirImagenProducto(productoId, formData);
+                    dispatch(openAlertReducer(
+                        {
+                            title: "Imagen subida correctamente",
+                            message: result[0].message,
+                            type: "success",
+                            icon: "archivo",
+                            duration: 4000
+                        }))
+
+                    fetchProductos();
                 }}
                 iconButton={<Upload className="size-4" />}
             />
@@ -885,7 +848,6 @@ export default function AdministracionProductos() {
     const [getWithFilter] = useGetWithFiltersGeneralMutation();
     const [putGeneral] = usePutGeneralMutation();
     const [postGeneral] = usePostGeneralMutation();
-    const [postImg] = usePostImgMutation();
     const [deleteGeneral] = useDeleteGeneralMutation();
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
@@ -1288,10 +1250,18 @@ export default function AdministracionProductos() {
                 {vistaActiva === 'imagenes' && (
                     <VistaGestionImagenes
                         productos={productos}
-                        onSubirImagen={postImg}
+                        fetchProductos={fetchProductos}
                     />
                 )}
 
+                <div className="p-4 border-t border-gray-200">
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        loading={isLoading}
+                        setCurrentPage={setCurrentPage}
+                    />
+                </div>
                 {/* Modales */}
                 <ModalDetalleProducto
                     producto={productoSeleccionado}

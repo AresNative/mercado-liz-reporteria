@@ -77,6 +77,7 @@ interface BentoItemProps {
     description?: string
     header?: React.ReactNode
     icon?: React.ReactNode
+    iconRight?: boolean
     children?: React.ReactNode
     colSpan?: number
     rowSpan?: number
@@ -88,6 +89,7 @@ export function BentoItem({
     description,
     header,
     icon,
+    iconRight,
     children,
     colSpan = 1,
     rowSpan = 1,
@@ -102,13 +104,27 @@ export function BentoItem({
             )}
         >
             {header && <div className="mb-2">{header}</div>}
-            <div className="flex items-start gap-3">
-                {icon && <div className="shrink-0 bg-gray-100 p-2 rounded-lg">{icon}</div>}
-                <div className="space-y-2">
-                    {title && <h3 className="font-semibold">{title}</h3>}
-                    {description && <p className="text-sm text-muted-foreground">{description}</p>}
+
+            {iconRight ? (
+                // Layout cuando iconRight es true: icono a la derecha sin fondo
+                <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-2 flex-1">
+                        {title && <h3 className="font-semibold">{title}</h3>}
+                        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+                    </div>
+                    {icon && <div className="shrink-0">{icon}</div>}
                 </div>
-            </div>
+            ) : (
+                // Layout original cuando iconRight es false o undefined
+                <div className="flex items-start gap-3">
+                    {icon && <div className="shrink-0">{icon}</div>}
+                    <div className="space-y-2">
+                        {title && <h3 className="font-semibold">{title}</h3>}
+                        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+                    </div>
+                </div>
+            )}
+
             {children && <div className="mt-4">{children}</div>}
         </div>
     )
