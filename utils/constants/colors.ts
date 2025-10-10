@@ -70,7 +70,6 @@ export const buttonClasses = {
     ring: "ring-yellow-500/10",
   },
   completed: {
-    // Cambiado de "finish" a "completed" por claridad
     bg: "bg-blue-600",
     hover: "hover:bg-blue-100 hover:text-white",
     text: "text-blue-50",
@@ -109,7 +108,6 @@ export const alertClasses = {
     ring: "ring-yellow-500/10",
   },
   completed: {
-    // Cambiado de "finish" a "completed" por claridad
     bg: "bg-blue-50",
     hover: "hover:bg-blue-500 hover:text-white",
     text: "text-blue-600",
