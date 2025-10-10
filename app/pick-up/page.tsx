@@ -381,24 +381,12 @@ export default function GestionPedidos() {
     }, [fetchPedidos]);
 
     // ✅ ACTUALIZADO: Pasar todos los handlers a SignalR (después de definir calcularEstadisticas)
-    const { isConnected, unirseAPedido, salirDePedido, notificarCambioLista } = usePedidosSignalR(
+    const { connection, isConnected, unirseAPedido, salirDePedido, notificarCambioLista } = usePedidosSignalR(
         handlePedidoActualizado,
         handleNuevoPedido,
         handlePedidoEliminado,
         handleRefrescarDatos
     );
-    // ✅ EFECTO PARA SINCRONIZACIÓN PERIÓDICA MEJORADO
-    useEffect(() => {
-        if (isConnected) {
-            // Sincronizar cada 2 minutos para asegurar consistencia
-            const interval = setInterval(() => {
-                console.log('🕒 Sincronización periódica de datos');
-                fetchPedidos();
-            }, 120000); // 2 minutos
-
-            return () => clearInterval(interval);
-        }
-    }, [isConnected, fetchPedidos]);
     // Unirse/salir del grupo cuando se selecciona/deselecciona un pedido
     useEffect(() => {
         if (pedidoSeleccionado) {

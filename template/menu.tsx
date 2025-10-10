@@ -204,7 +204,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                                 token: getLocalStorageItem("token"),
                             });
                             dispatch(closeModalReducer({ modalName: "login-modal" }));
-                            navigation.push(navigationItems()[0].href); // Redirigir al primer item del menú
+                            navigation.push("/dashboard"); // Redirigir al primer item del menú
                         } catch {
                             dispatch(
                                 openAlertReducer({

@@ -26,7 +26,7 @@ const { api: apiUrl } = EnvConfig();
 Ejemplo de uso en un componente:
 
 import { useGetQuery, usePostMutation } from "@/hooks/reducers/api";
-const { data, error, isLoading } = useGetQuery({ url: 'tu-endpoint', signal: new AbortController().signal });
+const { data, isLoading:loading, error, refetch } = useGetQuery({ url: 'tu-endpoint', signal: new AbortController().signal });
 const [postData, { data: postResponse, error: postError, isLoading: isPosting }] = usePostMutation();
 postData({ url: 'tu-endpoint', data: { key: 'value' }, signal: new AbortController().signal });
 
