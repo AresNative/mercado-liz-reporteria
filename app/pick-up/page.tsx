@@ -270,6 +270,14 @@ export default function GestionPedidos() {
 
                 setPedidos(pedidosOrdenados);
 
+                // ✅ NUEVO: Actualizar pedido seleccionado si está abierto en el modal
+                if (pedidoSeleccionado) {
+                    const pedidoActualizado = pedidosOrdenados.find(p => p.id === pedidoSeleccionado.id);
+                    if (pedidoActualizado) {
+                        setPedidoSeleccionado(pedidoActualizado);
+                    }
+                }
+
                 // Calcular estadísticas
                 const stats: EstadisticasPedidos = {
                     total_pedidos: response.TotalRecords || pedidosOrdenados.length,
@@ -293,11 +301,11 @@ export default function GestionPedidos() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, activeFilters, getWithFilter]);
+    }, [currentPage, activeFilters, getWithFilter]); // ✅ Añadido pedidoSeleccionado como dependencia
 
     useEffect(() => {
         fetchPedidos();
-    }, [fetchPedidos]);
+    }, []);
 
 
     // ✅ NUEVO: Función para calcular estadísticas
@@ -381,7 +389,7 @@ export default function GestionPedidos() {
     }, [fetchPedidos]);
 
     // ✅ ACTUALIZADO: Pasar todos los handlers a SignalR (después de definir calcularEstadisticas)
-    const { connection, isConnected, unirseAPedido, salirDePedido, notificarCambioLista } = usePedidosSignalR(
+    const { isConnected, unirseAPedido, salirDePedido, notificarCambioLista } = usePedidosSignalR(
         handlePedidoActualizado,
         handleNuevoPedido,
         handlePedidoEliminado,
