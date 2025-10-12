@@ -62,7 +62,6 @@ interface ModalListProps {
 
 export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: ModalListProps) => {
     const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
     const [putGeneral] = usePutGeneralMutation();
     const [getWithFiltersGeneral] = useGetWithFiltersGeneralMutation();
 
@@ -213,8 +212,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
     // Función para cargar los datos de la lista específica
     const fetchPedidoDetalle = useCallback(async () => {
         if (!pedidoId) return;
-
-        setIsLoading(true);
         try {
             const filtros = {
                 Selects: [
@@ -254,8 +251,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             }
         } catch (error) {
             console.error("Error fetching pedido detalle:", error);
-        } finally {
-            setIsLoading(false);
         }
     }, [getWithFiltersGeneral, pedidoId]);
 
@@ -647,12 +642,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             title={`Detalles de la Lista - ${pedidoSeleccionado?.nombre_lista || 'Cargando...'}`}
             maxWidth="4xl"
         >
-            {isLoading ? (
-                <div className="p-8 text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Cargando detalles del pedido...</p>
-                </div>
-            ) : pedidoSeleccionado ? (
+            {pedidoSeleccionado ? (
                 <div className="p-4 space-y-6">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="space-y-3">
