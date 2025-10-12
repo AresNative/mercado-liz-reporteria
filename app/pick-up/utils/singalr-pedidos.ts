@@ -104,6 +104,8 @@ export const usePedidosSignalR = (
       try {
         await connection.invoke("NotifyListasChanged", action, data);
         console.log(`📢 Cambio en lista notificado: ${action}`, data);
+        // Las citas pueden estar relacionadas con pedidos
+        onRefrescarDatos();
       } catch (error) {
         console.error("Error notificando cambio de lista:", error);
       }

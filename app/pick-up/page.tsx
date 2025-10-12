@@ -1,6 +1,4 @@
 "use client"
-
-import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import {
     Filter,
@@ -12,8 +10,7 @@ import {
     Home,
     Store,
     RefreshCw,
-    AlertCircle,
-    Trash
+    AlertCircle
 } from "lucide-react"
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
@@ -25,8 +22,8 @@ import { ModalChat } from "./components/modal-chat"
 import { useForm } from "react-hook-form"
 import Pagination from "@/components/pagination"
 import { BentoGrid, BentoItem } from "@/components/bento-grid"
-import { Modal } from "@/components/modal"
 import { usePedidosSignalR } from './utils/singalr-pedidos';
+import { ModalList } from './components/modal-list';
 
 type Filtro = { Key: string; Value: any; Operator: string };
 type ActiveFilters = {
@@ -101,7 +98,7 @@ interface EstadisticasPedidos {
 
 export default function GestionPedidos() {
     const [pedidos, setPedidos] = useState<Pedido[]>([])
-    const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null)
+    const [pedidoSeleccionadoId, setPedidoSeleccionadoId] = useState<number | null>(null)
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
@@ -132,7 +129,6 @@ export default function GestionPedidos() {
     });
 
     const { handleSubmit, register, reset } = useForm();
-
     const dispatch = useAppDispatch();
 
     // Función para parsear array_lista y calcular total
@@ -150,7 +146,6 @@ export default function GestionPedidos() {
             items = [];
         }
 
-        // Calcular urgencia - CORREGIDO: usar fecha_cita en lugar de nombre_lista
         const calcularUrgencia = (fechaCita: string, estado: string): { urgencia: 'alta' | 'media' | 'baja', tiempo_restante: number } => {
             if (estado !== 'nuevo' && estado !== 'proceso') {
                 return { urgencia: 'baja', tiempo_restante: 0 };
@@ -208,7 +203,6 @@ export default function GestionPedidos() {
     const fetchPedidos = useCallback(async () => {
         setIsLoading(true);
         try {
-            // CORREGIDO: Construir filtros correctamente
             const filtros: any = {
                 Selects: [
                     { key: "listas.id" },
@@ -230,14 +224,13 @@ export default function GestionPedidos() {
                 ]
             };
 
-            // Añadir filtros activos si existen
             if (activeFilters.Filtros.length > 0) {
                 filtros.Filtros = activeFilters.Filtros;
             }
 
             const response = await getWithFilter({
                 table: "listas as listas left join clientes as clientes on listas.id_cliente = clientes.id",
-                pageSize: 10, // CORREGIDO: número en lugar de string
+                pageSize: 10,
                 page: currentPage,
                 tag: 'Pedidos',
                 filtros: filtros
@@ -247,10 +240,8 @@ export default function GestionPedidos() {
                 setTotalPages(response.TotalPages || 1);
                 setTotalItems(response.TotalRecords || response.data.length);
 
-                // Mapear y procesar los datos
                 const pedidosProcesados: Pedido[] = response.data.map(parseListaData);
 
-                // Ordenar: primero por estado (nuevo y proceso primero), luego por urgencia
                 const pedidosOrdenados = pedidosProcesados.sort((a, b) => {
                     const prioridadEstado = { 'nuevo': 3, 'proceso': 2, 'listo': 1, 'entregado': 0, 'cancelado': 0, 'incompleto': 0 };
                     const prioridadEstadoA = prioridadEstado[a.estado] || 0;
@@ -269,14 +260,6 @@ export default function GestionPedidos() {
                 });
 
                 setPedidos(pedidosOrdenados);
-
-                // ✅ NUEVO: Actualizar pedido seleccionado si está abierto en el modal
-                if (pedidoSeleccionado) {
-                    const pedidoActualizado = pedidosOrdenados.find(p => p.id === pedidoSeleccionado.id);
-                    if (pedidoActualizado) {
-                        setPedidoSeleccionado(pedidoActualizado);
-                    }
-                }
 
                 // Calcular estadísticas
                 const stats: EstadisticasPedidos = {
@@ -301,14 +284,13 @@ export default function GestionPedidos() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, activeFilters, getWithFilter]); // ✅ Añadido pedidoSeleccionado como dependencia
+    }, [currentPage, activeFilters, getWithFilter]);
 
     useEffect(() => {
         fetchPedidos();
-    }, []);
+    }, [fetchPedidos]);
 
-
-    // ✅ NUEVO: Función para calcular estadísticas
+    // ✅ Función para calcular estadísticas
     const calcularEstadisticas = useCallback((listaPedidos: Pedido[]) => {
         const stats: EstadisticasPedidos = {
             total_pedidos: listaPedidos.length,
@@ -319,14 +301,15 @@ export default function GestionPedidos() {
             pedidos_cancelados: listaPedidos.filter(p => p.estado === 'cancelado').length,
             total_pickup: listaPedidos.filter(p => p.servicio === 'Pickup').length,
             total_domicilio: listaPedidos.filter(p => p.servicio === 'Domicilio').length,
-            promedio_tiempo_entrega: 45, // Esto podría calcularse basado en datos reales
+            promedio_tiempo_entrega: 45,
             pedidos_urgentes: listaPedidos.filter(p =>
                 (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
             ).length
         };
         setEstadisticas(stats);
     }, []);
-    // ✅ HANDLERS CORREGIDOS PARA SIGNALR
+
+    // ✅ HANDLERS CORREGIDOS PARA SIGNALR - SIN DUPLICACIÓN
     const handlePedidoActualizado = useCallback((pedidoActualizado: any) => {
         console.log('🔄 Pedido actualizado desde hub:', pedidoActualizado);
 
@@ -337,8 +320,6 @@ export default function GestionPedidos() {
             if (existeIndex >= 0) {
                 const nuevosPedidos = [...prev];
                 nuevosPedidos[existeIndex] = pedidoProcesado;
-
-                // Recalcular estadísticas después de actualizar
                 calcularEstadisticas(nuevosPedidos);
                 return nuevosPedidos;
             } else {
@@ -347,18 +328,13 @@ export default function GestionPedidos() {
                 return nuevosPedidos;
             }
         });
-
-        if (pedidoSeleccionado && pedidoSeleccionado.id === pedidoActualizado.id) {
-            setPedidoSeleccionado(parseListaData(pedidoActualizado));
-        }
-    }, [pedidoSeleccionado, calcularEstadisticas]);
+    }, [calcularEstadisticas]);
 
     const handleNuevoPedido = useCallback((nuevoPedido: any) => {
         console.log('🆕 Nuevo pedido desde hub:', nuevoPedido);
         const pedidoProcesado = parseListaData(nuevoPedido);
 
         setPedidos(prev => {
-            // Verificar que no exista ya para evitar duplicados
             const existe = prev.some(p => p.id === pedidoProcesado.id);
             if (!existe) {
                 const nuevosPedidos = [pedidoProcesado, ...prev];
@@ -378,44 +354,33 @@ export default function GestionPedidos() {
             return nuevosPedidos;
         });
 
-        if (pedidoSeleccionado && pedidoSeleccionado.id === pedidoId) {
-            setPedidoSeleccionado(null);
+        if (pedidoSeleccionadoId === pedidoId) {
+            setPedidoSeleccionadoId(null);
         }
-    }, [pedidoSeleccionado, calcularEstadisticas]);
+    }, [pedidoSeleccionadoId, calcularEstadisticas]);
 
     const handleRefrescarDatos = useCallback(() => {
         console.log('🔄 Refrescando datos por solicitud de sincronización');
         fetchPedidos();
     }, [fetchPedidos]);
 
-    // ✅ ACTUALIZADO: Pasar todos los handlers a SignalR (después de definir calcularEstadisticas)
-    const { isConnected, unirseAPedido, salirDePedido, notificarCambioLista } = usePedidosSignalR(
+    // ✅ SOLO UNA CONEXIÓN SIGNALR - en el componente principal
+    const { isConnected } = usePedidosSignalR(
         handlePedidoActualizado,
         handleNuevoPedido,
         handlePedidoEliminado,
         handleRefrescarDatos
     );
-    // Unirse/salir del grupo cuando se selecciona/deselecciona un pedido
-    useEffect(() => {
-        if (pedidoSeleccionado) {
-            unirseAPedido(pedidoSeleccionado.id);
-        }
-        return () => {
-            if (pedidoSeleccionado) {
-                salirDePedido(pedidoSeleccionado.id);
-            }
-        };
-    }, [pedidoSeleccionado, unirseAPedido, salirDePedido]);
 
     const handleOpenModal = (pedido: Pedido) => {
-        setPedidoSeleccionado(pedido);
+        setPedidoSeleccionadoId(pedido.id);
         dispatch(openModalReducer({ modalName: "detalle_pedido" }));
     }
 
     const [putGeneral] = usePutGeneralMutation();
 
-    // ✅ MODIFICAR LAS FUNCIONES DE ACTUALIZACIÓN PARA NOTIFICAR CAMBIOS
-    const handleActualizarEstado = async (pedidoId: number, nuevoEstado: string) => {
+    // ✅ Función para manejar actualizaciones de estado desde el modal
+    const handleEstadoActualizadoDesdeModal = useCallback(async (pedidoId: number, nuevoEstado: string) => {
         try {
             await putGeneral({
                 table: "listas",
@@ -425,13 +390,6 @@ export default function GestionPedidos() {
                     fecha_actualizacion: new Date().toISOString()
                 }
             }).unwrap();
-
-            // Notificar el cambio a otros usuarios
-            await notificarCambioLista("updated", {
-                id: pedidoId,
-                estado: nuevoEstado,
-                fecha_actualizacion: new Date().toISOString()
-            });
 
             // Actualizar localmente
             setPedidos(prev => prev.map(pedido =>
@@ -444,338 +402,11 @@ export default function GestionPedidos() {
                     : pedido
             ));
 
-            if (pedidoSeleccionado && pedidoSeleccionado.id === pedidoId) {
-                setPedidoSeleccionado(prev => prev ? {
-                    ...prev,
-                    estado: nuevoEstado as any,
-                    fecha_actualizacion: new Date().toISOString()
-                } : null);
-            }
-
         } catch (error) {
-            console.error("Error actualizando estado:", error);
+            console.error("Error actualizando estado desde modal:", error);
             await fetchPedidos();
         }
-    };
-
-    const handleToggleRecolectado = async (listaId: number, itemId: string, recolectado: boolean) => {
-        try {
-            const listaActual = pedidos.find(p => p.id === listaId);
-            if (!listaActual) return;
-
-            const itemsActualizados = listaActual.items.map((item: any) =>
-                item.id === itemId
-                    ? { ...item, recolectado }
-                    : item
-            );
-
-            const arrayListaActualizado = JSON.stringify(itemsActualizados);
-
-            await putGeneral({
-                table: "listas",
-                id: listaId,
-                data: {
-                    array_lista: arrayListaActualizado,
-                    fecha_actualizacion: new Date().toISOString()
-                }
-            }).unwrap();
-
-            setPedidos(prev => prev.map(pedido =>
-                pedido.id === listaId
-                    ? {
-                        ...pedido,
-                        items: itemsActualizados,
-                        fecha_actualizacion: new Date().toISOString()
-                    }
-                    : pedido
-            ));
-
-            if (pedidoSeleccionado && pedidoSeleccionado.id === listaId) {
-                setPedidoSeleccionado(prev => prev ? {
-                    ...prev,
-                    items: itemsActualizados,
-                    fecha_actualizacion: new Date().toISOString()
-                } : null);
-            }
-            // Notificar el cambio
-            await notificarCambioLista("item_recolectado", {
-                listaId,
-                itemId,
-                recolectado,
-                usuario: "usuario_actual"
-            });
-        } catch (error) {
-            console.error('Error al actualizar estado de recolección:', error);
-        }
-    };
-
-    const handleToggleNoEncontrado = async (listaId: number, itemId: string, noEncontrado: boolean) => {
-        try {
-            const listaActual = pedidos.find(p => p.id === listaId);
-            if (!listaActual) return;
-
-            const itemsActualizados = listaActual.items.map((item: any) =>
-                item.id === itemId
-                    ? { ...item, noEncontrado }
-                    : item
-            );
-
-            const arrayListaActualizado = JSON.stringify(itemsActualizados);
-
-            await putGeneral({
-                table: "listas",
-                id: listaId,
-                data: {
-                    array_lista: arrayListaActualizado,
-                    fecha_actualizacion: new Date().toISOString()
-                }
-            }).unwrap();
-
-            setPedidos(prev => prev.map(pedido =>
-                pedido.id === listaId
-                    ? {
-                        ...pedido,
-                        items: itemsActualizados,
-                        fecha_actualizacion: new Date().toISOString()
-                    }
-                    : pedido
-            ));
-
-            if (pedidoSeleccionado && pedidoSeleccionado.id === listaId) {
-                setPedidoSeleccionado(prev => prev ? {
-                    ...prev,
-                    items: itemsActualizados,
-                    fecha_actualizacion: new Date().toISOString()
-                } : null);
-            }
-
-        } catch (error) {
-            console.error('Error al actualizar estado de producto no encontrado:', error);
-        }
-    };
-
-    const handleMarcarTodosEncontrados = async (listaId: number) => {
-        try {
-            const listaActual = pedidos.find(p => p.id === listaId);
-            if (!listaActual) return;
-
-            const itemsActualizados = listaActual.items.map((item: any) => ({
-                ...item,
-                noEncontrado: false
-            }));
-
-            const arrayListaActualizado = JSON.stringify(itemsActualizados);
-
-            await putGeneral({
-                table: "listas",
-                id: listaId,
-                data: {
-                    array_lista: arrayListaActualizado,
-                    fecha_actualizacion: new Date().toISOString()
-                }
-            }).unwrap();
-
-            setPedidos(prev => prev.map(pedido =>
-                pedido.id === listaId
-                    ? {
-                        ...pedido,
-                        items: itemsActualizados,
-                        fecha_actualizacion: new Date().toISOString()
-                    }
-                    : pedido
-            ));
-
-            if (pedidoSeleccionado && pedidoSeleccionado.id === listaId) {
-                setPedidoSeleccionado(prev => prev ? {
-                    ...prev,
-                    items: itemsActualizados,
-                    fecha_actualizacion: new Date().toISOString()
-                } : null);
-            }
-
-        } catch (error) {
-            console.error('Error al marcar todos como encontrados:', error);
-        }
-    };
-
-    const handleMarcarTodosRecolectados = async (listaId: number) => {
-        try {
-            const listaActual = pedidos.find(p => p.id === listaId);
-            if (!listaActual) return;
-
-            const itemsActualizados = listaActual.items.map((item: any) => ({
-                ...item,
-                recolectado: true
-            }));
-
-            const arrayListaActualizado = JSON.stringify(itemsActualizados);
-
-            await putGeneral({
-                table: "listas",
-                id: listaId,
-                data: {
-                    array_lista: arrayListaActualizado,
-                    fecha_actualizacion: new Date().toISOString()
-                }
-            }).unwrap();
-
-            setPedidos(prev => prev.map(pedido =>
-                pedido.id === listaId
-                    ? {
-                        ...pedido,
-                        items: itemsActualizados,
-                        fecha_actualizacion: new Date().toISOString()
-                    }
-                    : pedido
-            ));
-
-            if (pedidoSeleccionado && pedidoSeleccionado.id === listaId) {
-                setPedidoSeleccionado(prev => prev ? {
-                    ...prev,
-                    items: itemsActualizados,
-                    fecha_actualizacion: new Date().toISOString()
-                } : null);
-            }
-
-        } catch (error) {
-            console.error('Error al marcar todos como recolectados:', error);
-        }
-    };
-
-    const handleDesmarcarTodosRecolectados = async (listaId: number) => {
-        try {
-            const listaActual = pedidos.find(p => p.id === listaId);
-            if (!listaActual) return;
-
-            const itemsActualizados = listaActual.items.map((item: any) => ({
-                ...item,
-                recolectado: false
-            }));
-
-            const arrayListaActualizado = JSON.stringify(itemsActualizados);
-
-            await putGeneral({
-                table: "listas",
-                id: listaId,
-                data: {
-                    array_lista: arrayListaActualizado,
-                    fecha_actualizacion: new Date().toISOString()
-                }
-            }).unwrap();
-
-            setPedidos(prev => prev.map(pedido =>
-                pedido.id === listaId
-                    ? {
-                        ...pedido,
-                        items: itemsActualizados,
-                        fecha_actualizacion: new Date().toISOString()
-                    }
-                    : pedido
-            ));
-
-            if (pedidoSeleccionado && pedidoSeleccionado.id === listaId) {
-                setPedidoSeleccionado(prev => prev ? {
-                    ...prev,
-                    items: itemsActualizados,
-                    fecha_actualizacion: new Date().toISOString()
-                } : null);
-            }
-
-        } catch (error) {
-            console.error('Error al desmarcar todos como recolectados:', error);
-        }
-    };
-
-    const generarPDF = (pedido: Pedido) => {
-        const doc = new jsPDF();
-
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 10;
-        let yPosition = margin;
-
-        doc.setFontSize(20);
-        doc.setTextColor(40, 40, 40);
-        doc.text('LISTA DE PEDIDO', pageWidth / 2, yPosition, { align: 'center' });
-        yPosition += 15;
-
-        doc.setFontSize(12);
-        doc.setTextColor(80, 80, 80);
-
-        doc.text(`ID Pedido: ${pedido.id}`, margin, yPosition);
-        yPosition += 8;
-        doc.text(`Cliente: ${pedido.nombre || 'N/A'}`, margin, yPosition);
-        yPosition += 8;
-        doc.text(`Fecha: ${formatDate(pedido.fecha_creacion)}`, margin, yPosition);
-        yPosition += 8;
-        doc.text(`Servicio: ${pedido.servicio}`, margin, yPosition);
-        yPosition += 8;
-        doc.text(`Estado: ${pedido.estado}`, margin, yPosition);
-        yPosition += 15;
-
-        const tableColumn = ["Producto", "Cantidad", "Precio Unit.", "Subtotal"];
-        const tableRows = [];
-
-        for (const item of pedido.items) {
-            const productData = [
-                item.nombre || 'Producto sin nombre',
-                `${item.quantity || 0} ${item.unidad || 'unidad'}`,
-                `$${(item.precio || 0).toFixed(2)}`,
-                `$${((item.precio || 0) * (item.quantity || 0)).toFixed(2)}`
-            ];
-            tableRows.push(productData);
-        }
-
-        tableRows.push([
-            'TOTAL',
-            '',
-            '',
-            `$${pedido.total?.toFixed(2) || '0.00'}`
-        ]);
-
-        (doc as any).autoTable({
-            startY: yPosition,
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'grid',
-            styles: {
-                fontSize: 10,
-                cellPadding: 3,
-            },
-            headStyles: {
-                fillColor: [79, 70, 229],
-                textColor: 255,
-                fontStyle: 'bold'
-            },
-            alternateRowStyles: {
-                fillColor: [245, 245, 245]
-            },
-            margin: { left: margin, right: margin },
-            didDrawPage: (data: any) => {
-                const pageHeight = doc.internal.pageSize.getHeight();
-                doc.setFontSize(8);
-                doc.setTextColor(150, 150, 150);
-                doc.text(
-                    `Generado el ${new Date().toLocaleDateString()} - Página ${data.pageNumber}`,
-                    pageWidth / 2,
-                    pageHeight - 10,
-                    { align: 'center' }
-                );
-            }
-        });
-
-        doc.save(`pedido-${pedido.id}-${new Date().toISOString().split('T')[0]}.pdf`);
-    };
-
-    const getEstadoDisplay = (estado: string) => {
-        const estados: { [key: string]: string } = {
-            'nuevo': 'Nuevo',
-            'proceso': 'En Proceso',
-            'listo': 'Listo',
-            'entregado': 'Entregado',
-            'cancelado': 'Cancelado'
-        };
-        return estados[estado] || estado;
-    };
+    }, [putGeneral, fetchPedidos]);
 
     const limpiarFiltros = () => {
         reset();
@@ -868,46 +499,12 @@ export default function GestionPedidos() {
         </BentoGrid>
     );
 
-    const getEstadoBadgeClass = (estado: string) => {
-        switch (estado) {
-            case 'entregado':
-                return 'bg-green-100 text-green-800';
-            case 'cancelado':
-                return 'bg-red-100 text-red-800';
-            case 'nuevo':
-                return 'bg-yellow-100 text-yellow-800';
-            case 'proceso':
-                return 'bg-blue-100 text-blue-800';
-            case 'listo':
-                return 'bg-indigo-100 text-indigo-800';
-            default:
-                return 'bg-gray-100 text-gray-800';
-        }
-    };
-
-    const formatDate = (dateString: string) => {
-        try {
-            const date = new Date(dateString);
-            return date.toLocaleString('es-MX', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        } catch (error) {
-            return dateString;
-        }
-    };
-
     return (
         <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
-
-
             <header className="mb-8">
                 <h1 className="flex items-center text-2xl font-bold md:text-3xl">
                     <Truck className="mr-2 h-8 w-8 text-blue-600" />
-                    Gestión de Listas/Pedidos
+                    Gestión de Pedidos
                     {isConnected && (
                         <span className="ml-2 text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
                             {isConnected ? '🟢  En tiempo real' : '🔴 Sin conexion'}
@@ -1010,7 +607,7 @@ export default function GestionPedidos() {
                                 <TablaPedidos
                                     data={pedidos}
                                     onViewDetails={handleOpenModal}
-                                    onUpdateStatus={handleActualizarEstado}
+                                    onUpdateStatus={handleEstadoActualizadoDesdeModal}
                                 />
                                 <div className="p-4">
                                     <Pagination
@@ -1039,268 +636,12 @@ export default function GestionPedidos() {
 
             <ModalChat telefonoClient={'general'} />
 
-            <Modal
-                modalName="detalle_pedido"
-                title={`Detalles de la Lista - ${pedidoSeleccionado?.nombre_lista || ''}`}
-                maxWidth="4xl"
-            >
-                {pedidoSeleccionado && (
-                    <div className="p-4 space-y-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="space-y-3">
-                                <h3 className="font-semibold text-lg border-gray-300 border-b pb-2">Información General</h3>
-                                <div><strong>ID Lista:</strong> {pedidoSeleccionado.id}</div>
-                                <div><strong>Cliente ID:</strong> {pedidoSeleccionado.id_cliente}</div>
-                                <div><strong>Nombre:</strong> {pedidoSeleccionado.nombre_lista}</div>
-                                <div><strong>Tipo:</strong> {pedidoSeleccionado.tipo_lista}</div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <h3 className="font-semibold text-lg border-gray-300 border-b pb-2">Estado y Servicio</h3>
-                                <div className="flex items-center">
-                                    <strong>Servicio:</strong>
-                                    <span className={`ml-2 px-2 py-1 rounded text-xs ${pedidoSeleccionado.servicio === 'Pickup'
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-blue-100 text-blue-800'
-                                        }`}>
-                                        {pedidoSeleccionado.servicio}
-                                    </span>
-                                </div>
-                                <div className="flex items-center">
-                                    <strong>Estado:</strong>
-                                    <span className={`ml-2 px-2 py-1 rounded text-xs ${getEstadoBadgeClass(pedidoSeleccionado.estado)}`}>
-                                        {pedidoSeleccionado.estado}
-                                    </span>
-                                </div>
-                                <div><strong>Total:</strong> ${pedidoSeleccionado.total.toFixed(2)}</div>
-                                <div><strong>Creado:</strong> {formatDate(pedidoSeleccionado.fecha_creacion)}</div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <h3 className="font-semibold text-lg border-gray-300 border-b pb-2">Progreso</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <div className="flex justify-between text-sm mb-1">
-                                            <span>Productos recolectados:</span>
-                                            <span className="font-medium">
-                                                {pedidoSeleccionado.items.filter((item: any) => item.recolectado).length} / {pedidoSeleccionado.items.length}
-                                            </span>
-                                        </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                                className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                                                style={{
-                                                    width: `${(pedidoSeleccionado.items.filter((item: any) => item.recolectado).length / pedidoSeleccionado.items.length) * 100}%`
-                                                }}
-                                            ></div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-1">
-                                        <div className="flex justify-between items-center text-xs">
-                                            <div>
-                                                <span className="text-red-700">Productos no encontrados:</span>
-                                                <span className="text-red-600 ml-2">
-                                                    {pedidoSeleccionado.items.filter((item: any) => item.noEncontrado).length}
-                                                </span>
-                                            </div>
-                                            {pedidoSeleccionado.items.some((item: any) => item.noEncontrado) && (
-                                                <button
-                                                    onClick={() => handleMarcarTodosEncontrados(pedidoSeleccionado.id)}
-                                                    className="px-2 py-1 flex gap-2 items-center bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs"
-                                                >
-                                                    Limpiar <Trash className='size-4' />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-2 pt-2">
-                                        <button
-                                            onClick={() => handleMarcarTodosRecolectados(pedidoSeleccionado.id)}
-                                            className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                                        >
-                                            Marcar todos recolectados
-                                        </button>
-                                        <button
-                                            onClick={() => handleDesmarcarTodosRecolectados(pedidoSeleccionado.id)}
-                                            className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-                                        >
-                                            Desmarcar todos
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div className="flex justify-between items-center mb-3">
-                                <h3 className="font-semibold text-lg">Productos en la Lista</h3>
-                                <div className="flex gap-4 text-sm text-gray-500">
-                                    <div>
-                                        {pedidoSeleccionado.items.filter((item: any) => item.recolectado).length} de {pedidoSeleccionado.items.length} recolectados
-                                    </div>
-                                    <div className="text-red-500">
-                                        {pedidoSeleccionado.items.filter((item: any) => item.noEncontrado).length} no encontrados
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="border-gray-300 border rounded-lg overflow-hidden">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left font-semibold w-10">✓</th>
-                                            <th className="px-4 py-3 text-left font-semibold w-10">⚠️</th>
-                                            <th className="px-4 py-3 text-left font-semibold">Producto</th>
-                                            <th className="px-4 py-3 text-left font-semibold">Categoría</th>
-                                            <th className="px-4 py-3 text-center font-semibold">Cantidad</th>
-                                            <th className="px-4 py-3 text-right font-semibold">Precio Unitario</th>
-                                            <th className="px-4 py-3 text-right font-semibold">Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {pedidoSeleccionado.items.map((item: any, index) => {
-                                            const isNoEncontrado = item.noEncontrado;
-                                            const isRecolectado = item.recolectado;
-
-                                            return (
-                                                <tr
-                                                    key={index}
-                                                    className={`border-gray-300 border-t transition-colors ${isNoEncontrado
-                                                        ? 'bg-red-50 hover:bg-red-100'
-                                                        : isRecolectado
-                                                            ? 'bg-green-50 hover:bg-green-100'
-                                                            : 'hover:bg-gray-50'
-                                                        }`}
-                                                >
-                                                    <td className="px-4 py-3">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isRecolectado || false}
-                                                            onChange={(e) => handleToggleRecolectado(
-                                                                pedidoSeleccionado.id,
-                                                                item.id,
-                                                                e.target.checked
-                                                            )}
-                                                            disabled={isNoEncontrado}
-                                                            className={`h-4 w-4 rounded border-gray-300 focus:ring-green-500 ${isNoEncontrado
-                                                                ? 'text-gray-400 cursor-not-allowed'
-                                                                : 'text-green-600'
-                                                                }`}
-                                                        />
-                                                    </td>
-
-                                                    <td className="px-4 py-3">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isNoEncontrado || false}
-                                                            onChange={(e) => handleToggleNoEncontrado(
-                                                                pedidoSeleccionado.id,
-                                                                item.id,
-                                                                e.target.checked
-                                                            )}
-                                                            disabled={isRecolectado}
-                                                            className={`h-4 w-4 rounded border-gray-300 focus:ring-red-500 ${isRecolectado
-                                                                ? 'text-gray-400 cursor-not-allowed'
-                                                                : 'text-red-600'
-                                                                }`}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className={`font-medium flex flex-col ${isNoEncontrado ? 'line-through text-red-600' : ''
-                                                            }`}>
-                                                            {item.nombre}
-                                                            <span className="px-4 py-3 text-xs"><strong>CB: </strong>{item.id}</span>
-                                                        </div>
-                                                        {item.articulo && (
-                                                            <div className="text-xs text-gray-500">Artículo: {item.articulo}</div>
-                                                        )}
-                                                        {isNoEncontrado && (
-                                                            <div className="text-xs text-red-500 font-medium mt-1">
-                                                                ⚠️ Producto no encontrado
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-4 py-3">{item.categoria}</td>
-                                                    <td className="px-4 py-3 text-center">
-                                                        <span className={`font-medium ${isNoEncontrado ? 'line-through' : ''
-                                                            }`}>
-                                                            {item.quantity}
-                                                        </span>
-                                                        <span className="text-xs text-gray-500 ml-1">{item.unidad}</span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        <span className={isNoEncontrado ? 'line-through' : ''}>
-                                                            ${item.precio?.toFixed(2) || '0.00'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right font-medium">
-                                                        <span className={isNoEncontrado ? 'line-through text-red-600' : ''}>
-                                                            ${((item.precio || 0) * (item.quantity || 0)).toFixed(2)}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <h3 className="font-semibold text-lg mb-3">Control del Pedido</h3>
-                            <div className="flex flex-wrap gap-3 items-center justify-between">
-                                <div className="flex flex-wrap gap-2">
-                                    <span className="text-sm text-gray-600">Cambiar estado:</span>
-                                    {['nuevo', 'proceso', 'listo', 'entregado', 'cancelado'].map((estado) => (
-                                        <button
-                                            key={estado}
-                                            onClick={() => handleActualizarEstado(pedidoSeleccionado.id, estado)}
-                                            disabled={pedidoSeleccionado.estado === estado}
-                                            className={`px-3 py-1 text-xs rounded transition-colors ${pedidoSeleccionado.estado === estado
-                                                ? 'bg-blue-600 text-white cursor-default'
-                                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                                                }`}
-                                        >
-                                            {getEstadoDisplay(estado)}
-                                        </button>
-                                    ))}
-
-                                    <button
-                                        onClick={() => generarPDF(pedidoSeleccionado)}
-                                        className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center gap-1"
-                                    >
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                        </svg>
-                                        Imprimir Lista
-                                    </button>
-                                </div>
-
-                                <div className="flex items-center gap-2 text-sm">
-                                    {pedidoSeleccionado.items.some((item: any) => item.noEncontrado) ? (
-                                        <div className="flex items-center text-red-600">
-                                            <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                            <span>Productos marcados como no encontrados</span>
-                                        </div>
-                                    ) : pedidoSeleccionado.items.every((item: any) => item.recolectado) ? (
-                                        <div className="flex items-center text-green-600">
-                                            <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                            <span>Todos los productos recolectados</span>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center text-yellow-600">
-                                            <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>
-                                            <span>Productos pendientes por recolectar</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </Modal>
+            {pedidoSeleccionadoId && (
+                <ModalList
+                    pedidoId={pedidoSeleccionadoId}
+                    onEstadoActualizado={handleEstadoActualizadoDesdeModal}
+                />
+            )}
         </main>
     )
 }
