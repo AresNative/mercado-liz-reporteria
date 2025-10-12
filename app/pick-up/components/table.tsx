@@ -115,6 +115,7 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
             case 'entregado': return <CheckCircle className="h-4 w-4 text-green-500" />;
             case 'cancelado': return <XCircle className="h-4 w-4 text-red-500" />;
             case 'incompleto': return <XCircle className="h-4 w-4 text-orange-500" />;
+            case 'proceso': return <CheckCircle className="h-4 w-4 text-indigo-500" />;
             case 'listo': return <CheckCircle className="h-4 w-4 text-blue-500" />;
             default: return <Clock className="h-4 w-4 text-yellow-500" />;
         }
@@ -123,8 +124,8 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
     const getEstadoColor = (estado: string) => {
         switch (estado) {
             case 'nuevo': return 'bg-yellow-100 text-yellow-800';
-            case 'proceso': return 'bg-blue-100 text-blue-800';
-            case 'listo': return 'bg-green-100 text-green-800';
+            case 'proceso': return 'bg-indigo-100 text-indigo-800';
+            case 'listo': return 'bg-blue-100 text-blue-800';
             case 'entregado': return 'bg-green-100 text-green-800';
             case 'cancelado': return 'bg-red-100 text-red-800';
             case 'incompleto': return 'bg-orange-100 text-orange-800';
