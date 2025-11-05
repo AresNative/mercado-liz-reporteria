@@ -21,7 +21,7 @@ export const ModalForm: React.FC<modalFormProps> = ({ actionType, formName, name
         <Modal title="Formulario de Tarea" modalName={nameModal}>
             <MainForm
                 actionType={actionType}
-                modelName={formName}
+                formName={formName}
                 dataForm={formFunction(dataModal && dataModal)}
                 aditionalData={{ estado: "backlog", sprint_id: sprintId, activo: 1 }}
                 onSuccess={() => {

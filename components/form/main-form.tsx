@@ -32,10 +32,10 @@ import { TagInputComponent as TagInput } from "./tag-input"
 import { useLoginUserMutation } from "@/hooks/reducers/auth";
 import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer } from "@/hooks/reducers/drop-down";
-import { usePostImgMutation, usePostMutation } from "@/hooks/reducers/api";
+import { usePostImgMutation, usePostGeneralMutation } from "@/hooks/reducers/api";
 import Link from "next/link";
 
-export const MainForm = ({ message_button, dataForm, actionType, aditionalData, action, valueAssign, onSuccess, formName, modelName, iconButton }: MainFormProps) => {
+export const MainForm = ({ message_button, dataForm, actionType, aditionalData, action, valueAssign, onSuccess, formName, table, iconButton }: MainFormProps) => {
   const dispatch = useAppDispatch()
   const [page, setPage] = useState(0);
   const [formData, setFormData] = useState<any>({}); // Estado para guardar datos
@@ -55,25 +55,21 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
   } = useForm();
 
   const [postUserLogin] = useLoginUserMutation();
-  const [post] = usePostMutation();
+  const [post] = usePostGeneralMutation();
   const [postImg] = usePostImgMutation(); // Hook para subir imágenes
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
-    const payload = formName ? data : { [modelName ?? actionType.toLowerCase()]: modelName ? data : [data] };
-
     switch (actionType) {
       case "post-login":
         return await postUserLogin(data).unwrap();
       default:
-        const functionFetch = post;
-        return await functionFetch({
-          url: actionType,
-          data: payload,
+        return await post({
+          table: table,
+          data: data,
           signal: new AbortController().signal,
         }).unwrap();
     }
   }
-
   // Función para subir imágenes
   async function uploadImage(file: File, additionalParams: any) {
     const { idRef, tabla, descripcion } = additionalParams;

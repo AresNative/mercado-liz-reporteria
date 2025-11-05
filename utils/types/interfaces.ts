@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import { alertClasses } from "@/utils/constants/colors";
 
 export type FieldType =
@@ -55,7 +56,7 @@ export interface MainFormProps {
   aditionalData?: any;
   valueAssign?: any;
   formName?: string;
-  modelName?: string;
+  table?: string;
   iconButton?: React.ReactNode;
   action?: (...args: any[]) => any;
   onSuccess?: (result: any, formData: any) => void;
@@ -129,6 +130,7 @@ export interface SearchableSelectProps {
     placeholder?: string;
     label?: string;
     require?: boolean;
+    Search?: boolean;
     options: string[];
     multi?: boolean;
     valueDefined?: string;

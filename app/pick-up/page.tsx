@@ -229,7 +229,7 @@ export default function GestionPedidos() {
             }
 
             const response = await getWithFilter({
-                table: "listas as listas left join clientes as clientes on listas.id_cliente = clientes.id",
+                table: "listas left join clientes on listas.id_cliente = clientes.id",
                 pageSize: 10,
                 page: currentPage,
                 tag: 'Pedidos',

@@ -7,13 +7,22 @@ export const fetchNames = async (
   signal?: AbortSignal
 ): Promise<{ options: string[]; hasMore: boolean }> => {
   const { data } = await filterFunction({
-    url: `${config}`,
+    table: `COMPRAD InvD 
+                  INNER JOIN COMPRA INV ON INVD.ID = INV.ID
+                  LEFT JOIN ART ON INVD.Articulo = ART.Articulo
+                  LEFT JOIN PROV C ON INV.Proveedor = C.Proveedor`,
     pageSize: 5,
     page,
     signal,
-    filters: {
+    filtros: {
       Filtros: [{ Key: key, Value: query.toLowerCase(), Operator: "like" }],
-      Selects: [{ Key: key }],
+      Selects: [{ Key: "Nombre" }],
+      OrderBy: [
+        {
+          Key: "FechaEmision",
+          Direction: "desc",
+        },
+      ],
     },
   });
 

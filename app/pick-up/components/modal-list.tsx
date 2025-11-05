@@ -1,9 +1,10 @@
 import { Modal } from "@/components/modal";
 import { useGetWithFiltersGeneralMutation, usePutGeneralMutation } from "@/hooks/reducers/api"
 import jsPDF from "jspdf";
-import { useCallback, useEffect, useState } from "react";
-import { Trash, Printer, NotepadText } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Trash, Printer, NotepadText, Radio } from "lucide-react";
 import { usePedidosSignalR } from "../utils/singalr-pedidos";
+import { SerialPrinter, Ticket, TicketItem } from "../utils/render-tiket";
 
 interface ListaItem {
     id: string;
@@ -635,7 +636,32 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             console.error('Error al desmarcar todos como recolectados:', error);
         }
     };
+    const portRef = useRef<any>(null);
+    const printer = new SerialPrinter();
 
+    const handleConnectPrinter = async () => {
+        const result = await printer.connectPrinter(portRef);
+        console.log("connect:", result);
+    };
+
+    const handlePrintTicket = async () => {
+        const ticket: Ticket = {
+            id: 123,
+            items: [{
+                name: "Producto de prueba",
+                price: 9.99,
+                quantity: 2,
+                barcode: "123456789012",
+            }, {
+                name: "Producto de prueba",
+                price: 9.99,
+                quantity: 2,
+                barcode: "123456789012",
+            }]
+        };
+        const result = await printer.printToSerial(ticket, portRef);
+        console.log("print:", result);
+    };
     return (
         <Modal
             modalName="detalle_pedido"
@@ -857,28 +883,13 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                         onClick={() => handleActualizarEstado(pedidoSeleccionado.id, estado)}
                                         disabled={pedidoSeleccionado.estado === estado}
                                         className={`px-3 py-1 text-xs rounded transition-colors ${pedidoSeleccionado.estado === estado
-                                            ? 'bg-blue-600 text-white cursor-default'
+                                            ? 'bg-green-600 text-white cursor-default'
                                             : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                                             }`}
                                     >
                                         {getEstadoDisplay(estado)}
                                     </button>
                                 ))}
-
-                                <button
-                                    onClick={() => generarPDF(pedidoSeleccionado)}
-                                    className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center gap-1"
-                                >
-                                    <Printer className="size-3" />
-                                    Imprimir Lista
-                                </button>
-                                <button
-                                    onClick={() => generarPDF(pedidoSeleccionado)}
-                                    className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors flex items-center gap-1"
-                                >
-                                    <NotepadText className="size-3" />
-                                    Imprimir Tiket
-                                </button>
                             </div>
 
                             <div className="flex items-center gap-2 text-sm">
@@ -898,6 +909,28 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                         <span>Productos pendientes por recolectar</span>
                                     </div>
                                 )}
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => generarPDF(pedidoSeleccionado)}
+                                    className="px-4 py-2 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                                >
+                                    <NotepadText className="size-4" /> Generar PDF
+                                </button>
+                                <button
+                                    disabled={pedidoSeleccionado.estado !== 'listo' && pedidoSeleccionado.estado !== 'entregado'}
+                                    onClick={handleConnectPrinter}
+                                    className="px-4 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    <Radio className="size-4" /> Conectar Impresora
+                                </button>
+                                <button
+                                    disabled={pedidoSeleccionado.estado !== 'listo' && pedidoSeleccionado.estado !== 'entregado'}
+                                    onClick={handlePrintTicket}
+                                    className="px-4 py-2 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    <Printer className="size-4" /> Imprimir Ticket
+                                </button>
                             </div>
                         </div>
                     </div>

@@ -1035,7 +1035,7 @@ export default function AdministracionProductos() {
             alert('Error en la actualización masiva');
         }
     };
-
+    /* bitfire uptimekuma go.firebridge.net */
     const handleCrearProducto = async (data: any) => {
         try {
             await postGeneral({
@@ -1278,7 +1278,8 @@ export default function AdministracionProductos() {
                 <Modal modalName="crear_producto" title="Crear Nuevo Producto" maxWidth="2xl">
                     <MainForm
                         message_button="Crear Producto"
-                        actionType="post"
+                        actionType='post'
+                        table="articulos"
                         dataForm={[
                             { type: "H1", label: "Crear Nuevo Producto", require: false },
                             {
@@ -1302,16 +1303,17 @@ export default function AdministracionProductos() {
                                 placeholder: "0.00",
                                 require: true
                             },
-                            {
+                            /* {
                                 type: "NUMBER",
                                 name: "costo",
                                 label: "Costo",
                                 placeholder: "0.00",
                                 require: false
-                            },
+                            }, */
                             {
                                 type: "SELECT",
                                 name: "categoria_id",
+
                                 label: "Categoría",
                                 options: [
                                     { value: "1", label: "Electrónicos" },
