@@ -6,6 +6,7 @@ import { Eye, Truck, Clock, CheckCircle, XCircle, Store, Home, MessageCircle } f
 import { useState } from "react";
 import { ModalChat } from "./modal-chat";
 import { CountdownTimer } from "@/components/counter-down";
+import { formatValue } from "@/utils/constants/format-values";
 
 interface ListaItem {
     id: string;
@@ -320,7 +321,7 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm font-medium text-gray-900">
-                                        ${pedido.total.toFixed(2)}
+                                        {formatValue(pedido.total, "currency")}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">

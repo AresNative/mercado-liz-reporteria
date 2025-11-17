@@ -879,6 +879,7 @@ export default function AdministracionProductos() {
                     { key: "articulos.nombre" },
                     { key: "articulos.descripcion" },
                     { key: "articulos.precio" },
+                    { key: "articulos.articulo" },
                     { key: "historia_costos.costo" },
                     { key: "inventario.cantidad" },
                     { key: "unidades.nombre", alias: "unidad_nombre" },
@@ -887,7 +888,7 @@ export default function AdministracionProductos() {
                     { key: "imagenes.url" }
                 ],
                 Order: [
-                    { Key: "articulos.nombre", Direction: "Asc" }
+                    { Key: "articulos.articulo", Direction: "Asc" }
                 ]
             };
 
@@ -1097,7 +1098,7 @@ export default function AdministracionProductos() {
             nuevosFiltros.push({
                 Key: "articulos.nombre",
                 Value: data.search,
-                Operator: "contains"
+                Operator: "like"
             });
         }
 
