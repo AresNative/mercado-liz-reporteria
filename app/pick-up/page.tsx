@@ -421,9 +421,9 @@ export default function GestionPedidos() {
 
         if (data.search) {
             nuevosFiltros.push({
-                Key: "nombre_lista",
+                Key: "clientes.nombre",
                 Value: data.search,
-                Operator: "contains"
+                Operator: "like"
             });
         }
 
