@@ -815,12 +815,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                         <span>-{formatValue(pedidoSeleccionado.descuentoTotal, "currency")}</span>
                                     </div>
                                 )}
-                                {pedidoSeleccionado.servicioFee > 0 && (
-                                    <div className="flex justify-between text-blue-600">
-                                        <span>Servicio Pick-up:</span>
-                                        <span>{formatValue(pedidoSeleccionado.servicioFee, "currency")}</span>
-                                    </div>
-                                )}
                                 <div className="flex justify-between font-bold border-t pt-2">
                                     <span>Total:</span>
                                     <span>{formatValue(pedidoSeleccionado.total, "currency")}</span>
