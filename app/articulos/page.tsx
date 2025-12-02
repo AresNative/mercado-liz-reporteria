@@ -570,15 +570,18 @@ export default function GestionProductosConImagenes() {
         dispatch(openModalReducer({ modalName: "subir_imagen" }));
     };
 
-    const handleGuardarImagen = async (data: any) => {
+    const handleGuardarImagen = async (result: any, submitData: any) => {
         if (!productoParaImagen) return;
-        console.log(data);
 
         try {
+            // Mostrar mensaje apropiado
+            const tieneImagen = productoParaImagen.imagenes && productoParaImagen.imagenes.length > 0;
 
             dispatch(openAlertReducer({
-                title: "Imagen subida",
-                message: "La imagen se ha subido correctamente",
+                title: tieneImagen ? "Imagen actualizada" : "Imagen subida",
+                message: tieneImagen
+                    ? "La imagen se ha reemplazado correctamente"
+                    : "La imagen se ha subido correctamente",
                 type: "success",
                 duration: 3000,
                 icon: 'alert'
@@ -587,8 +590,15 @@ export default function GestionProductosConImagenes() {
             fetchProductos();
             setProductoParaImagen(null);
         } catch (error) {
-            console.error("Error subiendo imagen:", error);
-            alert('Error al subir la imagen');
+            console.error("Error procesando imagen:", error);
+
+            dispatch(openAlertReducer({
+                title: "Error",
+                message: "No se pudo procesar la imagen. Intenta de nuevo.",
+                type: "error",
+                duration: 4000,
+                icon: 'alert'
+            }));
         }
     };
 
