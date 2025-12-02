@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
-import { ChevronDown, ChevronUp, Hash, Plus, Save, Trash2 } from "lucide-react";
-import { FilterSectionProps, FormValues } from "../utils/types";
+import { ChevronDown, ChevronUp, Hash, Plus, Save, Trash2, Store, TrendingUp } from "lucide-react";
+import { FilterSectionProps, FormValues, StoreFilterType, MarginFilterType } from "../utils/types";
 import { DateFilterSection } from "./date-filter-section";
 import { FilterRow } from "./filter-row";
 import { OrderBySection } from "./order-by-section";
@@ -12,22 +12,125 @@ import { getLocalStorageItem, setLocalStorageItem, removeFromLocalStorage } from
 import { cn } from "@/utils/functions/cn";
 
 const SELECTS_STORAGE_KEY = "select_fields_config";
-// Nueva clave para almacenar la visibilidad de secciones
 const SECTION_VISIBILITY_KEY = "filter_sections_visibility";
+
+// Componente para filtro de sucursal
+const StoreFilterSection = ({ availableStores, register }: { availableStores?: string[], register: any }) => (
+    <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Store size={20} />
+            Filtro de Sucursal
+        </h3>
+
+        <div className="p-4 bg-gray-50 dark:bg-zinc-700/50 rounded-lg border border-gray-200 dark:border-zinc-600">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label htmlFor="store-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Seleccionar Sucursal
+                    </label>
+                    <select
+                        id="store-filter"
+                        {...register("StoreFilter.selectedStore")}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    >
+                        <option value="">Todas las sucursales</option>
+                        {availableStores?.map(store => (
+                            <option key={store} value={store}>{store}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label htmlFor="store-operator" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Operador
+                    </label>
+                    <select
+                        id="store-operator"
+                        {...register("StoreFilter.operator")}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    >
+                        <option value="=">Igual a</option>
+                        <option value="<>">Diferente de</option>
+                        <option value="like">Contiene</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+// Componente para filtros de margen
+const MarginFilterSection = ({ register }: { register: any }) => (
+    <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <TrendingUp size={20} />
+            Filtros de Margen
+        </h3>
+
+        <div className="p-4 bg-gray-50 dark:bg-zinc-700/50 rounded-lg border border-gray-200 dark:border-zinc-600">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label htmlFor="min-margin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Margen Mínimo (%)
+                    </label>
+                    <input
+                        id="min-margin"
+                        type="number"
+                        step="0.01"
+                        {...register("MarginFilter.minMargin")}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="max-margin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Margen Máximo (%)
+                    </label>
+                    <input
+                        id="max-margin"
+                        type="number"
+                        step="0.01"
+                        {...register("MarginFilter.maxMargin")}
+                        placeholder="100.00"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="margin-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Tipo de Margen
+                    </label>
+                    <select
+                        id="margin-type"
+                        {...register("MarginFilter.marginType")}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    >
+                        <option value="profit">Margen de Ganancia</option>
+                        <option value="markup">Markup</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+);
 
 export const FilterSection = ({
     onApply,
     onReset,
     config,
     filterFunction,
-    cols
+    cols,
+    availableStores = []
 }: FilterSectionProps) => {
     // Estado inicial con valores por defecto
     const defaultVisibility = {
         filters: true,
         selectFields: true,
         orderBy: true,
-        dateFilters: true
+        dateFilters: true,
+        storeFilters: true,
+        marginFilters: true
     };
 
     // Estado para controlar la visibilidad de cada sección
@@ -50,7 +153,6 @@ export const FilterSection = ({
             [section]: !sectionVisibility[section]
         };
         setSectionVisibility(newVisibility);
-        // Guardar en localStorage cada vez que cambia la visibilidad
         setLocalStorageItem(SECTION_VISIBILITY_KEY, newVisibility);
     };
 
@@ -69,6 +171,8 @@ export const FilterSection = ({
             DateFilters: { startDate: "", endDate: "", preset: "" },
             sum: false,
             distinct: false,
+            StoreFilter: { selectedStore: "", operator: "=" },
+            MarginFilter: { minMargin: "", maxMargin: "", marginType: "profit" }
         },
     });
 
@@ -128,13 +232,41 @@ export const FilterSection = ({
             });
         }
 
+        // Agregar filtro de sucursal si está seleccionado
+        const storeFilters = [];
+        if (data.StoreFilter?.selectedStore) {
+            storeFilters.push({
+                Key: "Almacen",
+                Value: data.StoreFilter.selectedStore,
+                Operator: data.StoreFilter.operator || "=",
+            });
+        }
+
+        // Agregar filtros de margen si están configurados
+        const marginFilters = [];
+        if (data.MarginFilter?.minMargin) {
+            marginFilters.push({
+                Key: "Margen",
+                Value: data.MarginFilter.minMargin,
+                Operator: ">=",
+            });
+        }
+
+        if (data.MarginFilter?.maxMargin) {
+            marginFilters.push({
+                Key: "Margen",
+                Value: data.MarginFilter.maxMargin,
+                Operator: "<=",
+            });
+        }
+
         setLocalStorageItem(
             SELECTS_STORAGE_KEY,
             data.Selects.filter((s) => s.Key)
         );
 
         onApply({
-            Filtros: [...baseFilters, ...dateFilters],
+            Filtros: [...baseFilters, ...dateFilters, ...storeFilters, ...marginFilters],
             Selects: data.Selects.filter((s) => s.Key),
             OrderBy: data.OrderBy.Key ? data.OrderBy : { Key: "", Direction: "asc" },
             Agregaciones: [],
@@ -224,8 +356,7 @@ export const FilterSection = ({
                     )}
                 </button>
             </div>
-
-            {/* Sección de Filtros */}
+            {/* Sección de Filtro de Sucursal */}
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
@@ -447,61 +578,56 @@ export const FilterSection = ({
                 {sectionVisibility.orderBy && (
                     <OrderBySection register={register} />
                 )}
-            </div>
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => toggleSection('dateFilters')}
+                                className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100"
+                                aria-expanded={sectionVisibility.dateFilters}
+                            >
+                                {sectionVisibility.dateFilters ?
+                                    <ChevronUp size={20} aria-hidden="true" /> :
+                                    <ChevronDown size={20} aria-hidden="true" />
+                                }
+                                <span>Filtros de fecha</span>
+                            </button>
+                        </div>
+                    </div>
 
-            {/* Sección de Filtros de fecha */}
-            <div className="space-y-4">
-                <div className="flex justify-between items-center">
+                    {sectionVisibility.dateFilters && (
+                        <DateFilterSection
+                            register={register}
+                            watch={watch}
+                            setValue={setValue}
+                        />
+                    )}
+                </div>                <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            onClick={() => toggleSection('dateFilters')}
+                            onClick={() => toggleSection('storeFilters')}
                             className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100"
-                            aria-expanded={sectionVisibility.dateFilters}
+                            aria-expanded={sectionVisibility.storeFilters}
                         >
-                            {sectionVisibility.dateFilters ?
+                            {sectionVisibility.storeFilters ?
                                 <ChevronUp size={20} aria-hidden="true" /> :
                                 <ChevronDown size={20} aria-hidden="true" />
                             }
-                            <span>Filtros de fecha</span>
+                            <span>Filtro de Sucursal</span>
                         </button>
                     </div>
                 </div>
 
-                {sectionVisibility.dateFilters && (
-                    <DateFilterSection
+                {sectionVisibility.storeFilters && (
+                    <StoreFilterSection
+                        availableStores={availableStores}
                         register={register}
-                        watch={watch}
-                        setValue={setValue}
                     />
                 )}
             </div>
-            <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => toggleSection('dateFilters')}
-                            className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100"
-                            aria-expanded={sectionVisibility.dateFilters}
-                        >
-                            {sectionVisibility.dateFilters ?
-                                <ChevronUp size={20} aria-hidden="true" /> :
-                                <ChevronDown size={20} aria-hidden="true" />
-                            }
-                            <span>Filtro de sucursal</span>
-                        </button>
-                    </div>
-                </div>
 
-                {sectionVisibility.dateFilters && (
-                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                        {config === "ventas" && "Sucursal: Todas las sucursales"}
-                        {config === "compras" && "Sucursal: Todas las sucursales"}
-                        {config === "inventario" && "Sucursal: Todas las sucursales"}
-                    </div>
-                )}
-            </div>
             {/* Botones finales */}
             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200 dark:border-zinc-700">
                 <button

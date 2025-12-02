@@ -229,7 +229,7 @@ export default function GestionPedidos() {
             }
 
             const response = await getWithFilter({
-                table: "listas as listas left join clientes as clientes on listas.id_cliente = clientes.id",
+                table: "listas left join clientes on listas.id_cliente = clientes.id",
                 pageSize: 10,
                 page: currentPage,
                 tag: 'Pedidos',
@@ -421,9 +421,9 @@ export default function GestionPedidos() {
 
         if (data.search) {
             nuevosFiltros.push({
-                Key: "nombre_lista",
+                Key: "clientes.nombre",
                 Value: data.search,
-                Operator: "contains"
+                Operator: "like"
             });
         }
 

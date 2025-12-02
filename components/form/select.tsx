@@ -112,7 +112,7 @@ export function SelectComponent(props: SearchableSelectProps) {
                 </div>
                 {showSkillsDropdown && (
                     <div className="absolute z-30 w-full bg-white dark:bg-zinc-800 border border-gray-300  dark:border-zinc-700 mt-1 rounded-md shadow-lg">
-                        <div className="p-2">
+                        {cuestion.Search && (<div className="p-2">
                             <input
                                 type="text"
                                 className="w-full px-3 py-2 border rounded-md bg-white dark:bg-zinc-800 border-gray-300  dark:border-zinc-700"
@@ -120,7 +120,7 @@ export function SelectComponent(props: SearchableSelectProps) {
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
-                        </div>
+                        </div>)}
                         <ul className="max-h-60 overflow-y-auto">
                             {cuestion.options && cuestion.options
                                 .filter((skill: any) => {

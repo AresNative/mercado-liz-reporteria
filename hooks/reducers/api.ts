@@ -89,11 +89,12 @@ export const api = createApi({
       query: ({ url, page, pageSize, filtros, signal }) => ({
         url: `${url}/consultar/filtros`,
         method: "POST",
+
         params: {
           page,
           pageSize,
-          filtros,
         },
+        body: filtros,
         signal,
       }),
       transformErrorResponse: (response: any) => ({
@@ -204,12 +205,52 @@ export const api = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
+    postArchvios: builder.mutation({
+      // <-- endpoint para subir archivos
+      query: ({ idRef, tabla, descripcion, file, signal }) => ({
+        url: `v1/recursos/archivos/upload`,
+        method: "POST",
+        params: { idRef, tabla, descripcion },
+        body: file, // Asegúrate de que 'file' sea un FormData con la imagen
+        signal,
+      }),
+      transformErrorResponse: (response: any) => ({
+        status: response.status,
+        message: response.data?.message || "Error fetching data",
+      }),
+      extraOptions: { maxRetries: 2 },
+    }),
     // Agregar este endpoint a tu api.ts
     deleteGeneral: builder.mutation({
       query: ({ table, id, signal }) => ({
         url: `v1/delete/${id}`,
         method: "DELETE",
         params: { table },
+        signal,
+      }),
+      transformErrorResponse: (response: any) => ({
+        status: response.status,
+        message: response.data?.message || "Error deleting data",
+      }),
+      extraOptions: { maxRetries: 2 },
+    }),
+
+    deleteImg: builder.mutation({
+      query: ({ id, signal }) => ({
+        url: `v1/recursos/imagenes/delete/${id}`,
+        method: "DELETE",
+        signal,
+      }),
+      transformErrorResponse: (response: any) => ({
+        status: response.status,
+        message: response.data?.message || "Error deleting data",
+      }),
+      extraOptions: { maxRetries: 2 },
+    }),
+    deleteArchivos: builder.mutation({
+      query: ({ id, signal }) => ({
+        url: `v1/recursos/archivos/delete/${id}`,
+        method: "DELETE",
         signal,
       }),
       transformErrorResponse: (response: any) => ({
@@ -232,5 +273,8 @@ export const {
   usePutMutation,
   usePutGeneralMutation,
   usePostImgMutation,
+  usePostArchviosMutation,
   useDeleteGeneralMutation,
+  useDeleteImgMutation,
+  useDeleteArchivosMutation,
 } = api;

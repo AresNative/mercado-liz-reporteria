@@ -1,23 +1,32 @@
 import { Modal } from "@/components/modal";
 import { useGetWithFiltersGeneralMutation, usePutGeneralMutation } from "@/hooks/reducers/api"
 import jsPDF from "jspdf";
-import { useCallback, useEffect, useState } from "react";
-import { Trash, Printer, NotepadText } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Trash, Printer, NotepadText, Radio, Tag } from "lucide-react";
 import { usePedidosSignalR } from "../utils/singalr-pedidos";
+import { SerialPrinter, Ticket, TicketItem } from "../utils/render-tiket";
+import { formatValue } from "@/utils/constants/format-values";
 
 interface ListaItem {
     id: string;
     articulo: string;
     categoria: string;
     nombre: string;
-    precio: number;
-    precioRegular: number;
+    precio: number; // Precio original
+    descuento?: number; // Precio con descuento (nuevo precio)
     unidad: string;
     cantidad: number;
     factor: number;
     quantity: number;
     recolectado?: boolean;
     noEncontrado?: boolean;
+    esServicio?: boolean;
+    codigo?: string;
+    descripcion?: string;
+    impuesto1?: number;
+    tipoImpuesto1?: string;
+    fecha_servicio?: string;
+    hora_servicio?: string;
 }
 
 interface Cliente {
@@ -50,6 +59,9 @@ interface Pedido {
     cliente_telefono?: string;
     cliente_email?: string;
     total: number;
+    subtotal: number;
+    descuentoTotal: number;
+    servicioFee: number;
     urgencia?: 'alta' | 'media' | 'baja';
     tiempo_restante?: number;
 }
@@ -161,15 +173,38 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
         }
     }, [connection, isConnected, pedidoId]);
 
-    // Función para parsear array_lista y calcular total
+    // Función para parsear array_lista y calcular totales
     const parseListaData = (lista: any): Pedido => {
         let items: ListaItem[] = [];
-        let total = 0;
+        let subtotal = 0;
+        let descuentoTotal = 0;
+        let servicioFee = 0;
 
         try {
             if (lista.array_lista) {
                 items = JSON.parse(lista.array_lista);
-                total = items.reduce((sum, item) => sum + (item.precio * item.quantity), 0);
+
+                // Calcular totales basados en la estructura real de datos
+                items.forEach(item => {
+                    const precioOriginal = item.precio || 0;
+                    const precioConDescuento = item.descuento || precioOriginal;
+                    const cantidad = item.quantity || 1;
+
+                    // Calcular monto de descuento por item
+                    const montoDescuentoItem = precioOriginal - precioConDescuento;
+
+                    // Acumular descuentos totales
+                    descuentoTotal += montoDescuentoItem * cantidad;
+
+                    // Identificar servicio pick-up
+                    if (item.esServicio || item.codigo === "SPICKUP") {
+                        servicioFee += precioConDescuento * cantidad;
+                        subtotal += precioConDescuento * cantidad;
+                    } else {
+                        // Para productos, usar el precio con descuento (si existe) o el precio original
+                        subtotal += precioConDescuento * cantidad;
+                    }
+                });
             }
         } catch (error) {
             console.error('Error parsing array_lista:', error);
@@ -203,7 +238,10 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             nombre: lista.nombre || `Cliente ${lista.id_cliente}`,
             cliente_telefono: lista.telefono || 'N/A',
             cliente_email: lista.email || 'N/A',
-            total: total,
+            total: subtotal,
+            subtotal: subtotal,
+            descuentoTotal: descuentoTotal,
+            servicioFee: servicioFee,
             urgencia: 'baja',
             tiempo_restante: 0
         };
@@ -319,15 +357,41 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
         doc.text(`Estado: ${pedido.estado}`, margin, yPosition);
         yPosition += 15;
 
-        const tableColumn = ["Producto", "Cantidad", "Precio Unit.", "Subtotal"];
+        // Resumen financiero
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Subtotal: $${pedido.subtotal.toFixed(2)}`, margin, yPosition);
+        yPosition += 6;
+        if (pedido.descuentoTotal > 0) {
+            doc.setTextColor(220, 38, 38);
+            doc.text(`Descuento: -$${pedido.descuentoTotal.toFixed(2)}`, margin, yPosition);
+            yPosition += 6;
+            doc.setTextColor(100, 100, 100);
+        }
+        if (pedido.servicioFee > 0) {
+            doc.text(`Servicio: $${pedido.servicioFee.toFixed(2)}`, margin, yPosition);
+            yPosition += 6;
+        }
+        doc.setFontSize(12);
+        doc.setTextColor(40, 40, 40);
+        doc.text(`TOTAL: $${pedido.total.toFixed(2)}`, margin, yPosition);
+        yPosition += 15;
+
+        const tableColumn = ["Producto", "Cantidad", "Precio Unit.", "Descuento", "Subtotal"];
         const tableRows = [];
 
         for (const item of pedido.items) {
+            const tieneDescuento = item.descuento && item.descuento > 0;
+            const precioFinal = item.descuento ? item.descuento : item.precio;
+            const precioOriginal = item.precio;
+            const montoDescuento = tieneDescuento ? precioOriginal - precioFinal : 0;
+
             const productData = [
-                item.nombre || 'Producto sin nombre',
+                item.nombre || item.descripcion || 'Producto sin nombre',
                 `${item.quantity || 0} ${item.unidad || 'unidad'}`,
-                `$${(item.precio || 0).toFixed(2)}`,
-                `$${((item.precio || 0) * (item.quantity || 0)).toFixed(2)}`
+                `$${precioOriginal.toFixed(2)}`,
+                tieneDescuento ? `-$${montoDescuento.toFixed(2)}` : '-',
+                `$${(precioFinal * (item.quantity || 0)).toFixed(2)}`
             ];
             tableRows.push(productData);
         }
@@ -336,7 +400,8 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             'TOTAL',
             '',
             '',
-            `$${pedido.total?.toFixed(2) || '0.00'}`
+            pedido.descuentoTotal > 0 ? `-$${pedido.descuentoTotal.toFixed(2)}` : '-',
+            `$${pedido.total.toFixed(2)}`
         ]);
 
         (doc as any).autoTable({
@@ -345,8 +410,8 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             body: tableRows,
             theme: 'grid',
             styles: {
-                fontSize: 10,
-                cellPadding: 3,
+                fontSize: 8,
+                cellPadding: 2,
             },
             headStyles: {
                 fillColor: [79, 70, 229],
@@ -636,6 +701,69 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
         }
     };
 
+    const portRef = useRef<any>(null);
+    const printer = new SerialPrinter();
+
+    const handleConnectPrinter = async () => {
+        const result = await printer.connectPrinter(portRef);
+        console.log("connect:", result);
+    };
+
+    const handlePrintTicket = async () => {
+        if (!pedidoSeleccionado) return;
+
+        const ticket: Ticket = {
+            id: pedidoSeleccionado.id,
+            items: pedidoSeleccionado.items.map(item => ({
+                name: item.nombre || item.descripcion || 'Producto',
+                price: item.descuento || item.precio, // Usar precio con descuento si existe
+                quantity: item.quantity,
+                barcode: item.id,
+                discount: item.descuento ? item.precio - item.descuento : 0 // Calcular monto de descuento
+            }))
+        };
+        const result = await printer.printToSerial(ticket, portRef);
+        console.log("print:", result);
+    };
+
+    // Función para renderizar precio con descuento - CORREGIDA
+    const renderPrecio = (item: ListaItem) => {
+        const tieneDescuento = item.descuento && item.descuento > 0;
+        const precioFinal = item.descuento ? item.descuento : item.precio;
+        const precioOriginal = item.precio;
+        const porcentajeDescuento = tieneDescuento ?
+            Math.round(((precioOriginal - precioFinal) / precioOriginal) * 100) : 0;
+
+        if (tieneDescuento) {
+            return (
+                <div className="flex flex-col items-end">
+                    <div className="flex items-center gap-2">
+                        <span className="text-base font-semibold text-purple-600 leading-none">
+                            {formatValue(precioFinal, "currency")}
+                        </span>
+                        <span className="text-[11px] text-gray-500 line-through leading-none">
+                            {formatValue(precioOriginal, "currency")}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-green-600">
+                        <Tag className="w-3 h-3" />
+                        <span>{porcentajeDescuento}% OFF</span>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <span className="font-medium">{formatValue(precioFinal, "currency")}</span>
+        );
+    };
+
+    // Función para calcular subtotal por item
+    const calcularSubtotalItem = (item: ListaItem) => {
+        const precioFinal = item.descuento || item.precio;
+        return precioFinal * (item.quantity || 0);
+    };
+
     return (
         <Modal
             modalName="detalle_pedido"
@@ -670,62 +798,26 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                     {pedidoSeleccionado.estado}
                                 </span>
                             </div>
-                            <div><strong>Total:</strong> ${pedidoSeleccionado.total.toFixed(2)}</div>
+                            <div><strong>Total:</strong> {formatValue(pedidoSeleccionado.total, "currency")}</div>
                             <div><strong>Creado:</strong> {formatDate(pedidoSeleccionado.fecha_creacion)}</div>
                         </div>
 
                         <div className="space-y-3">
-                            <h3 className="font-semibold text-lg border-gray-300 border-b pb-2">Progreso</h3>
-                            <div className="space-y-4">
-                                <div>
-                                    <div className="flex justify-between text-sm mb-1">
-                                        <span>Productos recolectados:</span>
-                                        <span className="font-medium">
-                                            {pedidoSeleccionado.items.filter((item: any) => item.recolectado).length} / {pedidoSeleccionado.items.length}
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div
-                                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                                            style={{
-                                                width: `${(pedidoSeleccionado.items.filter((item: any) => item.recolectado).length / pedidoSeleccionado.items.length) * 100}%`
-                                            }}
-                                        ></div>
-                                    </div>
+                            <h3 className="font-semibold text-lg border-gray-300 border-b pb-2">Resumen Financiero</h3>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span>Subtotal:</span>
+                                    <span>{formatValue(pedidoSeleccionado.subtotal, "currency")}</span>
                                 </div>
-
-                                <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-1">
-                                    <div className="flex justify-between items-center text-xs">
-                                        <div>
-                                            <span className="text-red-700">Productos no encontrados:</span>
-                                            <span className="text-red-600 ml-2">
-                                                {pedidoSeleccionado.items.filter((item: any) => item.noEncontrado).length}
-                                            </span>
-                                        </div>
-                                        {pedidoSeleccionado.items.some((item: any) => item.noEncontrado) && (
-                                            <button
-                                                onClick={() => handleMarcarTodosEncontrados(pedidoSeleccionado.id)}
-                                                className="px-2 py-1 flex gap-2 items-center bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs"
-                                            >
-                                                Limpiar <Trash className='size-4' />
-                                            </button>
-                                        )}
+                                {pedidoSeleccionado.descuentoTotal > 0 && (
+                                    <div className="flex justify-between text-red-600">
+                                        <span>Descuento:</span>
+                                        <span>-{formatValue(pedidoSeleccionado.descuentoTotal, "currency")}</span>
                                     </div>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2 pt-2">
-                                    <button
-                                        onClick={() => handleMarcarTodosRecolectados(pedidoSeleccionado.id)}
-                                        className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                                    >
-                                        Marcar todos recolectados
-                                    </button>
-                                    <button
-                                        onClick={() => handleDesmarcarTodosRecolectados(pedidoSeleccionado.id)}
-                                        className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-                                    >
-                                        Desmarcar todos
-                                    </button>
+                                )}
+                                <div className="flex justify-between font-bold border-t pt-2">
+                                    <span>Total:</span>
+                                    <span>{formatValue(pedidoSeleccionado.total, "currency")}</span>
                                 </div>
                             </div>
                         </div>
@@ -761,6 +853,10 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                     {pedidoSeleccionado.items.map((item: any, index) => {
                                         const isNoEncontrado = item.noEncontrado;
                                         const isRecolectado = item.recolectado;
+                                        const tieneDescuento = item.descuento && item.descuento > 0;
+                                        const esServicio = item.esServicio || item.codigo === "SPICKUP";
+                                        const precioFinal = tieneDescuento ? item.descuento : item.precio;
+                                        const subtotalItem = calcularSubtotalItem(item);
 
                                         return (
                                             <tr
@@ -769,7 +865,9 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                                     ? 'bg-red-50 hover:bg-red-100'
                                                     : isRecolectado
                                                         ? 'bg-green-50 hover:bg-green-100'
-                                                        : 'hover:bg-gray-50'
+                                                        : esServicio
+                                                            ? 'bg-blue-50 hover:bg-blue-100'
+                                                            : 'hover:bg-gray-50'
                                                     }`}
                                             >
                                                 <td className="px-4 py-3">
@@ -808,10 +906,20 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                                 <td className="px-4 py-3">
                                                     <div className={`font-medium flex flex-col ${isNoEncontrado ? 'line-through text-red-600' : ''
                                                         }`}>
-                                                        {item.nombre}
-                                                        <span className="px-4 py-3 text-xs"><strong>CB: </strong>{item.id}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            {item.nombre || item.descripcion}
+                                                            {esServicio && (
+                                                                <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                                                                    Servicio
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-xs text-gray-500 mt-1">
+                                                            <strong>CB: </strong>{item.id}
+                                                            {item.codigo && item.codigo !== "SPICKUP" && ` | Código: ${item.codigo}`}
+                                                        </span>
                                                     </div>
-                                                    {item.articulo && (
+                                                    {item.articulo && item.articulo !== "1" && (
                                                         <div className="text-xs text-gray-500">Artículo: {item.articulo}</div>
                                                     )}
                                                     {isNoEncontrado && (
@@ -820,7 +928,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                                         </div>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-3">{item.categoria}</td>
+                                                <td className="px-4 py-3">{item.categoria || 'Servicio'}</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <span className={`font-medium ${isNoEncontrado ? 'line-through' : ''
                                                         }`}>
@@ -829,13 +937,11 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                                     <span className="text-xs text-gray-500 ml-1">{item.unidad}</span>
                                                 </td>
                                                 <td className="px-4 py-3 text-right">
-                                                    <span className={isNoEncontrado ? 'line-through' : ''}>
-                                                        ${item.precio?.toFixed(2) || '0.00'}
-                                                    </span>
+                                                    {renderPrecio(item)}
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-medium">
                                                     <span className={isNoEncontrado ? 'line-through text-red-600' : ''}>
-                                                        ${((item.precio || 0) * (item.quantity || 0)).toFixed(2)}
+                                                        {formatValue(subtotalItem, "currency")}
                                                     </span>
                                                 </td>
                                             </tr>
@@ -857,28 +963,13 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                         onClick={() => handleActualizarEstado(pedidoSeleccionado.id, estado)}
                                         disabled={pedidoSeleccionado.estado === estado}
                                         className={`px-3 py-1 text-xs rounded transition-colors ${pedidoSeleccionado.estado === estado
-                                            ? 'bg-blue-600 text-white cursor-default'
+                                            ? 'bg-green-600 text-white cursor-default'
                                             : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                                             }`}
                                     >
                                         {getEstadoDisplay(estado)}
                                     </button>
                                 ))}
-
-                                <button
-                                    onClick={() => generarPDF(pedidoSeleccionado)}
-                                    className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center gap-1"
-                                >
-                                    <Printer className="size-3" />
-                                    Imprimir Lista
-                                </button>
-                                <button
-                                    onClick={() => generarPDF(pedidoSeleccionado)}
-                                    className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors flex items-center gap-1"
-                                >
-                                    <NotepadText className="size-3" />
-                                    Imprimir Tiket
-                                </button>
                             </div>
 
                             <div className="flex items-center gap-2 text-sm">
@@ -898,6 +989,28 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                         <span>Productos pendientes por recolectar</span>
                                     </div>
                                 )}
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => generarPDF(pedidoSeleccionado)}
+                                    className="px-4 py-2 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                                >
+                                    <NotepadText className="size-4" /> Generar PDF
+                                </button>
+                                <button
+                                    disabled={pedidoSeleccionado.estado !== 'listo' && pedidoSeleccionado.estado !== 'entregado'}
+                                    onClick={handleConnectPrinter}
+                                    className="px-4 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    <Radio className="size-4" /> Conectar Impresora
+                                </button>
+                                <button
+                                    disabled={pedidoSeleccionado.estado !== 'listo' && pedidoSeleccionado.estado !== 'entregado'}
+                                    onClick={handlePrintTicket}
+                                    className="px-4 py-2 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    <Printer className="size-4" /> Imprimir Ticket
+                                </button>
                             </div>
                         </div>
                     </div>

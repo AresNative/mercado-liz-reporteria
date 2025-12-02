@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useImperativeHandle, useState } from "react";
 import { useForm } from "react-hook-form";
 import { CircleCheckBig } from "lucide-react";
 
@@ -32,14 +32,28 @@ import { TagInputComponent as TagInput } from "./tag-input"
 import { useLoginUserMutation } from "@/hooks/reducers/auth";
 import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer } from "@/hooks/reducers/drop-down";
-import { usePostImgMutation, usePostMutation } from "@/hooks/reducers/api";
-import Link from "next/link";
+import { usePostGeneralMutation, usePostImgMutation, usePostMutation } from "@/hooks/reducers/api";
 
-export const MainForm = ({ message_button, dataForm, actionType, aditionalData, action, valueAssign, onSuccess, formName, modelName, iconButton }: MainFormProps) => {
+export const MainForm = React.forwardRef(({
+  message_button,
+  dataForm,
+  actionType,
+  aditionalData,
+  showButton = true,
+  action,
+  valueAssign,
+  onSuccess,
+  formName,
+  modelName,
+  iconButton,
+  table
+}: MainFormProps, ref: any) => {
   const dispatch = useAppDispatch()
   const [page, setPage] = useState(0);
   const [formData, setFormData] = useState<any>({}); // Estado para guardar datos
   const [loading, setLoading] = useState(false);
+
+  const [formValues, setFormValues] = useState<any>({});
 
   const {
     handleSubmit,
@@ -51,11 +65,59 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
     control,
     getValues,
     reset,
+    trigger,
     formState: { errors },
   } = useForm();
+  // 🔄 EFECTO PARA OBSERVAR CAMBIOS EN TIEMPO REAL
+  useEffect(() => {
+    const subscription = watch((value) => {
+      setFormValues(value);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
+
+  useImperativeHandle(ref, () => ({
+    getFormData: () => {
+      try {
+        return getValues(); // retorna todos los valores actuales del formulario
+      } catch (e) {
+        console.error("Error en getFormData:", e);
+        return {};
+      }
+    },
+
+    submitForm: async () => {
+      try {
+        const valid = await trigger(); // valida todos los campos
+
+        if (!valid) return null;
+
+        const values = getValues();
+
+        // dispara el callback original
+        if (onSuccess) onSuccess(values, values);
+
+        return values;
+      } catch (e) {
+        console.error("Error en submitForm:", e);
+        return null;
+      }
+    },
+    // 🔥 NUEVO MÉTODO: Obtener valores en tiempo real
+    getLiveValues: () => {
+      return formValues;
+    },
+
+    // 🔥 NUEVO MÉTODO: Ver estado de validación
+    getValidationStatus: async () => {
+      return await trigger();
+    }
+  }));
+
 
   const [postUserLogin] = useLoginUserMutation();
   const [post] = usePostMutation();
+  const [postGeneral] = usePostGeneralMutation();
   const [postImg] = usePostImgMutation(); // Hook para subir imágenes
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
@@ -64,13 +126,20 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
     switch (actionType) {
       case "post-login":
         return await postUserLogin(data).unwrap();
-      default:
-        const functionFetch = post;
-        return await functionFetch({
+      case "post-general":
+        return await postGeneral({
+          table: table,
+          data: data,
+          signal: new AbortController().signal,
+        }).unwrap();
+      case "post":
+        return await post({
           url: actionType,
           data: payload,
           signal: new AbortController().signal,
         }).unwrap();
+      default:
+        return data;
     }
   }
 
@@ -252,7 +321,9 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="relative w-full space-y-2 my-2 m-auto">
+    <form
+      ref={ref}
+      onSubmit={handleSubmit(onSubmit)} className="relative w-full space-y-2 my-2 m-auto">
       {pages[page].map((field: any, key: any) => (
         <SwitchTypeInputRender
           key={key}
@@ -268,7 +339,7 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
         />
       ))}
 
-      <div className="flex justify-between mt-4">
+      {showButton && (<div className="flex justify-between mt-4">
         {page > 0 && (
           <Button color="indigo" type="button" label="Anterior" onClick={() => handlePageChange(page - 1)} />
         )}
@@ -276,16 +347,16 @@ export const MainForm = ({ message_button, dataForm, actionType, aditionalData, 
           <Button color="indigo" aling="ml-auto" type="button" label="Siguiente" onClick={() => handlePageChange(page + 1)} />
         ) : (
           <button
-            className="float-right ml-auto cursor-pointer flex gap-2 items-center rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
+            className="float-right ml-auto cursor-pointer flex gap-2 items-center rounded-md bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700"
             type="submit"
             slot="end"
             disabled={loading}
           >{iconButton ? iconButton : <CircleCheckBig className="size-4" />}{loading ? "Loading..." : message_button}</button>
         )}
-      </div>
+      </div>)}
     </form>
   );
-};
+});
 
 export function SwitchTypeInputRender(props: any) {
   const { type } = props.cuestion;
@@ -326,10 +397,6 @@ export function SwitchTypeInputRender(props: any) {
       return <FlexComponent {...props} elements={props.cuestion.elements} />;
     case "H1":
       return <h1 className="text-2xl font-bold">{props.cuestion.label}</h1>;
-    case "LINK":
-      return <Link href={props.cuestion.href} className="text-primary-600">
-        {props.cuestion.label}
-      </Link>
     default:
       return <h2>{type}</h2>;
   }
