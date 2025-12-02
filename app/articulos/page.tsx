@@ -5,50 +5,39 @@ import {
     Package,
     Search,
     Filter,
-    Plus,
     Upload,
     RefreshCw,
     Edit,
-    Trash2,
     Image as ImageIcon,
-    BarChart3,
-    Layers,
-    Settings,
+    X,
     Save,
-    X
+    CheckSquare,
+    Square,
+    Eye
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer, openModalReducer } from "@/hooks/reducers/drop-down";
 import {
     useGetWithFiltersGeneralMutation,
-    usePutGeneralMutation,
-    usePostGeneralMutation,
-    useDeleteGeneralMutation
+    usePutGeneralMutation
 } from "@/hooks/reducers/api";
 import { LoadingSection } from "@/template/loading-screen";
 import { Modal } from "@/components/modal";
-import { BentoGrid, BentoItem } from "@/components/bento-grid";
-
-import { Field } from '@/utils/types/interfaces';
+import MainForm from '@/components/form/main-form';
+import Pagination from "@/components/pagination";
 import { EnvConfig } from '@/utils/constants/env.config';
 
-import Pagination from "@/components/pagination";
-import MainForm from '@/components/form/main-form';
+const { hubs: apiUrl } = EnvConfig();
 
-// Interfaces basadas en la respuesta de la API
 interface Producto {
     id: number;
     nombre: string;
     descripcion: string;
     precio: number;
-    costo: number | null;
-    cantidad: number | null;
-    unidad_nombre: string | null;
-    categoria_nombre: string | null;
-    codigo_barras: string | null;
-    imagenes?: string[];
     url?: string | null;
+    imagenes?: string[];
+    articulo?: string;
 }
 
 interface ApiResponse {
@@ -59,250 +48,77 @@ interface ApiResponse {
     data: Producto[];
 }
 
-interface EstadisticasProductos {
-    total_productos: number;
-    productos_sin_stock: number;
-    productos_bajo_stock: number;
-    valor_total_inventario: number;
-    productos_sin_imagen: number;
-}
-
-interface Filtro {
-    Key: string;
-    Value: any;
-    Operator: string;
-}
-
 interface ActiveFilters {
-    Filtros: Filtro[];
-    Selects: any[];
-    OrderBy: any | null;
-    sum: boolean;
-    distinct: boolean;
+    Filtros: Array<{ Key: string; Value: any; Operator: string }>;
 }
 
-// Props para componentes hijos
-interface VistaProductosProps {
-    productos: Producto[];
-    isLoading: boolean;
-    onViewDetails: (producto: Producto) => void;
-    onEdit: (producto: Producto) => void;
-    onDelete: (id: number) => void;
-    onGestionStock: (producto: Producto) => void;
-    onCrearProducto: () => void;
-    currentPage: number;
-    totalPages: number;
-    setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
-}
-
-interface VistaInventarioProps {
-    productos: Producto[];
-    isLoading: boolean;
-}
-
-interface VistaActualizacionMasivaProps {
-    productos: Producto[];
-    productosSeleccionados: number[];
-    onToggleSeleccion: (id: number) => void;
-    onSeleccionarTodos: () => void;
-    onActualizacionMasiva: (data: any) => void;
-    modoEdicionMasiva: boolean;
-    setModoEdicionMasiva: (mode: boolean) => void;
-}
-
-interface VistaGestionImagenesProps {
-    productos: Producto[];
-    fetchProductos: any;
-}
-
-interface ModalDetalleProductoProps {
-    producto: Producto | null;
-    onClose: () => void;
-}
-
-interface ModalGestionStockProps {
-    producto: Producto | null;
-    onClose: () => void;
-    onSave: (id: number, cantidad: number) => void;
-}
-
-const { hubs: apiUrl } = EnvConfig();
-// Componente ModalGestionStock
-const ModalGestionStock = ({ producto, onClose, onSave }: ModalGestionStockProps) => {
-    const [cantidad, setCantidad] = useState(producto?.cantidad || 0);
-
-    if (!producto) return null;
-
-    return (
-        <Modal modalName="gestion_stock" title="Gestión de Stock" maxWidth="md">
-            <div className="p-6">
-                <h3 className="text-lg font-semibold mb-4">{producto.nombre}</h3>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Cantidad Actual: {producto.cantidad || 0} {producto.unidad_nombre || 'unidades'}
-                        </label>
-                        <input
-                            type="number"
-                            value={cantidad}
-                            onChange={(e) => setCantidad(parseInt(e.target.value) || 0)}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            min="0"
-                        />
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={() => {
-                                onSave(producto.id, cantidad);
-                                onClose();
-                            }}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                            Guardar Stock
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-// Componente ModalDetalleProducto - CORREGIDO
-const ModalDetalleProducto = ({ producto, onClose }: ModalDetalleProductoProps) => {
-    // Función para obtener las imágenes del producto
-    const obtenerImagenes = (producto: Producto) => {
-        if (producto.imagenes && producto.imagenes.length > 0) {
-            return producto.imagenes;
-        }
-        if (producto.url) {
-            return [producto.url];
-        }
-        return [];
-    };
-
-    if (!producto) return null;
-
-    const imagenes = obtenerImagenes(producto);
-
-    return (
-        <Modal modalName="detalle_producto" title="Detalle del Producto" maxWidth="lg">
-            <div className="p-6">
-                <h2 className="text-xl font-bold mb-4">{producto.nombre}</h2>
-
-                {/* Imagen principal si existe */}
-                {imagenes.length > 0 && (
-                    <div className="mb-6">
-                        <img
-                            src={apiUrl.slice(0, -1) + imagenes[0]}
-                            alt={producto.nombre}
-                            className="w-full max-w-md h-64 object-cover rounded-lg border mx-auto"
-                        />
-                    </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-500">Descripción</label>
-                        <p className="text-gray-900">{producto.descripcion || 'Sin descripción'}</p>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium text-gray-500">Categoría</label>
-                        <p className="text-gray-900">{producto.categoria_nombre || 'Sin categoría'}</p>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium text-gray-500">Precio</label>
-                        <p className="text-gray-900">${producto.precio.toFixed(2)}</p>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium text-gray-500">Costo</label>
-                        <p className="text-gray-900">${producto.costo?.toFixed(2) || 'N/A'}</p>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium text-gray-500">Stock</label>
-                        <p className="text-gray-900">{producto.cantidad || 0} {producto.unidad_nombre || 'unidades'}</p>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium text-gray-500">Código Barras</label>
-                        <p className="text-gray-900">{producto.codigo_barras || 'N/A'}</p>
-                    </div>
-                </div>
-
-                {/* Sección de imágenes adicionales */}
-                {imagenes.length > 1 && (
-                    <div className="mt-6">
-                        <label className="text-sm font-medium text-gray-500">Imágenes Adicionales</label>
-                        <div className="grid grid-cols-3 gap-2 mt-2">
-                            {imagenes.slice(1).map((img, index) => (
-                                <img
-                                    key={index}
-                                    src={apiUrl.slice(0, -1) + img}
-                                    alt={`Imagen ${index + 2} de ${producto.nombre}`}
-                                    className="w-full h-24 object-cover rounded border"
-                                />
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-        </Modal>
-    );
-};
-
-// Componente VistaProductos - CORREGIDO
-const VistaProductos = ({
+// Componente para vista de productos con imágenes
+const VistaProductosConImagenes = ({
     productos,
     isLoading,
+    onSelect,
+    onUpdate,
+    onUploadImage,
     onViewDetails,
-    onEdit,
-    onDelete,
-    onGestionStock,
-    onCrearProducto,
-    currentPage,
-    totalPages,
-    setCurrentPage
-}: VistaProductosProps) => (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        <div className="p-4 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold">Lista de Productos</h2>
-                <button
-                    onClick={onCrearProducto}
-                    className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    Nuevo Producto
-                </button>
-            </div>
-        </div>
+    selectedIds,
+    onToggleSelectAll,
+    allSelected
+}: {
+    productos: Producto[];
+    isLoading: boolean;
+    onSelect: (id: number) => void;
+    onUpdate: (producto: Producto) => void;
+    onUploadImage: (producto: Producto) => void;
+    onViewDetails: (producto: Producto) => void;
+    selectedIds: number[];
+    onToggleSelectAll: () => void;
+    allSelected: boolean;
+}) => {
+    const obtenerImagenPrincipal = (producto: Producto) => {
+        if (producto.imagenes && producto.imagenes.length > 0) {
+            return producto.imagenes[0];
+        }
+        return producto.url || null;
+    };
 
-        <div className="overflow-x-auto">
-            {isLoading ? (
-                <LoadingSection message="Cargando productos..." />
-            ) : productos.length > 0 ? (
-                <>
+    return (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="p-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold">Productos</h2>
+                <p className="text-sm text-gray-600">Selecciona productos para acciones masivas</p>
+            </div>
+
+            <div className="overflow-x-auto">
+                {isLoading ? (
+                    <LoadingSection message="Cargando productos..." />
+                ) : productos.length > 0 ? (
                     <table className="w-full">
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button
+                                        onClick={onToggleSelectAll}
+                                        className="p-1 hover:bg-gray-100 rounded"
+                                        title={allSelected ? "Desmarcar todos" : "Marcar todos"}
+                                    >
+                                        {allSelected ? (
+                                            <CheckSquare className="h-5 w-5 text-blue-600" />
+                                        ) : (
+                                            <Square className="h-5 w-5 text-gray-400" />
+                                        )}
+                                    </button>
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Producto
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Categoría
+                                    Artículo
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Precio
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Costo
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Stock
+                                    Imagen
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Acciones
@@ -310,566 +126,336 @@ const VistaProductos = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {productos.map((producto) => (
-                                <tr key={producto.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-4">
-                                        <div className="flex items-center gap-3">
-                                            {/* Miniaturas de imágenes */}
-                                            <div className="flex-shrink-0">
-                                                {producto.url || (producto.imagenes && producto.imagenes.length > 0) ? (
-                                                    <img
-                                                        src={apiUrl.slice(0, -1) + producto.url || apiUrl.slice(0, -1) + producto.imagenes![0]}
-                                                        alt={producto.nombre}
-                                                        className="w-10 h-10 object-cover rounded border border-gray-200"
-                                                    />
+                            {productos.map((producto) => {
+                                const imagen = obtenerImagenPrincipal(producto);
+                                const isSelected = selectedIds.includes(producto.id);
+                                const tieneImagen = !!imagen;
+
+                                return (
+                                    <tr
+                                        key={producto.id}
+                                        className={`hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}
+                                    >
+                                        <td className="px-4 py-4">
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={() => onSelect(producto.id)}
+                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            <div className="flex items-center gap-3">
+                                                {/* Vista previa de imagen */}
+                                                {tieneImagen ? (
+                                                    <div className="flex-shrink-0">
+                                                        <img
+                                                            src={apiUrl.slice(0, -1) + imagen}
+                                                            alt={producto.nombre}
+                                                            className="w-12 h-12 object-cover rounded border border-gray-200"
+                                                            onError={(e) => {
+                                                                (e.target as HTMLImageElement).style.display = 'none';
+                                                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                                            }}
+                                                        />
+                                                        <div className="hidden w-12 h-12 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
+                                                            <ImageIcon className="h-5 w-5 text-gray-400" />
+                                                        </div>
+                                                    </div>
                                                 ) : (
-                                                    <div className="w-10 h-10 bg-gray-200 rounded border border-gray-200 flex items-center justify-center">
-                                                        <ImageIcon className="h-4 w-4 text-gray-400" />
+                                                    <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
+                                                        <ImageIcon className="h-5 w-5 text-gray-400" />
+                                                    </div>
+                                                )}
+
+                                                <div>
+                                                    <div className="font-medium text-gray-900">{producto.nombre}</div>
+                                                    <div className="text-sm text-gray-500 line-clamp-2 max-w-xs">
+                                                        {producto.descripcion || 'Sin descripción'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-4 text-sm text-gray-900">
+                                            {producto.articulo || 'N/A'}
+                                        </td>
+                                        <td className="px-4 py-4 text-sm text-gray-900">
+                                            ${producto.precio.toFixed(2)}
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            <div className="flex items-center gap-2">
+                                                {tieneImagen ? (
+                                                    <div className="flex items-center gap-1 text-green-600">
+                                                        <ImageIcon className="h-4 w-4" />
+                                                        <span className="text-xs">Con imagen</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1 text-red-600">
+                                                        <ImageIcon className="h-4 w-4" />
+                                                        <span className="text-xs">Sin imagen</span>
                                                     </div>
                                                 )}
                                             </div>
-                                            <div>
-                                                <div className="font-medium text-gray-900">{producto.nombre}</div>
-                                                <div className="text-sm text-gray-500">{producto.descripcion || 'Sin descripción'}</div>
+                                        </td>
+                                        <td className="px-4 py-4 text-sm font-medium">
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => onViewDetails(producto)}
+                                                    className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-100"
+                                                    title="Ver detalles"
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => onUploadImage(producto)}
+                                                    className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                                                    title="Subir/Reemplazar imagen"
+                                                >
+                                                    <Upload className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => onUpdate(producto)}
+                                                    className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
+                                                    title="Editar"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </button>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-4 text-sm text-gray-900">
-                                        {producto.categoria_nombre || 'Sin categoría'}
-                                    </td>
-                                    <td className="px-4 py-4 text-sm text-gray-900">
-                                        ${producto.precio.toFixed(2)}
-                                    </td>
-                                    <td className="px-4 py-4 text-sm text-gray-900">
-                                        ${producto.costo?.toFixed(2) || 'N/A'}
-                                    </td>
-                                    <td className="px-4 py-4">
-                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${!producto.cantidad || producto.cantidad === 0
-                                            ? 'bg-red-100 text-red-800'
-                                            : producto.cantidad <= 10
-                                                ? 'bg-yellow-100 text-yellow-800'
-                                                : 'bg-green-100 text-green-800'
-                                            }`}>
-                                            {producto.cantidad || 0} {producto.unidad_nombre || 'unidades'}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-4 text-sm font-medium">
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => onViewDetails(producto)}
-                                                className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
-                                                title="Ver detalles"
-                                            >
-                                                Ver
-                                            </button>
-                                            <button
-                                                onClick={() => onEdit(producto)}
-                                                className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
-                                                title="Editar"
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => onGestionStock(producto)}
-                                                className="text-orange-600 hover:text-orange-900 p-1 rounded hover:bg-orange-50"
-                                                title="Gestionar Stock"
-                                            >
-                                                <Package className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => onDelete(producto.id)}
-                                                className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                                                title="Eliminar"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
-                </>
-            ) : (
-                <div className="p-8 text-center">
-                    <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">No se encontraron productos.</p>
-                </div>
-            )}
+                ) : (
+                    <div className="p-8 text-center">
+                        <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500">No se encontraron productos.</p>
+                    </div>
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
-// Componente VistaInventario
-const VistaInventario = ({ productos, isLoading }: VistaInventarioProps) => (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold">Control de Inventario</h2>
-        </div>
-        <div className="overflow-x-auto">
-            {isLoading ? (
-                <LoadingSection message="Cargando inventario..." />
-            ) : (
-                <table className="w-full">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Producto
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Stock Actual
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Stock Mínimo
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Estado
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Valor en Inventario
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                        {productos.map((producto) => {
-                            const cantidad = producto.cantidad || 0;
-                            const costo = producto.costo || 0;
-                            const valorInventario = cantidad * costo;
-
-                            return (
-                                <tr key={producto.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-4">
-                                        <div className="font-medium text-gray-900">{producto.nombre}</div>
-                                    </td>
-                                    <td className="px-4 py-4 text-sm text-gray-900">
-                                        {cantidad} {producto.unidad_nombre || 'unidades'}
-                                    </td>
-                                    <td className="px-4 py-4 text-sm text-gray-900">
-                                        10
-                                    </td>
-                                    <td className="px-4 py-4">
-                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${cantidad === 0
-                                            ? 'bg-red-100 text-red-800'
-                                            : cantidad <= 10
-                                                ? 'bg-yellow-100 text-yellow-800'
-                                                : 'bg-green-100 text-green-800'
-                                            }`}>
-                                            {cantidad === 0 ? 'Agotado' :
-                                                cantidad <= 10 ? 'Bajo Stock' : 'Disponible'}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-4 text-sm text-gray-900">
-                                        ${valorInventario.toFixed(2)}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            )}
-        </div>
-    </div>
-);
-
-// Componente VistaActualizacionMasiva
-const VistaActualizacionMasiva = ({
-    productos,
-    productosSeleccionados,
-    onToggleSeleccion,
-    onSeleccionarTodos,
-    onActualizacionMasiva,
-    modoEdicionMasiva,
-    setModoEdicionMasiva
-}: VistaActualizacionMasivaProps) => {
-    const formActualizacionMasiva: Field[] = [
-        { type: "H1", label: "Actualización Masiva", require: false },
-        {
-            type: "NUMBER",
-            name: "precio",
-            label: "Nuevo Precio",
-            placeholder: "Dejar vacío para no modificar",
-            require: false
-        },
-        {
-            type: "NUMBER",
-            name: "costo",
-            label: "Nuevo Costo",
-            placeholder: "Dejar vacío para no modificar",
-            require: false
-        },
-        {
-            type: "TEXT_AREA",
-            name: "descripcion",
-            label: "Nueva Descripción",
-            placeholder: "Dejar vacío para no modificar",
-            require: false
-        }
-    ];
-
-    return (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-            <div className="p-4 border-b border-gray-200">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-semibold">Actualización Masiva</h2>
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">
-                            {productosSeleccionados.length} productos seleccionados
-                        </span>
-                        {modoEdicionMasiva ? (
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setModoEdicionMasiva(false)}
-                                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-                                >
-                                    <X className="h-4 w-4" />
-                                    Cancelar
-                                </button>
-                            </div>
-                        ) : (
-                            <button
-                                onClick={() => setModoEdicionMasiva(true)}
-                                disabled={productosSeleccionados.length === 0}
-                                className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                            >
-                                <Settings className="h-4 w-4" />
-                                Editar Seleccionados
-                            </button>
-                        )}
+// Componente para panel de filtros
+const PanelFiltros = ({ register, handleSubmit, onSubmitFiltros, limpiarFiltros, fetchProductos }: any) => (
+    <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <form onSubmit={handleSubmit(onSubmitFiltros)} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Buscar por artículo
+                    </label>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            {...register("articulo")}
+                            placeholder="Código o número de artículo..."
+                            className="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
                     </div>
                 </div>
-            </div>
 
-            {modoEdicionMasiva && (
-                <div className="p-4 bg-yellow-50 border-b border-yellow-200">
-                    <MainForm
-                        message_button={`Aplicar a ${productosSeleccionados.length} productos`}
-                        actionType="put"
-                        dataForm={formActualizacionMasiva}
-                        onSuccess={(result: any, formData: any) => {
-                            onActualizacionMasiva(formData);
-                        }}
-                        iconButton={<Save className="size-4" />}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Buscar por nombre
+                    </label>
+                    <input
+                        type="text"
+                        {...register("nombre")}
+                        placeholder="Nombre del producto..."
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     />
                 </div>
-            )}
 
-            <div className="overflow-x-auto">
-                <table className="w-full">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <input
-                                    type="checkbox"
-                                    checked={productosSeleccionados.length === productos.length && productos.length > 0}
-                                    onChange={onSeleccionarTodos}
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Producto
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Precio Actual
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Stock
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                        {productos.map((producto) => (
-                            <tr key={producto.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-4">
-                                    <input
-                                        type="checkbox"
-                                        checked={productosSeleccionados.includes(producto.id)}
-                                        onChange={() => onToggleSeleccion(producto.id)}
-                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                </td>
-                                <td className="px-4 py-4">
-                                    <div className="font-medium text-gray-900">{producto.nombre}</div>
-                                </td>
-                                <td className="px-4 py-4 text-sm text-gray-900">
-                                    ${producto.precio.toFixed(2)}
-                                </td>
-                                <td className="px-4 py-4 text-sm text-gray-900">
-                                    {producto.cantidad || 0} {producto.unidad_nombre || 'unidades'}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-};
-
-// Componente VistaGestionImagenes - COMPLETAMENTE CORREGIDO
-const VistaGestionImagenes = ({ productos, fetchProductos }: VistaGestionImagenesProps) => {
-    const [imagenesCargando, setImagenesCargando] = useState<{ [key: number]: boolean }>({});
-    const dispatch = useAppDispatch()
-    // Función para obtener las imágenes de cada producto
-    const obtenerImagenesProducto = (producto: Producto): string[] => {
-        if (producto.imagenes && producto.imagenes.length > 0) {
-            return producto.imagenes;
-        }
-        if (producto.url) {
-            return [producto.url];
-        }
-        return [];
-    };
-    const FormularioImagenesProducto = ({ productoId, productoNombre }: { productoId: number, productoNombre: string }) => {
-        const formSubirImagen: Field[] = [
-            {
-                type: "FILE",
-                name: `file_${productoId}`,
-                label: "Seleccionar imagen",
-                multi: false,
-                require: true
-            }
-        ];
-
-        return (
-            <MainForm
-                message_button="Subir Imagen"
-                actionType="post"
-                aditionalData={{
-                    idRef: productoId,
-                    tabla: 'articulos',
-                    descripcion: `Imágenes para producto ${productoId}`
-                }}
-                dataForm={formSubirImagen}
-                onSuccess={(result: any, formData: any) => {
-                    dispatch(openAlertReducer(
-                        {
-                            title: "Imagen subida correctamente",
-                            message: result[0].message,
-                            type: "success",
-                            icon: "archivo",
-                            duration: 4000
-                        }))
-
-                    fetchProductos();
-                }}
-                iconButton={<Upload className="size-4" />}
-            />
-        );
-    };
-
-    return (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-            <div className="p-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold">Gestión de Imágenes</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                    Sube imágenes para tus productos. Formatos soportados: JPG, PNG, GIF.
-                </p>
-            </div>
-            <div className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {productos.map((producto) => {
-                        const imagenes = obtenerImagenesProducto(producto);
-                        const tieneImagenes = imagenes.length > 0;
-
-                        return (
-                            <div key={producto.id} className="border border-gray-200 rounded-lg p-4">
-                                <div className="flex flex-col mb-4">
-                                    <div>
-                                        <span className="font-medium text-gray-900">{producto.nombre}</span>
-                                        <p className="text-sm text-gray-500">ID: {producto.id}</p>
-                                    </div>
-                                    <div className='flex justify-between items-center mt-2'>
-                                        <p className="text-xs text-gray-400">{producto.categoria_nombre || 'Sin categoría'}</p>
-                                        <p className={`text-xs px-2 py-1 w-fit rounded-full ${tieneImagenes
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-red-100 text-red-800'
-                                            }`}>
-                                            {tieneImagenes
-                                                ? `${imagenes.length} imagen(es)`
-                                                : 'Sin imágenes'
-                                            }
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Vista previa de imágenes existentes */}
-                                {tieneImagenes && (
-                                    <div className="mb-4">
-                                        <h4 className="text-sm font-medium text-gray-700 mb-2">Imagen actual:</h4>
-                                        <div className="space-y-2">
-                                            {imagenes.map((img, index) => (
-                                                <div key={index} className="relative">
-                                                    <img
-                                                        src={apiUrl.slice(0, -1) + img}
-                                                        alt={`Imagen ${index + 1} de ${producto.nombre}`}
-                                                        className="w-full h-32 object-cover rounded border border-gray-200"
-                                                    />
-                                                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                                                        {index + 1}/{imagenes.length}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {!tieneImagenes && (
-                                    <div className="mb-4 p-4 bg-gray-50 rounded border border-dashed border-gray-300 text-center">
-                                        <ImageIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                                        <p className="text-sm text-gray-500">No hay imágenes</p>
-                                    </div>
-                                )}
-
-                                {/* Formulario de subida de imágenes */}
-                                <FormularioImagenesProducto
-                                    productoId={producto.id}
-                                    productoNombre={producto.nombre}
-                                />
-                            </div>
-                        );
-                    })}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Buscar en descripción
+                    </label>
+                    <input
+                        type="text"
+                        {...register("descripcion")}
+                        placeholder="Palabras en la descripción..."
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
                 </div>
             </div>
-        </div>
-    );
-};
 
-// Componente Estadisticas
-const EstadisticasComponent = ({ stats }: { stats: EstadisticasProductos }) => (
-    <BentoGrid cols={5} className="mb-6">
-        <BentoItem
-            title="Total Productos"
-            description="En el sistema"
-            className="bg-blue-50 border-blue-200"
-            icon={<Package className="h-6 w-6 text-blue-600" />}
-        >
-            <div className="text-2xl font-bold text-blue-600">{stats.total_productos}</div>
-        </BentoItem>
+            <div className="flex items-center gap-3">
+                <button
+                    type="submit"
+                    className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                >
+                    <Filter className="h-4 w-4" />
+                    Aplicar Filtros
+                </button>
 
-        <BentoItem
-            title="Sin Stock"
-            description="Agotados"
-            className="bg-red-50 border-red-200"
-            icon={<Package className="h-6 w-6 text-red-600" />}
-        >
-            <div className="text-2xl font-bold text-red-600">{stats.productos_sin_stock}</div>
-        </BentoItem>
+                <button
+                    type="button"
+                    onClick={limpiarFiltros}
+                    className="text-sm text-gray-600 hover:text-gray-800 underline"
+                >
+                    Limpiar filtros
+                </button>
 
-        <BentoItem
-            title="Bajo Stock"
-            description="≤ 10 unidades"
-            className="bg-orange-50 border-orange-200"
-            icon={<Package className="h-6 w-6 text-orange-600" />}
-        >
-            <div className="text-2xl font-bold text-orange-600">{stats.productos_bajo_stock}</div>
-        </BentoItem>
-
-        <BentoItem
-            title="Valor Inventario"
-            description="Costo total"
-            className="bg-green-50 border-green-200"
-            icon={<BarChart3 className="h-6 w-6 text-green-600" />}
-        >
-            <div className="text-2xl font-bold text-green-600">
-                ${stats.valor_total_inventario.toLocaleString()}
+                <button
+                    type="button"
+                    onClick={fetchProductos}
+                    className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors ml-auto"
+                    title="Actualizar lista"
+                >
+                    <RefreshCw className="h-4 w-4" />
+                </button>
             </div>
-        </BentoItem>
-
-        <BentoItem
-            title="Sin Imagen"
-            description="Por subir"
-            className="bg-purple-50 border-purple-200"
-            icon={<ImageIcon className="h-6 w-6 text-purple-600" />}
-        >
-            <div className="text-2xl font-bold text-purple-600">{stats.productos_sin_imagen}</div>
-        </BentoItem>
-    </BentoGrid>
-);
-
-// Componente NavegacionVistas
-const NavegacionVistas = ({ vistaActiva, setVistaActiva }: { vistaActiva: string, setVistaActiva: (vista: any) => void }) => (
-    <div className="flex border-b border-gray-200 mb-6">
-        <button
-            onClick={() => setVistaActiva('productos')}
-            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${vistaActiva === 'productos'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-        >
-            <Package className="w-4 h-4 inline mr-2" />
-            Productos
-        </button>
-        <button
-            onClick={() => setVistaActiva('inventario')}
-            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${vistaActiva === 'inventario'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-        >
-            <Layers className="w-4 h-4 inline mr-2" />
-            Inventario
-        </button>
-        <button
-            onClick={() => setVistaActiva('actualizacion')}
-            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${vistaActiva === 'actualizacion'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-        >
-            <Settings className="w-4 h-4 inline mr-2" />
-            Actualización Masiva
-        </button>
-        <button
-            onClick={() => setVistaActiva('imagenes')}
-            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${vistaActiva === 'imagenes'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-        >
-            <ImageIcon className="w-4 h-4 inline mr-2" />
-            Gestión de Imágenes
-        </button>
+        </form>
     </div>
 );
 
-// Componente principal
-export default function AdministracionProductos() {
+// Componente para panel de selección masiva
+const PanelSeleccionMasiva = ({
+    selectedCount,
+    onUpdatePrices,
+    onUploadImages,
+    onCancel
+}: {
+    selectedCount: number;
+    onUpdatePrices: () => void;
+    onUploadImages: () => void;
+    onCancel: () => void;
+}) => (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <div className="flex items-center justify-between">
+            <div>
+                <h3 className="font-medium text-blue-800">Selección Masiva</h3>
+                <p className="text-sm text-blue-600">{selectedCount} productos seleccionados</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={onCancel}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                    <X className="h-4 w-4" />
+                    Cancelar selección
+                </button>
+
+                <button
+                    onClick={onUpdatePrices}
+                    className="flex items-center gap-2 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                    <Edit className="h-4 w-4" />
+                    Actualizar Precios
+                </button>
+
+                <button
+                    onClick={onUploadImages}
+                    className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                    <Upload className="h-4 w-4" />
+                    Subir Imágenes
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
+// Componente para modal de detalle de imagen
+const ModalDetalleImagen = ({ producto, onClose }: { producto: Producto | null; onClose: () => void }) => {
+    if (!producto) return null;
+
+    const obtenerImagenPrincipal = (producto: Producto) => {
+        if (producto.imagenes && producto.imagenes.length > 0) {
+            return producto.imagenes[0];
+        }
+        return producto.url || null;
+    };
+
+    const imagen = obtenerImagenPrincipal(producto);
+    const tieneImagen = !!imagen;
+
+    return (
+        <Modal modalName="detalle_imagen" title="Detalle del Producto" maxWidth="lg">
+            <div className="p-6">
+                <h2 className="text-xl font-bold mb-4">{producto.nombre}</h2>
+
+                {/* Información del producto */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label className="text-sm font-medium text-gray-500">Artículo</label>
+                        <p className="text-gray-900">{producto.articulo || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-500">Precio</label>
+                        <p className="text-gray-900">${producto.precio.toFixed(2)}</p>
+                    </div>
+                    <div className="col-span-2">
+                        <label className="text-sm font-medium text-gray-500">Descripción</label>
+                        <p className="text-gray-900">{producto.descripcion || 'Sin descripción'}</p>
+                    </div>
+                </div>
+
+                {/* Imagen del producto */}
+                <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold mb-4">Imagen del Producto</h3>
+
+                    {tieneImagen ? (
+                        <div className="flex flex-col items-center">
+                            <img
+                                src={apiUrl.slice(0, -1) + imagen}
+                                alt={producto.nombre}
+                                className="max-w-full max-h-96 object-contain rounded-lg border border-gray-200"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                }}
+                            />
+                            <div className="w-full h-64 bg-gray-100 rounded-lg border border-gray-200 flex flex-col items-center justify-center">
+                                <ImageIcon className="h-16 w-16 text-gray-400 mb-2" />
+                                <p className="text-gray-500">Error al cargar la imagen</p>
+                            </div>
+                            <p className="text-sm text-gray-500 mt-2">URL: {imagen}</p>
+                        </div>
+                    ) : (
+                        <div className="text-center p-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                            <ImageIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                            <p className="text-gray-500">Este producto no tiene imagen</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex justify-end mt-6">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+export default function GestionProductosConImagenes() {
     const [productos, setProductos] = useState<Producto[]>([]);
-    const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
-    const [productoParaStock, setProductoParaStock] = useState<Producto | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [totalItems, setTotalItems] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
-    const [vistaActiva, setVistaActiva] = useState<'productos' | 'inventario' | 'actualizacion' | 'imagenes'>('productos');
-    const [productosSeleccionados, setProductosSeleccionados] = useState<number[]>([]);
-    const [modoEdicionMasiva, setModoEdicionMasiva] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [productoParaImagen, setProductoParaImagen] = useState<Producto | null>(null);
+    const [productoParaEditar, setProductoParaEditar] = useState<Producto | null>(null);
+    const [productoDetalle, setProductoDetalle] = useState<Producto | null>(null);
+    const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ Filtros: [] });
 
     const [getWithFilter] = useGetWithFiltersGeneralMutation();
     const [putGeneral] = usePutGeneralMutation();
-    const [postGeneral] = usePostGeneralMutation();
-    const [deleteGeneral] = useDeleteGeneralMutation();
-
-    const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-        Filtros: [],
-        Selects: [],
-        OrderBy: null,
-        sum: false,
-        distinct: false
-    });
-
-    const [estadisticas, setEstadisticas] = useState<EstadisticasProductos>({
-        total_productos: 0,
-        productos_sin_stock: 0,
-        productos_bajo_stock: 0,
-        valor_total_inventario: 0,
-        productos_sin_imagen: 0
-    });
 
     const { handleSubmit, register, reset } = useForm();
     const dispatch = useAppDispatch();
 
-    // Función para obtener productos
+    // Obtener productos con filtros
     const fetchProductos = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -880,16 +466,9 @@ export default function AdministracionProductos() {
                     { key: "articulos.descripcion" },
                     { key: "articulos.precio" },
                     { key: "articulos.articulo" },
-                    { key: "historia_costos.costo" },
-                    { key: "inventario.cantidad" },
-                    { key: "unidades.nombre", alias: "unidad_nombre" },
-                    { key: "categorias.nombre", alias: "categoria_nombre" },
-                    { key: "codigos_barras.codigo_barras" },
                     { key: "imagenes.url" }
                 ],
-                Order: [
-                    { Key: "articulos.articulo", Direction: "Asc" }
-                ]
+                Order: [{ Key: "articulos.id", Direction: "Desc" }]
             };
 
             if (activeFilters.Filtros.length > 0) {
@@ -897,30 +476,20 @@ export default function AdministracionProductos() {
             }
 
             const response = await getWithFilter({
-                table: `articulos
-                    left join codigos_barras on articulos.id = codigos_barras.articulo_id
-                    left join historia_costos on articulos.id = historia_costos.articulo_id
-                    left join categorias on articulos.categoria_id = categorias.id
-                    left join unidades on articulos.unidad_id = unidades.id
-                    left join inventario on articulos.id = inventario.articulo_id
-                    left join imagenes on articulos.id = imagenes.id_ref and imagenes.tabla = 'articulos'`,
+                table: `articulos left join imagenes on articulos.id = imagenes.id_ref and imagenes.tabla = 'articulos'`,
                 pageSize: 10,
                 page: currentPage,
                 tag: 'Productos',
                 filtros: filtros
             }).unwrap() as ApiResponse;
 
-            if (response && response.data) {
-                // Procesar imágenes - convertir url individual en array de imagenes
+            if (response?.data) {
                 const productosProcesados = response.data.map(producto => ({
                     ...producto,
                     imagenes: producto.url ? [producto.url] : []
                 }));
-
-                setTotalPages(response.totalPages);
-                setTotalItems(response.totalRecords);
                 setProductos(productosProcesados);
-                calcularEstadisticas(productosProcesados);
+                setTotalPages(response.totalPages);
             }
         } catch (error) {
             console.error("Error fetching productos:", error);
@@ -934,200 +503,190 @@ export default function AdministracionProductos() {
         fetchProductos();
     }, [fetchProductos]);
 
-    const calcularEstadisticas = (listaProductos: Producto[]) => {
-        const stats: EstadisticasProductos = {
-            total_productos: totalItems,
-            productos_sin_stock: listaProductos.filter(p => !p.cantidad || p.cantidad === 0).length,
-            productos_bajo_stock: listaProductos.filter(p => (p.cantidad || 0) > 0 && (p.cantidad || 0) <= 10).length,
-            valor_total_inventario: listaProductos.reduce((sum, p) => sum + ((p.costo || 0) * (p.cantidad || 0)), 0),
-            productos_sin_imagen: listaProductos.filter(p => !p.url && (!p.imagenes || p.imagenes.length === 0)).length
-        };
-        setEstadisticas(stats);
-    };
-
-    const handleOpenModal = (producto: Producto) => {
-        setProductoSeleccionado(producto);
-        dispatch(openModalReducer({ modalName: "detalle_producto" }));
-    };
-
-    const handleEditarProducto = (producto: Producto) => {
-        setProductoSeleccionado(producto);
-        dispatch(openModalReducer({ modalName: "editar_producto" }));
-    };
-
-    const handleGestionStock = (producto: Producto) => {
-        setProductoParaStock(producto);
-        dispatch(openModalReducer({ modalName: "gestion_stock" }));
-    };
-
-    const handleGuardarStock = async (productoId: number, cantidad: number) => {
-        try {
-            await putGeneral({
-                table: "inventario",
-                id: productoId,
-                data: {
-                    cantidad: cantidad,
-                    fecha: new Date().toISOString()
-                }
-            }).unwrap();
-
-            fetchProductos();
-            alert('Stock actualizado correctamente');
-        } catch (error) {
-            console.error("Error actualizando stock:", error);
-            alert('Error al actualizar el stock');
-        }
-    };
-
-    const handleEliminarProducto = async (productoId: number) => {
-        if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
-            try {
-                await deleteGeneral({
-                    table: "articulos",
-                    id: productoId
-                }).unwrap();
-
-                fetchProductos();
-                alert('Producto eliminado correctamente');
-            } catch (error) {
-                console.error("Error eliminando producto:", error);
-                alert('Error al eliminar el producto');
-            }
-        }
-    };
-
-    const handleToggleSeleccion = (productoId: number) => {
-        setProductosSeleccionados(prev =>
-            prev.includes(productoId)
-                ? prev.filter(id => id !== productoId)
-                : [...prev, productoId]
+    // Manejo de selección
+    const handleSelect = (id: number) => {
+        setSelectedIds(prev =>
+            prev.includes(id)
+                ? prev.filter(pid => pid !== id)
+                : [...prev, id]
         );
     };
 
-    const handleSeleccionarTodos = () => {
-        if (productosSeleccionados.length === productos.length) {
-            setProductosSeleccionados([]);
+    const handleSelectAll = () => {
+        if (selectedIds.length === productos.length) {
+            setSelectedIds([]);
         } else {
-            setProductosSeleccionados(productos.map(p => p.id));
+            setSelectedIds(productos.map(p => p.id));
         }
     };
 
-    const handleActualizacionMasiva = async (data: any) => {
+    // Filtros
+    const onSubmitFiltros = (data: any) => {
+        const nuevosFiltros = [];
+
+        if (data.articulo) {
+            nuevosFiltros.push({
+                Key: "articulos.articulo",
+                Value: data.articulo,
+                Operator: "like"
+            });
+        }
+
+        if (data.nombre) {
+            nuevosFiltros.push({
+                Key: "articulos.nombre",
+                Value: data.nombre,
+                Operator: "like"
+            });
+        }
+
+        if (data.descripcion) {
+            nuevosFiltros.push({
+                Key: "articulos.descripcion",
+                Value: data.descripcion,
+                Operator: "like"
+            });
+        }
+
+        setActiveFilters({ Filtros: nuevosFiltros });
+        setCurrentPage(1);
+    };
+
+    const limpiarFiltros = () => {
+        reset();
+        setActiveFilters({ Filtros: [] });
+        setCurrentPage(1);
+    };
+
+    // Ver detalles del producto
+    const handleViewDetails = (producto: Producto) => {
+        setProductoDetalle(producto);
+        dispatch(openModalReducer({ modalName: "detalle_imagen" }));
+    };
+
+    // Subir imagen individual
+    const handleSubirImagen = (producto: Producto) => {
+        setProductoParaImagen(producto);
+        dispatch(openModalReducer({ modalName: "subir_imagen" }));
+    };
+
+    const handleGuardarImagen = async (data: any) => {
+        if (!productoParaImagen) return;
+        console.log(data);
+
         try {
-            const updates = productosSeleccionados.map(id =>
+
+            dispatch(openAlertReducer({
+                title: "Imagen subida",
+                message: "La imagen se ha subido correctamente",
+                type: "success",
+                duration: 3000,
+                icon: 'alert'
+            }));
+
+            fetchProductos();
+            setProductoParaImagen(null);
+        } catch (error) {
+            console.error("Error subiendo imagen:", error);
+            alert('Error al subir la imagen');
+        }
+    };
+
+    // Actualizar producto individual
+    const handleUpdateProduct = (producto: Producto) => {
+        setProductoParaEditar(producto);
+        dispatch(openModalReducer({ modalName: "editar_producto" }));
+    };
+
+    const handleGuardarActualizacion = async (data: any) => {
+        if (!productoParaEditar) return;
+
+        try {
+            await putGeneral({
+                table: "articulos",
+                id: productoParaEditar.id,
+                data: {
+                    nombre: data.nombre,
+                    descripcion: data.descripcion,
+                    precio: parseFloat(data.precio),
+                    articulo: data.articulo
+                }
+            }).unwrap();
+
+            dispatch(openAlertReducer({
+                title: "Producto actualizado",
+                message: "Los cambios se guardaron correctamente",
+                type: "success",
+                duration: 3000,
+                icon: 'alert'
+            }));
+
+            fetchProductos();
+            setProductoParaEditar(null);
+        } catch (error) {
+            console.error("Error actualizando producto:", error);
+            alert('Error al actualizar el producto');
+        }
+    };
+
+    // Actualización masiva de precios
+    const handleActualizacionMasivaPrecios = () => {
+        dispatch(openModalReducer({ modalName: "actualizar_masivo" }));
+    };
+
+    const handleGuardarActualizacionMasiva = async (data: any) => {
+        try {
+            const updates = selectedIds.map(id =>
                 putGeneral({
                     table: "articulos",
                     id: id,
                     data: {
-                        precio: data.precio !== undefined && data.precio !== '' ? parseFloat(data.precio) : undefined,
-                        costo: data.costo !== undefined && data.costo !== '' ? parseFloat(data.costo) : undefined,
-                        descripcion: data.descripcion || undefined,
+                        precio: data.precio ? parseFloat(data.precio) : undefined,
+                        descripcion: data.descripcion || undefined
                     }
                 })
             );
 
             await Promise.all(updates);
-            setModoEdicionMasiva(false);
-            setProductosSeleccionados([]);
+
+            dispatch(openAlertReducer({
+                title: "Actualización completada",
+                message: `${selectedIds.length} productos actualizados`,
+                type: "success",
+                duration: 4000,
+                icon: 'alert'
+            }));
+
+            setSelectedIds([]);
             fetchProductos();
-            alert('Actualización masiva completada');
         } catch (error) {
             console.error("Error en actualización masiva:", error);
             alert('Error en la actualización masiva');
         }
     };
-    /* bitfire uptimekuma go.firebridge.net */
-    const handleCrearProducto = async (data: any) => {
+
+    // Subida masiva de imágenes
+    const handleSubidaMasivaImagenes = () => {
+        dispatch(openModalReducer({ modalName: "subir_masivo" }));
+    };
+
+    const handleGuardarSubidaMasiva = async (data: any) => {
         try {
-            await postGeneral({
-                table: "articulos",
-                data: {
-                    nombre: data.nombre,
-                    descripcion: data.descripcion,
-                    precio: parseFloat(data.precio),
-                    categoria_id: data.categoria_id,
-                    unidad_id: data.unidad_id
-                }
-            }).unwrap();
 
+            dispatch(openAlertReducer({
+                title: "Imágenes subidas",
+                message: `${selectedIds.length} imágenes procesadas`,
+                type: "success",
+                duration: 4000,
+                icon: 'alert'
+            }));
+
+            setSelectedIds([]);
             fetchProductos();
-            dispatch(openModalReducer({ modalName: "crear_producto" }));
-            alert('Producto creado correctamente');
         } catch (error) {
-            console.error("Error creando producto:", error);
-            alert('Error al crear el producto');
+            console.error("Error subiendo imágenes:", error);
+            alert('Error al subir las imágenes');
         }
-    };
-
-    const handleGuardarEdicion = async (data: any) => {
-        if (!productoSeleccionado) return;
-
-        try {
-            await putGeneral({
-                table: "articulos",
-                id: productoSeleccionado.id,
-                data: {
-                    nombre: data.nombre,
-                    descripcion: data.descripcion,
-                    precio: parseFloat(data.precio),
-                    categoria_id: data.categoria_id,
-                    unidad_id: data.unidad_id
-                }
-            }).unwrap();
-
-            fetchProductos();
-            setProductoSeleccionado(null);
-            dispatch(openModalReducer({ modalName: "editar_producto" }));
-            alert('Producto actualizado correctamente');
-        } catch (error) {
-            console.error("Error editando producto:", error);
-            alert('Error al actualizar el producto');
-        }
-    };
-
-    const limpiarFiltros = () => {
-        reset();
-        setActiveFilters(prev => ({ ...prev, Filtros: [] }));
-        setCurrentPage(1);
-    };
-
-    const onSubmitFiltros = (data: any) => {
-        const nuevosFiltros: Filtro[] = [];
-
-        if (data.search) {
-            nuevosFiltros.push({
-                Key: "articulos.nombre",
-                Value: data.search,
-                Operator: "like"
-            });
-        }
-
-        if (data.categoria) {
-            nuevosFiltros.push({
-                Key: "categorias.nombre",
-                Value: data.categoria,
-                Operator: "="
-            });
-        }
-
-        if (data.stock_min) {
-            nuevosFiltros.push({
-                Key: "inventario.cantidad",
-                Value: parseFloat(data.stock_min),
-                Operator: ">="
-            });
-        }
-
-        if (data.stock_max) {
-            nuevosFiltros.push({
-                Key: "inventario.cantidad",
-                Value: parseFloat(data.stock_max),
-                Operator: "<="
-            });
-        }
-
-        setActiveFilters(prev => ({ ...prev, Filtros: nuevosFiltros }));
-        setCurrentPage(1);
     };
 
     return (
@@ -1135,127 +694,49 @@ export default function AdministracionProductos() {
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                        <Package className="h-8 w-8 text-blue-600" />
-                        Administración de Productos
+                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        <Package className="h-6 w-6 text-blue-600" />
+                        Gestión de Productos con Imágenes
                     </h1>
-                    <p className="text-gray-600 mt-2">
-                        Gestiona tu inventario, precios y productos desde un solo lugar
+                    <p className="text-gray-600 mt-1">
+                        Visualiza imágenes, actualiza precios y gestiona productos
                     </p>
                 </div>
 
-                {/* Estadísticas */}
-                <EstadisticasComponent stats={estadisticas} />
-
                 {/* Filtros */}
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6">
-                    <form onSubmit={handleSubmit(onSubmitFiltros)} className="flex flex-wrap items-center gap-4">
-                        <div className="relative flex-1 min-w-[250px]">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                {...register("search")}
-                                placeholder="Buscar productos..."
-                                className="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            />
-                        </div>
+                <PanelFiltros
+                    register={register}
+                    handleSubmit={handleSubmit}
+                    onSubmitFiltros={onSubmitFiltros}
+                    limpiarFiltros={limpiarFiltros}
+                    fetchProductos={fetchProductos}
+                />
 
-                        <input
-                            type="text"
-                            {...register("categoria")}
-                            placeholder="Categoría"
-                            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        />
-
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                {...register("stock_min")}
-                                placeholder="Stock mín"
-                                className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            />
-                            <span className="text-gray-400">-</span>
-                            <input
-                                type="number"
-                                {...register("stock_max")}
-                                placeholder="Stock máx"
-                                className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                        >
-                            <Filter className="h-4 w-4" />
-                            Filtrar
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={limpiarFiltros}
-                            className="text-sm text-gray-600 hover:text-gray-800 underline"
-                        >
-                            Limpiar
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={fetchProductos}
-                            className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
-                            title="Actualizar"
-                        >
-                            <RefreshCw className="h-4 w-4" />
-                        </button>
-                    </form>
-                </div>
-
-                {/* Navegación de Vistas */}
-                <NavegacionVistas vistaActiva={vistaActiva} setVistaActiva={setVistaActiva} />
-
-                {/* Contenido de la Vista Activa */}
-                {vistaActiva === 'productos' && (
-                    <VistaProductos
-                        productos={productos}
-                        isLoading={isLoading}
-                        onViewDetails={handleOpenModal}
-                        onEdit={handleEditarProducto}
-                        onDelete={handleEliminarProducto}
-                        onGestionStock={handleGestionStock}
-                        onCrearProducto={() => dispatch(openModalReducer({ modalName: "crear_producto" }))}
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        setCurrentPage={setCurrentPage}
+                {/* Panel de selección masiva */}
+                {selectedIds.length > 0 && (
+                    <PanelSeleccionMasiva
+                        selectedCount={selectedIds.length}
+                        onUpdatePrices={handleActualizacionMasivaPrecios}
+                        onUploadImages={handleSubidaMasivaImagenes}
+                        onCancel={() => setSelectedIds([])}
                     />
                 )}
 
-                {vistaActiva === 'inventario' && (
-                    <VistaInventario
-                        productos={productos}
-                        isLoading={isLoading}
-                    />
-                )}
+                {/* Lista de productos con imágenes */}
+                <VistaProductosConImagenes
+                    productos={productos}
+                    isLoading={isLoading}
+                    onSelect={handleSelect}
+                    onUpdate={handleUpdateProduct}
+                    onUploadImage={handleSubirImagen}
+                    onViewDetails={handleViewDetails}
+                    selectedIds={selectedIds}
+                    onToggleSelectAll={handleSelectAll}
+                    allSelected={selectedIds.length === productos.length && productos.length > 0}
+                />
 
-                {vistaActiva === 'actualizacion' && (
-                    <VistaActualizacionMasiva
-                        productos={productos}
-                        productosSeleccionados={productosSeleccionados}
-                        onToggleSeleccion={handleToggleSeleccion}
-                        onSeleccionarTodos={handleSeleccionarTodos}
-                        onActualizacionMasiva={handleActualizacionMasiva}
-                        modoEdicionMasiva={modoEdicionMasiva}
-                        setModoEdicionMasiva={setModoEdicionMasiva}
-                    />
-                )}
-
-                {vistaActiva === 'imagenes' && (
-                    <VistaGestionImagenes
-                        productos={productos}
-                        fetchProductos={fetchProductos}
-                    />
-                )}
-
-                <div className="p-4 border-t border-gray-200">
+                {/* Paginación */}
+                <div className="mt-4">
                     <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}
@@ -1263,160 +744,139 @@ export default function AdministracionProductos() {
                         setCurrentPage={setCurrentPage}
                     />
                 </div>
-                {/* Modales */}
-                <ModalDetalleProducto
-                    producto={productoSeleccionado}
-                    onClose={() => setProductoSeleccionado(null)}
+
+                {/* Modal Detalle de Imagen */}
+                <ModalDetalleImagen
+                    producto={productoDetalle}
+                    onClose={() => setProductoDetalle(null)}
                 />
 
-                <ModalGestionStock
-                    producto={productoParaStock}
-                    onClose={() => setProductoParaStock(null)}
-                    onSave={handleGuardarStock}
-                />
-
-                {/* Modal Crear Producto */}
-                <Modal modalName="crear_producto" title="Crear Nuevo Producto" maxWidth="2xl">
-                    <MainForm
-                        message_button="Crear Producto"
-                        actionType='post'
-                        table="articulos"
-                        dataForm={[
-                            { type: "H1", label: "Crear Nuevo Producto", require: false },
-                            {
-                                type: "INPUT",
-                                name: "nombre",
-                                label: "Nombre del Producto",
-                                placeholder: "Ingresa el nombre del producto",
-                                require: true
-                            },
-                            {
-                                type: "TEXT_AREA",
-                                name: "descripcion",
-                                label: "Descripción",
-                                placeholder: "Describe el producto",
-                                require: false
-                            },
-                            {
-                                type: "NUMBER",
-                                name: "precio",
-                                label: "Precio",
-                                placeholder: "0.00",
-                                require: true
-                            },
-                            /* {
-                                type: "NUMBER",
-                                name: "costo",
-                                label: "Costo",
-                                placeholder: "0.00",
-                                require: false
-                            }, */
-                            {
-                                type: "SELECT",
-                                name: "categoria_id",
-
-                                label: "Categoría",
-                                options: [
-                                    { value: "1", label: "Electrónicos" },
-                                    { value: "2", label: "Ropa" },
-                                    { value: "3", label: "Hogar" },
-                                    { value: "4", label: "Deportes" },
-                                    { value: "5", label: "Otros" }
-                                ],
-                                require: true
-                            },
-                            {
-                                type: "SELECT",
-                                name: "unidad_id",
-                                label: "Unidad",
-                                options: [
-                                    { value: "1", label: "Pieza" },
-                                    { value: "2", label: "Kilogramo" },
-                                    { value: "3", label: "Litro" },
-                                    { value: "4", label: "Metro" },
-                                    { value: "5", label: "Caja" }
-                                ],
-                                require: true
-                            }
-                        ]}
-                        onSuccess={handleCrearProducto}
-                        iconButton={<Plus className="size-4" />}
-                    />
+                {/* Modal Subir Imagen Individual */}
+                <Modal modalName="subir_imagen" title="Subir Imagen" maxWidth="md">
+                    {productoParaImagen && (
+                        <div className="p-4">
+                            <div className="mb-4">
+                                <h3 className="font-medium">{productoParaImagen.nombre}</h3>
+                                <p className="text-sm text-gray-600">Artículo: {productoParaImagen.articulo || 'N/A'}</p>
+                            </div>
+                            <MainForm
+                                message_button="Subir Imagen"
+                                actionType=""
+                                dataForm={[
+                                    {
+                                        type: "FILE",
+                                        name: "file",
+                                        label: "Seleccionar imagen",
+                                        multi: false,
+                                        require: true,
+                                    }
+                                ]}
+                                aditionalData={{
+                                    idRef: productoParaImagen.id,
+                                    tabla: 'articulos'
+                                }}
+                                onSuccess={handleGuardarImagen}
+                                iconButton={<Upload className="size-4" />}
+                            />
+                        </div>
+                    )}
                 </Modal>
 
-                {/* Modal Editar Producto */}
-                <Modal modalName="editar_producto" title="Editar Producto" maxWidth="2xl">
-                    {productoSeleccionado && (
+                {/* Modal Editar Producto Individual */}
+                <Modal modalName="editar_producto" title="Editar Producto" maxWidth="md">
+                    {productoParaEditar && (
                         <MainForm
                             message_button="Guardar Cambios"
                             actionType="put"
                             dataForm={[
-                                { type: "H1", label: `Editar: ${productoSeleccionado.nombre}`, require: false },
                                 {
                                     type: "INPUT",
                                     name: "nombre",
                                     label: "Nombre del Producto",
-                                    placeholder: "Ingresa el nombre del producto",
                                     require: true,
-                                    valueDefined: productoSeleccionado.nombre
+                                    valueDefined: productoParaEditar.nombre
+                                },
+                                {
+                                    type: "INPUT",
+                                    name: "articulo",
+                                    label: "Código de Artículo",
+                                    require: false,
+                                    valueDefined: productoParaEditar.articulo || ''
                                 },
                                 {
                                     type: "TEXT_AREA",
                                     name: "descripcion",
                                     label: "Descripción",
-                                    placeholder: "Describe el producto",
                                     require: false,
-                                    valueDefined: productoSeleccionado.descripcion
+                                    valueDefined: productoParaEditar.descripcion
                                 },
                                 {
                                     type: "NUMBER",
                                     name: "precio",
                                     label: "Precio",
-                                    placeholder: "0.00",
                                     require: true,
-                                    valueDefined: productoSeleccionado.precio
-                                },
-                                {
-                                    type: "NUMBER",
-                                    name: "costo",
-                                    label: "Costo",
-                                    placeholder: "0.00",
-                                    require: false,
-                                    valueDefined: productoSeleccionado.costo || 0
-                                },
-                                {
-                                    type: "SELECT",
-                                    name: "categoria_id",
-                                    label: "Categoría",
-                                    options: [
-                                        { value: "1", label: "Electrónicos" },
-                                        { value: "2", label: "Ropa" },
-                                        { value: "3", label: "Hogar" },
-                                        { value: "4", label: "Deportes" },
-                                        { value: "5", label: "Otros" }
-                                    ],
-                                    require: true,
-                                    valueDefined: productoSeleccionado.categoria_nombre || "Otros"
-                                },
-                                {
-                                    type: "SELECT",
-                                    name: "unidad_id",
-                                    label: "Unidad",
-                                    options: [
-                                        { value: "1", label: "Pieza" },
-                                        { value: "2", label: "Kilogramo" },
-                                        { value: "3", label: "Litro" },
-                                        { value: "4", label: "Metro" },
-                                        { value: "5", label: "Caja" }
-                                    ],
-                                    require: true,
-                                    valueDefined: productoSeleccionado.unidad_nombre || "Pieza"
+                                    valueDefined: productoParaEditar.precio
                                 }
                             ]}
-                            onSuccess={handleGuardarEdicion}
+                            onSuccess={handleGuardarActualizacion}
                             iconButton={<Save className="size-4" />}
                         />
                     )}
+                </Modal>
+
+                {/* Modal Actualización Masiva */}
+                <Modal modalName="actualizar_masivo" title="Actualización Masiva" maxWidth="md">
+                    <div className="p-4">
+                        <p className="text-sm text-gray-600 mb-4">
+                            Actualizando {selectedIds.length} productos seleccionados
+                        </p>
+                        <MainForm
+                            message_button="Aplicar a Seleccionados"
+                            actionType="put"
+                            dataForm={[
+                                {
+                                    type: "NUMBER",
+                                    name: "precio",
+                                    label: "Nuevo Precio",
+                                    placeholder: "Dejar vacío para no modificar",
+                                    require: false
+                                },
+                                {
+                                    type: "TEXT_AREA",
+                                    name: "descripcion",
+                                    label: "Nueva Descripción",
+                                    placeholder: "Dejar vacío para no modificar",
+                                    require: false
+                                }
+                            ]}
+                            onSuccess={handleGuardarActualizacionMasiva}
+                            iconButton={<Save className="size-4" />}
+                        />
+                    </div>
+                </Modal>
+
+                {/* Modal Subida Masiva de Imágenes */}
+                <Modal modalName="subir_masivo" title="Subir Imágenes Masivamente" maxWidth="md">
+                    <div className="p-4">
+                        <p className="text-sm text-gray-600 mb-4">
+                            Subiendo imagen para {selectedIds.length} productos seleccionados
+                        </p>
+                        <MainForm
+                            message_button="Subir a Todos"
+                            actionType=""
+                            dataForm={[
+                                {
+                                    type: "FILE",
+                                    name: "file",
+                                    label: "Seleccionar imagen",
+                                    multi: false,
+                                    require: true
+                                }
+                            ]}
+                            onSuccess={handleGuardarSubidaMasiva}
+                            iconButton={<Upload className="size-4" />}
+                        />
+                    </div>
                 </Modal>
             </div>
         </div>
