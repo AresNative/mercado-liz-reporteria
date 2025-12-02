@@ -476,7 +476,16 @@ export default function GestionProductosConImagenes() {
             }
 
             const response = await getWithFilter({
-                table: `articulos left join imagenes on articulos.id = imagenes.id_ref and imagenes.tabla = 'articulos'`,
+                table: `articulos 
+                        LEFT JOIN imagenes 
+                            ON articulos.id = imagenes.id_ref 
+                            AND imagenes.tabla = 'articulos'
+                            AND imagenes.id = (
+                                SELECT MAX(i2.id) 
+                                FROM imagenes i2 
+                                WHERE i2.id_ref = articulos.id 
+                                AND i2.tabla = 'articulos'
+                            )`,
                 pageSize: 10,
                 page: currentPage,
                 tag: 'Productos',
