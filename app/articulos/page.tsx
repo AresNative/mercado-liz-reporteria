@@ -411,10 +411,6 @@ const ModalDetalleImagen = ({ producto, onClose }: { producto: Producto | null; 
                                     (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
                                 }}
                             />
-                            <div className="w-full h-64 bg-gray-100 rounded-lg border border-gray-200 flex flex-col items-center justify-center">
-                                <ImageIcon className="h-16 w-16 text-gray-400 mb-2" />
-                                <p className="text-gray-500">Error al cargar la imagen</p>
-                            </div>
                             <p className="text-sm text-gray-500 mt-2">URL: {imagen}</p>
                         </div>
                     ) : (
