@@ -19,14 +19,19 @@ import {
     BarChart,
     ShoppingCart,
     AlertTriangle,
-    GitCompare
+    GitCompare,
+    Building,
+    Filter,
+    X
 } from "lucide-react";
+import { LoadingBlock } from "@/components/loaders/block";
+import { StatCard } from "../@all/components/stat-card";
 
 interface SalesData {
     Codigo: string;
     Cliente: string;
     Proveedor?: string;
-    Tipo?: string; // 'VENTA' | 'COMPRA' | 'MERMA'
+    Tipo?: 'VENTA' | 'COMPRA' | 'MERMA';
     Movimiento?: string;
     Articulo: string;
     Nombre: string;
@@ -58,6 +63,11 @@ interface Stats {
     articulosConMargenBajo?: number;
 }
 
+interface Suggestion {
+    value: string;
+    type: 'articulo' | 'cliente' | 'proveedor' | 'categoria' | 'almacen';
+}
+
 const CONFIG = {
     PAGE_SIZE: 10,
     STATUS: { CONCLUIDO: "CONCLUIDO" },
@@ -67,69 +77,15 @@ const CONFIG = {
         VENTAS: "ventas",
         COMPRAS: "compras",
         MERMAS: "mermas",
-        COMPARACION: "comparacion" // identificado internamente como 'comparacion'
+        COMPARACION: "comparacion"
     } as const
 } as const;
 
 type ReportType = typeof CONFIG.REPORT_TYPES[keyof typeof CONFIG.REPORT_TYPES];
 
-const StatCard: React.FC<{
-    title: string;
-    value: string | number;
-    icon?: React.ReactNode;
-    subtext?: string;
-    isLoading?: boolean;
-    trend?: "up" | "down" | "neutral";
-    trendValue?: number;
-    variant?: "default" | "success" | "warning" | "danger" | "info";
-}> = ({ title, value, icon, subtext, isLoading = false, trend, trendValue, variant = "default" }) => {
-    const variantColors: Record<string, string> = {
-        default: "bg-white border-gray-200",
-        success: "bg-green-50 border-green-200",
-        warning: "bg-yellow-50 border-yellow-200",
-        danger: "bg-red-50 border-red-200",
-        info: "bg-blue-50 border-blue-200"
-    };
 
-    const trendIcons: Record<string, React.ReactNode> = {
-        up: <TrendingUp className="h-3 w-3 text-green-600" />,
-        down: <TrendingDown className="h-3 w-3 text-red-600" />,
-        neutral: null
-    };
-
-    return (
-        <div className={`p-3 rounded shadow-sm border ${variantColors[variant]}`}>
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    {icon}
-                    <span className="text-sm font-medium text-gray-700">{title}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    {trend && trendValue !== undefined && !isLoading && (
-                        <div className="flex items-center gap-1 text-xs">
-                            {trendIcons[trend]}
-                            <span className={trend === "up" ? "text-green-600" : trend === "down" ? "text-red-600" : "text-gray-600"}>
-                                {Math.abs(trendValue).toFixed(1)}%
-                            </span>
-                        </div>
-                    )}
-                    {isLoading && <Loader2 className="h-3 w-3 animate-spin text-blue-600" />}
-                </div>
-            </div>
-            <div className="mt-2 text-xl font-semibold text-gray-900">{isLoading ? "Cargando..." : value}</div>
-            {subtext && <div className="text-xs text-gray-400 mt-1">{subtext}</div>}
-        </div>
-    );
-};
-
-const LoadingBlock: React.FC<{ message?: string }> = ({ message = "Cargando..." }) => (
-    <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-        <div className="mt-3 text-gray-600">{message}</div>
-    </div>
-);
-
-const safeNumber = (v: any) => {
+const safeNumber = (v: any): number => {
+    if (v == null) return 0;
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
 };
@@ -176,7 +132,7 @@ const normalizeItem = (item: any, idx: number, reportType: ReportType): SalesDat
         baseItem.Tipo = "COMPRA";
     } else if (reportType === CONFIG.REPORT_TYPES.MERMAS) {
         baseItem.Tipo = "MERMA";
-        baseItem.MargenArticulo = -100; // mermas se representan con margen negativo
+        baseItem.MargenArticulo = -100;
     } else {
         baseItem.Tipo = "VENTA";
     }
@@ -184,7 +140,9 @@ const normalizeItem = (item: any, idx: number, reportType: ReportType): SalesDat
     return baseItem;
 };
 
-const normalizeArray = (raw: any[], reportType: ReportType): SalesData[] => raw.map((r, i) => normalizeItem(r, i, reportType));
+const normalizeArray = (raw: any[], reportType: ReportType): SalesData[] => {
+    return raw.map((r, i) => normalizeItem(r, i, reportType));
+};
 
 const computeStats = (data: SalesData[], reportType: ReportType): Stats => {
     const ventasData = data.filter((d) => d.Tipo !== "COMPRA" && d.Tipo !== "MERMA");
@@ -209,7 +167,7 @@ const computeStats = (data: SalesData[], reportType: ReportType): Stats => {
         totalClientes: new Set(ventasData.map((d) => d.Cliente)).size || undefined,
         totalProveedores: reportType === CONFIG.REPORT_TYPES.COMPRAS ? new Set(comprasData.map((d) => d.Proveedor)).size || undefined : undefined,
         totalMermas: reportType === CONFIG.REPORT_TYPES.MERMAS ? mermasData.length || undefined : undefined,
-        promedioMargen: promedioMargen !== undefined ? +(+promedioMargen.toFixed(2)) : undefined,
+        promedioMargen: promedioMargen !== undefined ? +promedioMargen.toFixed(2) : undefined,
         articulosConMargenBajo: ventasData.filter((d) => (d.MargenArticulo || 0) < CONFIG.MARGIN_WARNING).length || undefined
     };
 };
@@ -230,7 +188,7 @@ const computeStatsFromAggregated = (aggregatedData: any[], reportType: ReportTyp
     const totalMermas = has("totalMermas") ? safeNumber(data.totalMermas) : undefined;
 
     const utilidad =
-        totalVentas !== undefined && totalCosto !== undefined ? totalVentas - totalCosto : (totalVentas !== undefined && totalCosto === undefined ? undefined : undefined);
+        totalVentas !== undefined && totalCosto !== undefined ? totalVentas - totalCosto : undefined;
     const margen = totalVentas !== undefined && totalCosto !== undefined && totalVentas > 0 ? (utilidad! / totalVentas) * 100 : undefined;
 
     const out: Stats = {};
@@ -247,36 +205,43 @@ const computeStatsFromAggregated = (aggregatedData: any[], reportType: ReportTyp
     return out;
 };
 
-// Suma segura de stats (maneja ausencias)
 const mergeStatsSafely = (...statsList: (Stats | undefined)[]): Stats => {
     const out: Stats = {};
-    for (const s of statsList) {
-        if (!s) continue;
-        if (s.totalVentas !== undefined) out.totalVentas = (out.totalVentas ?? 0) + s.totalVentas!;
-        if (s.totalCosto !== undefined) out.totalCosto = (out.totalCosto ?? 0) + s.totalCosto!;
-        if (s.totalArticulos !== undefined) out.totalArticulos = (out.totalArticulos ?? 0) + s.totalArticulos!;
-        if (s.totalClientes !== undefined) out.totalClientes = (out.totalClientes ?? 0) + s.totalClientes!;
-        if (s.totalProveedores !== undefined) out.totalProveedores = (out.totalProveedores ?? 0) + s.totalProveedores!;
-        if (s.totalMermas !== undefined) out.totalMermas = (out.totalMermas ?? 0) + s.totalMermas!;
-    }
+
+    statsList.forEach((s) => {
+        if (!s) return;
+
+        if (s.totalVentas !== undefined) out.totalVentas = (out.totalVentas ?? 0) + s.totalVentas;
+        if (s.totalCosto !== undefined) out.totalCosto = (out.totalCosto ?? 0) + s.totalCosto;
+        if (s.totalArticulos !== undefined) out.totalArticulos = (out.totalArticulos ?? 0) + s.totalArticulos;
+        if (s.totalClientes !== undefined) out.totalClientes = (out.totalClientes ?? 0) + s.totalClientes;
+        if (s.totalProveedores !== undefined) out.totalProveedores = (out.totalProveedores ?? 0) + s.totalProveedores;
+        if (s.totalMermas !== undefined) out.totalMermas = (out.totalMermas ?? 0) + s.totalMermas;
+    });
 
     if (out.totalVentas !== undefined && out.totalCosto !== undefined) {
         out.utilidad = +(out.totalVentas - out.totalCosto).toFixed(2);
-        out.margen = out.totalVentas > 0 ? +(((out.utilidad! / out.totalVentas) * 100)).toFixed(2) : undefined;
+        out.margen = out.totalVentas > 0 ? +((out.utilidad / out.totalVentas) * 100).toFixed(2) : undefined;
     }
 
-    if (out.totalVentas === 0) delete out.totalVentas;
-    if (out.totalCosto === 0) delete out.totalCosto;
-    if (out.totalArticulos === 0) delete out.totalArticulos;
-    if (out.totalClientes === 0) delete out.totalClientes;
-    if (out.totalProveedores === 0) delete out.totalProveedores;
-    if (out.totalMermas === 0) delete out.totalMermas;
+    // Limpiar valores cero
+    Object.keys(out).forEach((key) => {
+        if (out[key as keyof Stats] === 0) {
+            delete out[key as keyof Stats];
+        }
+    });
 
     return out;
 };
 
-const getReportQuery = (reportType: ReportType, fechaInicio: string, fechaFin: string) => {
-    const baseQueries: any = {
+const getReportQuery = (
+    reportType: ReportType,
+    fechaInicio: string,
+    fechaFin: string,
+    searchTerm?: string,
+    almacenFilter?: string
+) => {
+    const baseQueries: Record<string, any> = {
         ventas: {
             table: `VENTA AS venta
                 INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID
@@ -300,7 +265,6 @@ const getReportQuery = (reportType: ReportType, fechaInicio: string, fechaFin: s
             agregaciones: [
                 { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
                 { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-                /* { Key: "(ventad.CantidadInventario / ventad.Cantidad)", Alias: "equivalencia", Operation: "SUM" }, */
                 { Key: "ventad.Articulo", Alias: "totalArticulos", Operation: "COUNT" },
                 { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT" }
             ]
@@ -360,20 +324,61 @@ const getReportQuery = (reportType: ReportType, fechaInicio: string, fechaFin: s
     };
 
     const config: any = baseQueries[reportType] || baseQueries.ventas;
-
     const filtros: Array<{ Key: string; Operator: string; Value: string }> = [];
 
+    // Filtros por tipo de reporte
     if (reportType === "ventas") {
-        filtros.push({ Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO }, { Key: "venta.Mov", Operator: "IN", Value: 'Factura,Factura Credito,Nota' },);
+        filtros.push(
+            { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+            { Key: "venta.Mov", Operator: "IN", Value: 'Factura,Factura Credito,Nota' }
+        );
     } else if (reportType === "compras") {
-        filtros.push({ Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO }, { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" });
+        filtros.push(
+            { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+            { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" }
+        );
     } else if (reportType === "mermas") {
-        filtros.push({ Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO }, { Key: "inv.Concepto", Operator: "LIKE", Value: "MERMAS" });
+        filtros.push(
+            { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+            { Key: "inv.Concepto", Operator: "LIKE", Value: "MERMAS" }
+        );
     }
 
+    // Filtros de fechas
     if (fechaInicio && fechaFin) {
-        const fechaKey = reportType === "ventas" ? "venta.FechaEmision" : reportType === "compras" ? "compra.FechaEmision" : "inv.FechaEmision";
-        filtros.push({ Key: fechaKey, Operator: ">=", Value: fechaInicio }, { Key: fechaKey, Operator: "<=", Value: fechaFin });
+        const fechaKey = reportType === "ventas" ? "venta.FechaEmision" :
+            reportType === "compras" ? "compra.FechaEmision" :
+                "inv.FechaEmision";
+        filtros.push(
+            { Key: fechaKey, Operator: ">=", Value: fechaInicio },
+            { Key: fechaKey, Operator: "<=", Value: fechaFin }
+        );
+    }
+
+    // Filtro de almacén
+    if (almacenFilter) {
+        const almacenKey = reportType === "ventas" ? "ventad.Almacen" :
+            reportType === "compras" ? "comprad.Almacen" :
+                "inv.Sucursal";
+        filtros.push({
+            Key: almacenKey,
+            Operator: "=",
+            Value: almacenFilter
+        });
+    }
+
+    // Filtro de búsqueda
+    if (searchTerm?.trim()) {
+        const term = searchTerm.trim();
+        const searchKey = reportType === "ventas" ? "ART.Descripcion1" :
+            reportType === "compras" ? "ART.Descripcion1" :
+                "art.Descripcion1";
+
+        filtros.push({
+            Key: searchKey,
+            Operator: "LIKE",
+            Value: `%${term}%`
+        });
     }
 
     return {
@@ -383,7 +388,12 @@ const getReportQuery = (reportType: ReportType, fechaInicio: string, fechaFin: s
                 selects: config.selects,
                 Filtros: filtros,
                 groupBy: [],
-                orderBy: [{ Key: "venta.FechaEmision", Order: "desc" }]
+                order: [{
+                    Key: reportType === "ventas" ? "venta.FechaEmision" :
+                        reportType === "compras" ? "compra.FechaEmision" :
+                            "inv.FechaEmision",
+                    Direction: "desc"
+                }]
             }
         },
         statsQuery: {
@@ -397,52 +407,254 @@ const getReportQuery = (reportType: ReportType, fechaInicio: string, fechaFin: s
     };
 };
 
+const getSuggestionsQuery = (reportType: ReportType, searchTerm: string) => {
+    const baseTable = reportType === "ventas"
+        ? `VENTA AS venta INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo INNER JOIN Cte AS C ON venta.Cliente = C.Cliente`
+        : reportType === "compras"
+            ? `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`
+            : `INV AS inv INNER JOIN INVD AS invd ON invd.ID = inv.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo`;
+
+    const selects = [];
+
+    if (reportType === "ventas") {
+        selects.push(
+            { Key: "ART.Descripcion1", Alias: "articulo" },
+            { Key: "C.Nombre", Alias: "cliente" },
+            { Key: "ART.Categoria", Alias: "categoria" },
+            { Key: "ventad.Almacen", Alias: "almacen" }
+        );
+    } else if (reportType === "compras") {
+        selects.push(
+            { Key: "ART.Descripcion1", Alias: "articulo" },
+            { Key: "P.Nombre", Alias: "proveedor" },
+            { Key: "ART.Categoria", Alias: "categoria" },
+            { Key: "comprad.Almacen", Alias: "almacen" }
+        );
+    } else {
+        selects.push(
+            { Key: "art.Descripcion1", Alias: "articulo" },
+            { Key: "art.Categoria", Alias: "categoria" },
+            { Key: "inv.Sucursal", Alias: "almacen" }
+        );
+    }
+
+    const filtros = [];
+
+    if (searchTerm.trim()) {
+        filtros.push({
+            Key: `ART.Descripcion1`,
+            Operator: "LIKE",
+            Value: searchTerm
+        });
+    }
+
+    return {
+        table: baseTable,
+        Filtros: {
+            selects,
+            Filtros: filtros,
+            groupBy: selects.map(s => s.Key),
+            order: [{ Key: selects[0].Key, Direction: "asc" }]
+        }
+    };
+};
+
 export const EnhancedSalesReport: React.FC<{
     fechaInicio: string;
     fechaFin: string;
     initialReportType?: ReportType;
     showComparison?: boolean;
 }> = ({ fechaInicio, fechaFin, initialReportType = CONFIG.REPORT_TYPES.VENTAS, showComparison = false }) => {
-    const [postData, { error: mutationError }] = useGetWithFiltersMutation();
+    const [postData, { error: mutationError, isLoading: mutationLoading }] = useGetWithFiltersMutation();
 
-    // Estados
+    // Estados principales
     const [activeReport, setActiveReport] = useState<ReportType>(initialReportType);
-    const [salesData, setSalesData] = useState<SalesData[]>([]); // datos mostrados en la tabla (paginados si aplica)
-    const [mergedAllData, setMergedAllData] = useState<SalesData[] | null>(null); // para "comparacion" guardamos el dataset completo
+    const [salesData, setSalesData] = useState<SalesData[]>([]);
+    const [mergedAllData, setMergedAllData] = useState<SalesData[] | null>(null);
     const [stats, setStats] = useState<Stats | null>(null);
     const [comparisonStats, setComparisonStats] = useState<Stats | null>(null);
     const [fullComparisonStats, setFullComparisonStats] = useState<{ ventas?: Stats; compras?: Stats; mermas?: Stats } | null>(null);
     const [consolidatedStats, setConsolidatedStats] = useState<Stats | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [almacenFilter, setAlmacenFilter] = useState<string>("");
+    const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [almacenes, setAlmacenes] = useState<string[]>([]);
     const [totalPages, setTotalPages] = useState(1);
     const [currentPage, setCurrentPage] = useState(1);
     const [quickMode, setQuickMode] = useState(false);
     const [statsLoading, setStatsLoading] = useState(false);
     const [tableLoading, setTableLoading] = useState(false);
     const [comparisonLoading, setComparisonLoading] = useState(false);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
     // Errores
     const [apiError, setApiError] = useState<string | null>(null);
     const [statsError, setStatsError] = useState<string | null>(null);
     const [comparisonError, setComparisonError] = useState<string | null>(null);
 
-    // Refs y locks
+    // Refs
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const suggestionsRef = useRef<HTMLDivElement>(null);
+    const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isFetchingTableRef = useRef(false);
     const isFetchingStatsRef = useRef(false);
     const isFetchingComparisonRef = useRef(false);
     const mountedRef = useRef(true);
 
+    // Cleanup
     useEffect(() => {
         mountedRef.current = true;
         return () => {
             mountedRef.current = false;
+            if (debounceTimeoutRef.current) {
+                clearTimeout(debounceTimeoutRef.current);
+            }
         };
     }, []);
 
-    // Queries (memoizadas para evitar recreación innecesaria)
-    const { tableQuery, statsQuery } = useMemo(() => getReportQuery(activeReport, fechaInicio, fechaFin), [activeReport, fechaInicio, fechaFin]);
+    // Cargar almacenes
+    const loadAlmacenes = useCallback(async () => {
+        try {
+            const table = activeReport === "ventas"
+                ? "VENTAD"
+                : activeReport === "compras"
+                    ? "COMPRAD"
+                    : "INV";
+            const campoAlmacen = activeReport === "mermas" ? "Sucursal" : "Almacen";
 
-    // Carga de estadísticas por tipo (cuando no estamos en comparación)
+            const query = {
+                table: `${table}`,
+                Filtros: {
+                    selects: [{ Key: campoAlmacen, Alias: "almacen" }],
+                    Filtros: [],
+                    groupBy: [campoAlmacen],
+                    order: [{ Key: campoAlmacen, Direction: "asc" }]
+                }
+            };
+
+            const res = await postData({
+                table: query.table,
+                filtros: query.Filtros,
+                page: 1,
+                pageSize: 100,
+                tag: "almacenes"
+            }).unwrap();
+
+            const raw = extractArrayFromResponse(res);
+            const almacenesList = raw
+                .map((item: any) => item.almacen)
+                .filter((almacen: string) => almacen && almacen.trim() !== "")
+                .sort();
+
+            if (mountedRef.current) {
+                setAlmacenes(Array.from(new Set(almacenesList)));
+            }
+        } catch (error) {
+            console.error("Error al cargar almacenes:", error);
+        }
+    }, [activeReport, postData]);
+
+    // Cargar sugerencias
+    const loadSuggestions = useCallback(async (term: string) => {
+        if (term.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+
+        setSuggestionsLoading(true);
+        try {
+            const query = getSuggestionsQuery(activeReport, term);
+
+            const res = await postData({
+                table: query.table,
+                filtros: query.Filtros,
+                page: 1,
+                pageSize: 10,
+                tag: "suggestions"
+            }).unwrap();
+
+            const raw = extractArrayFromResponse(res);
+            const suggestionsList: Suggestion[] = [];
+
+            raw.forEach((item: any) => {
+                if (item.articulo) {
+                    suggestionsList.push({ value: item.articulo, type: 'articulo' });
+                }
+                if (item.cliente) {
+                    suggestionsList.push({ value: item.cliente, type: 'cliente' });
+                }
+                if (item.proveedor) {
+                    suggestionsList.push({ value: item.proveedor, type: 'proveedor' });
+                }
+                if (item.categoria) {
+                    suggestionsList.push({ value: item.categoria, type: 'categoria' });
+                }
+                if (item.almacen) {
+                    suggestionsList.push({ value: item.almacen, type: 'almacen' });
+                }
+            });
+
+            // Eliminar duplicados
+            const uniqueSuggestions = suggestionsList.reduce((acc: Suggestion[], current) => {
+                const exists = acc.find(item => item.value === current.value && item.type === current.type);
+                if (!exists) {
+                    acc.push(current);
+                }
+                return acc;
+            }, []);
+
+            if (mountedRef.current) {
+                setSuggestions(uniqueSuggestions.slice(0, 10));
+            }
+        } catch (error) {
+            console.error("Error al cargar sugerencias:", error);
+        } finally {
+            setSuggestionsLoading(false);
+        }
+    }, [activeReport, postData]);
+
+    // Debounce para búsqueda
+    const handleSearchChange = useCallback((value: string) => {
+        setSearchTerm(value);
+
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+
+        debounceTimeoutRef.current = setTimeout(() => {
+            if (value.length >= 2) {
+                loadSuggestions(value);
+                setShowSuggestions(true);
+            } else {
+                setSuggestions([]);
+                setShowSuggestions(false);
+            }
+        }, 300);
+    }, [loadSuggestions]);
+
+    // Clic fuera para cerrar sugerencias
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node) &&
+                searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+                setShowSuggestions(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    // Generar queries
+    const { tableQuery, statsQuery } = useMemo(
+        () => getReportQuery(activeReport, fechaInicio, fechaFin, searchTerm, almacenFilter),
+        [activeReport, fechaInicio, fechaFin, searchTerm, almacenFilter]
+    );
+
+    // Cargar estadísticas
     const loadStats = useCallback(async () => {
         if (!fechaInicio || !fechaFin || isFetchingStatsRef.current) return;
         if (activeReport === CONFIG.REPORT_TYPES.COMPARACION) return;
@@ -452,9 +664,11 @@ export const EnhancedSalesReport: React.FC<{
         setStatsError(null);
 
         try {
+            const { statsQuery: sq } = getReportQuery(activeReport, fechaInicio, fechaFin, searchTerm, almacenFilter);
+
             const res = await postData({
-                table: statsQuery.table,
-                filtros: statsQuery.Filtros,
+                table: sq.table,
+                filtros: sq.Filtros,
                 page: 1,
                 pageSize: 1,
                 tag: `${activeReport}-stats`
@@ -473,9 +687,9 @@ export const EnhancedSalesReport: React.FC<{
             isFetchingStatsRef.current = false;
             if (mountedRef.current) setStatsLoading(false);
         }
-    }, [fechaInicio, fechaFin, statsQuery, activeReport, postData]);
+    }, [fechaInicio, fechaFin, activeReport, postData, searchTerm, almacenFilter]);
 
-    // Carga tabla por tipo (ventas/compras/mermas)
+    // Cargar tabla por tipo
     const loadTableData = useCallback(async () => {
         if (!fechaInicio || !fechaFin || isFetchingTableRef.current) return;
         if (activeReport === CONFIG.REPORT_TYPES.COMPARACION) return;
@@ -485,9 +699,11 @@ export const EnhancedSalesReport: React.FC<{
         setApiError(null);
 
         try {
+            const { tableQuery: tq } = getReportQuery(activeReport, fechaInicio, fechaFin, searchTerm, almacenFilter);
+
             const res = await postData({
-                table: tableQuery.table,
-                filtros: tableQuery.Filtros,
+                table: tq.table,
+                filtros: tq.Filtros,
                 page: currentPage,
                 pageSize: CONFIG.PAGE_SIZE,
                 tag: `${activeReport}-table`
@@ -496,13 +712,11 @@ export const EnhancedSalesReport: React.FC<{
             const raw = extractArrayFromResponse(res);
             const normalized = normalizeArray(raw, activeReport);
 
-            // Si el endpoint devuelve paginado, usaremos res.totalPages; si no, calculamos
             const pages = res?.totalPages ?? Math.max(1, Math.ceil((raw?.length ?? normalized.length) / CONFIG.PAGE_SIZE));
 
             if (mountedRef.current) {
                 setSalesData(normalized);
                 setTotalPages(pages);
-                // si no hay stats cargadas, calcular desde los datos
                 if (!statsLoading && !stats) {
                     const calculatedStats = computeStats(normalized, activeReport);
                     setStats(calculatedStats);
@@ -519,9 +733,9 @@ export const EnhancedSalesReport: React.FC<{
             isFetchingTableRef.current = false;
             if (mountedRef.current) setTableLoading(false);
         }
-    }, [fechaInicio, fechaFin, tableQuery, currentPage, activeReport, postData, statsLoading, stats]);
+    }, [fechaInicio, fechaFin, currentPage, activeReport, postData, statsLoading, stats, searchTerm, almacenFilter]);
 
-    // Carga de stats por tipo para comparar (ventas/compras/mermas)
+    // Cargar datos comparativos
     const loadComparisonData = useCallback(async () => {
         if (!fechaInicio || !fechaFin || isFetchingComparisonRef.current) return;
 
@@ -532,7 +746,10 @@ export const EnhancedSalesReport: React.FC<{
         try {
             const types: ReportType[] = [CONFIG.REPORT_TYPES.VENTAS, CONFIG.REPORT_TYPES.COMPRAS, CONFIG.REPORT_TYPES.MERMAS];
             const queries = types.map((t) => {
-                const { statsQuery: sq } = getReportQuery(t, fechaInicio, fechaFin);
+                const { statsQuery: sq } = getReportQuery(t, fechaInicio, fechaFin,
+                    activeReport === CONFIG.REPORT_TYPES.COMPARACION ? searchTerm : undefined,
+                    activeReport === CONFIG.REPORT_TYPES.COMPARACION ? almacenFilter : undefined
+                );
                 return postData({
                     table: sq.table,
                     filtros: sq.Filtros,
@@ -553,7 +770,6 @@ export const EnhancedSalesReport: React.FC<{
                 statsByType[r.type] = computeStatsFromAggregated(raw, r.type);
             }
 
-            // Mantener compatibilidad: comparisonStats = stats del "otro" tipo respecto al activo
             const comparisonType = activeReport === CONFIG.REPORT_TYPES.VENTAS ? CONFIG.REPORT_TYPES.COMPRAS : CONFIG.REPORT_TYPES.VENTAS;
             const comparison = statsByType[comparisonType] ?? null;
 
@@ -584,9 +800,9 @@ export const EnhancedSalesReport: React.FC<{
             isFetchingComparisonRef.current = false;
             if (mountedRef.current) setComparisonLoading(false);
         }
-    }, [fechaInicio, fechaFin, activeReport, postData]);
+    }, [fechaInicio, fechaFin, activeReport, postData, searchTerm, almacenFilter]);
 
-    // Carga y fusiona tablas para la vista "comparacion" (trae varios tipos y normaliza)
+    // Cargar tabla fusionada para comparación
     const loadMergedTableData = useCallback(async () => {
         if (!fechaInicio || !fechaFin || isFetchingTableRef.current) return;
 
@@ -597,10 +813,9 @@ export const EnhancedSalesReport: React.FC<{
         try {
             const types: ReportType[] = [CONFIG.REPORT_TYPES.VENTAS, CONFIG.REPORT_TYPES.COMPRAS, CONFIG.REPORT_TYPES.MERMAS];
 
-            // Para fusionar la tabla pedimos pageSize grande en cada tipo (client-side paging)
-            const pageSizeForMerge = quickMode ? 500 : 2000; // heurística: modo rápido trae menos
+            const pageSizeForMerge = quickMode ? 500 : 2000;
             const queries = types.map((t) => {
-                const { tableQuery: tq } = getReportQuery(t, fechaInicio, fechaFin);
+                const { tableQuery: tq } = getReportQuery(t, fechaInicio, fechaFin, searchTerm, almacenFilter);
                 return postData({
                     table: tq.table,
                     filtros: tq.Filtros,
@@ -614,33 +829,31 @@ export const EnhancedSalesReport: React.FC<{
 
             const results = await Promise.all(queries);
 
-            // Normalizar cada resultado y agregarlos con una columna Tipo
             let merged: SalesData[] = [];
             for (const r of results) {
                 const raw = extractArrayFromResponse(r.res);
                 const normalized = normalizeArray(raw, r.type);
-                // ya contain Tipo en normalizeItem; aún así reforzamos:
-                const marked = normalized.map((n) => ({ ...n, Tipo: r.type === CONFIG.REPORT_TYPES.COMPRAS ? "COMPRA" : r.type === CONFIG.REPORT_TYPES.MERMAS ? "MERMA" : "VENTA" }));
+                const marked: any = normalized.map((n) => ({
+                    ...n,
+                    Tipo: r.type === CONFIG.REPORT_TYPES.COMPRAS ? "COMPRA" :
+                        r.type === CONFIG.REPORT_TYPES.MERMAS ? "MERMA" : "VENTA"
+                }));
                 merged = merged.concat(marked);
             }
 
-            // Orden por fecha ascendente si hay FechaEmision
             merged.sort((a, b) => {
                 if (!a.FechaEmision && !b.FechaEmision) return 0;
                 if (!a.FechaEmision) return 1;
                 if (!b.FechaEmision) return -1;
-                return new Date(a.FechaEmision).getTime() - new Date(b.FechaEmision).getTime();
+                return new Date(b.FechaEmision).getTime() - new Date(a.FechaEmision).getTime();
             });
 
             if (mountedRef.current) {
                 setMergedAllData(merged);
-                // set first page
                 const pages = Math.max(1, Math.ceil(merged.length / CONFIG.PAGE_SIZE));
                 setTotalPages(pages);
                 setCurrentPage(1);
-                // set paged salesData to first slice
                 setSalesData(merged.slice(0, CONFIG.PAGE_SIZE));
-                // calcular stats consolidados desde merged (por seguridad si needed)
                 const calc = computeStats(merged, CONFIG.REPORT_TYPES.COMPARACION);
                 setStats(calc);
             }
@@ -656,99 +869,32 @@ export const EnhancedSalesReport: React.FC<{
             isFetchingTableRef.current = false;
             if (mountedRef.current) setTableLoading(false);
         }
-    }, [fechaInicio, fechaFin, postData, quickMode]);
+    }, [fechaInicio, fechaFin, postData, quickMode, searchTerm, almacenFilter]);
 
-    /* Efectos principales: cargar según reporte activo */
+    // Efecto principal
     useEffect(() => {
         if (!fechaInicio || !fechaFin) return;
 
-        // Reseteos básicos al cambiar tipo de reporte
         setApiError(null);
         setStatsError(null);
         setComparisonError(null);
 
+        loadAlmacenes();
+
         if (activeReport === CONFIG.REPORT_TYPES.COMPARACION) {
-            // Cargar stats comparativos + tabla fusionada
             loadComparisonData();
             loadMergedTableData();
-            // limpiar salesData previo si existiera (ya se actualizará con merged)
-            // stats se mostrará desde consolidatedStats
             return;
         }
 
-        // para vistas por tipo
         loadStats();
         loadTableData();
         if (showComparison) {
             loadComparisonData();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fechaInicio, fechaFin, activeReport, currentPage, showComparison, quickMode]);
+    }, [fechaInicio, fechaFin, activeReport, currentPage, showComparison, quickMode, searchTerm, almacenFilter]);
 
-    useEffect(() => {
-        if (mutationError) {
-            const msg = (mutationError as any)?.data?.message ?? (mutationError as any)?.message ?? "Error en servidor";
-            if (!apiError && !statsError && !comparisonError) {
-                setApiError(String(msg));
-            }
-        }
-    }, [mutationError, apiError, statsError, comparisonError]);
-
-    /* Handlers */
-    const handleRefresh = () => {
-        if (activeReport === CONFIG.REPORT_TYPES.COMPARACION) {
-            loadComparisonData();
-            loadMergedTableData();
-        } else {
-            loadStats();
-            loadTableData();
-            if (showComparison) loadComparisonData();
-        }
-    };
-
-    const handleReportChange = (reportType: ReportType) => {
-        setActiveReport(reportType);
-        setCurrentPage(1);
-        setSalesData([]);
-        setMergedAllData(null);
-        setStats(null);
-        setComparisonStats(null);
-        setFullComparisonStats(null);
-        setConsolidatedStats(null);
-    };
-
-    const handleClearError = (errorType: "api" | "stats" | "comparison") => {
-        switch (errorType) {
-            case "api":
-                setApiError(null);
-                break;
-            case "stats":
-                setStatsError(null);
-                break;
-            case "comparison":
-                setComparisonError(null);
-                break;
-        }
-    };
-
-    /* Data source y búsqueda/paginación (soporta "merged" y normal) */
-    const dataSource = useMemo(() => {
-        return activeReport === CONFIG.REPORT_TYPES.COMPARACION ? (mergedAllData ?? []) : salesData;
-    }, [activeReport, mergedAllData, salesData]);
-
-    const filteredData = useMemo(() => {
-        const base = dataSource || [];
-        if (!searchTerm.trim()) return base;
-        const t = searchTerm.trim().toLowerCase();
-        return base.filter((d) =>
-            [d.Cliente, d.Articulo, d.Nombre, d.Categoria, d.Proveedor]
-                .filter(Boolean)
-                .map((x: any) => x.toString().toLowerCase())
-                .some((s) => s.includes(t))
-        );
-    }, [dataSource, searchTerm]);
-
-    // Si estamos en merged y mergedAllData existe, paginar client-side
+    // Paginación para datos fusionados
     useEffect(() => {
         if (activeReport !== CONFIG.REPORT_TYPES.COMPARACION) return;
         if (!mergedAllData) return;
@@ -760,7 +906,47 @@ export const EnhancedSalesReport: React.FC<{
         setSalesData(pageSlice);
     }, [activeReport, mergedAllData, currentPage]);
 
-    /* Titles & icons helpers */
+    // Handlers
+    const handleSuggestionSelect = (suggestion: Suggestion) => {
+        setSearchTerm(suggestion.value);
+        setShowSuggestions(false);
+
+        if (suggestion.type === 'almacen') {
+            setAlmacenFilter(suggestion.value);
+            setSearchTerm("");
+        }
+    };
+
+    const handleClearFilters = () => {
+        setSearchTerm("");
+        setAlmacenFilter("");
+        setCurrentPage(1);
+    };
+
+    const handleRefresh = useCallback(() => {
+        if (activeReport === CONFIG.REPORT_TYPES.COMPARACION) {
+            loadComparisonData();
+            loadMergedTableData();
+        } else {
+            loadStats();
+            loadTableData();
+            if (showComparison) loadComparisonData();
+        }
+    }, [activeReport, loadComparisonData, loadMergedTableData, loadStats, loadTableData, showComparison]);
+
+    const handleReportChange = useCallback((reportType: ReportType) => {
+        setActiveReport(reportType);
+        setCurrentPage(1);
+        setSalesData([]);
+        setMergedAllData(null);
+        setStats(null);
+        setComparisonStats(null);
+        setFullComparisonStats(null);
+        setConsolidatedStats(null);
+        setSearchTerm("");
+    }, []);
+
+    // Helper functions
     const getReportTitle = () => {
         const titles: Record<ReportType, string> = {
             ventas: "Reporte de Ventas",
@@ -781,7 +967,14 @@ export const EnhancedSalesReport: React.FC<{
         return icons[activeReport] || <BarChart3 className="h-6 w-6 text-blue-600" />;
     };
 
-    /* Render comparador azul */
+    const areStatsLoading = useMemo(() => {
+        if (activeReport === CONFIG.REPORT_TYPES.COMPARACION) {
+            return comparisonLoading || mutationLoading;
+        }
+        return statsLoading || mutationLoading;
+    }, [activeReport, statsLoading, comparisonLoading, mutationLoading]);
+
+    // Render comparación
     const renderComparisonGrid = () => {
         if (!fullComparisonStats) return null;
 
@@ -792,7 +985,9 @@ export const EnhancedSalesReport: React.FC<{
             return (
                 <div className="text-sm">
                     <div className="text-gray-600">{label}:</div>
-                    <div className={`font-semibold ${positive ? "text-green-600" : "text-red-600"}`}>${Math.abs(diff).toLocaleString()}</div>
+                    <div className={`font-semibold ${positive ? "text-green-600" : "text-red-600"}`}>
+                        ${Math.abs(diff).toLocaleString()}
+                    </div>
                 </div>
             );
         };
@@ -809,7 +1004,6 @@ export const EnhancedSalesReport: React.FC<{
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {/* Venta vs Compra */}
                     <div className="p-3 bg-white rounded border">
                         <div className="text-sm font-medium mb-2">Ventas vs Compras</div>
                         {diffBlock("Diferencia en Ventas", v?.totalVentas, c?.totalVentas)}
@@ -817,12 +1011,13 @@ export const EnhancedSalesReport: React.FC<{
                         {v?.margen !== undefined && c?.margen !== undefined && (
                             <div className="text-sm">
                                 <div className="text-gray-600">Diferencia en Margen:</div>
-                                <div className={`font-semibold ${v!.margen! > c!.margen! ? "text-green-600" : "text-red-600"}`}>{Math.abs(v!.margen! - c!.margen!).toFixed(2)}%</div>
+                                <div className={`font-semibold ${v.margen > c.margen ? "text-green-600" : "text-red-600"}`}>
+                                    {Math.abs(v.margen - c.margen).toFixed(2)}%
+                                </div>
                             </div>
                         )}
                     </div>
 
-                    {/* Venta vs Merma */}
                     <div className="p-3 bg-white rounded border">
                         <div className="text-sm font-medium mb-2">Ventas vs Mermas</div>
                         {diffBlock("Diferencia en Ventas", v?.totalVentas, m?.totalVentas)}
@@ -830,12 +1025,13 @@ export const EnhancedSalesReport: React.FC<{
                         {v?.margen !== undefined && m?.margen !== undefined && (
                             <div className="text-sm">
                                 <div className="text-gray-600">Diferencia en Margen:</div>
-                                <div className={`font-semibold ${v!.margen! > m!.margen! ? "text-green-600" : "text-red-600"}`}>{Math.abs(v!.margen! - m!.margen!).toFixed(2)}%</div>
+                                <div className={`font-semibold ${v.margen > m.margen ? "text-green-600" : "text-red-600"}`}>
+                                    {Math.abs(v.margen - m.margen).toFixed(2)}%
+                                </div>
                             </div>
                         )}
                     </div>
 
-                    {/* Compra vs Merma */}
                     <div className="p-3 bg-white rounded border">
                         <div className="text-sm font-medium mb-2">Compras vs Mermas</div>
                         {diffBlock("Diferencia en Ventas", c?.totalVentas, m?.totalVentas)}
@@ -843,13 +1039,14 @@ export const EnhancedSalesReport: React.FC<{
                         {c?.margen !== undefined && m?.margen !== undefined && (
                             <div className="text-sm">
                                 <div className="text-gray-600">Diferencia en Margen:</div>
-                                <div className={`font-semibold ${c!.margen! > m!.margen! ? "text-green-600" : "text-red-600"}`}>{Math.abs(c!.margen! - m!.margen!).toFixed(2)}%</div>
+                                <div className={`font-semibold ${c.margen > m.margen ? "text-green-600" : "text-red-600"}`}>
+                                    {Math.abs(c.margen - m.margen).toFixed(2)}%
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Mostrar consolidatedStats si existe */}
                 {consolidatedStats && (
                     <div className="mt-4 p-3 bg-white rounded border">
                         <div className="text-sm font-medium mb-2">Consolidado (suma segura)</div>
@@ -867,7 +1064,6 @@ export const EnhancedSalesReport: React.FC<{
         );
     };
 
-    /* Render principal */
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -889,7 +1085,8 @@ export const EnhancedSalesReport: React.FC<{
                     {/* Selector de tipo de reporte */}
                     <div className="flex gap-2">
                         {Object.values(CONFIG.REPORT_TYPES).map((type) => {
-                            const label = type === CONFIG.REPORT_TYPES.COMPARACION ? "Comparación" : type.charAt(0).toUpperCase() + type.slice(1);
+                            const label = type === CONFIG.REPORT_TYPES.COMPARACION ? "Comparación" :
+                                type.charAt(0).toUpperCase() + type.slice(1);
                             return (
                                 <button
                                     key={type}
@@ -902,32 +1099,129 @@ export const EnhancedSalesReport: React.FC<{
                         })}
                     </div>
 
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder={`Buscar ${activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "proveedor" : "cliente"}, artículo...`}
-                            className="pl-9 pr-3 py-2 border rounded w-64"
-                        />
+                    <div className="flex gap-3">
+                        {/* Filtro de almacén */}
+                        <div className="relative">
+                            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <select
+                                value={almacenFilter}
+                                onChange={(e) => setAlmacenFilter(e.target.value)}
+                                className="pl-9 pr-8 py-2 border rounded bg-white appearance-none"
+                            >
+                                <option value="">Todos los almacenes</option>
+                                {almacenes.map((almacen) => (
+                                    <option key={almacen} value={almacen}>
+                                        {almacen}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Búsqueda con autocompletado */}
+                        <div className="relative" ref={suggestionsRef}>
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <input
+                                ref={searchInputRef}
+                                value={searchTerm}
+                                onChange={(e) => handleSearchChange(e.target.value)}
+                                onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
+                                placeholder={`Buscar ${activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "proveedor" : "cliente"}, artículo...`}
+                                className="pl-9 pr-3 py-2 border rounded w-64"
+                            />
+
+                            {showSuggestions && suggestions.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-60 overflow-y-auto">
+                                    {suggestionsLoading ? (
+                                        <div className="p-3 text-center text-gray-500">
+                                            <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                                            Buscando...
+                                        </div>
+                                    ) : (
+                                        suggestions.map((suggestion) => (
+                                            <div
+                                                key={`${suggestion.type}-${suggestion.value}`}
+                                                onClick={() => handleSuggestionSelect(suggestion)}
+                                                className="p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+                                            >
+                                                {suggestion.type === 'articulo' && <Package className="h-4 w-4 text-blue-500" />}
+                                                {suggestion.type === 'cliente' && <Users className="h-4 w-4 text-green-500" />}
+                                                {suggestion.type === 'proveedor' && <ShoppingCart className="h-4 w-4 text-orange-500" />}
+                                                {suggestion.type === 'categoria' && <Filter className="h-4 w-4 text-purple-500" />}
+                                                {suggestion.type === 'almacen' && <Building className="h-4 w-4 text-gray-500" />}
+                                                <span>{suggestion.value}</span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {(searchTerm || almacenFilter) && (
+                            <button
+                                onClick={handleClearFilters}
+                                className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center gap-2"
+                            >
+                                <X className="h-4 w-4" />
+                                Limpiar
+                            </button>
+                        )}
+
+                        <button
+                            onClick={() => setQuickMode((q) => !q)}
+                            className={`px-3 py-2 rounded flex items-center gap-2 ${quickMode ? "bg-blue-600 text-white" : "bg-gray-100"}`}
+                        >
+                            <Zap className="h-4 w-4" />
+                            {quickMode ? "Modo rápido" : "Modo normal"}
+                        </button>
+
+                        <button
+                            onClick={handleRefresh}
+                            disabled={tableLoading || areStatsLoading || comparisonLoading}
+                            className="px-3 py-2 bg-green-600 text-white rounded disabled:opacity-60 flex items-center gap-2"
+                        >
+                            {(tableLoading || areStatsLoading || comparisonLoading) ?
+                                <Loader2 className="h-4 w-4 animate-spin" /> :
+                                <RefreshCcw className="h-4 w-4" />
+                            }
+                            Actualizar
+                        </button>
+
+                        <button
+                            onClick={() => { /* export */ }}
+                            disabled={!(salesData.length || consolidatedStats)}
+                            className="px-3 py-2 bg-purple-600 text-white rounded disabled:opacity-60 flex items-center gap-2"
+                        >
+                            <Download className="h-4 w-4" />
+                            Exportar
+                        </button>
                     </div>
-
-                    <button onClick={() => setQuickMode((q) => !q)} className={`px-3 py-2 rounded flex items-center gap-2 ${quickMode ? "bg-blue-600 text-white" : "bg-gray-100"}`}>
-                        <Zap className="h-4 w-4" />
-                        {quickMode ? "Modo rápido" : "Modo normal"}
-                    </button>
-
-                    <button onClick={handleRefresh} disabled={tableLoading || statsLoading || comparisonLoading} className="px-3 py-2 bg-green-600 text-white rounded disabled:opacity-60 flex items-center gap-2">
-                        {(tableLoading || statsLoading || comparisonLoading) ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-                        Actualizar
-                    </button>
-
-                    <button onClick={() => { /* export */ }} disabled={!(dataSource.length || consolidatedStats)} className="px-3 py-2 bg-purple-600 text-white rounded disabled:opacity-60 flex items-center gap-2">
-                        <Download className="h-4 w-4" />
-                        Exportar
-                    </button>
                 </div>
             </div>
+
+            {/* Mostrar filtros activos */}
+            {(searchTerm || almacenFilter) && (
+                <div className="flex flex-wrap gap-2 items-center text-sm">
+                    <span className="text-gray-600">Filtros activos:</span>
+                    {almacenFilter && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded flex items-center gap-1">
+                            <Building className="h-3 w-3" />
+                            Almacén: {almacenFilter}
+                            <button onClick={() => setAlmacenFilter("")} className="ml-1 hover:text-blue-600">
+                                <X className="h-3 w-3" />
+                            </button>
+                        </span>
+                    )}
+                    {searchTerm && (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded flex items-center gap-1">
+                            <Search className="h-3 w-3" />
+                            Búsqueda: {searchTerm}
+                            <button onClick={() => setSearchTerm("")} className="ml-1 hover:text-green-600">
+                                <X className="h-3 w-3" />
+                            </button>
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* Errores */}
             {apiError && (
@@ -937,8 +1231,8 @@ export const EnhancedSalesReport: React.FC<{
                         <div className="flex items-center justify-between gap-4">
                             <div className="font-semibold text-red-700">Error en Datos</div>
                             <div className="flex gap-2">
-                                <button onClick={() => handleClearError("api")} className="px-2 py-1 bg-white border rounded text-sm text-gray-700">Cerrar</button>
-                                <button onClick={() => { if (activeReport === CONFIG.REPORT_TYPES.COMPARACION) { loadMergedTableData(); loadComparisonData(); } else loadTableData(); }} disabled={tableLoading} className="px-2 py-1 bg-red-600 text-white rounded text-sm disabled:opacity-60">Reintentar</button>
+                                <button onClick={() => setApiError(null)} className="px-2 py-1 bg-white border rounded text-sm text-gray-700">Cerrar</button>
+                                <button onClick={handleRefresh} disabled={tableLoading} className="px-2 py-1 bg-red-600 text-white rounded text-sm disabled:opacity-60">Reintentar</button>
                             </div>
                         </div>
                         <div className="text-sm text-red-600 mt-1">{apiError}</div>
@@ -953,7 +1247,7 @@ export const EnhancedSalesReport: React.FC<{
                         <div className="flex items-center justify-between gap-4">
                             <div className="font-semibold text-yellow-700">Error en Estadísticas</div>
                             <div className="flex gap-2">
-                                <button onClick={() => handleClearError("stats")} className="px-2 py-1 bg-white border rounded text-sm text-gray-700">Cerrar</button>
+                                <button onClick={() => setStatsError(null)} className="px-2 py-1 bg-white border rounded text-sm text-gray-700">Cerrar</button>
                                 <button onClick={loadStats} disabled={statsLoading} className="px-2 py-1 bg-yellow-600 text-white rounded text-sm disabled:opacity-60">Reintentar</button>
                             </div>
                         </div>
@@ -975,72 +1269,160 @@ export const EnhancedSalesReport: React.FC<{
                     consolidatedStats ? (
                         <>
                             {consolidatedStats.totalVentas !== undefined && (
-                                <StatCard title="Total Ventas (Consolidado)" value={`$ ${consolidatedStats.totalVentas!.toLocaleString()}`} icon={<DollarSign className="h-4 w-4" />} subtext="Ventas brutas" isLoading={comparisonLoading && !consolidatedStats} variant="success" />
+                                <StatCard
+                                    title="Total Ventas (Consolidado)"
+                                    value={`$ ${consolidatedStats.totalVentas.toLocaleString()}`}
+                                    icon={<DollarSign className="h-4 w-4" />}
+                                    subtext="Ventas brutas"
+                                    isLoading={areStatsLoading}
+                                    variant="success"
+                                />
                             )}
                             {consolidatedStats.totalCosto !== undefined && (
-                                <StatCard title="Total Costo (Consolidado)" value={`$ ${consolidatedStats.totalCosto!.toLocaleString()}`} icon={<Package className="h-4 w-4" />} subtext="Costos asociados" isLoading={comparisonLoading && !consolidatedStats} variant="default" />
+                                <StatCard
+                                    title="Total Costo (Consolidado)"
+                                    value={`$ ${consolidatedStats.totalCosto.toLocaleString()}`}
+                                    icon={<Package className="h-4 w-4" />}
+                                    subtext="Costos asociados"
+                                    isLoading={areStatsLoading}
+                                    variant="default"
+                                />
                             )}
                             {consolidatedStats.utilidad !== undefined && (
-                                <StatCard title="Utilidad (Consolidado)" value={`$ ${consolidatedStats.utilidad!.toLocaleString()}`} icon={<TrendingUp className="h-4 w-4" />} subtext="Ventas - Costos" isLoading={comparisonLoading && !consolidatedStats} variant={consolidatedStats?.utilidad && consolidatedStats.utilidad >= 0 ? "success" : "danger"} />
+                                <StatCard
+                                    title="Utilidad (Consolidado)"
+                                    value={`$ ${consolidatedStats.utilidad.toLocaleString()}`}
+                                    icon={<TrendingUp className="h-4 w-4" />}
+                                    subtext="Ventas - Costos"
+                                    isLoading={areStatsLoading}
+                                    variant={consolidatedStats.utilidad >= 0 ? "success" : "danger"}
+                                />
                             )}
                             {consolidatedStats.margen !== undefined && (
-                                <StatCard title="Margen (Consolidado)" value={`${consolidatedStats.margen!.toFixed(2)}%`} icon={<BarChart className="h-4 w-4" />} subtext="(Utilidad / Ventas)" isLoading={comparisonLoading && !consolidatedStats} variant={consolidatedStats?.margen && consolidatedStats.margen >= 20 ? "success" : consolidatedStats?.margen && consolidatedStats.margen >= 10 ? "warning" : "danger"} />
+                                <StatCard
+                                    title="Margen (Consolidado)"
+                                    value={`${consolidatedStats.margen.toFixed(2)}%`}
+                                    icon={<BarChart className="h-4 w-4" />}
+                                    subtext="(Utilidad / Ventas)"
+                                    isLoading={areStatsLoading}
+                                    variant={consolidatedStats.margen >= 20 ? "success" : consolidatedStats.margen >= 10 ? "warning" : "danger"}
+                                />
                             )}
                             {consolidatedStats.totalArticulos !== undefined && (
-                                <StatCard title="Artículos (Consolidado)" value={consolidatedStats.totalArticulos!} icon={<Package className="h-4 w-4" />} subtext="Productos únicos" isLoading={comparisonLoading && !consolidatedStats} variant="info" />
+                                <StatCard
+                                    title="Artículos (Consolidado)"
+                                    value={consolidatedStats.totalArticulos}
+                                    icon={<Package className="h-4 w-4" />}
+                                    subtext="Productos únicos"
+                                    isLoading={areStatsLoading}
+                                    variant="info"
+                                />
                             )}
                             {consolidatedStats.totalClientes !== undefined && (
-                                <StatCard title="Clientes (Consolidado)" value={consolidatedStats.totalClientes!} icon={<Users className="h-4 w-4" />} subtext="Clientes únicos" isLoading={comparisonLoading && !consolidatedStats} variant="info" />
+                                <StatCard
+                                    title="Clientes (Consolidado)"
+                                    value={consolidatedStats.totalClientes}
+                                    icon={<Users className="h-4 w-4" />}
+                                    subtext="Clientes únicos"
+                                    isLoading={areStatsLoading}
+                                    variant="info"
+                                />
                             )}
                         </>
+                    ) : areStatsLoading ? (
+                        <>
+                            {[...Array(6)].map((_, i) => (
+                                <StatCard key={i} title="Cargando..." value="—" isLoading={true} />
+                            ))}
+                        </>
                     ) : (
-                        comparisonLoading ? <StatCard title="Cargando consolidado..." value="—" isLoading /> :
-                            <div className="col-span-6 p-3 bg-yellow-50 border rounded text-sm text-yellow-800">No hay datos consolidados disponibles para las fechas seleccionadas.</div>
+                        <div className="col-span-6 p-3 bg-yellow-50 border rounded text-sm text-yellow-800">
+                            No hay datos consolidados disponibles para las fechas seleccionadas.
+                        </div>
                     )
                 ) : (
                     <>
                         {stats?.totalVentas !== undefined && (
-                            <StatCard title={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "Total Compras" : "Total Ventas"} value={`$ ${stats.totalVentas!.toLocaleString()}`} icon={<DollarSign className="h-4 w-4" />} subtext={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "Costos totales" : "Ventas brutas"} isLoading={statsLoading && !stats} variant={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "info" : "success"} />
+                            <StatCard
+                                title={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "Total Compras" : "Total Ventas"}
+                                value={`$ ${stats.totalVentas.toLocaleString()}`}
+                                icon={<DollarSign className="h-4 w-4" />}
+                                subtext={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "Costos totales" : "Ventas brutas"}
+                                isLoading={areStatsLoading}
+                                variant={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "info" : "success"}
+                            />
                         )}
 
                         {stats?.totalCosto !== undefined && (
-                            <StatCard title="Total Costo" value={`$ ${stats.totalCosto!.toLocaleString()}`} icon={<Package className="h-4 w-4" />} subtext="Costos asociados" isLoading={statsLoading && !stats} variant="default" />
+                            <StatCard
+                                title="Total Costo"
+                                value={`$ ${stats.totalCosto.toLocaleString()}`}
+                                icon={<Package className="h-4 w-4" />}
+                                subtext="Costos asociados"
+                                isLoading={areStatsLoading}
+                                variant="default"
+                            />
                         )}
 
                         {stats?.utilidad !== undefined && (
                             <StatCard
                                 title="Utilidad"
-                                value={`$ ${stats.utilidad!.toLocaleString()}`}
+                                value={`$ ${stats.utilidad.toLocaleString()}`}
                                 icon={<TrendingUp className="h-4 w-4" />}
                                 subtext="Ventas - Costos"
-                                isLoading={statsLoading && !stats}
-                                variant={stats?.utilidad && stats.utilidad >= 0 ? "success" : "danger"}
-                                trend={stats?.utilidad !== undefined && comparisonStats?.utilidad !== undefined ? (stats.utilidad! > comparisonStats.utilidad! ? "up" : "down") : undefined}
-                                trendValue={stats?.utilidad !== undefined && comparisonStats?.utilidad !== undefined && comparisonStats.utilidad! !== 0 ? ((stats.utilidad! - comparisonStats.utilidad!) / Math.abs(comparisonStats.utilidad!)) * 100 : undefined}
+                                isLoading={areStatsLoading}
+                                variant={stats.utilidad >= 0 ? "success" : "danger"}
+                                trend={stats?.utilidad !== undefined && comparisonStats?.utilidad !== undefined ?
+                                    (stats.utilidad > comparisonStats.utilidad! ? "up" : "down") : undefined}
+                                trendValue={stats?.utilidad !== undefined && comparisonStats?.utilidad !== undefined && comparisonStats.utilidad! !== 0 ?
+                                    ((stats.utilidad - comparisonStats.utilidad!) / Math.abs(comparisonStats.utilidad!)) * 100 : undefined}
                             />
                         )}
 
                         {stats?.margen !== undefined && (
-                            <StatCard title="Margen" value={`${stats.margen!.toFixed(2)}%`} icon={<BarChart className="h-4 w-4" />} subtext="(Utilidad / Ventas)" isLoading={statsLoading && !stats} variant={stats?.margen && stats.margen >= 20 ? "success" : stats?.margen && stats.margen >= 10 ? "warning" : "danger"} />
+                            <StatCard
+                                title="Margen"
+                                value={`${stats.margen.toFixed(2)}%`}
+                                icon={<BarChart className="h-4 w-4" />}
+                                subtext="(Utilidad / Ventas)"
+                                isLoading={areStatsLoading}
+                                variant={stats.margen >= 20 ? "success" : stats.margen >= 10 ? "warning" : "danger"}
+                            />
                         )}
 
                         {stats?.totalArticulos !== undefined && (
-                            <StatCard title="Artículos" value={stats.totalArticulos!} icon={<Package className="h-4 w-4" />} subtext="Productos únicos" isLoading={statsLoading && !stats} variant="info" />
+                            <StatCard
+                                title="Artículos"
+                                value={stats.totalArticulos}
+                                icon={<Package className="h-4 w-4" />}
+                                subtext="Productos únicos"
+                                isLoading={areStatsLoading}
+                                variant="info"
+                            />
                         )}
 
                         {(stats?.totalProveedores !== undefined || stats?.totalClientes !== undefined) && (
-                            <StatCard title={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "Proveedores" : "Clientes"} value={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? (stats.totalProveedores || 0) : (stats.totalClientes || 0)} icon={<Users className="h-4 w-4" />} subtext={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "Proveedores únicos" : "Clientes únicos"} isLoading={statsLoading && !stats} variant="info" />
+                            <StatCard
+                                title={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "Proveedores" : "Clientes"}
+                                value={activeReport === CONFIG.REPORT_TYPES.COMPRAS ?
+                                    (stats.totalProveedores || 0) :
+                                    (stats.totalClientes || 0)}
+                                icon={<Users className="h-4 w-4" />}
+                                subtext={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "Proveedores únicos" : "Clientes únicos"}
+                                isLoading={areStatsLoading}
+                                variant="info"
+                            />
                         )}
                     </>
                 )}
             </div>
 
-            {/* Comparación (si habilitada o si estamos en comparacion) */}
+            {/* Comparación */}
             {(showComparison || activeReport === CONFIG.REPORT_TYPES.COMPARACION) && fullComparisonStats && renderComparisonGrid()}
 
-            {/* Tabla: si estamos en comparacion mostramos la tabla fusionada (unificada con columna Tipo), si no, tabla normal */}
+            {/* Tabla */}
             <div className="bg-white rounded shadow-sm border overflow-hidden">
-                {tableLoading && dataSource.length === 0 ? (
+                {tableLoading && salesData.length === 0 ? (
                     <LoadingBlock message={activeReport === CONFIG.REPORT_TYPES.COMPARACION ? "Cargando tabla fusionada..." : "Cargando datos de tabla..."} />
                 ) : (
                     <>
@@ -1060,7 +1442,7 @@ export const EnhancedSalesReport: React.FC<{
                                 </thead>
 
                                 <tbody>
-                                    {filteredData.map((item) => (
+                                    {salesData.map((item) => (
                                         <tr key={item.Codigo} className="border-t hover:bg-gray-50">
                                             <td className="px-4 py-3">
                                                 <span className={`px-2 py-1 rounded text-xs font-medium ${item.Tipo === "VENTA" ? "bg-blue-100 text-blue-700" : item.Tipo === "COMPRA" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
@@ -1110,7 +1492,7 @@ export const EnhancedSalesReport: React.FC<{
                                         </tr>
                                     ))}
 
-                                    {filteredData.length === 0 && !tableLoading && (
+                                    {salesData.length === 0 && !tableLoading && (
                                         <tr>
                                             <td colSpan={8} className="text-center py-6 text-gray-500">
                                                 {searchTerm ? "No se encontraron resultados para la búsqueda" : "No hay datos disponibles para el período seleccionado"}
@@ -1121,19 +1503,35 @@ export const EnhancedSalesReport: React.FC<{
                             </table>
                         </div>
 
-                        {/* Footer: resumen y paginación */}
+                        {/* Paginación */}
                         <div className="px-4 py-3 border-t flex flex-col sm:flex-row items-center justify-between gap-3">
                             <div className="text-sm text-gray-600 flex items-center gap-3">
                                 <FileText className="h-4 w-4" />
-                                Mostrando {filteredData.length} de {(activeReport === CONFIG.REPORT_TYPES.COMPARACION ? (mergedAllData?.length ?? filteredData.length) : salesData.length)} registros
+                                Mostrando {salesData.length} de {
+                                    activeReport === CONFIG.REPORT_TYPES.COMPARACION
+                                        ? (mergedAllData?.length ?? salesData.length)
+                                        : (salesData.length)
+                                } registros
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1 || tableLoading} className="px-3 py-1 border rounded disabled:opacity-50 hover:bg-gray-50">Anterior</button>
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1 || tableLoading}
+                                    className="px-3 py-1 border rounded disabled:opacity-50 hover:bg-gray-50"
+                                >
+                                    Anterior
+                                </button>
 
                                 <span className="text-sm">Página {currentPage} de {totalPages}</span>
 
-                                <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || tableLoading} className="px-3 py-1 border rounded disabled:opacity-50 hover:bg-gray-50">Siguiente</button>
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages || tableLoading}
+                                    className="px-3 py-1 border rounded disabled:opacity-50 hover:bg-gray-50"
+                                >
+                                    Siguiente
+                                </button>
                             </div>
                         </div>
                     </>
