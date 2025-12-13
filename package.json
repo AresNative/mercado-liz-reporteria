@@ -24,7 +24,7 @@
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
     "lucide-react": "^0.513.0",
-    "next": "15.3.3",
+    "next": "^16.0.10",
     "react": "^19.2.3",
     "react-apexcharts": "^1.7.0",
     "react-barcode": "^1.6.1",
