@@ -11,10 +11,16 @@ export type DataItem = Record<string, any>;
 
 interface DynamicTableProps {
     data: Record<string, any>[];
+    loading?: boolean;
     onRowClick?: (rowData: any) => void;
 }
 
-const DynamicTable: React.FC<DynamicTableProps> = ({ data, onRowClick }) => {
+const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRowClick }) => {
+    // Si está cargando, mostramos el skeleton
+    if (loading) {
+        return <TableSkeleton />;
+    }
+
     // Detectamos si los datos tienen estructura agrupada (con array de Pujas)
     const isGroupedData = useMemo(() => {
         return data.length > 0 && data[0].Pujas && Array.isArray(data[0].Pujas);
@@ -212,7 +218,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, onRowClick }) => {
                     <ViewTR {...{ setShowColumnMenu, column: 'toggle', toggleColumn, showColumnMenu, visibleColumns, allColumns: true }} />
                 </div>
             </div>
-            <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-600 shadow-xl rounded-lg overflow-hidden">
+            <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-600 shadow-md rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-zinc-100 dark:bg-zinc-900">
@@ -302,6 +308,62 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, onRowClick }) => {
                 <div className="text-sm text-gray-700 dark:text-gray-200">
                     {selectedRows.length} fila(s) seleccionada(s) de {displayData.length}
                 </div>
+            </div>
+        </div>
+    );
+};
+
+// Componente Skeleton para el estado de carga
+const TableSkeleton = () => {
+    // Número de filas y columnas para el skeleton
+    const skeletonRows = 5;
+    const skeletonColumns = 4;
+
+    return (
+        <div className="w-full space-y-8 animate-pulse">
+            {/* Header skeleton */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-600">
+                <div className="h-7 w-48 bg-gray-300 dark:bg-zinc-700 rounded"></div>
+                <div className="h-8 w-8 bg-gray-300 dark:bg-zinc-700 rounded"></div>
+            </div>
+
+            {/* Tabla skeleton */}
+            <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-600 shadow-md rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-zinc-100 dark:bg-zinc-900">
+                            <tr>
+                                <th className="px-6 py-3">
+                                    <div className="h-4 w-4 bg-gray-300 dark:bg-zinc-700 rounded mx-auto"></div>
+                                </th>
+                                {Array.from({ length: skeletonColumns }).map((_, index) => (
+                                    <th key={index} className="px-6 py-3">
+                                        <div className="h-4 w-24 bg-gray-300 dark:bg-zinc-700 rounded"></div>
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-zinc-600">
+                            {Array.from({ length: skeletonRows }).map((_, rowIndex) => (
+                                <tr key={rowIndex}>
+                                    <td className="px-6 py-4">
+                                        <div className="h-4 w-4 bg-gray-300 dark:bg-zinc-700 rounded mx-auto"></div>
+                                    </td>
+                                    {Array.from({ length: skeletonColumns }).map((_, colIndex) => (
+                                        <td key={colIndex} className="px-6 py-4">
+                                            <div className="h-4 w-full bg-gray-300 dark:bg-zinc-700 rounded"></div>
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Footer skeleton */}
+            <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+                <div className="h-4 w-48 bg-gray-300 dark:bg-zinc-700 rounded"></div>
             </div>
         </div>
     );

@@ -1,7 +1,7 @@
+import { Producto } from "@/utils/types/page";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-interface CartItem {
-  id: string | number; // Puedes ajustar el tipo según tus necesidades
+interface CartItem extends Producto {
   quantity: number;
 }
 

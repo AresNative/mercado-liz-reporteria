@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { LoadingBlock } from "@/components/loaders/block";
 import { StatCard } from "../@all/components/stat-card";
+import { formatValue } from "@/utils/constants/format-values";
 
 interface SalesData {
     Codigo: string;
@@ -266,7 +267,7 @@ const getReportQuery = (
                 { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
                 { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
                 { Key: "ventad.Articulo", Alias: "totalArticulos", Operation: "COUNT" },
-                { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT" }
+                { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT DISTINCT" }
             ]
         },
         compras: {
@@ -523,19 +524,15 @@ export const EnhancedSalesReport: React.FC<{
                     : "INV";
             const campoAlmacen = activeReport === "mermas" ? "Sucursal" : "Almacen";
 
-            const query = {
-                table: `${table}`,
-                Filtros: {
-                    selects: [{ Key: campoAlmacen, Alias: "almacen" }],
-                    Filtros: [],
-                    groupBy: [campoAlmacen],
-                    order: [{ Key: campoAlmacen, Direction: "asc" }]
-                }
-            };
-
             const res = await postData({
-                table: query.table,
-                filtros: query.Filtros,
+                table: `${table}`,
+                filtros: {
+                    selects: [],
+                    Filtros: [],
+                    Agregaciones: [{ Key: campoAlmacen, Alias: "almacen", Operation: "DISTINCT" }],
+                    //groupBy: [campoAlmacen],
+                    order: [{ Key: campoAlmacen, Direction: "asc" }]
+                },
                 page: 1,
                 pageSize: 100,
                 tag: "almacenes"
@@ -1311,7 +1308,7 @@ export const EnhancedSalesReport: React.FC<{
                             {consolidatedStats.totalArticulos !== undefined && (
                                 <StatCard
                                     title="Artículos (Consolidado)"
-                                    value={consolidatedStats.totalArticulos}
+                                    value={formatValue(consolidatedStats.totalArticulos, 'number')}
                                     icon={<Package className="h-4 w-4" />}
                                     subtext="Productos únicos"
                                     isLoading={areStatsLoading}
@@ -1393,7 +1390,7 @@ export const EnhancedSalesReport: React.FC<{
                         {stats?.totalArticulos !== undefined && (
                             <StatCard
                                 title="Artículos"
-                                value={stats.totalArticulos}
+                                value={formatValue(stats.totalArticulos, 'number')}
                                 icon={<Package className="h-4 w-4" />}
                                 subtext="Productos únicos"
                                 isLoading={areStatsLoading}
@@ -1405,8 +1402,8 @@ export const EnhancedSalesReport: React.FC<{
                             <StatCard
                                 title={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "Proveedores" : "Clientes"}
                                 value={activeReport === CONFIG.REPORT_TYPES.COMPRAS ?
-                                    (stats.totalProveedores || 0) :
-                                    (stats.totalClientes || 0)}
+                                    (formatValue(stats.totalProveedores, 'number') || 0) :
+                                    (formatValue(stats.totalClientes, 'number') || 0)}
                                 icon={<Users className="h-4 w-4" />}
                                 subtext={activeReport === CONFIG.REPORT_TYPES.COMPRAS ? "Proveedores únicos" : "Clientes únicos"}
                                 isLoading={areStatsLoading}

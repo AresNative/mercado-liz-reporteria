@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 export default function Dashboard() {
   const [dateRange, setDateRange] = useState({
-    start: new Date('2024-01-01').toISOString().split('T')[0],
+    start: new Date('2025-01-01').toISOString().split('T')[0],
     end: new Date('2025-12-31').toISOString().split('T')[0]
   });
 

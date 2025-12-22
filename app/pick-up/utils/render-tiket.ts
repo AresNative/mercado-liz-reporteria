@@ -130,7 +130,7 @@ export class SerialPrinter {
     });
 
     // Footer con total y corte
-    lines.push("\x1B\x21\x30"); // Texto grande
+    lines.push("\x1A\x21\x30"); // Texto grande
     lines.push(`TOTAL MXN $${total.toFixed(2)}\n\n`);
     lines.push("\x1B\x21\x00");
     lines.push("¡Gracias por su compra!\n");
