@@ -2,8 +2,9 @@ import { ReactNode } from "react";
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 import { getCookieinPage } from "@/utils/functions/cookies";
 
-const Layout = async ({ admin, user, ventas, almacen }: {
+const Layout = async ({ admin, all, user, ventas, almacen }: {
     admin: React.ReactNode
+    all: React.ReactNode
     user: React.ReactNode
     ventas: React.ReactNode
     almacen: React.ReactNode

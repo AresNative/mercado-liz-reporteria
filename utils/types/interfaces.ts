@@ -1,4 +1,3 @@
-import { Search } from "lucide-react";
 import { alertClasses } from "@/utils/constants/colors";
 
 export type FieldType =

@@ -4,7 +4,6 @@ import {
   HubConnection,
   HubConnectionBuilder,
   LogLevel,
-  HubConnectionState,
 } from "@microsoft/signalr";
 
 import { EnvConfig } from "@/utils/constants/env.config";
@@ -15,20 +14,7 @@ export const useSignalR = (url: string) => {
   const connectionRef = useRef<HubConnection | null>(null);
 
   const { hubs: apiUrl } = EnvConfig();
-
   useEffect(() => {
-    let isMounted = true;
-
-    // If there's an existing connection that is Connecting/Connected/Reconnecting, don't create another
-    if (
-      connectionRef.current &&
-      (connectionRef.current.state === HubConnectionState.Connected ||
-        connectionRef.current.state === HubConnectionState.Connecting ||
-        connectionRef.current.state === HubConnectionState.Reconnecting)
-    ) {
-      return;
-    }
-
     const newConnection = new HubConnectionBuilder()
       .withUrl(`${apiUrl || ""}${url}`)
       .withAutomaticReconnect()
@@ -38,48 +24,33 @@ export const useSignalR = (url: string) => {
     connectionRef.current = newConnection;
     setConnection(newConnection);
 
-    (async () => {
-      try {
-        await newConnection.start();
-
-        // If unmounted while starting, stop the connection and exit to avoid race errors
-        if (!isMounted) {
-          await newConnection.stop().catch(() => {});
-          return;
-        }
-
+    newConnection
+      .start()
+      .then(() => {
+        //console.log("SignalR Connected");
         setIsConnected(true);
-      } catch (err) {
-        if (!isMounted) return;
+      })
+      .catch((error) => {
+        //console.error("SignalR Connection Error:", error);
         setIsConnected(false);
-
-        // Ensure failed connection is cleaned up
-        try {
-          await newConnection.stop();
-        } catch {}
-      }
-    })();
+      });
 
     newConnection.onclose(() => {
-      setIsConnected(false);
-    });
-
-    newConnection.onreconnecting(() => {
+      //console.log("SignalR Disconnected");
       setIsConnected(false);
     });
 
     newConnection.onreconnected(() => {
+      //console.log("SignalR Reconnected");
       setIsConnected(true);
     });
 
     return () => {
-      isMounted = false;
-      if (connectionRef.current === newConnection) {
-        connectionRef.current.stop().catch(() => {});
-        connectionRef.current = null;
+      if (connectionRef.current) {
+        connectionRef.current.stop();
       }
     };
-  }, [url, apiUrl]);
+  }, [url]);
 
   return { connection, isConnected };
 };
