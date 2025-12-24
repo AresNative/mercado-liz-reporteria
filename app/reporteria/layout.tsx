@@ -14,7 +14,7 @@ const Layout = async ({ admin, all, user, ventas, almacen }: {
     const userRole = await getCookieinPage("user-role") ?? getLocalStorageItem("user-role") ?? "none";
 
     const roleContent: Record<string, ReactNode> = {
-        admin: all,
+        admin,
         user,
         ventas,
         almacen

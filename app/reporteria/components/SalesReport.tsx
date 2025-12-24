@@ -675,7 +675,7 @@ export const EnhancedSalesReport: React.FC<{
             const statsData = computeStatsFromAggregated(raw, activeReport);
             if (mountedRef.current) setStats(statsData);
         } catch (err: any) {
-            const msg = err?.data?.message ?? err?.message ?? "Error al cargar estadísticas";
+            const msg = err?.data?.details ?? err?.details ?? "Error al cargar estadísticas";
             if (mountedRef.current) {
                 setStatsError(String(msg));
                 setStats(null);
@@ -720,7 +720,7 @@ export const EnhancedSalesReport: React.FC<{
                 }
             }
         } catch (err: any) {
-            const msg = err?.data?.message ?? err?.message ?? "Error al cargar tabla";
+            const msg = err?.data?.details ?? err?.details ?? "Error al cargar tabla";
             if (mountedRef.current) {
                 setApiError(String(msg));
                 setSalesData([]);

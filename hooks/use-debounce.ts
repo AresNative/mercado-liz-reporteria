@@ -28,7 +28,7 @@ export async function safeCall<T>(
     }
     return res;
   } catch (err: any) {
-    console.error(`❌ ${context}:`, err);
+    /* console.error(`❌ ${context}:`, err); */
     throw new Error(err.message || `Fallo en ${context}`);
   }
 }
