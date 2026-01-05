@@ -3,6 +3,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { getCookie } from "@/utils/functions/cookies";
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 
+const USER_DATA_KEY = "userData";
 const { api_int: apiUrl } = EnvConfig();
 
 export const api_int = createApi({
@@ -12,12 +13,26 @@ export const api_int = createApi({
   refetchOnMountOrArgChange: true, // Mejor control de refetch
   baseQuery: fetchBaseQuery({
     baseUrl: apiUrl,
-    prepareHeaders: async (headers, {}) => {
+    prepareHeaders: async (headers) => {
       headers.set("Content-Type", "application/json");
-      const token = (await getCookie("token")) ?? getLocalStorageItem("token"); // <- usa cookie
+
+      // Obtener token de cookies primero
+      let token = await getCookie("token");
+
+      // Si no hay token en cookies, buscar en localStorage
+      if (!token) {
+        const userData = getLocalStorageItem(USER_DATA_KEY);
+
+        // userData es un objeto, necesitamos extraer el token
+        if (userData && typeof userData === "object" && userData.token) {
+          token = userData.token;
+        }
+      }
+
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
+
       return headers;
     },
   }),
@@ -89,6 +104,25 @@ export const api_int = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
+    getMasivoWithFilters: builder.mutation({
+      query: ({ table, tag, page, pageSize, filtros, signal }) => ({
+        url: `/v2/masivo/consultar`,
+        method: "POST",
+        params: {
+          page,
+          table, // tabla a consultar
+          pageSize,
+        },
+        body: filtros,
+        providesTags: [tag],
+        signal,
+      }),
+      transformErrorResponse: (response: any) => ({
+        status: response.status,
+        message: response.data?.message || "Error fetching data",
+      }),
+      extraOptions: { maxRetries: 2 },
+    }),
   }),
 });
 
@@ -97,4 +131,5 @@ export const {
   usePostIntelisisMutation,
   useGetArticulosQuery,
   useGetWithFiltersGeneralInIntelisisMutation,
+  useGetMasivoWithFiltersMutation,
 } = api_int;
