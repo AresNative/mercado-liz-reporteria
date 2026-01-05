@@ -44,8 +44,8 @@ const Header: React.FC<HeaderProps> = ({
             className={cn(
                 `sticky top-0 z-40 transition-all duration-300 safe-area-top`,
                 showBackButton || isScrolled
-                    ? 'bg-[var(--background)]/80 border-b border-gray-200 dark:border-gray-700'
-                    : 'bg-gradient-to-r from-green-800 to-green-600 ',
+                    ? 'bg-(--background)/80 border-b border-gray-200 dark:border-gray-700'
+                    : 'bg-linear-to-r from-green-800 to-green-600 ',
                 className
             )}
             aria-label="Cabecera principal"
