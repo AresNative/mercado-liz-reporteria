@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useGetWithFiltersMutation } from "../hooks/useMasivoQuery";
+import { useGetMasivoWithFiltersMutation } from "@/hooks/reducers/api_int";
 import { safeCall } from "@/hooks/use-debounce";
 import DynamicTable from "@/components/table";
 import { BentoGrid, BentoItem } from "@/components/bento-grid";
@@ -10,10 +10,10 @@ import {
     DollarSign, TrendingUp, Package, Users, Minus,
     TrendingDown, RefreshCw, Building, Filter,
     Loader2, Search, ShoppingCart, X, Zap,
-    Calendar, ChevronDown, Menu, ChevronUp
+    Calendar, ChevronDown, Menu, ChevronUp,
+    AlertCircle, Percent,
+    GitCompare, Warehouse, Calculator
 } from "lucide-react";
-import Header from "@/template/header";
-import Footer from "@/template/footer";
 
 // Constantes y configuración
 const CONFIG = {
@@ -63,6 +63,7 @@ interface ApiResponse {
         data: any[];
         page?: number;
         totalRecords?: number;
+        totalEstimated?: number;
     };
     error?: any;
 }
@@ -83,13 +84,13 @@ interface SearchColumn {
 // Configuración de columnas de búsqueda por tipo de reporte
 const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
     ventas: [
-        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "art.Descripcion1" },
+        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "ART.Descripcion1" },
         { key: "cliente", label: "Nombre", icon: Users, color: "text-green-500", tableField: "C.Nombre" },
         { key: "categoria", label: "Categoría", icon: Filter, color: "text-purple-500", tableField: "ART.Categoria" },
         { key: "codigo", label: "Código", icon: DollarSign, color: "text-yellow-500", tableField: "ventad.Codigo" }
     ],
     compras: [
-        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "art.Descripcion1" },
+        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "ART.Descripcion1" },
         { key: "proveedor", label: "Proveedor", icon: ShoppingCart, color: "text-orange-500", tableField: "P.Nombre" },
         { key: "fabricante", label: "Fabricante", icon: Building, color: "text-red-500", tableField: "ART.Fabricante" },
         { key: "codigo", label: "Código", icon: DollarSign, color: "text-yellow-500", tableField: "comprad.Codigo" }
@@ -98,15 +99,17 @@ const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
         { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "art.Descripcion1" },
         { key: "concepto", label: "Concepto", icon: Filter, color: "text-purple-500", tableField: "inv.Concepto" },
         { key: "categoria", label: "Categoría", icon: Filter, color: "text-indigo-500", tableField: "art.Categoria" },
-        { key: "codigo", label: "Código", icon: DollarSign, color: "text-yellow-500" }
+        { key: "codigo", label: "Código", icon: DollarSign, color: "text-yellow-500", tableField: "invd.Codigo" }
     ],
     inventario: [
-        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500" },
-        { key: "descripcion", label: "Descripción", icon: Filter, color: "text-purple-500" }
+        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "art.Descripcion1" },
+        { key: "descripcion", label: "Descripción", icon: Filter, color: "text-purple-500", tableField: "art.Descripcion1" }
     ],
     comparacion: [
-        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500" },
-        { key: "descripcion", label: "Descripción", icon: Filter, color: "text-purple-500" }
+        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "ART.Descripcion1" },
+        { key: "categoria", label: "Categoría", icon: Filter, color: "text-purple-500", tableField: "ART.Categoria" },
+        { key: "fabricante", label: "Fabricante", icon: Building, color: "text-red-500", tableField: "ART.Fabricante" },
+        { key: "codigo", label: "Código", icon: DollarSign, color: "text-yellow-500", tableField: "ventad.Codigo" }
     ]
 };
 
@@ -166,8 +169,8 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         ],
         agregaciones: [
             { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-            { Key: "comprad.Articulo", Alias: "totalArticulos", Operation: "COUNT" },
-            { Key: "compra.Proveedor", Alias: "totalProveedores", Operation: "COUNT" }
+            { Key: "comprad.Articulo", Alias: "totalArticulos", Operation: "COUNT DISTINCT" },
+            { Key: "compra.Proveedor", Alias: "totalProveedores", Operation: "COUNT DISTINCT" }
         ],
         fechaField: "compra.FechaEmision",
         searchColumns: SEARCH_COLUMNS_CONFIG.compras
@@ -195,17 +198,15 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         ],
         agregaciones: [
             { Key: "(invd.Costo * invd.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-            { Key: "invd.Articulo", Alias: "totalArticulos", Operation: "COUNT" }
+            { Key: "invd.Articulo", Alias: "totalArticulos", Operation: "COUNT DISTINCT" }
         ],
         fechaField: "inv.FechaEmision",
         searchColumns: SEARCH_COLUMNS_CONFIG.mermas
     },
     inventario: {
         table: `INVD AS invd
-                INNER JOIN 
-                    inv AS inv ON inv.ID = invd.ID
-                LEFT JOIN 
-                    Art AS art ON art.Articulo = invd.Articulo`,
+                INNER JOIN inv AS inv ON inv.ID = invd.ID
+                LEFT JOIN Art AS art ON art.Articulo = invd.Articulo`,
         tableSuggestion: ``,
         selects: [
             { Key: "art.Articulo" },
@@ -225,16 +226,16 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         ],
         agregaciones: [
             { Key: "(invd.Costo * invd.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-            { Key: "invd.Articulo", Alias: "totalArticulos", Operation: "COUNT" }
+            { Key: "invd.Articulo", Alias: "totalArticulos", Operation: "COUNT DISTINCT" }
         ],
-        fechaField: "",
+        fechaField: "inv.FechaEmision",
         searchColumns: SEARCH_COLUMNS_CONFIG.inventario
     },
     comparacion: {
         table: `VENTA AS venta
         INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID
-        INNER JOIN COMPRA AS compra ON compra.FechaEmision = venta.FechaEmision
-        INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID AND comprad.Articulo = ventad.Articulo
+        LEFT JOIN COMPRA AS compra ON compra.FechaEmision = venta.FechaEmision
+        LEFT JOIN COMPRAD AS comprad ON comprad.ID = compra.ID AND comprad.Articulo = ventad.Articulo
         INNER JOIN ART AS ART ON ART.Articulo = ventad.Articulo
         LEFT JOIN Cte AS C ON venta.Cliente = C.Cliente
         LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
@@ -260,7 +261,7 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         agregaciones: [
             { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
             { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "totalCompras", Operation: "SUM" },
-            { Key: "((ventad.Precio * ventad.Cantidad) - (comprad.Costo * comprad.Cantidad))", Alias: "diferencia", Operation: "SUM" },
+            { Key: "((ventad.Precio * ventad.Cantidad) - (ventad.Costo * ventad.Cantidad))", Alias: "diferencia", Operation: "SUM" },
             { Key: "ventad.Articulo", Alias: "totalArticulos", Operation: "COUNT DISTINCT" }
         ],
         fechaField: "venta.FechaEmision",
@@ -268,7 +269,7 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
     }
 };
 
-// Métricas para cada tipo de reporte
+// Métricas para cada tipo de reporte con iconos mejorados
 const BENTO_METRICS_CONFIG: Record<string, any[]> = {
     ventas: [
         {
@@ -276,35 +277,40 @@ const BENTO_METRICS_CONFIG: Record<string, any[]> = {
             raw: 0,
             display: formatValue(0, "currency"),
             type: "currency",
-            icon: DollarSign
+            icon: DollarSign,
+            description: "Total en ventas"
         },
         {
             title: "Costos",
             raw: 0,
             display: formatValue(0, "currency"),
             type: "currency",
-            icon: DollarSign
+            icon: Calculator,
+            description: "Total de costos"
         },
         {
             title: "Margen",
             raw: 0,
             display: formatValue(0, "percentage"),
             type: "percent",
-            icon: TrendingUp
+            icon: Percent,
+            description: "Margen de utilidad"
         },
         {
             title: "Utilidad",
             raw: 0,
             display: formatValue(0, "currency"),
             type: "currency",
-            icon: TrendingUp
+            icon: TrendingUp,
+            description: "Utilidad neta"
         },
         {
             title: "Artículos",
             raw: 0,
             display: formatValue(0, "number"),
             type: "number",
-            icon: Package
+            icon: Package,
+            description: "Artículos vendidos"
         }
     ],
     compras: [
@@ -313,21 +319,24 @@ const BENTO_METRICS_CONFIG: Record<string, any[]> = {
             raw: 0,
             display: formatValue(0, "currency"),
             type: "currency",
-            icon: DollarSign
+            icon: Calculator,
+            description: "Total de compras"
         },
         {
             title: "Artículos",
             raw: 0,
             display: formatValue(0, "number"),
             type: "number",
-            icon: Package
+            icon: Package,
+            description: "Artículos comprados"
         },
         {
             title: "Proveedores",
             raw: 0,
             display: formatValue(0, "number"),
             type: "number",
-            icon: Users
+            icon: Users,
+            description: "Proveedores distintos"
         }
     ],
     mermas: [
@@ -336,14 +345,16 @@ const BENTO_METRICS_CONFIG: Record<string, any[]> = {
             raw: 0,
             display: formatValue(0, "currency"),
             type: "currency",
-            icon: DollarSign
+            icon: AlertCircle,
+            description: "Costo por mermas"
         },
         {
             title: "Artículos",
             raw: 0,
             display: formatValue(0, "number"),
             type: "number",
-            icon: Package
+            icon: Package,
+            description: "Artículos con merma"
         }
     ],
     inventario: [
@@ -352,44 +363,59 @@ const BENTO_METRICS_CONFIG: Record<string, any[]> = {
             raw: 0,
             display: formatValue(0, "currency"),
             type: "currency",
-            icon: DollarSign
+            icon: Warehouse,
+            description: "Valor del inventario"
         },
         {
             title: "Artículos",
             raw: 0,
             display: formatValue(0, "number"),
             type: "number",
-            icon: Package
+            icon: Package,
+            description: "Artículos en inventario"
         }
     ],
-    comparacion: [{
-        title: "Ventas",
-        raw: 0,
-        display: formatValue(0, "currency"),
-        type: "currency",
-        icon: DollarSign
-    },
-    {
-        title: "Compras",
-        raw: 0,
-        display: formatValue(0, "currency"),
-        type: "currency",
-        icon: DollarSign
-    },
-    {
-        title: "Diferencia",
-        raw: 0,
-        display: formatValue(0, "currency"),
-        type: "currency",
-        icon: DollarSign
-    },
-    {
-        title: "Artículos",
-        raw: 0,
-        display: formatValue(0, "number"),
-        type: "number",
-        icon: Package
-    }
+    comparacion: [
+        {
+            title: "Ventas",
+            raw: 0,
+            display: formatValue(0, "currency"),
+            type: "currency",
+            icon: DollarSign,
+            description: "Total de ventas"
+        },
+        {
+            title: "Compras",
+            raw: 0,
+            display: formatValue(0, "currency"),
+            type: "currency",
+            icon: ShoppingCart,
+            description: "Total de compras"
+        },
+        {
+            title: "Diferencia",
+            raw: 0,
+            display: formatValue(0, "currency"),
+            type: "currency",
+            icon: GitCompare,
+            description: "Diferencia venta-compra"
+        },
+        {
+            title: "Margen",
+            raw: 0,
+            display: formatValue(0, "percentage"),
+            type: "percent",
+            icon: Percent,
+            description: "Margen comparativo"
+        },
+        {
+            title: "Artículos",
+            raw: 0,
+            display: formatValue(0, "number"),
+            type: "number",
+            icon: Package,
+            description: "Artículos comparados"
+        }
     ]
 };
 
@@ -405,15 +431,30 @@ const processStatsData = (statsData: any[] | any): StatsData => {
         if (s.totalCosto !== undefined) out.totalCosto = (out.totalCosto ?? 0) + s.totalCosto;
         if (s.totalArticulos !== undefined) out.totalArticulos = (out.totalArticulos ?? 0) + s.totalArticulos;
         if (s.totalCompras !== undefined) out.totalCompras = (out.totalCompras ?? 0) + s.totalCompras;
+        if (s.totalCostoVenta !== undefined) out.totalCosto = (out.totalCosto ?? 0) + s.totalCostoVenta;
         if (s.diferencia !== undefined) out.diferencia = (out.diferencia ?? 0) + s.diferencia;
         if (s.totalClientes !== undefined) out.totalClientes = (out.totalClientes ?? 0) + s.totalClientes;
         if (s.totalProveedores !== undefined) out.totalProveedores = (out.totalProveedores ?? 0) + s.totalProveedores;
         if (s.totalMermas !== undefined) out.totalMermas = (out.totalMermas ?? 0) + s.totalMermas;
+        if (s.totalArticulosVenta !== undefined) out.totalArticulos = (out.totalArticulos ?? 0) + s.totalArticulosVenta;
+        if (s.totalArticulosCompra !== undefined) out.totalArticulos = (out.totalArticulos ?? 0) + s.totalArticulosCompra;
     });
 
-    if (out.totalVentas !== undefined && out.totalCosto !== undefined) {
-        out.utilidad = +(out.totalVentas - out.totalCosto).toFixed(2);
-        out.margen = out.totalVentas > 0 ? +((out.utilidad / out.totalVentas) * 100).toFixed(2) : undefined;
+    // Calcular utilidad y margen para ventas y comparación
+    if (out.totalVentas !== undefined) {
+        if (out.totalCosto !== undefined) {
+            out.utilidad = +(out.totalVentas - out.totalCosto).toFixed(2);
+            out.margen = out.totalVentas > 0 ? +((out.utilidad / out.totalVentas) * 100).toFixed(2) : 0;
+        }
+        if (out.totalCompras !== undefined) {
+            out.utilidad = +(out.totalVentas - out.totalCompras).toFixed(2);
+            out.margen = out.totalVentas > 0 ? +((out.utilidad / out.totalVentas) * 100).toFixed(2) : 0;
+        }
+
+        // Para comparación, calcular diferencia entre ventas y compras
+        if (out.totalCompras !== undefined) {
+            out.diferencia = +(out.totalVentas - out.totalCompras).toFixed(2);
+        }
     }
 
     return out;
@@ -424,7 +465,7 @@ const extractUniqueAlmacenes = (data: TableData[]): string[] => {
     if (!data.length) return [];
 
     const almacenes = data
-        .map((item: any) => item.Almacen)
+        .flatMap((item: any) => [item.Almacen, item.AlmacenVenta, item.AlmacenCompra])
         .filter(Boolean)
         .filter((value, index, self) => self.indexOf(value) === index);
 
@@ -438,7 +479,7 @@ const formatDateToSQL = (date: Date): string => {
 
 // Componente principal
 export default function Report() {
-    const [getData] = useGetWithFiltersMutation();
+    const [getData] = useGetMasivoWithFiltersMutation();
 
     // Estado para datos de tabla
     const [reportType, setReportType] = useState<ReportType>("ventas");
@@ -467,11 +508,17 @@ export default function Report() {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [suggestionsLoading, setSuggestionsLoading] = useState(false);
     const [quickMode, setQuickMode] = useState(true);
-    const [searchApplied, setSearchApplied] = useState(false); // Nueva: para rastrear si se aplicó búsqueda
+    const [searchApplied, setSearchApplied] = useState(false);
+
+    // Estado para persistir búsqueda entre reportes
+    const [lastSearch, setLastSearch] = useState<{
+        term: string;
+        columnKey: string;
+    } | null>(null);
 
     // Nuevo estado para filtro de fechas
     const [dateRange, setDateRange] = useState<DateRange>({
-        from: new Date(new Date().setDate(new Date().getDate() - 30)), // Últimos 30 días por defecto
+        from: new Date(new Date().setDate(new Date().getDate() - 30)),
         to: new Date()
     });
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -486,27 +533,50 @@ export default function Report() {
     const statsAbortControllerRef = useRef<AbortController | null>(null);
     const suggestionsAbortControllerRef = useRef<AbortController | null>(null);
 
+    // Mapeo para mantener búsquedas entre reportes compatibles
+    const getCompatibleSearchColumn = (prevColumnKey: string, newReportType: ReportType): SearchColumn | null => {
+        const newColumns = SEARCH_COLUMNS_CONFIG[newReportType];
+
+        // Intentar encontrar una columna con el mismo key
+        let compatibleColumn = newColumns.find(col => col.key === prevColumnKey);
+
+        // Si no existe, buscar una columna con "articulo" como fallback
+        if (!compatibleColumn) {
+            compatibleColumn = newColumns.find(col => col.key === "articulo");
+        }
+
+        // Si aún no hay, usar la primera columna
+        if (!compatibleColumn && newColumns.length > 0) {
+            compatibleColumn = newColumns[0];
+        }
+
+        return compatibleColumn || null;
+    };
+
     // Actualizar columna de búsqueda cuando cambia el tipo de reporte
     useEffect(() => {
         const columns = SEARCH_COLUMNS_CONFIG[reportType];
 
-        if (columns && columns.length > 0) {
-            // Verificar si la columna actual existe en las columnas del nuevo reporte
-            const currentColumnExists = columns.some(col => col.key === searchColumn.key);
-            if (currentColumnExists) {
-                const new_column = SEARCH_COLUMNS_CONFIG[reportType].find(col => col.key === searchColumn.key);
-                setSearchColumn(new_column!);
+        if (lastSearch && lastSearch.term && lastSearch.columnKey) {
+            // Intentar mantener la búsqueda anterior si es compatible
+            const compatibleColumn = getCompatibleSearchColumn(lastSearch.columnKey, reportType);
+            if (compatibleColumn) {
+                setSearchColumn(compatibleColumn);
+                setSearchTerm(lastSearch.term);
+                setSearchApplied(true);
                 return;
             }
-            // Si la columna actual existe en el nuevo reporte, mantenerla
-            // De lo contrario, usar la primera columna disponible
+        }
+
+        if (columns && columns.length > 0) {
+            const currentColumnExists = columns.some(col => col.key === searchColumn.key);
             if (!currentColumnExists) {
                 setSearchColumn(columns[0]);
             }
-            // Nota: Si currentColumnExists es true, no hacemos nada para mantener la columna actual
         }
     }, [reportType]);
 
+    // Inicializar columna de búsqueda
     useEffect(() => {
         const columns = SEARCH_COLUMNS_CONFIG[reportType];
         if (columns && columns.length > 0 && !searchColumn.key) {
@@ -533,6 +603,14 @@ export default function Report() {
         };
     }, []);
 
+    // Limpiar errores cuando se inicia una nueva carga
+    useEffect(() => {
+        if (tableLoading || statsLoading) {
+            setTableError(null);
+            setStatsError(null);
+        }
+    }, [tableLoading, statsLoading]);
+
     // Construir filtros combinados
     const buildFiltros = useCallback((includeSearchTerm: boolean = true) => {
         const filters: any[] = [];
@@ -546,10 +624,14 @@ export default function Report() {
             });
         }
 
-        // Filtro de almacén
+        // Filtro de almacén - manejar diferentes nombres de campo según reporte
         if (almacenFilter) {
+            let almacenField = "Almacen";
+            if (reportType === "comparacion") {
+                almacenField = "venta.Almacen";
+            }
             filters.push({
-                Key: "Almacen",
+                Key: almacenField,
                 Operator: "=",
                 Value: almacenFilter
             });
@@ -565,6 +647,8 @@ export default function Report() {
                 );
             }
         }
+
+        // Filtros específicos por tipo de reporte
         if (reportType === "ventas") {
             filters.push(
                 { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
@@ -584,7 +668,16 @@ export default function Report() {
             filters.push(
                 { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO }
             );
+        } else if (reportType === "comparacion") {
+            filters.push(
+                { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+                { Key: "venta.Mov", Operator: "IN", Value: 'Factura,Factura Credito,Nota' },
+                { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+                { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" }
+            );
         }
+        // Para comparación, los filtros están incluidos en la consulta UNION
+
         return filters;
     }, [searchTerm, searchColumn, almacenFilter, dateRange, reportType, searchApplied]);
 
@@ -597,9 +690,10 @@ export default function Report() {
             tableAbortControllerRef.current.abort();
         }
 
+        // Limpiar errores antes de cargar
+        setTableError(null);
         setTableLoading(!forceRefresh);
         if (forceRefresh) setRefreshingTable(true);
-        setTableError(null);
 
         try {
             // Crear nuevo AbortController para esta petición
@@ -614,7 +708,7 @@ export default function Report() {
                 filtros: {
                     selects: queryConfig.selects,
                     filtros: currentFilters.length > 0 ? currentFilters : undefined,
-                    Order: [{ Key: queryConfig.fechaField, Direction: "desc" }]
+                    Order: [{ Key: queryConfig.fechaField || "FechaEmision", Direction: "desc" }]
                 },
                 page: page,
                 pageSize: CONFIG.PAGE_SIZE,
@@ -623,59 +717,55 @@ export default function Report() {
 
             // Verificar si la petición fue abortada
             if (controller.signal.aborted) {
-                console.log("Petición de tabla abortada intencionalmente");
                 return;
             }
 
             if (response.error) {
-                // Verificar si es un error de aborto
                 if (response.error.name === 'AbortError' ||
                     response.error.message?.includes('aborted') ||
                     response.error.code === 'ERR_CANCELLED') {
-                    console.log("Petición de tabla cancelada");
                     return;
                 }
 
-                if (!controller.signal.aborted) {
-                    setTableError("Error al cargar los datos de la tabla");
-                    //console.error("Error fetching table data:", response.error);
-                }
-                return;
+                throw new Error(response.error.message || "Error al cargar los datos de la tabla");
             }
 
             const tableData = response.data?.data || [];
             setCurrentPage(response.data?.page || 1);
-            setTotalRecords(response.data?.totalRecords || 0);
+            setTotalRecords(response.data?.totalRecords || response.data?.totalEstimated || 0);
             setDataTable(tableData);
 
-            setTableError(null);
-            setAlmacenes(extractUniqueAlmacenes(tableData));
+            // Extraer almacenes únicos
+            const uniqueAlmacenes = extractUniqueAlmacenes(tableData);
+            setAlmacenes(uniqueAlmacenes);
+
+            // Si hay almacén filtrado que ya no existe en los datos, limpiarlo
+            if (almacenFilter && !uniqueAlmacenes.includes(almacenFilter)) {
+                setAlmacenFilter("");
+            }
+
         } catch (error: any) {
             // Ignorar errores de aborto
             if (error.name === 'AbortError' ||
                 error.message?.includes('aborted') ||
                 error.code === 'ERR_CANCELLED') {
-                console.log("Petición de tabla cancelada (catch)");
                 return;
             }
 
             // Solo mostrar error si no fue abortado
             if (!tableAbortControllerRef.current?.signal.aborted) {
-                setTableError("Error al cargar los datos de la tabla");
-                //console.error("Error in fetchTableData:", error);
+                setTableError(error.message || "Error al cargar los datos de la tabla");
             }
         } finally {
             // Solo limpiar estados si no fue abortado
             if (!tableAbortControllerRef.current?.signal.aborted) {
                 setTableLoading(false);
                 setRefreshingTable(false);
-            } else {
-                console.log("Petición de tabla abortada, limpiando sin estado");
             }
         }
-    }, [reportType, currentPage, getData, buildFiltros]);
+    }, [reportType, currentPage, getData, buildFiltros, almacenFilter]);
 
-    // Función para cargar sugerencias (solo para búsqueda)
+    // Función para cargar sugerencias
     const fetchSuggestions = useCallback(async () => {
         if (!searchTerm || searchTerm.length < 2 || !searchColumn.tableField) {
             setSuggestions([]);
@@ -683,14 +773,18 @@ export default function Report() {
         }
 
         if (!QUERY_CONFIGS[reportType]) return;
+
         // Cancelar peticiones pendientes de sugerencias
         if (suggestionsAbortControllerRef.current) {
             suggestionsAbortControllerRef.current.abort();
         }
+
         setSuggestionsLoading(true);
 
         try {
             const controller = new AbortController();
+            suggestionsAbortControllerRef.current = controller;
+
             const queryConfig = QUERY_CONFIGS[reportType];
 
             const response: ApiResponse = await safeCall(() => getData({
@@ -701,32 +795,43 @@ export default function Report() {
                         Value: searchTerm,
                         Operator: "LIKE"
                     }],
-                    Select: [{
-                        Key: searchColumn.tableField,
-                    }],
-                    Order: [{ Key: queryConfig.fechaField, Direction: "desc" }],
-                    pageSize: CONFIG.PAGE_SIZE,
+                    selects: [{ Key: searchColumn.tableField, Alias: "Suggestion" }],
+                    Order: [{ Key: "Suggestion", Direction: "asc" }],
+                    pageSize: 10,
                 },
                 signal: controller.signal
             }), "getSuggestions");
 
             if (response.error) {
-                console.error("Error fetching suggestions:", response.error);
+                if (!controller.signal.aborted) {
+                    console.error("Error fetching suggestions:", response.error);
+                }
                 setSuggestions([]);
                 return;
             }
 
             const suggestionData = response.data?.data || [];
-            setSuggestions(suggestionData);
+            const uniqueSuggestions = suggestionData
+                .map((s: any) => s.Suggestion)
+                .filter((value: any, index: number, self: any[]) =>
+                    self.indexOf(value) === index && value
+                )
+                .slice(0, 10);
+
+            setSuggestions(uniqueSuggestions.map((s: any) => ({ Suggestion: s })));
         } catch (error: any) {
-            console.error("Error in fetchSuggestions:", error);
-            setSuggestions([]);
+            if (!suggestionsAbortControllerRef.current?.signal.aborted) {
+                console.error("Error in fetchSuggestions:", error);
+                setSuggestions([]);
+            }
         } finally {
-            setSuggestionsLoading(false);
+            if (!suggestionsAbortControllerRef.current?.signal.aborted) {
+                setSuggestionsLoading(false);
+            }
         }
     }, [searchTerm, searchColumn, reportType, getData]);
 
-    // Función para cargar estadísticas (sin paginación)
+    // Función para cargar estadísticas
     const fetchStatsData = useCallback(async (forceRefresh = false) => {
         if (!QUERY_CONFIGS[reportType]) return;
 
@@ -735,9 +840,10 @@ export default function Report() {
             statsAbortControllerRef.current.abort();
         }
 
+        // Limpiar errores antes de cargar
+        setStatsError(null);
         setStatsLoading(!forceRefresh);
         if (forceRefresh) setRefreshingStats(true);
-        setStatsError(null);
 
         try {
             const controller = new AbortController();
@@ -757,55 +863,60 @@ export default function Report() {
 
             // Verificar si la petición fue abortada
             if (controller.signal.aborted) {
-                console.log("Petición de estadísticas abortada intencionalmente");
                 return;
             }
 
             if (response.error) {
-                // Verificar si es un error de aborto
                 if (response.error.name === 'AbortError' ||
                     response.error.message?.includes('aborted') ||
                     response.error.code === 'ERR_CANCELLED') {
-                    console.log("Petición de estadísticas cancelada");
                     return;
                 }
 
-                if (!controller.signal.aborted) {
-                    setStatsError("Error al cargar las estadísticas");
-                    //console.error("Error fetching stats:", response.error);
-                }
-                return;
+                throw new Error(response.error.message || "Error al cargar las estadísticas");
             }
 
             const statsData = response.data?.data || [];
             const processedStats = processStatsData(statsData);
-
-            setStatsError(null);
             setStats(processedStats);
+
         } catch (error: any) {
             // Ignorar errores de aborto
             if (error.name === 'AbortError' ||
                 error.message?.includes('aborted') ||
                 error.code === 'ERR_CANCELLED') {
-                console.log("Petición de estadísticas cancelada (catch)");
                 return;
             }
 
             // Solo mostrar error si no fue abortado
             if (!statsAbortControllerRef.current?.signal.aborted) {
-                setStatsError("Error al cargar las estadísticas");
-                //console.error("Error in fetchStatsData:", error);
+                setStatsError(error.message || "Error al cargar las estadísticas");
             }
         } finally {
             // Solo limpiar estados si no fue abortado
             if (!statsAbortControllerRef.current?.signal.aborted) {
                 setStatsLoading(false);
                 setRefreshingStats(false);
-            } else {
-                console.log("Petición de estadísticas abortada, limpiando sin estado");
             }
         }
     }, [reportType, getData, buildFiltros]);
+
+    // Función para cargar datos del reporte actual
+    const fetchCurrentReportData = useCallback(async (page = 1) => {
+        cancelPendingRequests();
+        setCurrentPage(page);
+
+        // Para comparación, cargar siempre ambos
+        if (reportType === "comparacion") {
+            await Promise.all([
+                fetchTableData(page),
+                fetchStatsData()
+            ]);
+        } else {
+            fetchTableData(page);
+            fetchStatsData();
+        }
+    }, [reportType, fetchTableData, fetchStatsData]);
 
     // Función para cancelar peticiones pendientes
     const cancelPendingRequests = () => {
@@ -819,8 +930,7 @@ export default function Report() {
             suggestionsAbortControllerRef.current.abort();
         }
 
-        setTableError(null);
-        setStatsError(null);
+        // No limpiar errores aquí, se limpian al iniciar nueva carga
     };
 
     // Función para recargar solo la tabla
@@ -837,38 +947,38 @@ export default function Report() {
     // Función para recargar ambas
     const refreshAll = () => {
         cancelPendingRequests();
-        refreshTable();
-        refreshStats();
+        setCurrentPage(1);
+        fetchCurrentReportData(1);
     };
 
     // Nueva función para aplicar búsqueda
     const handleSearchSubmit = () => {
         if (searchTerm.length >= 2) {
             setSearchApplied(true);
+            setLastSearch({
+                term: searchTerm,
+                columnKey: searchColumn.key
+            });
             setCurrentPage(1);
-            cancelPendingRequests();
-
-            // Cargar datos con búsqueda aplicada
-            if (reportType !== "comparacion") {
-                fetchTableData(1);
-                fetchStatsData();
-            }
+            fetchCurrentReportData(1);
         }
     };
 
     // Cargar datos iniciales cuando cambian los filtros o el tipo de reporte
     useEffect(() => {
-        cancelPendingRequests();
-        setSearchApplied(false); // Resetear búsqueda aplicada al cambiar reporte
+        // Limpiar mensajes de error previos
+        setTableError(null);
+        setStatsError(null);
 
-        if (reportType !== "comparacion") {
-            fetchTableData(1);
-            fetchStatsData();
-        } else {
-            setDataTable([]);
-            setStats({});
-            setAlmacenes([]);
+        // Guardar búsqueda actual si existe
+        if (searchApplied && searchTerm) {
+            setLastSearch({
+                term: searchTerm,
+                columnKey: searchColumn.key
+            });
         }
+
+        fetchCurrentReportData(1);
 
         // Cleanup
         return () => {
@@ -878,7 +988,7 @@ export default function Report() {
 
     // Cambiar página de la tabla
     useEffect(() => {
-        if (currentPage !== 1 && reportType !== "comparacion") {
+        if (currentPage !== 1) {
             cancelPendingRequests();
             fetchTableData(currentPage);
         }
@@ -887,11 +997,11 @@ export default function Report() {
     // Handlers para búsqueda y filtros
     const handleSearchChange = (value: string) => {
         setSearchTerm(value);
-        setSearchApplied(false); // Resetear búsqueda aplicada al cambiar término
+        setSearchApplied(false);
 
         if (value.length >= 2) {
             setShowSuggestions(true);
-            fetchSuggestions(); // Cargar sugerencias mientras se escribe
+            fetchSuggestions();
         } else {
             setShowSuggestions(false);
             setSuggestions([]);
@@ -901,34 +1011,36 @@ export default function Report() {
     const handleSearchColumnChange = (column: SearchColumn) => {
         setSearchColumn(column);
         setShowSearchColumnDropdown(false);
-        setSearchApplied(false); // Resetear búsqueda aplicada al cambiar columna
+        setSearchApplied(false);
+        setShowSuggestions(false);
+        setSuggestions([]);
 
-        // Limpiar búsqueda cuando se cambia la columna
+        // Si hay término de búsqueda, actualizar lastSearch
         if (searchTerm) {
-            setSearchTerm("");
-            setSuggestions([]);
-            setCurrentPage(1);
+            setLastSearch({
+                term: searchTerm,
+                columnKey: column.key
+            });
         }
     };
 
     const handleSuggestionSelect = (suggestion: any) => {
-        setSearchTerm(suggestion.Descripcion1);
+        setSearchTerm(suggestion.Suggestion);
         setShowSuggestions(false);
-        setSearchApplied(true); // Aplicar búsqueda automáticamente al seleccionar sugerencia
+        setSearchApplied(true);
+        setLastSearch({
+            term: suggestion.Suggestion,
+            columnKey: searchColumn.key
+        });
         setCurrentPage(1);
-
-        // Cargar datos con la sugerencia seleccionada
-        cancelPendingRequests();
-        if (reportType !== "comparacion") {
-            fetchTableData(1);
-            fetchStatsData();
-        }
+        fetchCurrentReportData(1);
     };
 
     const handleClearFilters = () => {
         cancelPendingRequests();
         setSearchTerm("");
         setSearchApplied(false);
+        setLastSearch(null);
         setSuggestions([]);
         setSearchColumn(SEARCH_COLUMNS_CONFIG[reportType][0]);
         setAlmacenFilter("");
@@ -937,22 +1049,26 @@ export default function Report() {
             to: new Date()
         });
         setCurrentPage(1);
-
-        // Recargar sin filtros
-        if (reportType !== "comparacion") {
-            fetchTableData(1);
-            fetchStatsData();
-        }
+        fetchCurrentReportData(1);
     };
 
     const handleReportTypeChange = (type: ReportType) => {
         cancelPendingRequests();
+
+        // Guardar búsqueda actual si existe
+        if (searchApplied && searchTerm) {
+            setLastSearch({
+                term: searchTerm,
+                columnKey: searchColumn.key
+            });
+        }
+
         setReportType(type);
         setCurrentPage(1);
         setSearchApplied(false);
-        setSearchTerm("");
-        setSuggestions([]);
         setShowMobileMenu(false);
+
+        // La búsqueda se restaurará en el useEffect de reportType
     };
 
     // Handler para cambio de fecha
@@ -961,12 +1077,7 @@ export default function Report() {
         setDateRange({ from, to });
         setCurrentPage(1);
         setShowDatePicker(false);
-
-        // Recargar con nuevas fechas
-        if (reportType !== "comparacion") {
-            fetchTableData(1);
-            fetchStatsData();
-        }
+        fetchCurrentReportData(1);
     };
 
     // Handler para cambio de almacén
@@ -974,12 +1085,7 @@ export default function Report() {
         cancelPendingRequests();
         setAlmacenFilter(value);
         setCurrentPage(1);
-
-        // Recargar con nuevo almacén
-        if (reportType !== "comparacion") {
-            fetchTableData(1);
-            fetchStatsData();
-        }
+        fetchCurrentReportData(1);
     };
 
     // Preparar métricas para BentoGrid con datos actuales
@@ -997,7 +1103,7 @@ export default function Report() {
                     break;
                 case "costos":
                     rawValue = -(stats.totalCosto || 0);
-                    metric.display = formatValue(stats.totalCosto, "currency");
+                    metric.display = formatValue(stats.totalCosto || 0, "currency");
                     break;
                 case "margen":
                     rawValue = stats.margen || 0;
@@ -1013,7 +1119,7 @@ export default function Report() {
                     break;
                 case "costototal":
                     rawValue = -(stats.totalCosto || 0);
-                    metric.display = formatValue(stats.totalCosto, "currency");
+                    metric.display = formatValue(stats.totalCosto || 0, "currency");
                     break;
                 case "proveedores":
                     rawValue = stats.totalProveedores || 0;
@@ -1021,7 +1127,7 @@ export default function Report() {
                     break;
                 case "costomerma":
                     rawValue = -(stats.totalCosto || 0);
-                    metric.display = formatValue(stats.totalCosto, "currency");
+                    metric.display = formatValue(stats.totalCosto || 0, "currency");
                     break;
                 case "compras":
                     rawValue = stats.totalCompras || 0;
@@ -1046,9 +1152,9 @@ export default function Report() {
     }
 
     const bentoStyles: Record<any, any> = {
-        positive: { bg: "bg-green-50 border-green-200", text: "text-green-600" },
-        negative: { bg: "bg-red-50 border-red-200", text: "text-red-800" },
-        neutral: { bg: "bg-gray-50 border-gray-200", text: "text-gray-800" }
+        positive: { bg: "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800", text: "text-green-600 dark:text-green-400" },
+        negative: { bg: "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800", text: "text-red-600 dark:text-red-400" },
+        neutral: { bg: "bg-gray-50 border-gray-200 dark:bg-gray-800/50 dark:border-gray-700", text: "text-gray-800 dark:text-gray-300" }
     };
 
     const bentoIcons: Record<string, any> = {
@@ -1191,45 +1297,64 @@ export default function Report() {
                     </ul>
                 )}
 
-                {/* Mensajes de error */}
-                {statsError && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm">{statsError}</span>
+                {/* Mensajes de error con mejor diseño */}
+                {statsError && !statsLoading && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                                <div className="font-medium mb-1">Error en estadísticas</div>
+                                <div className="text-sm">{statsError}</div>
+                            </div>
                             <button
                                 onClick={refreshStats}
-                                className="text-sm underline hover:no-underline"
+                                className="text-sm font-medium underline hover:no-underline flex items-center gap-1"
                             >
+                                <RefreshCw className="h-3 w-3" />
                                 Reintentar
                             </button>
                         </div>
                     </div>
                 )}
 
-                {tableError && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm">{tableError}</span>
+                {tableError && !tableLoading && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                                <div className="font-medium mb-1">Error en tabla de datos</div>
+                                <div className="text-sm">{tableError}</div>
+                            </div>
                             <button
                                 onClick={refreshTable}
-                                className="text-sm underline hover:no-underline"
+                                className="text-sm font-medium underline hover:no-underline flex items-center gap-1"
                             >
+                                <RefreshCw className="h-3 w-3" />
                                 Reintentar
                             </button>
                         </div>
                     </div>
                 )}
 
-                {/* Indicadores de carga */}
+                {/* Indicadores de carga con estado más claro */}
                 {(tableLoading || refreshingTable || statsLoading || refreshingStats) && (
-                    <div className="flex items-center gap-2 mb-4 text-sm text-gray-600 dark:text-gray-400">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">
-                            {refreshingTable ? "Actualizando tabla..." :
-                                refreshingStats ? "Actualizando estadísticas..." :
-                                    tableLoading ? "Cargando datos..." :
-                                        "Cargando estadísticas..."}
-                        </span>
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
+                        <div className="flex items-center gap-3">
+                            <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
+                            <div className="flex-1">
+                                <div className="font-medium text-blue-700 dark:text-blue-300">
+                                    {refreshingTable ? "Actualizando tabla..." :
+                                        refreshingStats ? "Actualizando estadísticas..." :
+                                            tableLoading ? "Cargando datos..." :
+                                                "Cargando estadísticas..."}
+                                </div>
+                                {reportType === "comparacion" && (
+                                    <div className="text-sm text-blue-600/80 dark:text-blue-400/80 mt-1">
+                                        Este reporte combina datos de ventas y compras, puede tardar un momento...
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -1300,29 +1425,61 @@ export default function Report() {
                         </div>
 
                         {/* Filtro de almacén móvil */}
-                        <div className="relative">
-                            <Building className="absolute size-5 left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <select
-                                value={almacenFilter}
-                                onChange={(e) => handleAlmacenFilterChange(e.target.value)}
-                                className="w-full pl-10 pr-8 py-2.5 border rounded-lg bg-white appearance-none dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm"
-                            >
-                                <option value="">Todos los almacenes</option>
-                                {almacenes.map((almacen) => (
-                                    <option key={almacen} value={almacen}>
-                                        {almacen}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        {almacenes.length > 0 && (
+                            <div className="relative">
+                                <Building className="absolute size-5 left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <select
+                                    value={almacenFilter}
+                                    onChange={(e) => handleAlmacenFilterChange(e.target.value)}
+                                    className="w-full pl-10 pr-8 py-2.5 border rounded-lg bg-white appearance-none dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm"
+                                >
+                                    <option value="">Todos los almacenes</option>
+                                    {almacenes.map((almacen) => (
+                                        <option key={almacen} value={almacen}>
+                                            {almacen}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         {/* Búsqueda móvil */}
                         <div className="space-y-2">
                             {/* Selector de columna de búsqueda */}
-                            <div className="flex items-center gap-2">
-                                <searchColumn.icon className={`h-4 w-4 ${searchColumn.color}`} />
-                                <span className="text-sm font-medium">{searchColumn.label}</span>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <searchColumn.icon className={`h-4 w-4 ${searchColumn.color}`} />
+                                    <span className="text-sm font-medium">{searchColumn.label}</span>
+                                </div>
+                                {searchColumns.length > 1 && (
+                                    <button
+                                        onClick={() => setShowSearchColumnDropdown(!showSearchColumnDropdown)}
+                                        className="p-1 rounded border border-gray-300"
+                                    >
+                                        <ChevronDown className="h-3 w-3" />
+                                    </button>
+                                )}
                             </div>
+
+                            {showSearchColumnDropdown && searchColumns.length > 1 && (
+                                <div className="border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800">
+                                    <div className="grid grid-cols-2 gap-1">
+                                        {searchColumns.map((column) => (
+                                            <button
+                                                key={column.key}
+                                                type="button"
+                                                onClick={() => handleSearchColumnChange(column)}
+                                                className={`flex items-center gap-1 px-2 py-1.5 text-xs rounded ${column.key === searchColumn.key
+                                                    ? 'bg-blue-50 border border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800'
+                                                    : 'bg-gray-50 border border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700'}`}
+                                            >
+                                                <column.icon className={`h-3 w-3 ${column.color}`} />
+                                                {column.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Input de búsqueda con botón */}
                             <div className="flex gap-2">
@@ -1340,7 +1497,11 @@ export default function Report() {
 
                                     {searchTerm && (
                                         <button
-                                            onClick={() => setSearchTerm("")}
+                                            onClick={() => {
+                                                setSearchTerm("");
+                                                setSearchApplied(false);
+                                                setLastSearch(null);
+                                            }}
                                             className="absolute right-3 top-1/2 -translate-y-1/2"
                                         >
                                             <X className="h-4 w-4 text-gray-400" />
@@ -1358,7 +1519,7 @@ export default function Report() {
 
                             {/* Sugerencias */}
                             {showSuggestions && suggestions.length > 0 && (
-                                <div className="border border-gray-300 rounded-lg shadow-sm dark:border-gray-700">
+                                <div ref={suggestionsRef} className="border border-gray-300 rounded-lg shadow-sm dark:border-gray-700">
                                     <div className="max-h-40 overflow-y-auto">
                                         {suggestionsLoading ? (
                                             <div className="p-3 text-center text-gray-500">
@@ -1374,30 +1535,11 @@ export default function Report() {
                                                     className="w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-left flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                                                 >
                                                     <searchColumn.icon className={`size-4 ${searchColumn.color}`} />
-                                                    <span className="text-xs truncate">{suggestion.Descripcion1}</span>
+                                                    <span className="text-xs truncate">{suggestion.Suggestion}</span>
                                                 </button>
                                             ))
                                         )}
                                     </div>
-                                </div>
-                            )}
-
-                            {/* Opciones de columna de búsqueda */}
-                            {searchColumns.length > 1 && (
-                                <div className="flex flex-wrap gap-1">
-                                    {searchColumns.map((column) => (
-                                        <button
-                                            key={column.key}
-                                            type="button"
-                                            onClick={() => handleSearchColumnChange(column)}
-                                            className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${column.key === searchColumn.key
-                                                ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800'
-                                                : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700'}`}
-                                        >
-                                            <column.icon className={`h-3 w-3 ${column.color}`} />
-                                            {column.label}
-                                        </button>
-                                    ))}
                                 </div>
                             )}
                         </div>
@@ -1486,21 +1628,23 @@ export default function Report() {
                         </div>
 
                         {/* Filtro de almacén */}
-                        <div className="relative">
-                            <Building className="absolute size-5 left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <select
-                                value={almacenFilter}
-                                onChange={(e) => handleAlmacenFilterChange(e.target.value)}
-                                className="pl-9 pr-8 py-2 border rounded bg-white appearance-none dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                            >
-                                <option value="">Todos los almacenes</option>
-                                {almacenes.map((almacen) => (
-                                    <option key={almacen} value={almacen}>
-                                        {almacen}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        {almacenes.length > 0 && (
+                            <div className="relative">
+                                <Building className="absolute size-5 left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <select
+                                    value={almacenFilter}
+                                    onChange={(e) => handleAlmacenFilterChange(e.target.value)}
+                                    className="pl-9 pr-8 py-2 border rounded bg-white appearance-none dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                                >
+                                    <option value="">Todos los almacenes</option>
+                                    {almacenes.map((almacen) => (
+                                        <option key={almacen} value={almacen}>
+                                            {almacen}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         {/* Búsqueda con selector de columna */}
                         <div className="relative flex" ref={suggestionsRef}>
@@ -1548,7 +1692,11 @@ export default function Report() {
 
                                 {searchTerm && (
                                     <button
-                                        onClick={() => setSearchTerm("")}
+                                        onClick={() => {
+                                            setSearchTerm("");
+                                            setSearchApplied(false);
+                                            setLastSearch(null);
+                                        }}
                                         className="absolute right-10 top-1/2 -translate-y-1/2"
                                     >
                                         <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
@@ -1584,7 +1732,7 @@ export default function Report() {
                                                 className="w-full p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                                             >
                                                 <searchColumn.icon className={`size-4 ${searchColumn.color}`} />
-                                                <span className="text-xs truncate">{suggestion.Descripcion1}</span>
+                                                <span className="text-xs truncate">{suggestion.Suggestion}</span>
                                             </button>
                                         ))
                                     )}
@@ -1619,46 +1767,56 @@ export default function Report() {
 
                 {/* Estadísticas */}
                 {reportType && bentoMetrics.length > 0 && (
-                    <BentoGrid
-                        cols={5}
-                        /* className={`mb-6 grid-cols-2 ${getBentoGridCols()}`} */
-                        loading={statsLoading || refreshingStats}
-                    >
-                        {bentoMetrics.map((item: any, index: number) => {
-                            const state = getBentoState(item.raw);
-                            const StateIcon = bentoIcons[state];
-                            const ItemIcon = item.icon;
+                    <div className="mb-6">
+                        <BentoGrid
+                            cols={5}
+                            loading={statsLoading || refreshingStats}
+                        >
+                            {bentoMetrics.map((item: any, index: number) => {
+                                const state = getBentoState(item.raw);
+                                const StateIcon = bentoIcons[state];
+                                const ItemIcon = item.icon;
 
-                            return (
-                                <BentoItem
-                                    key={index}
-                                    title={item.title}
-                                    icon={<StateIcon className={`w-4 h-4 ${bentoStyles[state].text}`} />}
-                                    iconRight
-                                    className={`border ${bentoStyles[state].bg} dark:text-gray-600 p-3 md:p-4`}
-                                    loading={statsLoading || refreshingStats}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className={`text-lg md:text-xl relative font-bold ${bentoStyles[state].text} truncate`}>
-                                            {statsLoading && !refreshingStats ? (
-                                                <Loader2 className="h-5 w-5 animate-spin" />
-                                            ) : (
-                                                <span className="truncate">{item.display}</span>
-                                            )}
+                                return (
+                                    <BentoItem
+                                        key={index}
+                                        title={item.title}
+                                        description={item.description}
+                                        icon={<StateIcon className={`w-4 h-4 ${bentoStyles[state].text}`} />}
+                                        iconRight
+                                        className={`border ${bentoStyles[state].bg} dark:text-gray-200 p-3 md:p-4`}
+                                        loading={statsLoading || refreshingStats}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className={`text-lg md:text-xl relative font-bold ${bentoStyles[state].text} truncate`}>
+                                                {statsLoading && !refreshingStats ? (
+                                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                                ) : (
+                                                    <span className="truncate">{item.display}</span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <ItemIcon className="w-5 h-5 opacity-70 text-gray-600 dark:text-gray-400" />
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <ItemIcon className="w-5 h-5 opacity-70 dark:text-gray-600" />
-                                        </div>
-                                    </div>
-                                </BentoItem>
-                            );
-                        })}
-                    </BentoGrid>
+                                    </BentoItem>
+                                );
+                            })}
+                        </BentoGrid>
+
+                        {/* Mensaje especial para comparación */}
+                        {reportType === "comparacion" && (
+                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                                <GitCompare className="h-3 w-3 inline mr-1" />
+                                Comparando ventas vs compras del mismo período
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {/* Tabla y paginación */}
                 {reportType && (
-                    <article className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <article className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
                         <div className="overflow-x-auto -mx-3 md:mx-0">
                             <DynamicTable
                                 data={dataTable}
@@ -1666,7 +1824,7 @@ export default function Report() {
                             />
                         </div>
 
-                        {totalPages > 1 && (
+                        {totalPages > 1 && !tableLoading && !refreshingTable && (
                             <div className="mt-4 md:mt-6">
                                 <Pagination
                                     currentPage={currentPage}
@@ -1676,10 +1834,26 @@ export default function Report() {
                                 />
                             </div>
                         )}
+
+                        {/* Información sobre comparación */}
+                        {reportType === "comparacion" && dataTable.length > 0 && (
+                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
+                                <div className="flex items-start gap-2">
+                                    <GitCompare className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                                    <div className="text-sm text-blue-700 dark:text-blue-300">
+                                        <div className="font-medium">Información del reporte comparativo:</div>
+                                        <div className="mt-1">
+                                            Este reporte muestra tanto ventas como compras en una sola vista.
+                                            Los artículos aparecerán duplicados si tienen movimientos en ambos tipos.
+                                            Use los filtros para analizar datos específicos.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </article>
                 )}
             </section>
-            <Footer />
         </>
     );
 }
