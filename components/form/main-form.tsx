@@ -33,6 +33,7 @@ import { useLoginUserMutation } from "@/hooks/reducers/auth";
 import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer } from "@/hooks/reducers/drop-down";
 import { usePostGeneralMutation, usePostImgMutation, usePostMutation } from "@/hooks/reducers/api";
+import { setLocalStorageItem } from "@/utils/functions/local-storage";
 
 export const MainForm = React.forwardRef(({
   message_button,
@@ -125,7 +126,9 @@ export const MainForm = React.forwardRef(({
 
     switch (actionType) {
       case "post-login":
-        return await postUserLogin(data).unwrap();
+        return await postUserLogin(data).unwrap().then(() => {
+          setLocalStorageItem("userCredentials", data)
+        });
       case "post-general":
         return await postGeneral({
           table: table,
@@ -341,13 +344,13 @@ export const MainForm = React.forwardRef(({
 
       {showButton && (<div className="flex justify-between mt-4">
         {page > 0 && (
-          <Button color="indigo" type="button" label="Anterior" onClick={() => handlePageChange(page - 1)} />
+          <Button color="success" type="button" label="Anterior" onClick={() => handlePageChange(page - 1)} />
         )}
         {page < pages.length - 1 ? (
-          <Button color="indigo" aling="ml-auto" type="button" label="Siguiente" onClick={() => handlePageChange(page + 1)} />
+          <Button color="success" aling="ml-auto" type="button" label="Siguiente" onClick={() => handlePageChange(page + 1)} />
         ) : (
           <button
-            className="float-right ml-auto cursor-pointer flex gap-2 items-center rounded-md bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700"
+            className="float-right ml-auto cursor-pointer flex gap-2 items-center rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
             type="submit"
             slot="end"
             disabled={loading}

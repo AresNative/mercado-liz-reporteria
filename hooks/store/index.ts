@@ -3,7 +3,6 @@ import { setupListeners } from "@reduxjs/toolkit/query";
 
 import { api } from "@/hooks/reducers/api";
 import { api_int } from "@/hooks/reducers/api_int";
-import { api_test } from "@/app/reporteria/hooks/useMasivoQuery";
 import { authApi } from "@/hooks/reducers/auth";
 import { EnvConfig } from "@/utils/constants/env.config";
 
@@ -22,7 +21,6 @@ export const store = configureStore({
     app: appReducer,
     [api.reducerPath]: api.reducer,
     [api_int.reducerPath]: api_int.reducer,
-    [api_test.reducerPath]: api_test.reducer,
     [authApi.reducerPath]: authApi.reducer,
   },
   devTools: config.mode !== "production",
@@ -34,12 +32,7 @@ export const store = configureStore({
         // Ignora estas acciones específicas
         ignoredActions: ["dropDown/openAlertReducer"],
       },
-    }).concat([
-      api.middleware,
-      api_int.middleware,
-      api_test.middleware,
-      authApi.middleware,
-    ]),
+    }).concat([api.middleware, api_int.middleware, authApi.middleware]),
 });
 
 setupListeners(store.dispatch);

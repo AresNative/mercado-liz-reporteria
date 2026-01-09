@@ -12,6 +12,7 @@ const { api: apiUrl } = EnvConfig();
 const TOKEN_KEY = "token";
 const USER_ROLE_KEY = "user-role";
 const USER_ID_KEY = "user-id";
+const USER_DATA_KEY = "userData";
 
 // Utilidad para manejar cookies de forma segura
 const cookieManager = {
@@ -48,9 +49,18 @@ export const authApi = createApi({
     prepareHeaders: (headers) => {
       headers.set("Content-Type", "application/json");
 
-      // Priorizar token de cookies sobre localStorage por seguridad
-      const token =
-        cookieManager.get(TOKEN_KEY) || getLocalStorageItem(TOKEN_KEY);
+      // Obtener token de cookies primero
+      let token = cookieManager.get(TOKEN_KEY);
+
+      // Si no hay token en cookies, buscar en localStorage
+      if (!token) {
+        const userData = getLocalStorageItem(USER_DATA_KEY);
+
+        // userData es un objeto, necesitamos extraer el token
+        if (userData && typeof userData === "object" && userData.token) {
+          token = userData.token;
+        }
+      }
 
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
@@ -83,10 +93,14 @@ export const authApi = createApi({
             cookieManager.set(USER_ROLE_KEY, responseData.rol);
             cookieManager.set(USER_ID_KEY, responseData.id);
 
+            const userData = {
+              token: responseData.token,
+              rol: responseData.rol,
+              userId: responseData.id,
+              loginTime: Date.now(),
+            };
             // Almacenar en localStorage para fácil acceso del cliente
-            setLocalStorageItem(TOKEN_KEY, responseData.token);
-            setLocalStorageItem(USER_ROLE_KEY, responseData.rol);
-            setLocalStorageItem(USER_ID_KEY, responseData.id);
+            setLocalStorageItem(USER_DATA_KEY, userData);
           }
         } catch (error) {
           console.error("Error during login:", error);
