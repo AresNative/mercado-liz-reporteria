@@ -1,8 +1,7 @@
-
-import { useState, useEffect } from 'react';
 import Link from "next/link";
 import MainForm from '@/components/form/main-form';
-import { Menu, LogOut, LogIn, UserPlus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Menu, LogOut, LogIn, UserPlus, X } from 'lucide-react';
 import { useLogoutUserMutation } from '@/hooks/reducers/auth';
 import { LogInField } from '@/utils/constants/forms/logIn';
 import { navigationAdmin, navigationAlmacen, navigationDefault, navigationRh, navigationUser, navigationVentas } from '@/utils/constants/router';
@@ -12,7 +11,9 @@ import { closeModalReducer, openAlertReducer, openModalReducer } from '@/hooks/r
 import { useAppDispatch } from '@/hooks/selector';
 import { Modal } from '@/components/modal';
 import { useRouter } from "next/navigation";
+import { SwitchToggle } from '@/components/switch-mode';
 
+const USER_DATA_KEY = "userData";
 interface MenuProps {
     isScrolled?: boolean;
 }
@@ -26,22 +27,26 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
     const dispatch = useAppDispatch();
     // Estado para almacenar los datos del usuario
     const [userData, setUserData] = useState<{
-        role: string | null;
+        rol: string | null;
         id: string | null;
         token: string | null;
     }>({
-        role: null,
+        rol: null,
         id: null,
         token: null,
     });
 
+    const [userCredentials, setUserCredentials] = useState<{
+        email: string | null;
+        password: string | null;
+    }>({
+        email: null,
+        password: null
+    });
     // Obtener datos de localStorage solo en el cliente
     useEffect(() => {
-        setUserData({
-            role: getLocalStorageItem("user-role"),
-            id: getLocalStorageItem("user-id"),
-            token: getLocalStorageItem("token"),
-        });
+        setUserData(getLocalStorageItem(USER_DATA_KEY));
+        setUserCredentials(getLocalStorageItem("userCredentials"));
     }, []);
 
     useEffect(() => {
@@ -78,7 +83,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                 })
             );
             // Actualizar estado después de logout
-            setUserData({ role: null, id: null, token: null });
+            setUserData({ rol: null, id: null, token: null });
             navigation.push("/");
         } catch (error) {
             console.error("Logout failed:", error);
@@ -86,8 +91,9 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
     };
 
     const navigationItems = () => {
-        const role = userData.role;
-        if (!role) return navigationDefault;
+        const rol = userData && userData.rol;
+        if (!rol) return navigationDefault;
+
         const navigationMap: any = {
             admin: navigationAdmin,
             user: navigationUser,
@@ -95,13 +101,12 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
             seguridad: navigationAlmacen,
             ventas: navigationVentas,
             rh: navigationRh,
-            // ... otros roles
         };
-        return navigationMap[role] || navigationUser;
+        return navigationMap[rol] || navigationUser;
     };
 
     return (
-        <>
+        <section className='relative'>
             <button
                 onClick={() => setMenuOpen(true)}
                 className={cn(isScrolled ? "top-2" : "top-4", " right-4 z-30 p-2 rounded-full cursor-pointer")}
@@ -117,11 +122,18 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                     menuOpen ? "translate-x-0" : "translate-x-full overflow-hidden"
                 )} aria-hidden={!menuOpen}
             >
-                <header className="bg-gradient-to-r from-green-600 to-green-800 text-white p-4">
-                    {userData.token ? (
-                        <section className="flex flex-col gap-2">
-                            <span className=''>
-                                {userData.role}
+                <header className="bg-gradient-to-r from-green-600 to-green-800 text-white p-4 flex flex-row-reverse gap-2 w-full">
+                    <button
+                        onClick={() => setMenuOpen(false)}
+                        className="cursor-pointer size-4 text-white hover:bg-white/20 rounded-full"
+                        aria-label="Cerrar menú"
+                    >
+                        <X className='size-4' />
+                    </button>
+                    {userData && userData.token ? (
+                        <section className="flex flex-col gap-2 w-full">
+                            <span className='text-xs'>
+                                {userCredentials.email}
                             </span>
                             <button
                                 onClick={handleLogout}
@@ -131,7 +143,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                             </button>
                         </section>
                     ) : (
-                        <section className="space-y-3">
+                        <section className="space-y-3 w-full">
                             <button
                                 onClick={() => dispatch(openModalReducer({ modalName: "login-modal" }))}
                                 className="flex cursor-pointer items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
@@ -166,22 +178,17 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                                 </li>
                             ) : null;
                         })}
+                        <li className='flex items-center rounded-lg text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-green-700 transition-colors'>
+                            <SwitchToggle />
+                        </li>
                     </ul>
                 </nav>
-
-                <button
-                    onClick={() => setMenuOpen(false)}
-                    className="absolute cursor-pointer w-0 h-0 top-3 right-3 p-1 text-white hover:bg-white/20 rounded-full"
-                    aria-label="Cerrar menú"
-                >
-                    {/* <X size={24} /> */}
-                </button>
             </aside>
 
             {/* Fondo oscuro */}
             {menuOpen && (
                 <button
-                    className="fixed cursor-pointer inset-0 z-40 bg-black/50"
+                    className="fixed cursor-pointer inset-0 z-40 bg-black/50  backdrop-blur-sm"
                     onClick={() => setMenuOpen(false)}
                     aria-label="Cerrar menú"
                     tabIndex={-1}
@@ -199,12 +206,12 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                         try {
                             // Actualizar datos de usuario después de login exitoso
                             setUserData({
-                                role: getLocalStorageItem("user-role"),
+                                rol: getLocalStorageItem("user-rol"),
                                 id: getLocalStorageItem("user-id"),
                                 token: getLocalStorageItem("token"),
                             });
                             dispatch(closeModalReducer({ modalName: "login-modal" }));
-                            navigation.push("/dashboard"); // Redirigir al primer item del menú
+                            navigation.push("/reporteria"); // Redirigir al primer item del menú
                         } catch {
                             dispatch(
                                 openAlertReducer({
@@ -220,7 +227,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                     }}
                 />
             </ Modal>
-        </>
+        </section>
     );
 };
 
