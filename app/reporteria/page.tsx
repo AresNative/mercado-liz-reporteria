@@ -946,7 +946,6 @@ export default function Report() {
         }
 
         setSuggestionsLoading(true);
-        setShowSuggestions(true);
 
         try {
             const controller = new AbortController();
@@ -954,50 +953,21 @@ export default function Report() {
 
             const queryConfig = QUERY_CONFIGS[reportType];
 
-            // Construir filtros básicos (fecha y otros filtros del reporte)
-            const basicFilters: any = [];
-
-            // Filtro de búsqueda principal
-            basicFilters.push({
-                Key: searchColumn.tableField,
-                Value: searchTerm,
-                Operator: "LIKE"
-            });
-
-            // Agregar filtros específicos del reporte
-            if (reportType === "ventas") {
-                basicFilters.push(
-                    { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                    { Key: "venta.Mov", Operator: "IN", Value: 'Factura,Factura Credito,Nota' }
-                );
-            }
-            // ... otros tipos de reporte
-
-            // Filtro de fechas si está configurado
-            if (dateRange.from && dateRange.to) {
-                const fechaField = queryConfig.fechaField;
-                if (fechaField) {
-                    basicFilters.push(
-                        { Key: fechaField, Operator: ">=", Value: formatDateToSQL(dateRange.from) },
-                        { Key: fechaField, Operator: "<=", Value: formatDateToSQL(dateRange.to) }
-                    );
-                }
-            }
 
             const response: ApiResponse = await safeCall(() => getData({
                 table: queryConfig.table,
                 filtros: {
-                    selects: [{ Key: searchColumn.tableField, Alias: "Suggestion" }],
                     agregaciones: [{
                         Key: searchColumn.tableField,
                         Operation: "DISTINCT",
                         Alias: "Suggestion"
                     }],
-                    FiltrosAnd: basicFilters.length > 0 ? [{
-                        Filtros: basicFilters,
-                        OperadorLogico: "AND"
-                    }] : undefined,
-                    Order: [{ Key: "Suggestion", Direction: "ASC" }],
+                    Filtros: [{
+                        Key: searchColumn.tableField,
+                        Value: searchTerm,
+                        Operator: "LIKE"
+                    }],
+                    Order: [{ Key: searchColumn.tableField, Direction: "ASC" }],
                     pageSize: 10,
                 },
                 signal: controller.signal
@@ -1054,13 +1024,10 @@ export default function Report() {
                 table: QUERY_CONFIGS[reportType].table,
                 filtros: {
                     selects: [{ Key: columnName, Alias: "value" }],
-                    FiltrosAnd: [{
-                        Filtros: [{
-                            Key: columnName,
-                            Operator: "LIKE",
-                            Value: `${searchValue}`
-                        }],
-                        OperadorLogico: "AND"
+                    Filtros: [{
+                        Key: columnName,
+                        Operator: "LIKE",
+                        Value: `${searchValue}`
                     }],
                     pageSize: 10,
                 },
