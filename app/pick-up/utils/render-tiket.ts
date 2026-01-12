@@ -50,7 +50,7 @@ export class SerialPrinter {
       if (!("serial" in navigator)) {
         return "API Serial no disponible en este navegador";
       }
-      const port = await navigator.serial.requestPort();
+      const port = await (navigator as any).serial.requestPort();
       await port.open({ baudRate: 9600 });
       portRef.current = port;
       return true;
