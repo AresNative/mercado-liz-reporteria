@@ -950,9 +950,10 @@ export default function Report() {
         setSuggestionsLoading(true);
         setShowSuggestions(true);
 
+        const controller = new AbortController();
+        suggestionsAbortControllerRef.current = controller;
+
         try {
-            const controller = new AbortController();
-            suggestionsAbortControllerRef.current = controller;
 
             const queryConfig = QUERY_CONFIGS[reportType];
 
@@ -973,7 +974,6 @@ export default function Report() {
                     { Key: "venta.Mov", Operator: "IN", Value: 'Factura,Factura Credito,Nota' }
                 );
             }
-            // ... otros tipos de reporte
 
             // Filtro de fechas si está configurado
             if (dateRange.from && dateRange.to) {
@@ -1023,12 +1023,12 @@ export default function Report() {
 
             setSuggestions(uniqueSuggestions.map((s: any) => ({ Suggestion: s })));
         } catch (error: any) {
-            if (!suggestionsAbortControllerRef.current?.signal.aborted) {
+            if (!controller.signal.aborted) {
                 console.error("Error in fetchSuggestions:", error);
                 setSuggestions([]);
             }
         } finally {
-            if (!suggestionsAbortControllerRef.current?.signal.aborted) {
+            if (!controller.signal.aborted) {
                 setSuggestionsLoading(false);
             }
         }
@@ -1048,9 +1048,10 @@ export default function Report() {
 
         setActiveSuggestionsInput(columnName);
 
+        const controller = new AbortController();
+        columnSuggestionsAbortControllerRef.current = controller;
+
         try {
-            const controller = new AbortController();
-            columnSuggestionsAbortControllerRef.current = controller;
 
             const response: ApiResponse = await safeCall(() => getData({
                 table: QUERY_CONFIGS[reportType].table,
@@ -1084,11 +1085,11 @@ export default function Report() {
                 [columnName]: suggestions
             }));
         } catch (error: any) {
-            if (error.name !== 'AbortError' && !columnSuggestionsAbortControllerRef.current?.signal.aborted) {
+            if (error.name !== 'AbortError' && !controller?.signal.aborted) {
                 console.error("Error in fetchColumnSuggestions:", error);
             }
         } finally {
-            if (!columnSuggestionsAbortControllerRef.current?.signal.aborted) {
+            if (!controller?.signal.aborted) {
                 // No limpiar activeSuggestionsInput aquí, se hace cuando el input pierde focus
             }
         }
@@ -1108,9 +1109,10 @@ export default function Report() {
         setStatsLoading(!forceRefresh);
         if (forceRefresh) setRefreshingStats(true);
 
+        const controller = new AbortController();
+        statsAbortControllerRef.current = controller;
+
         try {
-            const controller = new AbortController();
-            statsAbortControllerRef.current = controller;
 
             const queryConfig = QUERY_CONFIGS[reportType];
             const { filtrosAnd, filtrosOr } = buildFiltros(true);
@@ -1161,12 +1163,12 @@ export default function Report() {
             }
 
             // Solo mostrar error si no fue abortado
-            if (!statsAbortControllerRef.current?.signal.aborted) {
+            if (!controller.signal.aborted) {
                 setStatsError(error.message || "Error al cargar las estadísticas");
             }
         } finally {
             // Solo limpiar estados si no fue abortado
-            if (!statsAbortControllerRef.current?.signal.aborted) {
+            if (!controller.signal.aborted) {
                 setStatsLoading(false);
                 setRefreshingStats(false);
             }
