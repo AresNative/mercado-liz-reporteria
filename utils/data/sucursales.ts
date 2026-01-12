@@ -1,0 +1,43 @@
+export const Sucursales = [
+  {
+    id: "mayoreo",
+    name: "Sucursal Mayoreo",
+    status: "active",
+    badge: "✅ Disponible",
+    description: "Tu pedido listo en 30 min",
+    features: ["Recogida inmediata", "++2,000 productos", "Ofertas exclusivas"],
+    precio: "(Precio Lista)",
+    address: "11 6, Francisco Zarco, 22750 Francisco Zarco, B.C.",
+  },
+  {
+    id: "guadalupe",
+    name: "Valle de Guadalupe",
+    status: "coming",
+    badge: "🔜 Próximamente",
+    description: "En preparación",
+    features: ["Muy pronto", "Mismo servicio"],
+    precio: "(Precio 2)",
+    address:
+      "Calle Principal 216, Francisco Zarco, 22750 Francisco Zarco, B.C.",
+  },
+  {
+    id: "palmas",
+    name: "Valle de las Palmas",
+    status: "coming",
+    badge: "🔜 Próximamente",
+    description: "En preparación",
+    features: ["Muy pronto", "Mismo servicio"],
+    precio: "(Precio 3)",
+    address: "México 3, Ampliación Valle de las Palmas, 21500 Espuela, B.C.",
+  },
+  {
+    id: "testerazo",
+    name: "Testerazo",
+    status: "coming",
+    badge: "🔜 Próximamente",
+    description: "En preparación",
+    features: ["Muy pronto", "Mismo servicio"],
+    precio: "(Precio 4)",
+    address: "Carretera Tecate Ensenada Km 49, Tecate, Baja California, 21570.",
+  },
+];

@@ -1,0 +1,165 @@
+/* app/globals.css */
+@import "tailwindcss";
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* @custom-variant dark (&:where(.dark, .dark *)); */
+:root {
+  --background: #fff;
+
+  --switch-btn-bg: #fff;
+  --switch-border-color: #3c3c434a;
+  --switch-icon-color: #0f0f0f;
+  --switch-bg-color: #f6f6f7;
+}
+
+[data-theme='dark'] {
+  --background: #000;
+
+  --switch-btn-bg: #000;
+  --switch-border-color: #525259ad;
+  --switch-icon-color: #f2f2f2;
+  --switch-bg-color: #313136;
+
+  *::-webkit-scrollbar {
+    background-color: var(--background);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--switch-border-color);
+  }
+}
+
+body {
+  scrollbar-gutter: stable both-edges;
+}
+
+.container-switch {
+  scroll-behavior: smooth;
+  display: flex;
+  margin: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+}
+
+.switch {
+  cursor: pointer;
+  position: relative;
+  border-radius: 25rem;
+  display: block;
+  width: 50px;
+  height: 28px;
+  margin: 15px;
+  flex-shrink: 0;
+  border: 1px solid var(--switch-border-color);
+  background: var(--switch-bg-color);
+  transition: border-color .25s;
+}
+
+.checkbox {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: .4s;
+}
+
+.sun {
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  top: 3px;
+  position: absolute;
+  transition: .4s;
+}
+
+.sun-color {
+  fill: transparent;
+  stroke: var(--switch-icon-color);
+}
+
+.sun-color2 {
+  fill: var(--switch-icon-color);
+  stroke: transparent
+}
+
+.moon {
+  width: 20px;
+  height: 20px;
+  left: 9px;
+  top: 3px;
+  position: absolute;
+  transition: .4s;
+  transform: translateX(1em);
+  opacity: 0;
+}
+
+.moon-color {
+  fill: transparent;
+  stroke: var(--switch-icon-color);
+}
+
+.slider:before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  border-radius: 25rem;
+  background: var(--switch-btn-bg);
+  box-shadow: 0px 5px 10px #00000019;
+  transition: .3s;
+}
+
+.checkbox:checked+.slider:before {
+  transform: translateX(1.4em);
+}
+
+.checkbox:checked+.slider .sun {
+  animation: slideAndFade .3s ease-in-out forwards;
+}
+
+.checkbox:checked+.slider .moon {
+  opacity: 1;
+}
+
+@keyframes slideAndFade {
+  0% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes infinite-scroll {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-infinite-scroll {
+  animation: infinite-scroll 20s linear infinite;
+}
+
+.visibility {
+  content-visibility: auto;
+  contain-intrinsic-size: 1000px;
+}
