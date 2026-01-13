@@ -201,8 +201,6 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                     dataForm={LogInField()}
                     message_button="Iniciar Sesión"
                     onSuccess={() => {
-                        setLoginModalOpen(false);
-                        setMenuOpen(false);
                         try {
                             // Actualizar datos de usuario después de login exitoso
                             setUserData({
@@ -210,8 +208,10 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                                 id: getLocalStorageItem("user-id"),
                                 token: getLocalStorageItem("token"),
                             });
+                            setLoginModalOpen(false);
+                            setMenuOpen(false);
                             dispatch(closeModalReducer({ modalName: "login-modal" }));
-                            navigation.push("/reporteria"); // Redirigir al primer item del menú
+                            navigation.push("/reporteria");
                         } catch {
                             dispatch(
                                 openAlertReducer({
@@ -222,7 +222,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                                     duration: 4000
                                 })
                             );
-                            navigation.push("/"); // Redirigir a la página de login
+                            navigation.push("/");
                         }
                     }}
                 />

@@ -131,15 +131,6 @@ export default function PurchaseOrderGenerator({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    {showPreview && (
-                        <Button
-                            onClick={() => window.open(`/api/preview-purchase-order/${orderData.orderNumber}`, '_blank')}
-                        >
-                            <FileText className="h-4 w-4" />
-                            Vista previa
-                        </Button>
-                    )}
-
                     <Button
                         onClick={handleDownload}
                         disabled={isGenerating}

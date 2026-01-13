@@ -103,7 +103,6 @@ export default function GestionPedidos() {
     const [pedidoSeleccionadoId, setPedidoSeleccionadoId] = useState<number | null>(null)
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [totalItems, setTotalItems] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [getWithFilter] = useGetWithFiltersGeneralMutation();
     const [tipoFiltro, setTipoFiltro] = useState<'todos' | 'pickup' | 'domicilio'>('todos');
@@ -231,7 +230,8 @@ export default function GestionPedidos() {
             }
 
             const response = await getWithFilter({
-                table: "listas left join clientes on listas.id_cliente = clientes.id",
+                table: `listas on listas.estado not in ('incompleto' , 'cancelado')
+                left join clientes on listas.id_cliente = clientes.id`,
                 pageSize: 10,
                 page: currentPage,
                 tag: 'Pedidos',
@@ -240,7 +240,6 @@ export default function GestionPedidos() {
 
             if (response && response.data) {
                 setTotalPages(response.TotalPages || 1);
-                setTotalItems(response.TotalRecords || response.data.length);
 
                 const pedidosProcesados: Pedido[] = response.data.map(parseListaData);
 

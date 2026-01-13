@@ -45,24 +45,24 @@ export default function Footer() {
                     <div>
                         <h3 className="text-white text-lg font-bold mb-4">Recursos</h3>
                         <ul className="space-y-2">
-                            <li><a href="/informacion" className="hover:text-white transition-colors">Blog</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">API</a></li>
+                            <li><a href="/informacion" className="hover:text-white transition-colors" target="_blank">Blog</a></li>
+                            <li><a href="https://api.mercadosliz.com:5231" className="hover:text-white transition-colors" target="_blank">API</a></li>
                         </ul>
                     </div>
 
                     <div>
                         <h3 className="text-white text-lg font-bold mb-4">Contacto</h3>
                         <address className="not-italic">
-                            <p className="mb-2">Av. Principal 1234</p>
-                            <p className="mb-2">Ciudad, País</p>
-                            <p className="mb-2">info@empresa.com</p>
-                            <p>+1 (123) 456-7890</p>
+                            <p className="mb-2">Calle Principal 216, 22750</p>
+                            <p className="mb-2">Francisco Zarco,B.C</p>
+                            <p className="mb-2">ventas@mercadosliz.com</p>
+                            <p>+52 (646) 155 2258</p>
                         </address>
                     </div>
                 </div>
 
                 <div className="border-t border-gray-700 mt-12 pt-8 text-center">
-                    <p>&copy; {new Date().getFullYear()} Gestión Integral. Todos los derechos reservados.</p>
+                    <p>&copy; {new Date().getFullYear()} {process.env.NEXT_CLIENT_NAME}. Todos los derechos reservados.</p>
                 </div>
             </div>
         </footer>
