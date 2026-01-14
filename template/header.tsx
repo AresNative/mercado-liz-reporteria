@@ -4,6 +4,7 @@ import AppMenu from './menu';
 import { ArrowLeft, BrainCircuit } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { getLocalStorageItem } from '@/utils/functions/local-storage';
 
 interface HeaderProps {
     showMenuButton?: boolean;
@@ -20,6 +21,12 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
     const router = useRouter();
     const [isScrolled, setIsScrolled] = useState(false); // Estado interno
+    const [user, setuser] = useState(null);
+
+    useEffect(() => {
+        const user = getLocalStorageItem('userData');
+        setuser(user);
+    }, []);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -72,7 +79,7 @@ const Header: React.FC<HeaderProps> = ({
                         )}
                         aria-level={1}
                     >
-                        <a href='/' className={cn('flex items-center gap-2 font-bold', !isScrolled && 'text-2xl')}>
+                        <a href={user ? "/reporteria" : "/"} className={cn('flex items-center gap-2 font-bold', !isScrolled && 'text-2xl')}>
                             <BrainCircuit className={cn(isScrolled ? 'size-4' : 'size-6')} /> Solucion integral
                         </a>
                         <label className={cn(!isScrolled ? 'text-gray-300 dark:text-white text-md' : 'text-gray-600 dark:text-white text-xs')}>

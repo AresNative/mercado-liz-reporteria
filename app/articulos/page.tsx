@@ -307,13 +307,6 @@ const VistaProductosConImagenes = ({
     );
 };
 
-// Componente para panel de filtros
-const PanelFiltros = ({ register, handleSubmit, onSubmitFiltros, limpiarFiltros, fetchProductos }: any) => (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-
-    </div>
-);
-
 // Componente para panel de selección masiva
 const PanelSeleccionMasiva = ({
     selectedCount,
