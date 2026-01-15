@@ -75,6 +75,23 @@ Para ejecutar el proyecto son necesarios los siguientes pasos...
   npm run dev
 ```
 
+### Instalaciones necesarias para la clonacion del proyecto y su desarrollo
+
+- Git
+```bash
+  https://git-scm.com/
+```
+
+- Node Js
+```bash
+  https://nodejs.org/es/download
+```
+
+- Editor de codigo (VS Code)
+```bash
+  https://code.visualstudio.com/
+```
+
 ## Ejemplos de uso
 
 Los componentes reutilizables están disponibles en `/@components/` e incluyen:
