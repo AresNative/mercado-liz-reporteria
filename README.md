@@ -1,7 +1,8 @@
 # Sistema de Administración Interna
 
-Plataforma integral para la gestión operativa y administrativa de la organización. Proporciona herramientas centralizadas para el control de usuarios, procesos y datos críticos del negocio.## Variables de entorno
+Plataforma integral para la gestión operativa y administrativa de la organización. Proporciona herramientas centralizadas para el control de usuarios, procesos y datos críticos del negocio.
 
+## Variables de entorno
 Para que el proyecto funcione correctamente, crea un archivo `.env` en la raíz del mismo y agrega las siguientes variables de entorno:
 
 ### Configuración del cliente
