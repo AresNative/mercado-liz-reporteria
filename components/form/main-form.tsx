@@ -32,7 +32,7 @@ import { TagInputComponent as TagInput } from "./tag-input"
 import { useLoginUserMutation } from "@/hooks/api/auth";
 import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer } from "@/hooks/reducers/drop-down";
-import { usePostGeneralMutation, usePostImgMutation, usePostMutation } from "@/hooks/api/api";
+import { usePostGeneralMutation, usePostImgMutation } from "@/hooks/api/api";
 import { setLocalStorageItem } from "@/utils/functions/local-storage";
 
 export const MainForm = React.forwardRef(({
@@ -117,12 +117,13 @@ export const MainForm = React.forwardRef(({
 
 
   const [postUserLogin] = useLoginUserMutation();
-  const [post] = usePostMutation();
   const [postGeneral] = usePostGeneralMutation();
   const [postImg] = usePostImgMutation(); // Hook para subir imágenes
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
+
     const payload = formName ? data : { [modelName ?? actionType.toLowerCase()]: modelName ? data : [data] };
+    console.log(actionType, data, payload);
 
     switch (actionType) {
       case "post-login":
@@ -132,12 +133,6 @@ export const MainForm = React.forwardRef(({
       case "post-general":
         return await postGeneral({
           table: table,
-          data: data,
-          signal: new AbortController().signal,
-        }).unwrap();
-      case "post":
-        return await post({
-          url: actionType,
           data: payload,
           signal: new AbortController().signal,
         }).unwrap();
@@ -249,22 +244,14 @@ export const MainForm = React.forwardRef(({
             ? { ...dataWithoutFiles, ...aditionalData }
             : dataWithoutFiles;
 
-          const formatData = new FormData();
-          formName && formatData.append(formName, JSON.stringify(combinedData));
-
-          result = await getMutationFunction(actionType, formName && formatData ? formatData : combinedData);
+          result = await getMutationFunction(actionType, combinedData);
         }
       } else {
-        // Si no hay archivos, proceder con el flujo normal
-        const formatData = new FormData();
-
         combinedData = aditionalData
           ? { ...submitData, ...aditionalData }
           : submitData;
 
-        formName && formatData.append(formName, JSON.stringify(combinedData));
-
-        result = await getMutationFunction(actionType, formName && formatData ? formatData : combinedData);
+        result = await getMutationFunction(actionType, combinedData);
       }
 
       if (onSuccess) onSuccess(result, combinedData);

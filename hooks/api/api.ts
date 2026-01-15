@@ -138,33 +138,20 @@ export const api = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
-    post: builder.mutation({
-      query: ({ url, data, signal }) => ({
-        url: `${url}/register`,
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal,
-      }),
-      transformErrorResponse: (response: any) => ({
-        status: response.status,
-        message: response.data?.message || "Error fetching data",
-      }),
-      extraOptions: { maxRetries: 2 },
-    }),
     postGeneral: builder.mutation({
-      query: ({ table, data, signal }) => ({
-        url: `v1/register`,
-        method: "POST",
-        params: { table },
-        body: JSON.stringify(data),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal,
-      }),
+      query: ({ table, data, signal }) => (
+        console.log(data),
+        {
+          url: `v1/register`,
+          method: "POST",
+          params: { table },
+          body: JSON.stringify(data),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          signal,
+        }
+      ),
       transformErrorResponse: (response: any) => ({
         status: response.status,
         message: response.data?.message || "Error fetching data",
@@ -284,7 +271,6 @@ export const {
   useGetPerIdsQuery,
   useGetWithFiltersMutation,
   useGetWithFiltersGeneralMutation,
-  usePostMutation,
   usePostGeneralMutation,
   usePutMutation,
   usePutGeneralMutation,
