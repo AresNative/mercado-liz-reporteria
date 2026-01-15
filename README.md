@@ -54,7 +54,7 @@ Para ejecutar el proyecto son necesarios los siguientes pasos...
 - Clonar
 
 ```bash
-  git clone
+  git clone https://github.com/Mercados-Liz/administracion.git
 ```
 
 - Acceder
