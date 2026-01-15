@@ -1,7 +1,8 @@
 # Sistema de Administración Interna
 
-Plataforma integral para la gestión operativa y administrativa de la organización. Proporciona herramientas centralizadas para el control de usuarios, procesos y datos críticos del negocio.## Variables de entorno
+Plataforma integral para la gestión operativa y administrativa de la organización. Proporciona herramientas centralizadas para el control de usuarios, procesos y datos críticos del negocio.
 
+## Variables de entorno
 Para que el proyecto funcione correctamente, crea un archivo `.env` en la raíz del mismo y agrega las siguientes variables de entorno:
 
 ### Configuración del cliente
@@ -54,7 +55,7 @@ Para ejecutar el proyecto son necesarios los siguientes pasos...
 - Clonar
 
 ```bash
-  git clone
+  git clone https://github.com/Mercados-Liz/administracion.git
 ```
 
 - Acceder
@@ -73,6 +74,23 @@ Para ejecutar el proyecto son necesarios los siguientes pasos...
 
 ```bash
   npm run dev
+```
+
+### Instalaciones necesarias para la clonacion del proyecto y su desarrollo
+
+- Git
+```bash
+  https://git-scm.com/
+```
+
+- Node Js
+```bash
+  https://nodejs.org/es/download
+```
+
+- Editor de codigo (VS Code)
+```bash
+  https://code.visualstudio.com/
 ```
 
 ## Ejemplos de uso
