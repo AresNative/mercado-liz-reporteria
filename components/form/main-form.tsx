@@ -121,10 +121,6 @@ export const MainForm = React.forwardRef(({
   const [postImg] = usePostImgMutation(); // Hook para subir imágenes
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
-
-    const payload = formName ? data : { [modelName ?? actionType.toLowerCase()]: modelName ? data : [data] };
-    console.log(actionType, data, payload);
-
     switch (actionType) {
       case "post-login":
         return await postUserLogin(data).unwrap().then(() => {
@@ -133,7 +129,7 @@ export const MainForm = React.forwardRef(({
       case "post-general":
         return await postGeneral({
           table: table,
-          data: payload,
+          data: data,
           signal: new AbortController().signal,
         }).unwrap();
       default:

@@ -230,7 +230,7 @@ export default function GestionPedidos() {
             }
 
             const response = await getWithFilter({
-                table: `listas on listas.estado not in ('incompleto' , 'cancelado')
+                table: `listas
                 left join clientes on listas.id_cliente = clientes.id`,
                 pageSize: 10,
                 page: currentPage,

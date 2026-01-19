@@ -1,785 +1,1164 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import {
-    useGetGeneralQuery,
-    usePostGeneralMutation,
-    usePutGeneralMutation,
-    useDeleteGeneralMutation
-} from "@/hooks/api/api";
-import { useAppDispatch } from "@/hooks/selector";
-import { openModalReducer, openAlertReducer } from "@/hooks/reducers/drop-down";
-import { getLocalStorageItem, setLocalStorageItem } from "@/utils/functions/local-storage";
-import { formatAPIDate } from "@/utils/constants/format-values";
-import Footer from "@/template/footer";
+import { useState, useEffect, useCallback } from "react";
+import { useGetWithFiltersGeneralMutation } from "@/hooks/api/api";
 import Header from "@/template/header";
-import { Modal } from "@/components/modal";
+import Footer from "@/template/footer";
 import MainForm from "@/components/form/main-form";
+import { Modal } from "@/components/modal";
+import { BentoGrid, BentoItem } from "@/components/bento-grid";
+import { Button } from "@/components/button";
+import Badge from "@/components/badge";
+import Card from "@/components/card";
+import AvatarGroup from "@/components/avatar-group";
+import { CountdownTimer } from "@/components/counter-down";
 import {
-    ClipboardListIcon,
-    ShoppingCart,
-    ArrowLeft,
     Plus,
-    SquareChevronRight,
     Calendar,
-    Clock,
-    User,
+    Users,
+    Flag,
     CheckCircle,
+    Clock,
     AlertCircle,
-    PlayCircle,
-    Hash,
-    Eye,
-    Edit,
     Trash2,
-    Filter,
-    X
+    Edit,
+    ChevronRight,
+    X,
+    ListTodo,
+    TrendingUp,
+    BarChart3,
+    Target,
+    Zap,
+    GitPullRequest,
+    AlertTriangle,
+    FileText,
+    MoreHorizontal,
+    UserPlus,
+    Settings,
+    Download,
+    Share2,
+    Filter
 } from "lucide-react";
+import { Field } from "@/utils/types/interfaces";
+import { motion } from "framer-motion";
+import { useAppDispatch } from "@/hooks/selector";
+import { openModalReducer } from "@/hooks/reducers/drop-down";
 
-interface Project {
+// Tipos alineados con BD
+interface Proyecto {
     id: number;
     nombre: string;
     descripcion: string;
     fecha_inicio: string;
-    fecha_fin: string;
+    fecha_fin?: string;
+    usuario_lider_id?: number;
 }
 
 interface Sprint {
     id: number;
+    proyecto_id: number;
     nombre: string;
     fecha_inicio: string;
     fecha_fin: string;
-    proyecto_id: number;
 }
 
-interface Task {
+interface Tarea {
     id: number;
+    sprint_id: number;
     titulo: string;
     descripcion: string;
-    prioridad: string;
-    fecha_inicio: string;
-    fecha_limite: string;
+    estado: 'pendiente' | 'en_progreso' | 'en_revision' | 'completado';
+    prioridad: 'baja' | 'media' | 'alta' | 'critica';
+    fecha_creacion: string;
     fecha_actualizacion: string;
-    sprint_id: number;
-    usuario_asignado_id: number;
-    estado?: string; // Agregado para el board
+    usuario_asignado_id?: number;
+    fecha_inicio?: string;
+    fecha_limite?: string;
 }
 
-// Campos del formulario para proyectos
-const ProjectFields = () => [
-    {
-        type: "INPUT",
-        name: "nombre",
-        label: "Nombre del Proyecto",
-        placeholder: "Ej: Optimización de Procesos",
-        require: true
-    },
-    {
-        type: "TEXT_AREA",
-        name: "descripcion",
-        label: "Descripción",
-        placeholder: "Describa los objetivos del proyecto...",
-        require: true
-    },
-    {
-        type: "DATE",
-        name: "fecha_inicio",
-        label: "Fecha de Inicio",
-        require: true
-    },
-    {
-        type: "DATE",
-        name: "fecha_fin",
-        label: "Fecha de Fin",
-        require: true
-    }
-];
-
-// Campos del formulario para sprints
-const SprintFields = (proyectoId?: number) => [
-    {
-        type: "INPUT",
-        name: "nombre",
-        label: "Nombre del Sprint",
-        placeholder: "Ej: Sprint 1 - Implementación inicial",
-        require: true
-    },
-    {
-        type: "DATE",
-        name: "fecha_inicio",
-        label: "Fecha de Inicio",
-        require: true
-    },
-    {
-        type: "DATE",
-        name: "fecha_fin",
-        label: "Fecha de Fin",
-        require: true
-    }
-];
-
-// Campos del formulario para tareas
-const TaskFields = (sprintId?: number) => [
-    {
-        type: "INPUT",
-        name: "titulo",
-        label: "Título de la Tarea",
-        placeholder: "Ej: Configurar sistema de inventario",
-        require: true
-    },
-    {
-        type: "TEXT_AREA",
-        name: "descripcion",
-        label: "Descripción",
-        placeholder: "Describa los detalles de la tarea...",
-        require: true
-    },
-    {
-        type: "SELECT",
-        name: "prioridad",
-        label: "Prioridad",
-        options: [
-            { value: "baja", label: "Baja" },
-            { value: "media", label: "Media" },
-            { value: "alta", label: "Alta" },
-            { value: "urgente", label: "Urgente" }
-        ],
-        require: true
-    },
-    {
-        type: "NUMBER",
-        name: "usuario_asignado_id",
-        label: "ID Usuario Asignado",
-        placeholder: "ID del usuario responsable",
-        require: true
-    },
-    {
-        type: "DATE",
-        name: "fecha_inicio",
-        label: "Fecha de Inicio",
-        require: true
-    },
-    {
-        type: "DATE",
-        name: "fecha_limite",
-        label: "Fecha Límite",
-        require: true
-    }
-];
-
-// Componente Modal para crear elementos
-const ModalForm = ({
-    actionType,
-    formName,
-    nameModal,
-    sprintId,
-    formFunction,
-    refetch,
-    messageButton
-}: {
-    actionType: string;
-    formName: string;
-    nameModal: string;
-    sprintId?: number;
-    formFunction: any;
-    refetch: () => void;
-    messageButton: string;
-}) => {
+export default function ScrumScreen() {
     const dispatch = useAppDispatch();
 
-    const handleSuccess = () => {
-        dispatch(openAlertReducer({
-            title: "¡Éxito!",
-            message: `${formName} creado exitosamente`,
-            type: "success",
-            icon: "archivo",
-            duration: 3000
-        }));
-        dispatch(openModalReducer({ modalName: nameModal }));
-        refetch();
+    // Estados principales con tipado fuerte
+    const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+    const [selectedSprintId, setSelectedSprintId] = useState<number | null>(null);
+
+    // Estados de datos con tipado
+    const [projects, setProjects] = useState<Proyecto[]>([]);
+    const [sprints, setSprints] = useState<Sprint[]>([]);
+    const [tasks, setTasks] = useState<Tarea[]>([]);
+
+    // Estados UI
+    const [loading, setLoading] = useState({
+        projects: true,
+        sprints: false,
+        tasks: false
+    });
+    const [editingItem, setEditingItem] = useState<any>(null);
+    const [activeView, setActiveView] = useState<'board' | 'list'>('board');
+    const [filterPriority, setFilterPriority] = useState<string>('all');
+
+    // Consultas RTK Query
+    const [getWithFilter] = useGetWithFiltersGeneralMutation();
+
+    // Helper para fetch genérico
+    const fetchById = useCallback(async <T,>(
+        table: string,
+        key: string,
+        value: number
+    ): Promise<T[]> => {
+        try {
+            const response = await getWithFilter({
+                table,
+                filtros: {
+                    Filtros: [{
+                        Key: key,
+                        Operator: '=',
+                        Value: value
+                    }]
+                }
+            }).unwrap();
+            return response.data || response;
+        } catch (error) {
+            console.error(`Error fetching ${table}:`, error);
+            return [];
+        }
+    }, [getWithFilter]);
+
+    // 1. Fetch inicial de proyectos (solo al montar)   
+    useEffect(() => {
+        const loadProjects = async () => {
+            try {
+                setLoading(prev => ({ ...prev, projects: true }));
+                const response = await getWithFilter({
+                    table: 'proyectos',
+                    filtros: { Filtros: [{}] }
+                }).unwrap();
+
+                const data: Proyecto[] = response.data || response;
+                setProjects(data);
+
+                if (data.length > 0) {
+                    const firstProjectId = data[0].id;
+                    setSelectedProjectId(firstProjectId);
+                }
+            } catch (error) {
+                console.error("Error fetching projects:", error);
+            } finally {
+                setLoading(prev => ({ ...prev, projects: false }));
+            }
+        };
+
+        loadProjects();
+    }, [getWithFilter]); // Solo getWithFilter como dependencia
+
+    // 2. Fetch de sprints cuando cambia selectedProjectId
+    const loadSprints = useCallback(async (projectId: number) => {
+        if (!projectId) return;
+
+        try {
+            setLoading(prev => ({ ...prev, sprints: true }));
+            const data: Sprint[] = await fetchById<Sprint>('sprints', 'proyecto_id', projectId);
+            setSprints(data);
+
+            // Resetear sprint seleccionado y tareas cuando cambia el proyecto
+            setSelectedSprintId(null);
+            setTasks([]);
+
+            // Solo seleccionar primer sprint si existe
+            if (data.length > 0) {
+                setSelectedSprintId(data[0].id);
+            }
+        } catch (error) {
+            console.error("Error loading sprints:", error);
+        } finally {
+            setLoading(prev => ({ ...prev, sprints: false }));
+        }
+    }, [fetchById]);
+
+    // Efecto para cargar sprints
+    useEffect(() => {
+        if (selectedProjectId) {
+            loadSprints(selectedProjectId);
+        }
+    }, [selectedProjectId, loadSprints]);
+
+    // 3. Fetch de tareas cuando cambia selectedSprintId
+    const loadTasks = useCallback(async (sprintId: number) => {
+        if (!sprintId) {
+            setTasks([]);
+            return;
+        }
+
+        try {
+            setLoading(prev => ({ ...prev, tasks: true }));
+            const data: Tarea[] = await fetchById<Tarea>('tareas', 'sprint_id', sprintId);
+            setTasks(data);
+        } catch (error) {
+            console.error("Error loading tasks:", error);
+        } finally {
+            setLoading(prev => ({ ...prev, tasks: false }));
+        }
+    }, [fetchById]);
+
+    // Efecto para cargar tareas
+    useEffect(() => {
+        if (selectedSprintId) {
+            loadTasks(selectedSprintId);
+        }
+    }, [selectedSprintId, loadTasks]);
+
+    // Funciones para manejar cambios de selección
+    const handleProjectClick = (projectId: number) => {
+        if (projectId !== selectedProjectId) {
+            setSelectedProjectId(projectId);
+        }
     };
 
-    return (
-        <Modal title={messageButton} modalName={nameModal} maxWidth="md">
-            <MainForm
-                actionType="post-general"
-                table={actionType}
-                formName={formName}
-                dataForm={formFunction(sprintId)}
-                aditionalData={sprintId ? { sprint_id: sprintId } : {}}
-                onSuccess={handleSuccess}
-                message_button="Crear"
-            />
-        </Modal>
-    );
-};
-
-// Componente ScrumBoard
-const ScrumBoard = ({ tasks, onTaskUpdate }: {
-    tasks: Task[],
-    onTaskUpdate: () => void
-}) => {
-    const dispatch = useAppDispatch();
-    const [updateTask] = usePutGeneralMutation();
-    const [deleteTask] = useDeleteGeneralMutation();
-    const [showFilters, setShowFilters] = useState(false);
-    const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
-
-    // Asignar estados basados en fechas (simplificado)
-    const getTaskEstado = (task: Task): string => {
-        const now = new Date();
-        const fechaLimite = new Date(task.fecha_limite);
-
-        if (now > fechaLimite) return "atrasado";
-        if (task.fecha_actualizacion) return "en-progreso";
-        return "pendiente";
+    const handleSprintClick = (sprintId: number) => {
+        if (sprintId !== selectedSprintId) {
+            setSelectedSprintId(sprintId);
+        }
     };
 
-    const COLUMNS = [
-        { id: "pendiente", name: "Pendiente", color: "bg-gray-100 dark:bg-gray-700" },
-        { id: "en-progreso", name: "En Progreso", color: "bg-blue-100 dark:bg-blue-900/30" },
-        { id: "atrasado", name: "Atrasado", color: "bg-red-100 dark:bg-red-900/30" },
-        { id: "completado", name: "Completado", color: "bg-green-100 dark:bg-green-900/30" }
+    // Formularios de datos ALINEADOS CON BD
+    const projectFormFields: Field[] = [
+        {
+            type: "H1",
+            label: editingItem ? "Editar Proyecto" : "Nuevo Proyecto",
+            require: false
+        },
+        {
+            type: "INPUT",
+            name: "nombre",
+            label: "Nombre del Proyecto",
+            placeholder: "Ej: Sistema de Gestión de Inventarios",
+            require: true,
+            maxLength: 100
+        },
+        {
+            type: "TEXT_AREA",
+            name: "descripcion",
+            label: "Descripción",
+            placeholder: "Describe los objetivos y alcance del proyecto...",
+            require: true,
+            maxLength: 500
+        },
+        {
+            type: "Flex",
+            elements: [
+                {
+                    type: "DATE",
+                    name: "fecha_inicio",
+                    label: "Fecha de Inicio",
+                    require: true
+                },
+                {
+                    type: "DATE",
+                    name: "fecha_fin",
+                    label: "Fecha de Fin Estimada",
+                    require: false
+                }
+            ],
+            require: false
+        }
     ];
 
-    const PRIORIDAD_COLORS: Record<string, string> = {
-        baja: "text-green-600 bg-green-100 dark:bg-green-900/30",
-        media: "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30",
-        alta: "text-orange-600 bg-orange-100 dark:bg-orange-900/30",
-        urgente: "text-red-600 bg-red-100 dark:bg-red-900/30"
-    };
-
-    const PRIORIDAD_ICONS: Record<string, React.ReactNode> = {
-        baja: <CheckCircle className="size-3" />,
-        media: <AlertCircle className="size-3" />,
-        alta: <AlertCircle className="size-3" />,
-        urgente: <AlertCircle className="size-3" />
-    };
-
-    // Filtrar tareas por prioridad
-    const filteredTasks = selectedPriorities.length > 0
-        ? tasks.filter(task => selectedPriorities.includes(task.prioridad))
-        : tasks;
-
-    // Agrupar tareas por estado
-    const tasksByEstado = COLUMNS.reduce((acc, column) => {
-        acc[column.id] = filteredTasks.filter(task => getTaskEstado(task) === column.id);
-        return acc;
-    }, {} as Record<string, Task[]>);
-
-    // Obtener todas las prioridades únicas
-    const allPriorities = Array.from(new Set(tasks.map(task => task.prioridad)));
-
-    const handlePriorityFilter = (priority: string) => {
-        setSelectedPriorities(prev =>
-            prev.includes(priority)
-                ? prev.filter(p => p !== priority)
-                : [...prev, priority]
-        );
-    };
-
-    const clearFilters = () => {
-        setSelectedPriorities([]);
-    };
-
-    const handleDeleteTask = async (taskId: number) => {
-        dispatch(openAlertReducer({
-            title: "Eliminar Tarea",
-            message: "¿Está seguro de eliminar esta tarea?",
-            type: "warning",
-            icon: "alert",
-            buttonText: "Eliminar",
-            action: async () => {
-                try {
-                    await deleteTask({
-                        table: "tareas",
-                        id: taskId
-                    }).unwrap();
-                    onTaskUpdate();
-                } catch (error) {
-                    console.error("Error deleting task:", error);
+    const sprintFormFields: Field[] = [
+        {
+            type: "H1",
+            label: editingItem ? "Editar Sprint" : "Nuevo Sprint",
+            require: false
+        },
+        {
+            type: "INPUT",
+            name: "nombre",
+            label: "Nombre del Sprint",
+            placeholder: "Ej: Sprint 1 - Implementación inicial",
+            require: true
+        },
+        {
+            type: "Flex",
+            elements: [
+                {
+                    type: "DATE",
+                    name: "fecha_inicio",
+                    label: "Fecha de Inicio",
+                    require: true
+                },
+                {
+                    type: "DATE",
+                    name: "fecha_fin",
+                    label: "Fecha de Fin",
+                    require: true
                 }
+            ],
+            require: false
+        }
+    ];
+
+    const taskFormFields: Field[] = [
+        {
+            type: "H1",
+            label: editingItem ? "Editar Tarea" : "Nueva Tarea",
+            require: false
+        },
+        {
+            type: "INPUT",
+            name: "titulo",
+            label: "Título",
+            placeholder: "Ej: Implementar API de usuarios",
+            require: true
+        },
+        {
+            type: "TEXT_AREA",
+            name: "descripcion",
+            label: "Descripción",
+            placeholder: "Detalles de la tarea...",
+            require: true
+        },
+        {
+            type: "Flex",
+            elements: [
+                {
+                    type: "SELECT",
+                    name: "prioridad",
+                    label: "Prioridad",
+                    options: [
+                        { value: "baja", label: "Baja" },
+                        { value: "media", label: "Media" },
+                        { value: "alta", label: "Alta" },
+                        { value: "critica", label: "Crítica" }
+                    ],
+                    require: true
+                },
+                {
+                    type: "SELECT",
+                    name: "estado",
+                    label: "Estado",
+                    options: [
+                        { value: "pendiente", label: "Pendiente" },
+                        { value: "en_progreso", label: "En Progreso" },
+                        { value: "en_revision", label: "En Revisión" },
+                        { value: "completado", label: "Completado" }
+                    ],
+                    require: true
+                }
+            ],
+            require: false
+        },
+        {
+            type: "Flex",
+            elements: [
+                {
+                    type: "DATE",
+                    name: "fecha_inicio",
+                    label: "Fecha de Inicio",
+                    require: false
+                },
+                {
+                    type: "DATE",
+                    name: "fecha_limite",
+                    label: "Fecha Límite",
+                    require: false
+                }
+            ],
+            require: false
+        }
+    ];
+
+    // Funciones CRUD simplificadas
+    const handleProjectSuccess = async () => {
+        try {
+            setLoading(prev => ({ ...prev, projects: true }));
+            const response = await getWithFilter({
+                table: 'proyectos',
+                filtros: { Filtros: [{}] }
+            }).unwrap();
+            setProjects(response.data || response);
+        } catch (error) {
+            console.error("Error reloading projects:", error);
+        } finally {
+            setLoading(prev => ({ ...prev, projects: false }));
+            dispatch(openModalReducer({ modalName: "projectModal" }));
+            setEditingItem(null);
+        }
+    };
+
+    const handleSprintSuccess = async () => {
+        if (!selectedProjectId) return;
+
+        try {
+            setLoading(prev => ({ ...prev, sprints: true }));
+            await loadSprints(selectedProjectId);
+        } catch (error) {
+            console.error("Error reloading sprints:", error);
+        } finally {
+            dispatch(openModalReducer({ modalName: "sprintModal" }));
+            setEditingItem(null);
+        }
+    };
+
+    const handleTaskSuccess = async () => {
+        if (!selectedSprintId) return;
+
+        try {
+            setLoading(prev => ({ ...prev, tasks: true }));
+            await loadTasks(selectedSprintId);
+        } catch (error) {
+            console.error("Error reloading tasks:", error);
+        } finally {
+            dispatch(openModalReducer({ modalName: "taskModal" }));
+            setEditingItem(null);
+        }
+    };
+
+    // Función para refrescar datos manualmente
+    const refreshData = async () => {
+        try {
+            setLoading({ projects: true, sprints: true, tasks: true });
+
+            // Recargar proyectos
+            const projectsResponse = await getWithFilter({
+                table: 'proyectos',
+                filtros: { Filtros: [{}] }
+            }).unwrap();
+            setProjects(projectsResponse.data || projectsResponse);
+
+            if (selectedProjectId) {
+                await loadSprints(selectedProjectId);
             }
-        }));
-    };
-
-    const handleViewTask = (task: Task) => {
-        dispatch(openModalReducer({ modalName: `view-task-${task.id}` }));
-    };
-
-    return (
-        <div className="space-y-4">
-            {/* Filtros */}
-            <div className="flex justify-between items-center">
-                <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
-                >
-                    <Filter className="size-4" />
-                    {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
-                </button>
-
-                {selectedPriorities.length > 0 && (
-                    <button
-                        onClick={clearFilters}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300"
-                    >
-                        <X className="size-4" />
-                        Limpiar filtros
-                    </button>
-                )}
-            </div>
-
-            {showFilters && (
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-sm font-medium mb-2">Filtrar por prioridad</h4>
-                    <div className="flex flex-wrap gap-2">
-                        {allPriorities.map(priority => (
-                            <button
-                                key={priority}
-                                onClick={() => handlePriorityFilter(priority)}
-                                className={`px-3 py-1 text-xs rounded-full border ${selectedPriorities.includes(priority)
-                                    ? "bg-gray-800 dark:bg-gray-700 text-white border-gray-800 dark:border-gray-600"
-                                    : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                    }`}
-                            >
-                                {priority}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Board */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {COLUMNS.map((column) => (
-                    <div key={column.id} className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <h3 className="font-medium">{column.name}</h3>
-                            <span className="px-2 py-1 bg-white dark:bg-gray-800 rounded-full text-xs">
-                                {tasksByEstado[column.id]?.length || 0}
-                            </span>
-                        </div>
-                        <div className={`min-h-[200px] rounded-lg border p-3 space-y-3 ${column.color}`}>
-                            {tasksByEstado[column.id]?.map((task) => (
-                                <div
-                                    key={task.id}
-                                    className="bg-white dark:bg-gray-900 rounded-lg border p-3 shadow-sm hover:shadow-md transition-shadow"
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h4 className="font-medium text-sm">{task.titulo}</h4>
-                                        <div className="flex gap-1">
-                                            <button
-                                                onClick={() => handleViewTask(task)}
-                                                className="text-gray-500 hover:text-gray-700"
-                                            >
-                                                <Eye className="size-3" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteTask(task.id)}
-                                                className="text-red-500 hover:text-red-700"
-                                            >
-                                                <Trash2 className="size-3" />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
-                                        {task.descripcion}
-                                    </p>
-
-                                    <div className="flex items-center justify-between">
-                                        <span className={`px-2 py-1 text-xs rounded-full ${PRIORIDAD_COLORS[task.prioridad] || 'bg-gray-100'}`}>
-                                            <div className="flex items-center gap-1">
-                                                {PRIORIDAD_ICONS[task.prioridad]}
-                                                {task.prioridad}
-                                            </div>
-                                        </span>
-
-                                        <div className="flex items-center gap-1 text-xs text-gray-500">
-                                            <User className="size-3" />
-                                            {task.usuario_asignado_id}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-2 text-xs text-gray-500 flex justify-between">
-                                        <div>
-                                            <Calendar className="size-3 inline mr-1" />
-                                            {formatAPIDate(task.fecha_limite)}
-                                        </div>
-                                        {task.fecha_actualizacion && (
-                                            <div>
-                                                <Clock className="size-3 inline mr-1" />
-                                                Actualizado: {formatAPIDate(task.fecha_actualizacion)}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-export default function SupermarketScrumPage() {
-    const dispatch = useAppDispatch();
-    const [projectId, setProjectId] = useState<number>(0);
-    const [sprintId, setSprintId] = useState<number>(0);
-    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-    const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
-
-    // Hooks de API
-    const { data: projectsData = [], refetch: refetchProjects } = useGetGeneralQuery({
-        param: 'proyectos'
-    });
-
-    const { data: sprintsData = [], refetch: refetchSprints } = useGetGeneralQuery({
-        param: 'sprints'
-    });
-
-    const { data: tasksData = [], refetch: refetchTasks } = useGetGeneralQuery({
-        param: sprintId > 0 ? `tareas?sprint_id=${sprintId}` : 'tareas'
-    });
-
-    // Cargar IDs desde localStorage
-    useEffect(() => {
-        const savedProjectId = getLocalStorageItem('scrumProjectId');
-        const savedSprintId = getLocalStorageItem('scrumSprintId');
-
-        if (savedProjectId) {
-            const parsedId = parseInt(savedProjectId, 10);
-            if (!isNaN(parsedId)) {
-                setProjectId(parsedId);
-                const project = (projectsData as Project[]).find(p => p.id === parsedId);
-                setSelectedProject(project || null);
-            }
-        }
-        if (savedSprintId) {
-            const parsedId = parseInt(savedSprintId, 10);
-            if (!isNaN(parsedId)) {
-                setSprintId(parsedId);
-                const sprint = (sprintsData as Sprint[]).find(s => s.id === parsedId);
-                setSelectedSprint(sprint || null);
-            }
-        }
-    }, [projectsData, sprintsData]);
-
-    // Persistir IDs en localStorage
-    useEffect(() => {
-        if (projectId > 0) {
-            setLocalStorageItem('scrumProjectId', projectId.toString());
-        }
-    }, [projectId]);
-
-    useEffect(() => {
-        if (sprintId > 0) {
-            setLocalStorageItem('scrumSprintId', sprintId.toString());
-        }
-    }, [sprintId]);
-
-    // Funciones de navegación
-    const handleGoBack = () => {
-        if (sprintId > 0) {
-            setSprintId(0);
-            setSelectedSprint(null);
-            setLocalStorageItem('scrumSprintId', '0');
-        } else if (projectId > 0) {
-            setProjectId(0);
-            setSprintId(0);
-            setSelectedProject(null);
-            setSelectedSprint(null);
-            setLocalStorageItem('scrumProjectId', '0');
-            setLocalStorageItem('scrumSprintId', '0');
+        } catch (error) {
+            console.error("Error refreshing data:", error);
+        } finally {
+            setLoading({ projects: false, sprints: false, tasks: false });
         }
     };
 
-    const handleSelectProject = (project: Project) => {
-        setProjectId(project.id);
-        setSelectedProject(project);
-        setSprintId(0);
-        setSelectedSprint(null);
+    // Función para abrir modales
+    const openModal = (modalName: string) => {
+        dispatch(openModalReducer({ modalName }));
     };
 
-    const handleSelectSprint = (sprint: Sprint) => {
-        setSprintId(sprint.id);
-        setSelectedSprint(sprint);
+    // Datos actuales
+    const selectedProject = projects.find(p => p.id === selectedProjectId);
+    const selectedSprint = sprints.find(s => s.id === selectedSprintId);
+
+    // Estadísticas REALES (sin campos fantasma)
+    const taskStats = {
+        total: tasks.length,
+        pendiente: tasks.filter(t => t.estado === 'pendiente').length,
+        progreso: tasks.filter(t => t.estado === 'en_progreso').length,
+        revision: tasks.filter(t => t.estado === 'en_revision').length,
+        completado: tasks.filter(t => t.estado === 'completado').length
     };
 
-    // Filtrar sprints por proyecto
-    const projectSprints = (sprintsData as Sprint[]).filter(sprint => sprint.proyecto_id === projectId);
+    // Calcular progreso basado en estados
+    const calculateProgress = () => {
+        if (tasks.length === 0) return 0;
+        const completed = tasks.filter(t => t.estado === 'completado').length;
+        return Math.round((completed / tasks.length) * 100);
+    };
 
-    // Renderizar proyectos
-    const renderProjects = () => (
-        <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Proyectos</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(projectsData as Project[]).map((project) => (
-                    <div
-                        key={project.id}
-                        onClick={() => handleSelectProject(project)}
-                        className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 cursor-pointer hover:shadow-md transition-all duration-200 hover:-translate-y-1"
-                    >
-                        <div className="flex items-center gap-3 mb-3">
-                            <ClipboardListIcon className="size-5 text-blue-500" />
-                            <h3 className="font-semibold text-lg">{project.nombre}</h3>
-                        </div>
+    // Avatar data para el equipo
+    const teamAvatars = [
+        { alt: "Usuario 1", src: "https://api.dicebear.com/7.x/avataaars/svg?seed=1" },
+        { alt: "Usuario 2", src: "https://api.dicebear.com/7.x/avataaars/svg?seed=2" },
+        { alt: "Usuario 3", src: "https://api.dicebear.com/7.x/avataaars/svg?seed=3" },
+        { alt: "Usuario 4", src: "https://api.dicebear.com/7.x/avataaars/svg?seed=4" },
+    ];
 
-                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
-                            {project.descripcion}
-                        </p>
+    // Tareas filtradas por prioridad
+    const filteredTasks = filterPriority === 'all'
+        ? tasks
+        : tasks.filter(task => task.prioridad === filterPriority);
 
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Inicio:</span>
-                                <span className="font-medium">{formatAPIDate(project.fecha_inicio)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Fin:</span>
-                                <span className="font-medium">{formatAPIDate(project.fecha_fin)}</span>
-                            </div>
-                        </div>
-
-                        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">
-                                    Sprints: {(sprintsData as Sprint[]).filter(s => s.proyecto_id === project.id).length}
-                                </span>
-                                <SquareChevronRight className="size-4 text-gray-400" />
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-
-    // Renderizar sprints
-    const renderSprints = () => (
-        <div className="space-y-6">
-            {/* Información del proyecto */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-                <div className="flex items-center justify-between mb-3">
-                    <div>
-                        <h2 className="text-xl font-bold">{selectedProject?.nombre}</h2>
-                        <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedProject?.descripcion}</p>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-sm text-gray-500">Período del proyecto</div>
-                        <div className="font-medium">
-                            {formatAPIDate(selectedProject?.fecha_inicio || '')} - {formatAPIDate(selectedProject?.fecha_fin || '')}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Lista de sprints */}
-            <div>
-                <h3 className="text-lg font-semibold mb-4">Sprints del Proyecto</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {projectSprints.map((sprint) => {
-                        const sprintTasks = (tasksData as Task[]).filter(task => task.sprint_id === sprint.id);
-                        const completedTasks = sprintTasks.filter(task => {
-                            const fechaLimite = new Date(task.fecha_limite);
-                            const now = new Date();
-                            return now <= fechaLimite && task.fecha_actualizacion;
-                        }).length;
-
-                        const completionRate = sprintTasks.length > 0
-                            ? Math.round((completedTasks / sprintTasks.length) * 100)
-                            : 0;
-
-                        return (
-                            <div
-                                key={sprint.id}
-                                onClick={() => handleSelectSprint(sprint)}
-                                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 cursor-pointer hover:shadow-md transition-all duration-200"
-                            >
-                                <div className="flex items-center gap-3 mb-3">
-                                    <Calendar className="size-5 text-green-500" />
-                                    <h4 className="font-semibold">{sprint.nombre}</h4>
-                                </div>
-
-                                <div className="space-y-2 text-sm mb-3">
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-500">Inicio:</span>
-                                        <span className="font-medium">{formatAPIDate(sprint.fecha_inicio)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-500">Fin:</span>
-                                        <span className="font-medium">{formatAPIDate(sprint.fecha_fin)}</span>
-                                    </div>
-                                </div>
-
-                                <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
-                                    <div className="flex justify-between items-center">
-                                        <div className="text-sm">
-                                            <div className="font-medium">{sprintTasks.length} tareas</div>
-                                            <div className="text-gray-500">{completedTasks} completadas</div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-lg font-bold">{completionRate}%</div>
-                                            <div className="text-xs text-gray-500">Avance</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        </div>
-    );
-
-    // Renderizar board de tareas
-    const renderTaskBoard = () => {
-        const sprintTasks = (tasksData as Task[]).filter(task => task.sprint_id === sprintId);
-
-        return (
-            <div className="space-y-6">
-                {/* Información del sprint */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-                    <div className="flex items-center justify-between mb-3">
-                        <div>
-                            <h2 className="text-xl font-bold flex items-center gap-2">
-                                <ClipboardListIcon className="size-5 text-green-500" />
-                                {selectedSprint?.nombre}
-                            </h2>
-                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                <div className="flex items-center gap-1">
-                                    <Calendar className="size-4" />
-                                    {formatAPIDate(selectedSprint?.fecha_inicio || '')} - {formatAPIDate(selectedSprint?.fecha_fin || '')}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <Hash className="size-4" />
-                                    ID: {selectedSprint?.id}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <div className="text-sm text-gray-500">Proyecto</div>
-                            <div className="font-medium">{selectedProject?.nombre}</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Board de tareas */}
-                <div>
-                    <h3 className="text-lg font-semibold mb-4">Tablero de Tareas</h3>
-                    <ScrumBoard
-                        tasks={sprintTasks}
-                        onTaskUpdate={refetchTasks}
-                    />
-                </div>
-            </div>
-        );
+    // Función dummy para CountdownTimer
+    const dummyRefresh = () => {
+        console.log("Timer expired");
+        // Opcional: podrías mostrar una notificación aquí
     };
 
     return (
         <>
             <Header />
-            <main className="p-4 md:p-6 min-h-[70vh] max-w-7xl mx-auto">
-                {/* Header principal */}
-                <div className="mb-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-                                <ShoppingCart className="size-6 md:size-7" />
-                                Gestión Scrum
-                            </h1>
-                            <p className="text-gray-600 dark:text-gray-400">
-                                Gestiona proyectos, sprints y tareas de manera eficiente
-                            </p>
+            <main className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-6">
+                <div className="container mx-auto max-w-7xl">
+                    {/* Header con estadísticas */}
+                    <div className="mb-8">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Gestión Scrum</h1>
+                                <p className="text-gray-600 mt-2">
+                                    Administra proyectos, sprints y tareas utilizando metodología Scrum
+                                </p>
+                            </div>
+                            <div className="flex gap-3">
+                                <Button
+                                    color="success"
+                                    onClick={refreshData}
+                                    disabled={loading.projects || loading.sprints || loading.tasks}
+                                >
+                                    <Zap className="size-5" />
+                                    <span>Actualizar</span>
+                                </Button>
+                                <Button
+                                    color="info"
+                                    onClick={() => openModal("statsModal")}
+                                >
+                                    <BarChart3 className="size-5" />
+                                    <span>Estadísticas</span>
+                                </Button>
+                            </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            {(projectId > 0 || sprintId > 0) && (
-                                <button
-                                    onClick={handleGoBack}
-                                    className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                        {/* Tarjetas de resumen CORREGIDAS (sin campos fantasma) */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                            <Card
+                                title="Proyectos"
+                                value={projects.length}
+                                icon={<Target className="text-white size-6" />}
+                                subText="total"
+                            />
+                            <Card
+                                title="Sprints Activos"
+                                value={sprints.filter(s => {
+                                    const now = new Date();
+                                    const start = new Date(s.fecha_inicio);
+                                    const end = new Date(s.fecha_fin);
+                                    return now >= start && now <= end;
+                                }).length}
+                                icon={<Zap className="text-white size-6" />}
+                                subText={`de ${sprints.length}`}
+                            />
+                            <Card
+                                title="Tareas Pendientes"
+                                value={taskStats.pendiente}
+                                icon={<AlertTriangle className="text-white size-6" />}
+                                subText={`de ${taskStats.total}`}
+                            />
+                            <Card
+                                title="Progreso"
+                                value={`${calculateProgress()}%`}
+                                icon={<TrendingUp className="text-white size-6" />}
+                                subText="completado"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Contenido principal */}
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        {/* Panel de Proyectos - Bento Grid */}
+                        <div className="lg:col-span-1">
+                            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-5 border border-gray-200">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                        <Flag className="text-blue-600 size-6" />
+                                        <span>Proyectos</span>
+                                    </h2>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            color="success"
+                                            size="small"
+                                            onClick={() => {
+                                                setEditingItem(null);
+                                                openModal("projectModal");
+                                            }}
+                                            disabled={loading.projects}
+                                        >
+                                            <Plus className="size-4" />
+                                        </Button>
+                                        <Button
+                                            color="info"
+                                            size="small"
+                                            onClick={refreshData}
+                                            disabled={loading.projects}
+                                        >
+                                            <Settings className="size-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <BentoGrid cols={1} loading={loading.projects && projects.length === 0}>
+                                    {projects.map((project) => (
+                                        <div
+                                            key={project.id}
+                                            onClick={() => handleProjectClick(project.id)}
+                                        >
+                                            <BentoItem
+                                                className={`cursor-pointer transition-all ${selectedProjectId === project.id
+                                                    ? 'ring-2 ring-blue-500 bg-blue-50/50'
+                                                    : 'hover:bg-gray-50'
+                                                    }`}
+                                                title={project.nombre}
+                                                description={project.descripcion?.substring(0, 80) + '...'}
+                                                icon={<Flag className="text-blue-600 size-5" />}
+                                            >
+                                                <div className="flex items-center justify-between text-sm text-gray-600 mt-3">
+                                                    <div className="flex items-center gap-1">
+                                                        <Calendar className="size-4" />
+                                                        <span>{new Date(project.fecha_inicio).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <Button
+                                                        color="info"
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditingItem(project);
+                                                            openModal("projectModal");
+                                                        }}
+                                                        disabled={loading.projects}
+                                                    >
+                                                        <Edit className="size-4" />
+                                                    </Button>
+                                                </div>
+                                            </BentoItem>
+                                        </div>
+                                    ))}
+
+                                    {projects.length === 0 && !loading.projects && (
+                                        <BentoItem
+                                            title="Sin proyectos"
+                                            description="Comienza creando tu primer proyecto"
+                                            icon={<Flag className="text-gray-400 size-5" />}
+                                        >
+                                            <Button
+                                                color="success"
+                                                onClick={() => openModal("projectModal")}
+                                                disabled={loading.projects}
+                                            >
+                                                <Plus className="size-4" />
+                                                <span>Crear Proyecto</span>
+                                            </Button>
+                                        </BentoItem>
+                                    )}
+                                </BentoGrid>
+                            </div>
+                        </div>
+
+                        {/* Panel de Sprints y Tareas */}
+                        <div className="lg:col-span-3 space-y-6">
+                            {/* Panel de Sprints */}
+                            {selectedProject && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-5 border border-gray-200"
                                 >
-                                    <ArrowLeft className="size-4" />
-                                    Regresar
-                                </button>
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-800">
+                                                Sprints - {selectedProject.nombre}
+                                            </h2>
+                                            <p className="text-gray-600 text-sm mt-1">
+                                                {selectedProject.descripcion?.substring(0, 120)}
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                color="success"
+                                                onClick={() => {
+                                                    setEditingItem(null);
+                                                    openModal("sprintModal");
+                                                }}
+                                                disabled={loading.sprints}
+                                            >
+                                                <Plus className="size-5" />
+                                                <span>Nuevo Sprint</span>
+                                            </Button>
+                                            <AvatarGroup data={teamAvatars} size="" />
+                                        </div>
+                                    </div>
+
+                                    <BentoGrid cols={3} loading={loading.sprints && sprints.length === 0}>
+                                        {sprints.map((sprint) => {
+                                            const isActive = () => {
+                                                const now = new Date();
+                                                const start = new Date(sprint.fecha_inicio);
+                                                const end = new Date(sprint.fecha_fin);
+                                                return now >= start && now <= end;
+                                            };
+
+                                            return (
+                                                <div
+                                                    key={sprint.id}
+                                                    onClick={() => handleSprintClick(sprint.id)}
+                                                >
+                                                    <BentoItem
+                                                        className={`cursor-pointer transition-all ${selectedSprintId === sprint.id
+                                                            ? 'ring-2 ring-green-500 bg-green-50/50'
+                                                            : 'hover:bg-gray-50'
+                                                            }`}
+                                                        title={sprint.nombre}
+                                                        description={`${sprint.nombre} - ${isActive() ? 'En curso' : 'Planificado'}`}
+                                                        icon={<Zap className={`size-5 ${isActive() ? 'text-green-600' : 'text-gray-400'}`} />}
+                                                    >
+                                                        <div className="space-y-2 text-sm">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-gray-500">Inicio:</span>
+                                                                <span className="font-medium">
+                                                                    {new Date(sprint.fecha_inicio).toLocaleDateString()}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-gray-500">Fin:</span>
+                                                                <span className="font-medium">
+                                                                    {new Date(sprint.fecha_fin).toLocaleDateString()}
+                                                                </span>
+                                                            </div>
+                                                            <div className="pt-2 border-t border-gray-100">
+                                                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                                                    <span>Tiempo restante:</span>
+                                                                    <span className="font-medium text-blue-600">
+                                                                        <CountdownTimer
+                                                                            endDate={new Date(sprint.fecha_fin)}
+                                                                            refrech={dummyRefresh}
+                                                                        />
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </BentoItem>
+                                                </div>
+                                            );
+                                        })}
+
+                                        {sprints.length === 0 && !loading.sprints && (
+                                            <BentoItem
+                                                colSpan={3}
+                                                title="No hay sprints"
+                                                description="Crea un sprint para comenzar a trabajar en este proyecto"
+                                                icon={<Calendar className="text-gray-400 size-5" />}
+                                            >
+                                                <Button
+                                                    color="success"
+                                                    onClick={() => openModal("sprintModal")}
+                                                    disabled={loading.sprints}
+                                                >
+                                                    <Plus className="size-4" />
+                                                    <span>Crear Primer Sprint</span>
+                                                </Button>
+                                            </BentoItem>
+                                        )}
+                                    </BentoGrid>
+                                </motion.div>
                             )}
 
-                            <button
-                                onClick={() => dispatch(openModalReducer({
-                                    modalName: projectId === 0 ? 'create-project' :
-                                        sprintId === 0 ? 'create-sprint' : 'create-task'
-                                }))}
-                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
-                            >
-                                <Plus className="size-4" />
-                                Agregar {projectId === 0 ? 'Proyecto' : sprintId === 0 ? 'Sprint' : 'Tarea'}
-                            </button>
+                            {/* Panel de Tareas */}
+                            {selectedSprint && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-5 border border-gray-200"
+                                >
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-800">
+                                                Tareas - {selectedSprint.nombre}
+                                            </h2>
+                                            <p className="text-gray-600 text-sm mt-1">
+                                                Sprint activo
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    color={activeView === 'board' ? 'success' : 'info'}
+                                                    size="small"
+                                                    onClick={() => setActiveView('board')}
+                                                    disabled={loading.tasks}
+                                                >
+                                                    <FileText className="size-4" />
+                                                    <span>Tablero</span>
+                                                </Button>
+                                                <Button
+                                                    color={activeView === 'list' ? 'success' : 'info'}
+                                                    size="small"
+                                                    onClick={() => setActiveView('list')}
+                                                    disabled={loading.tasks}
+                                                >
+                                                    <ListTodo className="size-4" />
+                                                    <span>Lista</span>
+                                                </Button>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    color={filterPriority === 'all' ? 'success' : 'info'}
+                                                    size="small"
+                                                    onClick={() => setFilterPriority('all')}
+                                                    disabled={loading.tasks}
+                                                >
+                                                    <span>Todas</span>
+                                                </Button>
+                                                <Button
+                                                    color={filterPriority === 'alta' ? 'success' : 'info'}
+                                                    size="small"
+                                                    onClick={() => setFilterPriority('alta')}
+                                                    disabled={loading.tasks}
+                                                >
+                                                    <AlertTriangle className="size-4" />
+                                                    <span>Alta</span>
+                                                </Button>
+                                            </div>
+                                            <Button
+                                                color="success"
+                                                onClick={() => {
+                                                    setEditingItem(null);
+                                                    openModal("taskModal");
+                                                }}
+                                                disabled={loading.tasks}
+                                            >
+                                                <Plus className="size-5" />
+                                                <span>Nueva Tarea</span>
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {/* Estadísticas rápidas */}
+                                    <div className="mb-6">
+                                        <BentoGrid cols={4} loading={loading.tasks && tasks.length === 0}>
+                                            <BentoItem
+                                                title="Total"
+                                                description={taskStats.total.toString()}
+                                                icon={<ListTodo className="text-blue-600 size-5" />}
+                                            />
+                                            <BentoItem
+                                                title="Pendientes"
+                                                description={taskStats.pendiente.toString()}
+                                                icon={<Clock className="text-yellow-600 size-5" />}
+                                            />
+                                            <BentoItem
+                                                title="En Progreso"
+                                                description={taskStats.progreso.toString()}
+                                                icon={<GitPullRequest className="text-orange-600 size-5" />}
+                                            />
+                                            <BentoItem
+                                                title="Completadas"
+                                                description={taskStats.completado.toString()}
+                                                icon={<CheckCircle className="text-green-600 size-5" />}
+                                            />
+                                        </BentoGrid>
+                                    </div>
+
+                                    {/* Lista de Tareas */}
+                                    <div className="space-y-3">
+                                        {filteredTasks.map((task) => (
+                                            <BentoItem
+                                                key={task.id}
+                                                className="hover:shadow-md transition-all"
+                                                icon={
+                                                    <div className={`p-2 rounded-full ${task.prioridad === 'alta' ? 'bg-red-100 text-red-600' :
+                                                        task.prioridad === 'media' ? 'bg-yellow-100 text-yellow-600' :
+                                                            'bg-blue-100 text-blue-600'
+                                                        }`}
+                                                    >
+                                                        <ListTodo className="size-5" />
+                                                    </div>
+                                                }
+                                                title={task.titulo}
+                                                description={task.descripcion?.substring(0, 120) + '...'}
+                                                header={
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <div className="flex gap-2">
+                                                            <Badge
+                                                                color={task.estado === 'completado' ? 'green' :
+                                                                    task.estado === 'en_progreso' ? 'blue' :
+                                                                        task.estado === 'en_revision' ? 'purple' : 'gray'}
+                                                                text={task.estado}
+                                                            />
+                                                            {task.prioridad === 'alta' && (
+                                                                <Badge color="red" text="Alta Prioridad" />
+                                                            )}
+                                                        </div>
+                                                        <div className="flex gap-1">
+                                                            <Button
+                                                                color="info"
+                                                                size="small"
+                                                                onClick={() => {
+                                                                    setEditingItem(task);
+                                                                    openModal("taskModal");
+                                                                }}
+                                                                disabled={loading.tasks}
+                                                            >
+                                                                <Edit className="size-4" />
+                                                            </Button>
+                                                            <Button
+                                                                color="info"
+                                                                size="small"
+                                                                disabled={loading.tasks}
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            >
+                                                <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-3">
+                                                    {task.fecha_limite && (
+                                                        <div className="flex items-center gap-1">
+                                                            <Calendar className="size-4" />
+                                                            <span>Vence: {new Date(task.fecha_limite).toLocaleDateString()}</span>
+                                                        </div>
+                                                    )}
+                                                    {task.fecha_creacion && (
+                                                        <div className="flex items-center gap-1">
+                                                            <Clock className="size-4" />
+                                                            <span>Creada: {new Date(task.fecha_creacion).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}</span>
+                                                        </div>
+                                                    )}
+                                                    {task.usuario_asignado_id && (
+                                                        <div className="flex items-center gap-1">
+                                                            <Users className="size-4" />
+                                                            <span>Asignado</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </BentoItem>
+                                        ))}
+
+                                        {filteredTasks.length === 0 && !loading.tasks && (
+                                            <BentoItem
+                                                title="No hay tareas"
+                                                description={filterPriority !== 'all'
+                                                    ? `No hay tareas con prioridad ${filterPriority}`
+                                                    : "Comienza creando tu primera tarea para este sprint"
+                                                }
+                                                icon={<ListTodo className="text-gray-400 size-5" />}
+                                            >
+                                                <Button
+                                                    color="success"
+                                                    onClick={() => openModal("taskModal")}
+                                                    disabled={loading.tasks}
+                                                >
+                                                    <Plus className="size-4" />
+                                                    <span>Crear Primera Tarea</span>
+                                                </Button>
+                                            </BentoItem>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {/* Mensajes cuando no hay selección */}
+                            {!selectedProject && (
+                                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-200 text-center">
+                                    <Flag className="text-gray-400 size-12 mx-auto mb-4" />
+                                    <h3 className="text-xl font-bold text-gray-800 mb-2">
+                                        Selecciona un proyecto
+                                    </h3>
+                                    <p className="text-gray-600 mb-6">
+                                        Elige un proyecto de la lista para ver sus sprints y tareas
+                                    </p>
+                                    <div className="flex justify-center gap-3">
+                                        <Button
+                                            color="success"
+                                            onClick={() => openModal("projectModal")}
+                                            disabled={loading.projects}
+                                        >
+                                            <Plus className="size-5" />
+                                            <span>Crear Nuevo Proyecto</span>
+                                        </Button>
+                                        <Button
+                                            color="info"
+                                            onClick={refreshData}
+                                            disabled={loading.projects}
+                                        >
+                                            <Settings className="size-5" />
+                                            <span>Actualizar Lista</span>
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedProject && !selectedSprint && sprints.length > 0 && !loading.sprints && (
+                                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-200 text-center">
+                                    <Zap className="text-gray-400 size-12 mx-auto mb-4" />
+                                    <h3 className="text-xl font-bold text-gray-800 mb-2">
+                                        Selecciona un sprint
+                                    </h3>
+                                    <p className="text-gray-600">
+                                        Elige un sprint de la lista para ver y gestionar sus tareas
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
-
-                    {/* Breadcrumb */}
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span className="hover:text-gray-700 cursor-pointer" onClick={() => {
-                            setProjectId(0);
-                            setSprintId(0);
-                        }}>Proyectos</span>
-                        {projectId > 0 && (
-                            <>
-                                <SquareChevronRight className="size-3" />
-                                <span className="hover:text-gray-700 cursor-pointer" onClick={() => setSprintId(0)}>
-                                    {selectedProject?.nombre}
-                                </span>
-                            </>
-                        )}
-                        {sprintId > 0 && (
-                            <>
-                                <SquareChevronRight className="size-3" />
-                                <span>{selectedSprint?.nombre}</span>
-                            </>
-                        )}
-                    </div>
                 </div>
-
-                {/* Contenido principal */}
-                {!projectId && !sprintId && renderProjects()}
-                {projectId > 0 && !sprintId && renderSprints()}
-                {sprintId > 0 && renderTaskBoard()}
-
-                {/* Modales */}
-                <ModalForm
-                    actionType="proyectos"
-                    formName="Project"
-                    nameModal="create-project"
-                    formFunction={() => ProjectFields()}
-                    refetch={refetchProjects}
-                    messageButton="Crear Nuevo Proyecto"
-                />
-
-                {projectId > 0 && (
-                    <ModalForm
-                        actionType="sprints"
-                        formName="Sprint"
-                        nameModal="create-sprint"
-                        sprintId={projectId}
-                        formFunction={() => SprintFields(projectId)}
-                        refetch={refetchSprints}
-                        messageButton="Crear Nuevo Sprint"
-                    />
-                )}
-
-                {sprintId > 0 && (
-                    <ModalForm
-                        actionType="tareas"
-                        formName="Task"
-                        nameModal="create-task"
-                        sprintId={sprintId}
-                        formFunction={() => TaskFields(sprintId)}
-                        refetch={refetchTasks}
-                        messageButton="Crear Nueva Tarea"
-                    />
-                )}
             </main>
             <Footer />
+
+            {/* Modal de Proyecto */}
+            <Modal
+                modalName="projectModal"
+                title={editingItem ? "Editar Proyecto" : "Nuevo Proyecto"}
+                maxWidth="lg"
+            >
+                <MainForm
+                    message_button={editingItem ? "Actualizar Proyecto" : "Crear Proyecto"}
+                    actionType="post-general"
+                    dataForm={projectFormFields}
+                    table="proyectos"
+                    aditionalData={editingItem ? { id: editingItem.id } : undefined}
+                    onSuccess={handleProjectSuccess}
+                />
+            </Modal>
+
+            {/* Modal de Sprint */}
+            <Modal
+                modalName="sprintModal"
+                title={editingItem ? "Editar Sprint" : "Nuevo Sprint"}
+                maxWidth="lg"
+            >
+                <MainForm
+                    message_button={editingItem ? "Actualizar Sprint" : "Crear Sprint"}
+                    actionType="post-general"
+                    dataForm={sprintFormFields}
+                    table="sprints"
+                    aditionalData={
+                        editingItem
+                            ? { id: editingItem.id, proyecto_id: selectedProject?.id }
+                            : { proyecto_id: selectedProject?.id }
+                    }
+                    onSuccess={handleSprintSuccess}
+                    showButton={true}
+                />
+            </Modal>
+
+            {/* Modal de Tarea */}
+            <Modal
+                modalName="taskModal"
+                title={editingItem ? "Editar Tarea" : "Nueva Tarea"}
+                maxWidth="lg"
+            >
+                <MainForm
+                    message_button={editingItem ? "Actualizar Tarea" : "Crear Tarea"}
+                    actionType="post-general"
+                    dataForm={taskFormFields}
+                    table="tareas"
+                    aditionalData={
+                        editingItem
+                            ? { id: editingItem.id, sprint_id: selectedSprint?.id }
+                            : { sprint_id: selectedSprint?.id }
+                    }
+                    onSuccess={handleTaskSuccess}
+                    showButton={true}
+                />
+            </Modal>
+
+            {/* Modal de Estadísticas */}
+            <Modal
+                modalName="statsModal"
+                title="Estadísticas de Proyecto"
+                maxWidth="2xl"
+            >
+                {selectedProject && (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <Card
+                                title="Progreso General"
+                                value={`${calculateProgress()}%`}
+                                icon={<Target className="text-white size-6" />}
+                            />
+                            <Card
+                                title="Sprints Activos"
+                                value={sprints.filter(s => {
+                                    const now = new Date();
+                                    const start = new Date(s.fecha_inicio);
+                                    const end = new Date(s.fecha_fin);
+                                    return now >= start && now <= end;
+                                }).length}
+                                icon={<Zap className="text-white size-6" />}
+                            />
+                            <Card
+                                title="Tareas de Alta Prioridad"
+                                value={tasks.filter(t => t.prioridad === 'alta' || t.prioridad === 'critica').length}
+                                icon={<AlertTriangle className="text-white size-6" />}
+                            />
+                            <Card
+                                title="Tiempo Promedio"
+                                value="-- días"
+                                icon={<Clock className="text-white size-6" />}
+                            />
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                            <h3 className="font-semibold text-gray-800 mb-3">Distribución por Estado</h3>
+                            <div className="space-y-2">
+                                {['pendiente', 'en_progreso', 'en_revision', 'completado'].map((estado) => {
+                                    const count = tasks.filter(t => t.estado === estado).length;
+                                    const percentage = taskStats.total > 0 ? (count / taskStats.total) * 100 : 0;
+                                    return (
+                                        <div key={estado} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-3 h-3 rounded-full ${estado === 'completado' ? 'bg-green-500' :
+                                                    estado === 'en_progreso' ? 'bg-blue-500' :
+                                                        estado === 'en_revision' ? 'bg-purple-500' : 'bg-gray-500'
+                                                    }`} />
+                                                <span className="text-sm capitalize">{estado.replace('_', ' ')}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-sm font-medium">{count}</span>
+                                                <div className="w-32 bg-gray-200 rounded-full h-2">
+                                                    <div
+                                                        className={`h-2 rounded-full ${estado === 'completado' ? 'bg-green-500' :
+                                                            estado === 'en_progreso' ? 'bg-blue-500' :
+                                                                estado === 'en_revision' ? 'bg-purple-500' : 'bg-gray-500'
+                                                            }`}
+                                                        style={{ width: `${percentage}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-sm text-gray-600 w-10">{percentage.toFixed(1)}%</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                            <h3 className="font-semibold text-gray-800 mb-3">Distribución por Prioridad</h3>
+                            <div className="space-y-2">
+                                {['baja', 'media', 'alta', 'critica'].map((prioridad) => {
+                                    const count = tasks.filter(t => t.prioridad === prioridad).length;
+                                    const percentage = taskStats.total > 0 ? (count / taskStats.total) * 100 : 0;
+                                    return (
+                                        <div key={prioridad} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-3 h-3 rounded-full ${prioridad === 'critica' ? 'bg-red-500' :
+                                                    prioridad === 'alta' ? 'bg-orange-500' :
+                                                        prioridad === 'media' ? 'bg-yellow-500' : 'bg-gray-500'
+                                                    }`} />
+                                                <span className="text-sm capitalize">{prioridad}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-sm font-medium">{count}</span>
+                                                <div className="w-32 bg-gray-200 rounded-full h-2">
+                                                    <div
+                                                        className={`h-2 rounded-full ${prioridad === 'critica' ? 'bg-red-500' :
+                                                            prioridad === 'alta' ? 'bg-orange-500' :
+                                                                prioridad === 'media' ? 'bg-yellow-500' : 'bg-gray-500'
+                                                            }`}
+                                                        style={{ width: `${percentage}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-sm text-gray-600 w-10">{percentage.toFixed(1)}%</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <Button color="info">
+                                <Download className="size-5" />
+                                <span>Exportar</span>
+                            </Button>
+                            <Button color="success">
+                                <Share2 className="size-5" />
+                                <span>Compartir</span>
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </>
     );
 }

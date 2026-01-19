@@ -43,7 +43,7 @@ export default function Home() {
             </p>
             <ul className="flex flex-col sm:flex-row relative justify-center gap-4 z-10">
               <a href="https://eusebio.dev" target="_blank" className="bg-white cursor-pointer text-green-600 border-2 border-green-800 hover:bg-gray-100 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
-                Solicitar Demo
+                Fuente
               </a>
               <a href="/informacion" className="bg-white/70 cursor-pointer border-2 border-green-800 hover:bg-white/90 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300">
                 Conocer más

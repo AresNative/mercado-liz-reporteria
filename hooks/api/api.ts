@@ -139,19 +139,16 @@ export const api = createApi({
       extraOptions: { maxRetries: 2 },
     }),
     postGeneral: builder.mutation({
-      query: ({ table, data, signal }) => (
-        console.log(data),
-        {
-          url: `v1/register`,
-          method: "POST",
-          params: { table },
-          body: JSON.stringify(data),
-          headers: {
-            "Content-Type": "application/json",
-          },
-          signal,
-        }
-      ),
+      query: ({ table, data, signal }) => ({
+        url: `v1/register`,
+        method: "POST",
+        params: { table },
+        body: JSON.stringify(data),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal,
+      }),
       transformErrorResponse: (response: any) => ({
         status: response.status,
         message: response.data?.message || "Error fetching data",
