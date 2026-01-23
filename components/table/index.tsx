@@ -213,7 +213,6 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
     return (
         <div className="w-full space-y-8 relative">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-600">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Datos de la Tabla</h2>
                 <div className="flex items-center space-x-2">
                     <ViewTR {...{ setShowColumnMenu, column: 'toggle', toggleColumn, showColumnMenu, visibleColumns, allColumns: true }} />
                 </div>

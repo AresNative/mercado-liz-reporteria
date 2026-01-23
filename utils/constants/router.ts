@@ -124,9 +124,9 @@ export const navigationAdmin = [
     icon: UsersRound,
   },
   {
-    name: "Subastas",
-    href: "/subastas",
-    icon: ChartColumnStacked,
+    name: "Update",
+    href: "/update",
+    icon: Info,
   },
   {
     name: "Articulos",

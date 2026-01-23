@@ -44,8 +44,6 @@ export const MainForm = React.forwardRef(({
   action,
   valueAssign,
   onSuccess,
-  formName,
-  modelName,
   iconButton,
   table
 }: MainFormProps, ref: any) => {
@@ -285,9 +283,10 @@ export const MainForm = React.forwardRef(({
           type: "error",
           icon: "archivo",
           duration: 4000
-        }))
+        }));
     } finally {
       setLoading(false);
+      reset();
     }
   }
 

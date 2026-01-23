@@ -34,10 +34,10 @@ export default function Home() {
     <>
       <Header />
       {/* Hero Section */}
-      <header className="text-center bg-[url(/fondo.jpg)] bg-cover text-green-800 dark:text-green-200 bg-no-repeat bg-center relative">
+      <header className="text-center bg-[url(/fondo.png)] bg-cover text-green-800 dark:text-green-200 bg-no-repeat bg-center relative">
         <div className="py-40 px-4 bg-gradient-to-b from-gray-50/60 to-[var(--background)]">
           <section className="max-w-6xl mx-auto ">
-            <h1 className="text-4xl md:text-6xl font-bold mb-4">Gestión Empresarial Integral</h1>
+            <h1 className="text-4xl md:text-6xl font-bold mb-4">Supermercados Mejia</h1>
             <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
               La solución todo en uno para gestionar compras, ventas, subastas, proyectos, empleados y nómina
             </p>
