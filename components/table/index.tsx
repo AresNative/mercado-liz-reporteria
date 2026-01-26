@@ -143,6 +143,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         // Formato de precios
         if (
             (normalizedKey.includes('price') ||
+                normalizedKey.includes('precio') ||
                 normalizedKey.includes('puja') ||
                 normalizedKey.includes('importe') ||
                 normalizedKey.includes('costo')) &&
