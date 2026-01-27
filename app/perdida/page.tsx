@@ -19,74 +19,10 @@ import { Button } from "@/components/button";
 import { safeCall } from "@/hooks/use-debounce";
 import { cn } from "@/utils/functions/cn";
 import { sendWhatsAppMessage } from "./hooks/send-whats";
+import { BodyRequest, ParamsRequest, ApiResponse, FilterFormData, WhatsAppFormData } from "./constants/types";
+import DetailsVenta from "./components/details-venta";
 
-// Tipos mejorados
-interface Filter {
-    key: string;
-    value: string;
-    operator: string;
-}
 
-interface Select {
-    key: string;
-    alias?: string;
-}
-
-interface Aggregation {
-    key: string;
-    operation: string;
-    alias: string;
-}
-
-interface Order {
-    key: string;
-    direction: 'asc' | 'desc';
-}
-
-interface LogicalFilterGroup {
-    filtros: Filter[];
-    logicalOperator: 'and' | 'or';
-}
-
-interface BodyRequest {
-    selects: Select[];
-    agregaciones: Aggregation[];
-    order: Order[];
-    filtrosAnd: LogicalFilterGroup[];
-    filtrosOr: LogicalFilterGroup[];
-}
-
-interface ParamsRequest {
-    table: string;
-    page: number;
-    pageSize: number;
-}
-
-interface ApiResponse {
-    data?: {
-        data: any[];
-        page?: number;
-        totalRecords?: number;
-        totalEstimated?: number;
-    };
-    error?: any;
-}
-
-interface WhatsAppFormData {
-    phoneNumber: string;
-    message: string;
-    includeSummary?: boolean;
-    includeSampleData?: boolean;
-}
-
-interface FilterFormData {
-    reportName: string;
-    startDate?: string;
-    endDate?: string;
-    ref?: string;
-    almacen?: string;
-    movimiento?: string;
-}
 
 // Constantes
 const OPERATORS = [
@@ -106,13 +42,10 @@ const OPERATORS = [
 
 const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_TABLE = `venta`;
-/* 
-  INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID
-  INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo
-*/
 
 const DEFAULT_BODY: BodyRequest = {
     selects: [
+        { key: "venta.ID" },
         { key: "venta.MOVID" },
         { key: "venta.Almacen" },
         { key: "venta.importe" },
@@ -185,6 +118,7 @@ export default function ReportingPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [reportName, setReportName] = useState<string>('Reporte de perdidas');
+    const [IdDetails, setIdDetails] = useState<number | undefined>()
 
     // Helper function para notificaciones
     const showNotification = useCallback((
@@ -244,7 +178,7 @@ export default function ReportingPage() {
             }
 
             setData(responseData.data);
-            const records = responseData.totalRecords || responseData.data.length;
+            const records = responseData.totalRecords ? responseData.totalRecords : responseData.totalEstimated || responseData.data.length;
             setTotalPages(Math.ceil(records / params.pageSize));
         } catch (err: any) {
             if (controller.signal.aborted) return;
@@ -407,8 +341,8 @@ export default function ReportingPage() {
         showNotification('success', 'Datos exportados exitosamente');
     }, [data, reportName, showNotification]);
 
-    const handleViewModal = useCallback((modalType: 'filter' | 'whatsapp') => {
-        const modalName = modalType === 'filter' ? "form-filter" : "whatsapp-modal";
+    const handleViewModal = useCallback((modalType: 'form-filter' | 'whatsapp-modal' | 'details-venta') => {
+        const modalName = modalType;
         dispatch(openModalReducer({ modalName }));
     }, [dispatch]);
 
@@ -441,7 +375,7 @@ export default function ReportingPage() {
                         <Button
                             color="success"
                             size="small"
-                            onClick={() => handleViewModal('filter')}
+                            onClick={() => handleViewModal('form-filter')}
                             disabled={loading}
                         >
                             <Form className="size-4" />
@@ -473,7 +407,7 @@ export default function ReportingPage() {
                         <Button
                             color="success"
                             size="small"
-                            onClick={() => handleViewModal('whatsapp')}
+                            onClick={() => handleViewModal('whatsapp-modal')}
                             disabled={loading || data.length === 0}
                         >
                             <MessageCircle className="size-4" />
@@ -508,7 +442,10 @@ export default function ReportingPage() {
                         </p>
                     </div>
 
-                    <DynamicTable data={data} loading={loading} />
+                    <DynamicTable data={data} loading={loading} onRowClick={(item: any) => {
+                        setIdDetails(item.ID);
+                        handleViewModal('details-venta');
+                    }} />
 
                     {!loading && data.length > 0 && (
                         <Pagination
@@ -655,6 +592,12 @@ export default function ReportingPage() {
                         </p>
                     </div>
                 </section>
+            </Modal>
+
+
+            {/* Modal para WhatsApp */}
+            <Modal modalName="details-venta" title="Detalles de la Venta" maxWidth="5xl">
+                <DetailsVenta id={IdDetails} />
             </Modal>
         </>
     );

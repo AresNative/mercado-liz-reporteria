@@ -144,6 +144,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         if (
             (normalizedKey.includes('price') ||
                 normalizedKey.includes('precio') ||
+                normalizedKey.includes('diferencia') ||
                 normalizedKey.includes('puja') ||
                 normalizedKey.includes('importe') ||
                 normalizedKey.includes('costo')) &&
