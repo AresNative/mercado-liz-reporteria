@@ -1,5 +1,4 @@
 import { useGetMasivoWithFiltersMutation } from "@/hooks/api/api_int";
-import { useAppDispatch } from "@/hooks/selector";
 import { safeCall } from "@/hooks/use-debounce";
 import { useRef, useCallback, useState, useEffect, useMemo } from "react";
 import { ParamsRequest, BodyRequest, ApiResponse } from "../constants/types";
@@ -30,7 +29,6 @@ export default function DetailsVenta({ id }: { id?: number }) {
             {
                 filtros: [
                     { key: "ventad.ID", operator: "=", value: `${id}` },
-                    /* { key: "(ventad.Precio * ventad.Cantidad)", operator: ">", value: "(ventad.Costo * ventad.Cantidad)" }, */
                 ],
                 logicalOperator: 'and'
             }
@@ -38,11 +36,7 @@ export default function DetailsVenta({ id }: { id?: number }) {
         filtrosOr: []
     }), [id]);
 
-    const dispatch = useAppDispatch();
     const [getData] = useGetMasivoWithFiltersMutation();
-
-    const [table, setTable] = useState<string>(DEFAULT_TABLE);
-    const [body, setBody] = useState<BodyRequest>(DEFAULT_BODY);
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -112,7 +106,7 @@ export default function DetailsVenta({ id }: { id?: number }) {
 
     useEffect(() => {
         fetchData({
-            table,
+            table: DEFAULT_TABLE,
             page: page,
             pageSize: 10
         }, DEFAULT_BODY);

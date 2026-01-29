@@ -18,7 +18,7 @@ import Pagination from "@/components/pagination";
 import { Button } from "@/components/button";
 import { safeCall } from "@/hooks/use-debounce";
 import { cn } from "@/utils/functions/cn";
-import { sendWhatsAppMessage } from "./hooks/send-whats";
+import { sendWhatsAppMessage, sendWhatsAppTemplate } from "./hooks/send-whats";
 import { BodyRequest, ParamsRequest, ApiResponse, FilterFormData, WhatsAppFormData } from "./constants/types";
 import DetailsVenta from "./components/details-venta";
 
@@ -302,13 +302,46 @@ export default function ReportingPage() {
         try {
             const messageBody = prepareWhatsAppMessage(formData, data);
 
+            // Intento 1: Enviar mensaje libre
+            /* try {
+                await sendWhatsAppMessage({
+                    to: `whatsapp:${formData.phoneNumber}`,
+                    body: messageBody
+                });
+
+                showNotification('success', 'Mensaje enviado exitosamente');
+                dispatch(closeModalReducer({ modalName: "whatsapp-modal" }));
+            } catch (error: any) { */
+            // Si está fuera de ventana, enviar plantilla primero
+            /* if (error.message === "OUTSIDE_WINDOW") { */
+            showNotification('info', 'Enviando plantilla de notificación primero...');
+
+            // Paso 1: Enviar plantilla
+            const templateResult = await sendWhatsAppTemplate(formData.phoneNumber, "reporte");
+
+            if (!templateResult.success) {
+                throw new Error('Error al enviar plantilla');
+            }
+
+            //showNotification('info', 'Plantilla enviada. Ahora enviando el reporte...');
+
+            // Esperar 2 segundos para que la plantilla llegue
+            /* await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Paso 2: Reintentar mensaje libre
             await sendWhatsAppMessage({
                 to: `whatsapp:${formData.phoneNumber}`,
                 body: messageBody
             });
 
-            showNotification('success', 'Mensaje enviado exitosamente');
-            dispatch(closeModalReducer({ modalName: "whatsapp-modal" }));
+            showNotification('success', 'Reporte enviado exitosamente');
+            dispatch(closeModalReducer({ modalName: "whatsapp-modal" })); */
+            /* } else {
+                // Otro error
+                throw error;
+            } */
+            /*  } */
+
         } catch (error: any) {
             console.error('Error enviando WhatsApp:', error);
             showNotification('error', error.message || 'Error al enviar el mensaje');
