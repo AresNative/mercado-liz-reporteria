@@ -18,11 +18,9 @@ import Pagination from "@/components/pagination";
 import { Button } from "@/components/button";
 import { safeCall } from "@/hooks/use-debounce";
 import { cn } from "@/utils/functions/cn";
-import { sendWhatsAppMessage, sendWhatsAppTemplate } from "./hooks/send-whats";
+import { sendWhatsAppMessage } from "./hooks/send-whats";
 import { BodyRequest, ParamsRequest, ApiResponse, FilterFormData, WhatsAppFormData } from "./constants/types";
 import DetailsVenta from "./components/details-venta";
-
-
 
 // Constantes
 const OPERATORS = [
@@ -41,31 +39,39 @@ const OPERATORS = [
 ] as const;
 
 const DEFAULT_PAGE_SIZE = 10;
-const DEFAULT_TABLE = `venta`;
+const DEFAULT_TABLE = `gasto 
+  LEFT JOIN Prov AS P ON gasto.Acreedor = P.Proveedor
+  LEFT JOIN CFDEgreso AS CFDE ON gasto.ID = CFDE.ModuloID`;
 
 const DEFAULT_BODY: BodyRequest = {
     selects: [
-        { key: "venta.ID" },
-        { key: "venta.MOVID" },
-        { key: "venta.Almacen" },
-        { key: "venta.importe" },
-        { key: "venta.costoTotal" },
-        { key: "venta.PrecioTotal" },
-        { key: "venta.Estatus" },
-        { key: "venta.Mov" },
-        { key: "venta.FechaEmision" },
+        { key: "gasto.ID" },
+        { key: "gasto.MovID" },
+        { key: "gasto.FechaEmision" },
+        { key: "gasto.CLASE" },
+        { key: "gasto.Subclase" },
+        { key: "gasto.Acreedor" },
+        { key: "P.Nombre", alias: "Proveedor" },
+        { key: "gasto.Estatus" },
+        { key: "gasto.Ejercicio" },
+        { key: "CFDE.Documento", alias: "DocumentoFiscal" },
+        { key: "CFDE.FechaTimbrado", alias: "FechaTimbrado" },
+        { key: "CFDE.UUID", alias: "UUID" },
     ],
     agregaciones: [
-        /* { key: "(venta.PrecioTotal * venta.costoTotal)", alias: "perdida", operation: "SUM" }, */
+        /* { key: "(GD.Importe)", operator:"SUM" , alias: "TotalImporte" },
+        { key: "(GD.Impuestos)", operator:"SUM" , alias: "TotalImpuestos" },
+        { key: "(GD.Concepto)", operator:"SUM" , alias: "ConceptoPrincipal" },
+        { key: "(GD.Precio * GD.Cantidad)", operator:"SUM" , alias: "TotalPrecio" },
+        { key: "(GD.Cantidad)", operator:"SUM" , alias: "TotalCantidad" } */
     ],
     order: [
-        { key: "venta.FechaEmision", direction: "desc" }
+        { key: "gasto.FechaEmision", direction: "desc" }
     ],
     filtrosAnd: [
         {
             filtros: [
-                { key: "venta.Estatus", operator: "=", value: 'CONCLUIDO' },
-                { key: "venta.Mov", operator: "IN", value: 'Factura,Factura Credito,Factura Global,Nota' },
+                { key: "gasto.Estatus", operator: "=", value: 'CONCLUIDO' },
             ],
             logicalOperator: 'and'
         }
@@ -117,7 +123,7 @@ export default function ReportingPage() {
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [reportName, setReportName] = useState<string>('Reporte de perdidas');
+    const [reportName, setReportName] = useState<string>('Reporte de Gastos');
     const [IdDetails, setIdDetails] = useState<number | undefined>()
 
     // Helper function para notificaciones
@@ -193,7 +199,7 @@ export default function ReportingPage() {
     }, [getData, showNotification, abortPendingRequest]);
 
     const handleApplyFilters = useCallback((formData: FilterFormData) => {
-        const { reportName, startDate, endDate, ref, almacen, movimiento } = formData;
+        const { reportName, startDate, endDate, ref, clase, subclase, acreedor, ejercicio } = formData;
 
         if (reportName) {
             setReportName(reportName);
@@ -209,29 +215,39 @@ export default function ReportingPage() {
                     filtros: [
                         ...DEFAULT_BODY.filtrosAnd[0].filtros,
                         ...(formattedStartDate ? [{
-                            key: "venta.FechaEmision",
+                            key: "gasto.FechaEmision",
                             operator: ">=",
                             value: formattedStartDate
                         }] : []),
                         ...(formattedEndDate ? [{
-                            key: "venta.FechaEmision",
+                            key: "gasto.FechaEmision",
                             operator: "<=",
                             value: formattedEndDate
                         }] : []),
                         ...(ref ? [{
-                            key: "venta.MovID",
+                            key: "gasto.MovID",
                             operator: "=",
                             value: ref
                         }] : []),
-                        ...(almacen ? [{
-                            key: "venta.Almacen",
+                        ...(clase ? [{
+                            key: "gasto.CLASE",
                             operator: "=",
-                            value: almacen
+                            value: clase
                         }] : []),
-                        ...(movimiento ? [{
-                            key: "venta.Mov",
+                        ...(subclase ? [{
+                            key: "gasto.Subclase",
                             operator: "=",
-                            value: movimiento
+                            value: subclase
+                        }] : []),
+                        ...(acreedor ? [{
+                            key: "gasto.Acreedor",
+                            operator: "=",
+                            value: acreedor
+                        }] : []),
+                        ...(ejercicio ? [{
+                            key: "gasto.Ejercicio",
+                            operator: "=",
+                            value: ejercicio
                         }] : []),
                     ],
                     logicalOperator: 'and' as const
@@ -261,30 +277,33 @@ export default function ReportingPage() {
         let fullMessage = message;
 
         if (includeSummary) {
-            const summary = `
-                        📊 *Reporte: ${reportName}*
+            const totalImporte = reportData.reduce((sum, item) => sum + (parseFloat(item.TotalImporte) || 0), 0);
+            const totalImpuestos = reportData.reduce((sum, item) => sum + (parseFloat(item.TotalImpuestos) || 0), 0);
+            const totalGeneral = totalImporte + totalImpuestos;
 
-                        📈 *Resumen del Reporte:*
-                        • Total de registros: ${reportData.length}
-                        • Fecha generación: ${new Date().toLocaleDateString()}
-                        • Hora: ${new Date().toLocaleTimeString()}`;
+            const summary = `
+📊 *Reporte: ${reportName}*
+
+📈 *Resumen del Reporte:*
+• Total de gastos: ${reportData.length}
+• Importe total: $${totalImporte.toFixed(2)}
+• Impuestos totales: $${totalImpuestos.toFixed(2)}
+• Total general: $${totalGeneral.toFixed(2)}
+• Fecha generación: ${new Date().toLocaleDateString()}
+• Hora: ${new Date().toLocaleTimeString()}`;
 
             fullMessage = summary + '\n\n' + fullMessage;
         }
 
         if (includeSampleData && reportData.length > 0) {
             const sampleData = reportData.slice(0, 5).map((item, index) => {
-                const mainFields = Object.entries(item)
-                    .slice(0, 3)
-                    .map(([key, value]) => `${key}: ${value}`)
-                    .join(', ');
-                return `\n${index + 1}. ${mainFields}`;
+                return `\n${index + 1}. ${item.MovID || 'Sin referencia'} - ${item.ConceptoPrincipal || 'Sin concepto'} - $${(parseFloat(item.TotalImporte) || 0).toFixed(2)}`;
             }).join('');
 
-            fullMessage += '\n\n📋 *Datos principales:*' + sampleData;
+            fullMessage += '\n\n📋 *Gastos principales:*' + sampleData;
 
             if (reportData.length > 5) {
-                fullMessage += `\n\n... y ${reportData.length - 5} registros más`;
+                fullMessage += `\n\n... y ${reportData.length - 5} gastos más`;
             }
         }
 
@@ -305,43 +324,9 @@ export default function ReportingPage() {
                 to: `${formData.phoneNumber}`,
                 body: messageBody
             });
-            // Intento 1: Enviar mensaje libre
-            /* try {
-                
 
-                showNotification('success', 'Mensaje enviado exitosamente');
-                dispatch(closeModalReducer({ modalName: "whatsapp-modal" }));
-            } catch (error: any) { */
-            // Si está fuera de ventana, enviar plantilla primero
-            /* if (error.message === "OUTSIDE_WINDOW") { */
-            /*  showNotification('info', 'Enviando plantilla de notificación primero...');
- 
-             // Paso 1: Enviar plantilla
-             const templateResult = await sendWhatsAppTemplate(formData.phoneNumber, "reporte");
- 
-             if (!templateResult.success) {
-                 throw new Error('Error al enviar plantilla');
-             } */
-
-            //showNotification('info', 'Plantilla enviada. Ahora enviando el reporte...');
-
-            // Esperar 2 segundos para que la plantilla llegue
-            /* await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Paso 2: Reintentar mensaje libre
-            await sendWhatsAppMessage({
-                to: `whatsapp:${formData.phoneNumber}`,
-                body: messageBody
-            });
-
-            showNotification('success', 'Reporte enviado exitosamente');
-            dispatch(closeModalReducer({ modalName: "whatsapp-modal" })); */
-            /* } else {
-                // Otro error
-                throw error;
-            } */
-            /*  } */
-
+            showNotification('success', 'Mensaje enviado exitosamente');
+            dispatch(closeModalReducer({ modalName: "whatsapp-modal" }));
         } catch (error: any) {
             console.error('Error enviando WhatsApp:', error);
             showNotification('error', error.message || 'Error al enviar el mensaje');
@@ -370,7 +355,7 @@ export default function ReportingPage() {
             return;
         }
 
-        exportToCSV(data, `reporte_${reportName.replace(/\s+/g, '_')}`);
+        exportToCSV(data, `reporte_gastos_${reportName.replace(/\s+/g, '_')}`);
         showNotification('success', 'Datos exportados exitosamente');
     }, [data, reportName, showNotification]);
 
@@ -397,7 +382,7 @@ export default function ReportingPage() {
         };
     }, [abortPendingRequest]);
 
-    const defaultWhatsAppMessage = `Adjunto el reporte "${reportName}" generado el ${new Date().toLocaleDateString()} con ${data.length} registros.`;
+    const defaultWhatsAppMessage = `Adjunto el reporte de gastos "${reportName}" generado el ${new Date().toLocaleDateString()} con ${data.length} registros.`;
 
     return (
         <>
@@ -475,10 +460,14 @@ export default function ReportingPage() {
                         </p>
                     </div>
 
-                    <DynamicTable data={data} loading={loading} onRowClick={(item: any) => {
-                        setIdDetails(item.ID);
-                        handleViewModal('details-venta');
-                    }} />
+                    <DynamicTable
+                        data={data}
+                        loading={loading}
+                        onRowClick={(item: any) => {
+                            setIdDetails(item.ID);
+                            handleViewModal('details-venta');
+                        }}
+                    />
 
                     {!loading && data.length > 0 && (
                         <Pagination
@@ -499,7 +488,7 @@ export default function ReportingPage() {
             <Footer />
 
             {/* Modal para filtros */}
-            <Modal modalName="form-filter" title="Configurar Reporte">
+            <Modal modalName="form-filter" title="Configurar Reporte de Gastos">
                 <section className="w-full px-6 py-2">
                     <MainForm
                         message_button="Generar Reporte"
@@ -535,43 +524,54 @@ export default function ReportingPage() {
                                 type: "Flex",
                                 elements: [
                                     {
-                                        type: "SELECT",
-                                        name: "almacen",
-                                        label: "Almacén",
-                                        options: [
-                                            { value: "ALMMAYO", label: "Mayoreo" },
-                                            { value: "ALMVGPE", label: "Guadalupe" },
-                                            { value: "ALMPALM", label: "Palmas" },
-                                            { value: "ALMTESTE", label: "Testerazo" },
-                                        ],
+                                        type: "INPUT",
+                                        name: "ref",
+                                        label: "Referencia (MovID)",
+                                        placeholder: "GAS-000",
                                         require: false,
                                         maxLength: 20,
                                     },
                                     {
                                         type: "INPUT",
-                                        name: "ref",
-                                        label: "Referencia (MOVID)",
-                                        placeholder: "MAY-000",
+                                        name: "clase",
+                                        label: "Clase",
+                                        placeholder: "Ej: MANTENIMIENTO",
                                         require: false,
-                                        maxLength: 20,
+                                        maxLength: 50,
                                     },
                                     {
-                                        type: "SELECT",
-                                        name: "movimiento",
-                                        label: "Movimiento",
-                                        options: [
-                                            { value: "Nota", label: "Nota" },
-                                            { value: "Factura", label: "Factura" },
-                                            { value: "Factura Credito", label: "Factura Credito" },
-                                            { value: "Factura Global", label: "Factura Global" },
-                                        ],
+                                        type: "INPUT",
+                                        name: "subclase",
+                                        label: "Subclase",
+                                        placeholder: "Ej: CORRECTIVO",
                                         require: false,
-                                        maxLength: 20,
+                                        maxLength: 50,
                                     },
                                 ],
                                 require: false,
                             },
-
+                            {
+                                type: "Flex",
+                                elements: [
+                                    {
+                                        type: "INPUT",
+                                        name: "acreedor",
+                                        label: "Acreedor",
+                                        placeholder: "Código de acreedor",
+                                        require: false,
+                                        maxLength: 20,
+                                    },
+                                    {
+                                        type: "INPUT",
+                                        name: "ejercicio",
+                                        label: "Ejercicio",
+                                        placeholder: "2025",
+                                        require: false,
+                                        maxLength: 4,
+                                    },
+                                ],
+                                require: false,
+                            },
                         ]}
                         onSuccess={handleApplyFilters}
                     />
@@ -579,7 +579,7 @@ export default function ReportingPage() {
             </Modal>
 
             {/* Modal para WhatsApp */}
-            <Modal modalName="whatsapp-modal" title="Enviar por WhatsApp">
+            <Modal modalName="whatsapp-modal" title="Enviar Reporte de Gastos por WhatsApp">
                 <section className="w-full p-6">
                     <MainForm
                         message_button={loading ? "Enviando..." : "Enviar Mensaje"}
@@ -620,16 +620,15 @@ export default function ReportingPage() {
 
                     <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-700">
-                            <strong>Información:</strong> Se enviará un resumen del reporte &quot;{reportName}&quot;
+                            <strong>Información:</strong> Se enviará un resumen del reporte de gastos &quot;{reportName}&quot;
                             con {data.length} registros via WhatsApp.
                         </p>
                     </div>
                 </section>
             </Modal>
 
-
-            {/* Modal para WhatsApp */}
-            <Modal modalName="details-venta" title="Detalles de la Venta" maxWidth="5xl">
+            {/* Modal para detalles */}
+            <Modal modalName="details-venta" title="Detalles del Gasto" maxWidth="5xl">
                 <DetailsVenta id={IdDetails} />
             </Modal>
         </>

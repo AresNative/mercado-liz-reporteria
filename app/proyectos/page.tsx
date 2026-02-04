@@ -550,7 +550,7 @@ export default function ScrumScreen() {
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                         {/* Panel de Proyectos - Bento Grid */}
                         <div className="lg:col-span-1">
-                            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-5 border border-gray-200">
+                            <div className="bg-white/80 sticky top-20 backdrop-blur-sm rounded-2xl shadow-lg p-5 border border-gray-200">
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                                         <Flag className="text-blue-600 size-6" />

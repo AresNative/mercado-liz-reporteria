@@ -1,7 +1,7 @@
 export const formatValue = (
   value: number | string | null | undefined,
   format: "currency" | "percentage" | "number" | "compact" = "number",
-  decimals: number = 2
+  decimals: number = 2,
 ): string => {
   // Manejo de valores nulos, vacíos o NaN
   if (value === null || value === undefined || value === "") return "—";
@@ -62,3 +62,7 @@ export function separarFechas(fechaRango: string) {
     fechaFinal: fechas[1] || "",
   };
 }
+export const formatDateToISO = (dateString?: string): string | null => {
+  if (!dateString) return null;
+  return new Date(dateString).toISOString().split("T")[0];
+};
