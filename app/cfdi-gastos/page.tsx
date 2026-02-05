@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { useAppDispatch } from "@/hooks/selector";
 import {
     openModalReducer,
@@ -58,13 +58,7 @@ const DEFAULT_BODY: BodyRequest = {
         { key: "CFDE.FechaTimbrado", alias: "FechaTimbrado" },
         { key: "CFDE.UUID", alias: "UUID" },
     ],
-    agregaciones: [
-        /* { key: "(GD.Importe)", operator:"SUM" , alias: "TotalImporte" },
-        { key: "(GD.Impuestos)", operator:"SUM" , alias: "TotalImpuestos" },
-        { key: "(GD.Concepto)", operator:"SUM" , alias: "ConceptoPrincipal" },
-        { key: "(GD.Precio * GD.Cantidad)", operator:"SUM" , alias: "TotalPrecio" },
-        { key: "(GD.Cantidad)", operator:"SUM" , alias: "TotalCantidad" } */
-    ],
+    agregaciones: [],
     order: [
         { key: "gasto.FechaEmision", direction: "desc" }
     ],
@@ -73,7 +67,7 @@ const DEFAULT_BODY: BodyRequest = {
             filtros: [
                 { key: "gasto.Estatus", operator: "=", value: 'CONCLUIDO' },
             ],
-            logicalOperator: 'and'
+            logicalOperator: 'and' as const
         }
     ],
     filtrosOr: []
@@ -111,10 +105,40 @@ const exportToCSV = (data: any[], filename: string): void => {
     URL.revokeObjectURL(url);
 };
 
+// Función para obtener los datos detallados del gasto
+const getGastoDetailsBody = (id: number): BodyRequest => ({
+    selects: [
+        { key: "gastod.Concepto", alias: "ConceptoGasto" },
+        { key: "gastod.Cantidad" },
+        { key: "gastod.Precio" },
+        { key: "gastod.Importe" },
+        { key: "gastod.Impuestos" },
+        { key: "G.MovID", alias: "MovimientoGasto" },
+        { key: "G.CLASE", alias: "ClaseGasto" },
+        { key: "G.Subclase", alias: "SubclaseGasto" },
+        { key: "G.FechaEmision", alias: "FechaGasto" },
+        { key: "(gastod.Importe + gastod.Impuestos)", alias: "TotalLinea" }
+    ],
+    agregaciones: [],
+    order: [
+        { key: "gastod.Renglon", direction: "asc" }
+    ],
+    filtrosAnd: [
+        {
+            filtros: [
+                { key: "gastod.ID", operator: "=", value: `${id}` },
+            ],
+            logicalOperator: 'and' as const
+        }
+    ],
+    filtrosOr: []
+});
+
 export default function ReportingPage() {
     const dispatch = useAppDispatch();
     const [getData] = useGetMasivoWithFiltersMutation();
     const abortControllerRef = useRef<AbortController | null>(null);
+    const detailsAbortControllerRef = useRef<AbortController | null>(null);
 
     const [table, setTable] = useState<string>(DEFAULT_TABLE);
     const [body, setBody] = useState<BodyRequest>(DEFAULT_BODY);
@@ -124,7 +148,14 @@ export default function ReportingPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [reportName, setReportName] = useState<string>('Reporte de Gastos');
-    const [IdDetails, setIdDetails] = useState<number | undefined>()
+
+    // Estados para los detalles del gasto
+    const [IdDetails, setIdDetails] = useState<number | undefined>();
+    const [gastoDetailsData, setGastoDetailsData] = useState<any[]>([]);
+    const [selectedGasto, setSelectedGasto] = useState<any>(null);
+    const [detailsLoading, setDetailsLoading] = useState(false);
+    const [detailsPage, setDetailsPage] = useState(1);
+    const [detailsTotalPages, setDetailsTotalPages] = useState(1);
 
     // Helper function para notificaciones
     const showNotification = useCallback((
@@ -143,6 +174,14 @@ export default function ReportingPage() {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
             abortControllerRef.current = null;
+        }
+    }, []);
+
+    // Función para cancelar requests de detalles
+    const abortPendingDetailsRequest = useCallback(() => {
+        if (detailsAbortControllerRef.current) {
+            detailsAbortControllerRef.current.abort();
+            detailsAbortControllerRef.current = null;
         }
     }, []);
 
@@ -197,6 +236,53 @@ export default function ReportingPage() {
             abortControllerRef.current = null;
         }
     }, [getData, showNotification, abortPendingRequest]);
+
+    // Función para obtener los detalles del gasto
+    const fetchGastoDetails = useCallback(async (id: number) => {
+        abortPendingDetailsRequest();
+
+        const controller = new AbortController();
+        detailsAbortControllerRef.current = controller;
+
+        setDetailsLoading(true);
+
+        try {
+            const response: ApiResponse = await safeCall(
+                () => getData({
+                    signal: controller.signal,
+                    tag: "reporting-details",
+                    table: "gastod LEFT JOIN Gasto AS G ON gastod.ID = G.ID",
+                    page: detailsPage,
+                    pageSize: 10,
+                    filtros: getGastoDetailsBody(id)
+                }),
+                "getGastoDetails"
+            );
+
+            if (controller.signal.aborted) return;
+
+            if (response.error) {
+                throw new Error(response.error);
+            }
+
+            const responseData = response.data;
+            if (!responseData || responseData.data.length === 0) {
+                setGastoDetailsData([]);
+                setDetailsTotalPages(1);
+                return;
+            }
+
+            setGastoDetailsData(responseData.data);
+            const records = responseData.totalRecords ? responseData.totalRecords : responseData.totalEstimated || responseData.data.length;
+            setDetailsTotalPages(Math.ceil(records / 10));
+        } catch (err: any) {
+            if (controller.signal.aborted) return;
+            console.error("Error al obtener detalles del gasto:", err);
+        } finally {
+            setDetailsLoading(false);
+            detailsAbortControllerRef.current = null;
+        }
+    }, [getData, detailsPage, abortPendingDetailsRequest]);
 
     const handleApplyFilters = useCallback((formData: FilterFormData) => {
         const { reportName, startDate, endDate, ref, clase, subclase, acreedor, ejercicio } = formData;
@@ -364,6 +450,24 @@ export default function ReportingPage() {
         dispatch(openModalReducer({ modalName }));
     }, [dispatch]);
 
+    // Función para manejar el clic en una fila
+    const handleRowClick = useCallback((item: any) => {
+        setIdDetails(item.ID);
+        setSelectedGasto(item);
+
+        // Obtener los detalles del gasto
+        fetchGastoDetails(item.ID);
+
+        // Abrir el modal de detalles
+        handleViewModal('details-venta');
+    }, [fetchGastoDetails, handleViewModal]);
+
+    // Obtener el XML del CFDI del gasto seleccionado
+    const selectedCfdiXml = useMemo(() => {
+        if (!selectedGasto) return undefined;
+        return selectedGasto.DocumentoFiscal;
+    }, [selectedGasto]);
+
     // Efecto para cargar datos iniciales
     useEffect(() => {
         if (!table) return;
@@ -375,12 +479,20 @@ export default function ReportingPage() {
         }, body);
     }, [table, page, body, fetchData]);
 
-    // Limpiar abort controller al desmontar
+    // Efecto para recargar detalles cuando cambia la página
+    useEffect(() => {
+        if (IdDetails) {
+            fetchGastoDetails(IdDetails);
+        }
+    }, [detailsPage, IdDetails, fetchGastoDetails]);
+
+    // Limpiar abort controllers al desmontar
     useEffect(() => {
         return () => {
             abortPendingRequest();
+            abortPendingDetailsRequest();
         };
-    }, [abortPendingRequest]);
+    }, [abortPendingRequest, abortPendingDetailsRequest]);
 
     const defaultWhatsAppMessage = `Adjunto el reporte de gastos "${reportName}" generado el ${new Date().toLocaleDateString()} con ${data.length} registros.`;
 
@@ -463,10 +575,7 @@ export default function ReportingPage() {
                     <DynamicTable
                         data={data}
                         loading={loading}
-                        onRowClick={(item: any) => {
-                            setIdDetails(item.ID);
-                            handleViewModal('details-venta');
-                        }}
+                        onRowClick={handleRowClick}
                     />
 
                     {!loading && data.length > 0 && (
@@ -629,7 +738,15 @@ export default function ReportingPage() {
 
             {/* Modal para detalles */}
             <Modal modalName="details-venta" title="Detalles del Gasto" maxWidth="5xl">
-                <DetailsVenta id={IdDetails} />
+                <DetailsVenta
+                    id={IdDetails}
+                    gastoData={gastoDetailsData}
+                    cfdiXml={selectedCfdiXml}
+                    loading={detailsLoading}
+                    page={detailsPage}
+                    setPage={setDetailsPage}
+                    totalPages={detailsTotalPages}
+                />
             </Modal>
         </>
     );
