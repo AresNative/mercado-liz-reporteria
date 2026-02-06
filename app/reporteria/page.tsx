@@ -40,6 +40,7 @@ interface TableData {
 
 interface StatsData {
     totalVentas?: number;
+    totalTikets?: number;
     totalCosto?: number;
     totalArticulos?: number;
     totalClientes?: number;
@@ -49,6 +50,7 @@ interface StatsData {
     diferencia?: number;
     utilidad?: number;
     margen?: number;
+    promedio?: number;
 }
 
 interface QueryConfig {
@@ -172,6 +174,7 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         tableSuggestion: ``,
         selects: [
             { Key: "C.Nombre", Alias: "Cliente" },
+            { Key: "venta.FechaRegistro" },
             { Key: "ventad.Articulo" },
             { Key: "ART.Descripcion1", Alias: "Nombre" },
             { Key: "ART.Categoria" },
@@ -189,9 +192,10 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
             { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
             { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
             { Key: "ventad.Articulo", Alias: "totalArticulos", Operation: "COUNT DISTINCT" },
-            { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT DISTINCT" }
+            { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT DISTINCT" },
+            { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" }
         ],
-        fechaField: "venta.FechaEmision",
+        fechaField: "venta.FechaRegistro",
         searchColumns: SEARCH_COLUMNS_CONFIG.ventas
     },
     compras: {
@@ -360,6 +364,23 @@ const BENTO_METRICS_CONFIG: Record<string, any[]> = {
             type: "number",
             icon: Package,
             description: "Artículos vendidos"
+        },
+
+        {
+            title: "Tikets",
+            raw: 0,
+            display: formatValue(0, "number"),
+            type: "number",
+            icon: Package,
+            description: "tikets vendidos"
+        },
+        {
+            title: "Promedio",
+            raw: 0,
+            display: formatValue(0, "number"),
+            type: "number",
+            icon: Package,
+            description: "promedio venta por tiket"
         }
     ],
     compras: [
@@ -477,6 +498,8 @@ const processStatsData = (statsData: any[] | any): StatsData => {
         if (!s || typeof s !== 'object') return;
 
         if (s.totalVentas !== undefined) out.totalVentas = (out.totalVentas ?? 0) + s.totalVentas;
+        if (s.totalTikets !== undefined) out.totalTikets = (out.totalTikets ?? 0) + s.totalTikets;
+        if (s.totalVentas !== undefined && s.totalTikets > 0) out.promedio = (out.promedio ?? 0) + s.totalVentas / s.totalTikets;
         if (s.totalCosto !== undefined) out.totalCosto = (out.totalCosto ?? 0) + s.totalCosto;
         if (s.totalArticulos !== undefined) out.totalArticulos = (out.totalArticulos ?? 0) + s.totalArticulos;
         if (s.totalCompras !== undefined) out.totalCompras = (out.totalCompras ?? 0) + s.totalCompras;
@@ -523,7 +546,7 @@ const extractUniqueAlmacenes = (data: TableData[]): string[] => {
 
 // Helper para formatear fecha a YYYY-MM-DD
 const formatDateToSQL = (date: Date): string => {
-    return date.toISOString().split('T')[0];
+    return date.toISOString();
 };
 
 // Componente principal
@@ -702,10 +725,11 @@ export default function Report() {
 
             // Filtro de almacén
             if (almacenFilter) {
-                let almacenField = "Almacen";
-                if (reportType === "comparacion") {
-                    almacenField = "venta.Almacen";
-                }
+                let almacenField = "venta.Almacen";
+                if (reportType === "compras") almacenField = "comprad.Almacen";
+                else if (reportType === "mermas" || reportType === "inventario") almacenField = "invd.Almacen";
+                else if (reportType === "comparacion") almacenField = "ventad.Almacen";
+
                 basicFilters.push({
                     Key: almacenField,
                     Operator: "=",
@@ -1376,6 +1400,14 @@ export default function Report() {
                     rawValue = stats.totalVentas || 0;
                     metric.display = formatValue(rawValue, "currency");
                     break;
+                case "tikets":
+                    rawValue = stats.totalTikets || 0;
+                    metric.display = formatValue(rawValue, "number");
+                    break;
+                case "promedio":
+                    rawValue = stats.promedio || 0;
+                    metric.display = formatValue(rawValue, "currency");
+                    break;
                 case "costos":
                     rawValue = -(stats.totalCosto || 0);
                     metric.display = formatValue(stats.totalCosto || 0, "currency");
@@ -1879,7 +1911,7 @@ export default function Report() {
                 {reportType && bentoMetrics.length > 0 && (
                     <div className="mb-6">
                         <BentoGrid
-                            cols={5}
+                            cols={4}
                             loading={statsLoading || refreshingStats}
                         >
                             {bentoMetrics.map((item: any, index: number) => {
@@ -1959,8 +1991,8 @@ export default function Report() {
                                                 <div>
                                                     <label className="block text-sm font-medium mb-1">Desde:</label>
                                                     <input
-                                                        type="date"
-                                                        value={dateRange.from ? dateRange.from.toISOString().split('T')[0] : ''}
+                                                        type="datetime-local"
+                                                        value={dateRange.from ? dateRange.from.toISOString().split('T')[0] + 'T' + dateRange.from.toTimeString().substring(0, 5) : ''}
                                                         onChange={(e) => handleDateChange(
                                                             e.target.value ? new Date(e.target.value) : null,
                                                             dateRange.to
@@ -1971,8 +2003,8 @@ export default function Report() {
                                                 <div>
                                                     <label className="block text-sm font-medium mb-1">Hasta:</label>
                                                     <input
-                                                        type="date"
-                                                        value={dateRange.to ? dateRange.to.toISOString().split('T')[0] : ''}
+                                                        type="datetime-local"
+                                                        value={dateRange.to ? dateRange.to.toISOString().split('T')[0] + 'T' + dateRange.to.toTimeString().substring(0, 5) : ''}
                                                         onChange={(e) => handleDateChange(
                                                             dateRange.from,
                                                             e.target.value ? new Date(e.target.value) : null
@@ -2009,11 +2041,19 @@ export default function Report() {
                                             className="w-full pl-10 pr-8 py-2.5 border rounded-lg bg-white appearance-none dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm"
                                         >
                                             <option value="">Todos los almacenes</option>
-                                            {almacenes.map((almacen) => (
-                                                <option key={almacen} value={almacen}>
-                                                    {almacen}
-                                                </option>
-                                            ))}
+
+                                            <option key="Guadalupe" value="ALMVGPE">
+                                                Guadalupe
+                                            </option>
+                                            <option key="Mayoreo" value="ALMMAYO">
+                                                Mayoreo
+                                            </option>
+                                            <option key="Testerazo" value="ALMTEST">
+                                                Testerazo
+                                            </option>
+                                            <option key="Palmas" value="ALMPALM">
+                                                Palmas
+                                            </option>
                                         </select>
                                     </div>
                                 )}
@@ -2429,25 +2469,25 @@ export default function Report() {
                                                         <div>
                                                             <label className="block text-sm font-medium mb-1">Desde:</label>
                                                             <input
-                                                                type="date"
-                                                                value={dateRange.from ? dateRange.from.toISOString().split('T')[0] : ''}
+                                                                type="datetime-local"
+                                                                value={dateRange.from ? dateRange.from.toISOString().split('T')[0] + 'T' + dateRange.from.toTimeString().substring(0, 5) : ''}
                                                                 onChange={(e) => handleDateChange(
                                                                     e.target.value ? new Date(e.target.value) : null,
                                                                     dateRange.to
                                                                 )}
-                                                                className="border rounded px-2 py-1 text-sm w-full"
+                                                                className="w-full border rounded-lg px-3 py-2 text-sm"
                                                             />
                                                         </div>
                                                         <div>
                                                             <label className="block text-sm font-medium mb-1">Hasta:</label>
                                                             <input
-                                                                type="date"
-                                                                value={dateRange.to ? dateRange.to.toISOString().split('T')[0] : ''}
+                                                                type="datetime-local"
+                                                                value={dateRange.to ? dateRange.to.toISOString().split('T')[0] + 'T' + dateRange.to.toTimeString().substring(0, 5) : ''}
                                                                 onChange={(e) => handleDateChange(
                                                                     dateRange.from,
                                                                     e.target.value ? new Date(e.target.value) : null
                                                                 )}
-                                                                className="border rounded px-2 py-1 text-sm w-full"
+                                                                className="w-full border rounded-lg px-3 py-2 text-sm"
                                                             />
                                                         </div>
                                                         <div className="flex justify-end mt-2">
@@ -2473,11 +2513,18 @@ export default function Report() {
                                                     className="pl-9 pr-8 py-2 border rounded bg-white appearance-none dark:bg-gray-700 border-gray-300 dark:border-gray-600"
                                                 >
                                                     <option value="">Todos los almacenes</option>
-                                                    {almacenes.map((almacen) => (
-                                                        <option key={almacen} value={almacen}>
-                                                            {almacen}
-                                                        </option>
-                                                    ))}
+                                                    <option key="Guadalupe" value="ALMVGPE">
+                                                        Guadalupe
+                                                    </option>
+                                                    <option key="Mayoreo" value="ALMMAYO">
+                                                        Mayoreo
+                                                    </option>
+                                                    <option key="Testerazo" value="ALMTEST">
+                                                        Testerazo
+                                                    </option>
+                                                    <option key="Palmas" value="ALMPALM">
+                                                        Palmas
+                                                    </option>
                                                 </select>
                                             </div>
                                         )}

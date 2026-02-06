@@ -39,33 +39,61 @@ const OPERATORS = [
 ] as const;
 
 const DEFAULT_PAGE_SIZE = 10;
-const DEFAULT_TABLE = `gasto 
-  LEFT JOIN Prov AS P ON gasto.Acreedor = P.Proveedor
-  LEFT JOIN CFDEgreso AS CFDE ON gasto.ID = CFDE.ModuloID`;
+
+// Tabla optimizada con la nueva consulta
+const DEFAULT_TABLE = `
+    gasto G
+    INNER JOIN (
+        SELECT 
+            GD.ID AS GastoID,
+            MAX(GD.Concepto) AS Concepto,
+            SUM(GD.Precio * GD.Cantidad) AS TotalPrecio,
+            SUM(GD.Cantidad) AS TotalCantidad,
+            SUM(GD.Importe) AS TotalImporte,
+            SUM(GD.Impuestos) AS TotalImpuestos
+        FROM gastod GD
+        GROUP BY GD.ID
+    ) GD_Concepto ON G.ID = GD_Concepto.GastoID
+    LEFT JOIN Prov P ON P.Proveedor = G.Acreedor
+    LEFT JOIN (
+        SELECT 
+            CFDL.ModuloID,
+            MIN(CFDL.UUID) AS MinUUID
+        FROM CFDValidoMovLista CFDL
+        WHERE CFDL.ModuloD = 'GAS'
+        GROUP BY CFDL.ModuloID
+    ) CFDL ON G.ID = CFDL.ModuloID
+    LEFT JOIN CFDEgreso E ON E.UUID = CFDL.MinUUID
+`;
 
 const DEFAULT_BODY: BodyRequest = {
     selects: [
-        { key: "gasto.ID" },
-        { key: "gasto.MovID" },
-        { key: "gasto.FechaEmision" },
-        { key: "gasto.CLASE" },
-        { key: "gasto.Subclase" },
-        { key: "gasto.Acreedor" },
+        { key: "G.ID" },
+        { key: "G.MovID" },
+        { key: "G.FechaEmision" },
+        { key: "G.CLASE" },
+        { key: "G.Subclase" },
+        { key: "GD_Concepto.Concepto" },
         { key: "P.Nombre", alias: "Proveedor" },
-        { key: "gasto.Estatus" },
-        { key: "gasto.Ejercicio" },
-        { key: "CFDE.Documento", alias: "DocumentoFiscal" },
-        { key: "CFDE.FechaTimbrado", alias: "FechaTimbrado" },
-        { key: "CFDE.UUID", alias: "UUID" },
+        { key: "G.Acreedor" },
+        { key: "GD_Concepto.TotalImporte" },
+        { key: "GD_Concepto.TotalImpuestos" },
+        { key: "G.Estatus" },
+        { key: "G.Ejercicio" },
+        { key: "E.Documento", alias: "DocumentoFiscal" },
+        { key: "E.FechaTimbrado", alias: "FechaTimbrado" },
+        { key: "CFDL.MinUUID", alias: "UUID" },
+        { key: "GD_Concepto.TotalPrecio" },
+        { key: "GD_Concepto.TotalCantidad" },
     ],
     agregaciones: [],
     order: [
-        { key: "gasto.FechaEmision", direction: "desc" }
+        { key: "G.FechaEmision", direction: "desc" }
     ],
     filtrosAnd: [
         {
             filtros: [
-                { key: "gasto.Estatus", operator: "=", value: 'CONCLUIDO' },
+                { key: "G.Estatus", operator: "=", value: 'CONCLUIDO' },
             ],
             logicalOperator: 'and' as const
         }
@@ -82,13 +110,13 @@ const formatDateToISO = (dateString?: string): string | null => {
 const exportToCSV = (data: any[], filename: string): void => {
     if (data.length === 0) return;
 
-    const headers = Object.keys(data[0]);
+    const headers = Object.keys(data[0]).filter(key => key !== 'archivo'); // Excluir el campo archivo
     const csvContent = [
         headers.join(','),
         ...data.map(row =>
             headers.map(header => {
                 const value = row[header];
-                return `"${String(value).replace(/"/g, '"   "')}"`;
+                return `"${String(value).replace(/"/g, '""')}"`;
             }).join(',')
         )
     ].join('\n');
@@ -222,7 +250,13 @@ export default function ReportingPage() {
                 return;
             }
 
-            setData(responseData.data);
+            // Eliminar el campo archivo de los datos
+            const cleanData = responseData.data.map((item: any) => {
+                const { archivo, ...rest } = item;
+                return rest;
+            });
+
+            setData(cleanData);
             const records = responseData.totalRecords ? responseData.totalRecords : responseData.totalEstimated || responseData.data.length;
             setTotalPages(Math.ceil(records / params.pageSize));
         } catch (err: any) {
@@ -301,37 +335,37 @@ export default function ReportingPage() {
                     filtros: [
                         ...DEFAULT_BODY.filtrosAnd[0].filtros,
                         ...(formattedStartDate ? [{
-                            key: "gasto.FechaEmision",
+                            key: "G.FechaEmision",
                             operator: ">=",
                             value: formattedStartDate
                         }] : []),
                         ...(formattedEndDate ? [{
-                            key: "gasto.FechaEmision",
+                            key: "G.FechaEmision",
                             operator: "<=",
                             value: formattedEndDate
                         }] : []),
                         ...(ref ? [{
-                            key: "gasto.MovID",
+                            key: "G.MovID",
                             operator: "=",
                             value: ref
                         }] : []),
                         ...(clase ? [{
-                            key: "gasto.CLASE",
+                            key: "G.CLASE",
                             operator: "=",
                             value: clase
                         }] : []),
                         ...(subclase ? [{
-                            key: "gasto.Subclase",
+                            key: "G.Subclase",
                             operator: "=",
                             value: subclase
                         }] : []),
                         ...(acreedor ? [{
-                            key: "gasto.Acreedor",
+                            key: "G.Acreedor",
                             operator: "=",
                             value: acreedor
                         }] : []),
                         ...(ejercicio ? [{
-                            key: "gasto.Ejercicio",
+                            key: "G.Ejercicio",
                             operator: "=",
                             value: ejercicio
                         }] : []),
@@ -383,7 +417,8 @@ export default function ReportingPage() {
 
         if (includeSampleData && reportData.length > 0) {
             const sampleData = reportData.slice(0, 5).map((item, index) => {
-                return `\n${index + 1}. ${item.MovID || 'Sin referencia'} - ${item.ConceptoPrincipal || 'Sin concepto'} - $${(parseFloat(item.TotalImporte) || 0).toFixed(2)}`;
+                const concepto = item.Concepto || item.ConceptoPrincipal || 'Sin concepto';
+                return `\n${index + 1}. ${item.MovID || 'Sin referencia'} - ${concepto} - $${(parseFloat(item.TotalImporte) || 0).toFixed(2)}`;
             }).join('');
 
             fullMessage += '\n\n📋 *Gastos principales:*' + sampleData;
