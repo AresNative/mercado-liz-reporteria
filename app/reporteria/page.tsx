@@ -52,10 +52,17 @@ interface StatsData {
     margen?: number;
     promedio?: number;
 }
+interface statsPorHora {
+    hora: string;
+    totalVentas: number;
+    totalCosto: number;
+    totalTikets: number;
+    utilidad?: number;
+    margen?: number;
+};
 
 interface QueryConfig {
     table: string;
-    tableSuggestion: string;
     selects: Array<{ Key: string; Alias?: string }>;
     agregaciones: Array<{ Key: string; Alias: string; Operation: string }>;
     fechaField: string;
@@ -171,10 +178,9 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
             INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID
             INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo
             INNER JOIN Cte AS C ON venta.Cliente = C.Cliente`,
-        tableSuggestion: ``,
         selects: [
             { Key: "C.Nombre", Alias: "Cliente" },
-            { Key: "venta.FechaRegistro" },
+            { Key: "venta.FechaEmision" },
             { Key: "ventad.Articulo" },
             { Key: "ART.Descripcion1", Alias: "Nombre" },
             { Key: "ART.Categoria" },
@@ -182,7 +188,6 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
             { Key: "ART.Linea" },
             { Key: "ART.Familia" },
             { Key: "ventad.Cantidad" },
-            { Key: "venta.FechaEmision" },
             { Key: "ventad.Almacen" },
             { Key: "ventad.Precio", Alias: "Precio unitario" },
             { Key: "ventad.Costo", Alias: "Costo unitario" },
@@ -195,7 +200,7 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
             { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT DISTINCT" },
             { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" }
         ],
-        fechaField: "venta.FechaRegistro",
+        fechaField: "venta.FechaEmision",
         searchColumns: SEARCH_COLUMNS_CONFIG.ventas
     },
     compras: {
@@ -203,7 +208,6 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
             INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID
             INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo
             LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
-        tableSuggestion: ``,
         selects: [
             { Key: "P.Nombre", Alias: "Proveedor" },
             { Key: "ART.Fabricante" },
@@ -232,7 +236,6 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         table: `INV AS inv
             INNER JOIN INVD AS invd ON invd.ID = inv.ID
             INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
-        tableSuggestion: ``,
         selects: [
             { Key: "art.Articulo" },
             { Key: "art.Descripcion1", Alias: "Nombre" },
@@ -260,7 +263,6 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         table: `INVD AS invd
                 INNER JOIN inv AS inv ON inv.ID = invd.ID
                 LEFT JOIN Art AS art ON art.Articulo = invd.Articulo`,
-        tableSuggestion: ``,
         selects: [
             { Key: "art.Articulo" },
             { Key: "art.Descripcion1", Alias: "Nombre" },
@@ -292,7 +294,6 @@ const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         INNER JOIN ART AS ART ON ART.Articulo = ventad.Articulo
         LEFT JOIN Cte AS C ON venta.Cliente = C.Cliente
         LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
-        tableSuggestion: ``,
         selects: [
             { Key: "venta.FechaEmision" },
             { Key: "ventad.Articulo" },
@@ -566,6 +567,9 @@ export default function Report() {
     const [statsError, setStatsError] = useState<string | null>(null);
     const [tableError, setTableError] = useState<string | null>(null);
 
+
+    const [statsForHour, setStatsForHour] = useState<any[]>([]);
+
     // Estado para refrescos individuales
     const [refreshingTable, setRefreshingTable] = useState(false);
     const [refreshingStats, setRefreshingStats] = useState(false);
@@ -620,6 +624,7 @@ export default function Report() {
     const suggestionsRef = useRef<HTMLDivElement>(null);
     const tableAbortControllerRef = useRef<AbortController | null>(null);
     const statsAbortControllerRef = useRef<AbortController | null>(null);
+    const statsForHourAbortControllerRef = useRef<AbortController | null>(null);
     const suggestionsAbortControllerRef = useRef<AbortController | null>(null);
     const columnSuggestionsAbortControllerRef = useRef<AbortController | null>(null);
 
@@ -839,6 +844,12 @@ export default function Report() {
         if (statsAbortControllerRef.current) {
             statsAbortControllerRef.current.abort();
             statsAbortControllerRef.current = null;
+        }
+
+        // Cancelar petición de estadísticas
+        if (statsForHourAbortControllerRef.current) {
+            statsForHourAbortControllerRef.current.abort();
+            statsForHourAbortControllerRef.current = null;
         }
 
         // Cancelar petición de sugerencias
@@ -1199,6 +1210,153 @@ export default function Report() {
         }
     }, [reportType, getData, buildFiltros]);
 
+    // Función para cargar estadísticas por hora
+    // Función para cargar estadísticas por hora
+    const fetchStatsForHourData = useCallback(async (forceRefresh = false) => {
+        if (!QUERY_CONFIGS[reportType] || reportType !== "ventas") return;
+
+        // Cancelar peticiones pendientes de estadísticas por hora
+        if (statsForHourAbortControllerRef.current) {
+            statsForHourAbortControllerRef.current.abort();
+        }
+
+        // Limpiar errores antes de cargar
+        setStatsError(null);
+        setStatsLoading(!forceRefresh);
+        if (forceRefresh) setRefreshingStats(true);
+
+        const controller = new AbortController();
+        statsForHourAbortControllerRef.current = controller;
+
+        try {
+            const queryConfig = QUERY_CONFIGS[reportType];
+            const { filtrosAnd: baseFiltrosAnd, filtrosOr } = buildFiltros(true);
+
+            // Definir los rangos horarios
+            const rangosHorarios = [
+                { hora: "07:00-08:00", value: "08:00:00 AND 09:00:00" },
+                { hora: "08:00-09:00", value: "09:00:00 AND 10:00:00" },
+                { hora: "09:00-10:00", value: "10:00:00 AND 11:00:00" },
+                { hora: "10:00-11:00", value: "11:00:00 AND 12:00:00" },
+                { hora: "11:00-12:00", value: "12:00:00 AND 13:00:00" },
+                { hora: "12:00-13:00", value: "13:00:00 AND 14:00:00" },
+                { hora: "13:00-14:00", value: "14:00:00 AND 15:00:00" },
+                { hora: "14:00-15:00", value: "15:00:00 AND 16:00:00" },
+                { hora: "15:00-16:00", value: "16:00:00 AND 17:00:00" },
+                { hora: "16:00-17:00", value: "17:00:00 AND 18:00:00" },
+                { hora: "17:00-18:00", value: "18:00:00 AND 19:00:00" },
+                { hora: "18:00-19:00", value: "19:00:00 AND 20:00:00" },
+                { hora: "19:00-20:00", value: "20:00:00 AND 21:00:00" },
+                { hora: "20:00-21:00", value: "21:00:00 AND 22:00:00" },
+                { hora: "21:00-22:00", value: "22:00:00 AND 23:00:00" },
+                { hora: "22:00-23:00", value: "23:00:00 AND 23:59:59" },
+                { hora: "23:00-01:00", value: "01:00:00 AND 02:00:00" }
+            ];
+
+            // Crear array de promesas para todas las peticiones por hora
+            const promesas = rangosHorarios.map(async (rango) => {
+                try {
+                    const requestData: any = {
+                        table: queryConfig.table,
+                        filtros: {
+                            agregaciones: [
+                                { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
+                                { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
+                                { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" }
+                            ],
+                        },
+                        signal: controller.signal
+                    };
+
+                    // Construir filtros: base + filtro de hora específico
+                    const filtrosPorHora = [...baseFiltrosAnd];
+                    filtrosPorHora.push({
+                        Filtros: [
+                            {
+                                Key: "venta.FechaRegistro",
+                                Operator: "TIME_BETWEEN",
+                                Value: rango.value
+                            }
+                        ],
+                        OperadorLogico: "AND"
+                    });
+
+                    if (filtrosPorHora.length > 0) {
+                        requestData.filtros.FiltrosAnd = filtrosPorHora;
+                    }
+                    if (filtrosOr.length > 0) {
+                        requestData.filtros.FiltrosOr = filtrosOr;
+                    }
+
+                    const response: ApiResponse = await safeCall(() => getData(requestData), `getStatsForHour_${rango.hora}`);
+
+                    if (response.error) {
+                        if (response.error.name === 'AbortError' ||
+                            response.error.message?.includes('aborted') ||
+                            response.error.code === 'ERR_CANCELLED') {
+                            return null;
+                        }
+                        console.error(`Error en estadísticas para ${rango.hora}:`, response.error);
+                        return null;
+                    }
+
+                    const statsData = response.data?.data?.[0] || {};
+                    return {
+                        hora: rango.hora,
+                        totalVentas: statsData.totalVentas || 0,
+                        totalCosto: statsData.totalCosto || 0,
+                        totalTikets: statsData.totalTikets || 0,
+                        utilidad: (statsData.totalVentas || 0) - (statsData.totalCosto || 0),
+                        margen: statsData.totalVentas ?
+                            (((statsData.totalVentas - (statsData.totalCosto || 0)) / statsData.totalVentas) * 100) : 0
+                    };
+                } catch (error) {
+                    console.error(`Error en petición para ${rango.hora}:`, error);
+                    return null;
+                }
+            });
+
+            // Esperar todas las peticiones
+            const resultados = await Promise.all(promesas);
+
+            // Filtrar resultados nulos y actualizar estado
+            const statsPorHora = resultados.filter(Boolean);
+
+            // Calcular totales generales de las estadísticas por hora
+            const totales = statsPorHora.reduce((acc, stats) => ({
+                totalVentas: (acc.totalVentas || 0) + (stats?.totalVentas || 0),
+                totalCosto: (acc.totalCosto || 0) + (stats?.totalCosto || 0),
+                totalTikets: (acc.totalTikets || 0) + (stats?.totalTikets || 0)
+            }), { totalVentas: 0, totalCosto: 0, totalTikets: 0 });
+
+            // Calcular utilidad y margen general
+            const utilidadGeneral = (totales.totalVentas || 0) - (totales.totalCosto || 0);
+            const margenGeneral = totales.totalVentas ?
+                ((utilidadGeneral / totales.totalVentas) * 100) : 0;
+
+            // Actualizar estadísticas manteniendo las existentes y agregando por hora
+            setStatsForHour(statsPorHora);
+
+        } catch (error: any) {
+            // Ignorar errores de aborto
+            if (error.name === 'AbortError' ||
+                error.message?.includes('aborted') ||
+                error.code === 'ERR_CANCELLED') {
+                return;
+            }
+
+            // Solo mostrar error si no fue abortado
+            if (!controller.signal.aborted) {
+                setStatsError(error.message || "Error al cargar las estadísticas por hora");
+            }
+        } finally {
+            // Solo limpiar estados si no fue abortado
+            if (!controller.signal.aborted) {
+                setStatsLoading(false);
+                setRefreshingStats(false);
+            }
+        }
+    }, [reportType, getData, buildFiltros]);
     // Función para cargar datos del reporte actual
     const fetchCurrentReportData = useCallback(async (page = 1) => {
         cancelAllPendingRequests();
@@ -1213,8 +1371,9 @@ export default function Report() {
         } else {
             fetchTableData(page);
             fetchStatsData();
+            fetchStatsForHourData();
         }
-    }, [reportType, fetchTableData, fetchStatsData]);
+    }, [reportType, fetchTableData, fetchStatsData, fetchStatsForHourData]);
 
     // Función para recargar solo la tabla
     const refreshTable = () => {
@@ -1944,6 +2103,62 @@ export default function Report() {
                                     </BentoItem>
                                 );
                             })}
+
+
+
+                            {reportType === "ventas" && (<BentoItem
+                                title="Ventas por hora"
+                                description="Distribución de ventas por rangos horarios"
+                                icon={<DollarSign className="w-4 h-4 text-white" />}
+                                iconRight
+                                className="border text-white bg-green-600 border-green-700 dark:text-gray-200 p-3 md:p-4"
+                                loading={statsLoading || refreshingStats}
+                            >
+                                <div className="flex flex-col gap-2">
+                                    {statsForHour.length > 0 && (
+                                        <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
+                                            {/* Cabecera */}
+                                            <div className="flex gap-2 justify-between text-xs sticky top-0 bg-green-600/90 px-1 py-1 border-b border-green-700">
+                                                <span className="font-medium text-white/90 w-16">HORA</span>
+                                                <span className="font-bold text-white/90 flex-1 text-right">VENTAS</span>
+                                                <span className="font-bold text-white/90 flex-1 text-right">TICKETS</span>
+                                                <span className="font-bold text-white/90 flex-1 text-right">UTILIDAD</span>
+                                            </div>
+
+                                            {/* Lista de horas */}
+                                            <div className="space-y-1">
+                                                {statsForHour.map((item) => (
+                                                    <div
+                                                        key={`hour-${item.hora}`}
+                                                        className="flex gap-2 justify-between text-xs hover:bg-white/5 rounded px-1 py-1 transition-colors cursor-pointer"
+                                                    >
+                                                        <span className="font-medium text-white/80 w-16">{item.hora}</span>
+                                                        <span className="font-semibold text-white/90 flex-1 text-right">
+                                                            {formatValue(item.totalVentas, "currency")}
+                                                        </span>
+                                                        <span className="font-semibold text-white/90 flex-1 text-right">
+                                                            {formatValue(item.totalTikets, "number")}
+                                                        </span>
+                                                        <span className={`font-semibold flex-1 text-right ${item.utilidad >= 0 ? 'text-yellow-400' : 'text-red-400'
+                                                            }`}>
+                                                            {formatValue(item.utilidad, "currency")}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Estado vacío */}
+                                    {statsForHour.length === 0 && (
+                                        <div className="text-center py-4 text-sm text-white/60">
+                                            No hay datos disponibles para este período
+                                        </div>
+                                    )}
+                                </div>
+                            </BentoItem>)}
+
+
                         </BentoGrid>
 
                         {/* Mensaje especial para comparación */}
