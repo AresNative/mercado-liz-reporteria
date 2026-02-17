@@ -1,519 +1,89 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useGetMasivoWithFiltersMutation } from "@/hooks/api/api_int";
-import { safeCall } from "@/hooks/use-debounce";
 import DynamicTable from "@/components/table";
 import { BentoGrid, BentoItem } from "@/components/bento-grid";
 import Pagination from "@/components/pagination";
-import { formatValue } from "@/utils/constants/format-values";
 import {
-    DollarSign, TrendingUp, Package, Users, Minus,
-    TrendingDown, RefreshCw, Building, Filter,
-    Loader2, Search, ShoppingCart, X, Zap,
-    Calendar, ChevronDown, Menu, ChevronUp,
-    AlertCircle, Percent,
-    GitCompare, Warehouse, Calculator, Eye, EyeOff
+    formatDateDisplay,
+    formatDateISOString,
+    formatValue,
+} from "@/utils/constants/format-values";
+import {
+    DollarSign,
+    TrendingUp,
+    Minus,
+    TrendingDown,
+    RefreshCw,
+    Building,
+    Loader2,
+    Search,
+    X,
+    Zap,
+    Calendar,
+    ChevronDown,
+    Menu,
+    ChevronUp,
+    AlertCircle,
+    GitCompare,
+    Eye,
+    EyeOff,
 } from "lucide-react";
 import Header from "@/template/header";
 import Footer from "@/template/footer";
+import { RequestPayload, useManagmentRead } from "./class/global";
+import { FilterGroup, FilterRule, ReportType } from "./types/consultas";
+import { CONFIG, QUERY_CONFIGS, SEARCH_COLUMNS_CONFIG } from "./utils/config";
+import { DATE_PERIODS, OPERATORS } from "./utils/consultas";
+import { BENTO_METRICS_CONFIG } from "./utils/stats";
+import { DateRange } from "./types/sample";
+import { SearchColumn } from "./types/config";
 
-// Constantes y configuración
-const CONFIG = {
-    PAGE_SIZE: 10,
-    STATUS: { CONCLUIDO: "CONCLUIDO" },
-    MARGIN_WARNING: 20,
-    MARGIN_CRITICAL: 10,
-    REPORT_TYPES: {
-        VENTAS: "ventas",
-        COMPRAS: "compras",
-        MERMAS: "mermas",
-        COMPARACION: "comparacion"
-    } as const
-} as const;
+// Helper para IDs únicos
+const generateId = () => Math.random().toString(36).substr(2, 9);
 
-type ReportType = "ventas" | "compras" | "mermas" | "inventario" | "comparacion";
-
-// Interfaces para tipado
-interface TableData {
+// Interfaz para datos de tabla
+export interface TableData {
     [key: string]: any;
 }
 
-interface StatsData {
+// Interfaz para estadísticas procesadas
+export interface StatsData {
     totalVentas?: number;
     totalTikets?: number;
     totalCosto?: number;
     totalArticulos?: number;
     totalClientes?: number;
     totalProveedores?: number;
-    totalMermas?: number;
     totalCompras?: number;
     diferencia?: number;
     utilidad?: number;
     margen?: number;
     promedio?: number;
 }
-interface statsPorHora {
-    hora: string;
-    totalVentas: number;
-    totalCosto: number;
-    totalTikets: number;
-    utilidad?: number;
-    margen?: number;
-};
 
-interface QueryConfig {
-    table: string;
-    selects: Array<{ Key: string; Alias?: string }>;
-    agregaciones: Array<{ Key: string; Alias: string; Operation: string }>;
-    fechaField: string;
-    searchColumns: SearchColumn[];
-}
-interface FilterRule {
+export interface SortRule {
     column: string;
-    operator: string;
-    value: any;
-    groupId: string;
+    direction: "asc" | "desc";
 }
 
-interface SortRule {
-    column: string;
-    direction: 'asc' | 'desc';
-}
-
-interface FilterGroup {
-    id: string;
-    filters: FilterRule[];
-    logicalOperator: 'AND' | 'OR';
-    name?: string;
-}
-
-interface ApiResponse {
-    data?: {
-        data: any[];
-        page?: number;
-        totalRecords?: number;
-        totalEstimated?: number;
-    };
-    error?: any;
-}
-
-interface DateRange {
-    from: Date | null;
-    to: Date | null;
-}
-
-interface SearchColumn {
-    key: string;
-    label: string;
-    icon: any;
-    color: string;
-    tableField?: string; // Campo específico en la tabla
-    prefix?: string; // Prefijo para mostrar en lugar del alias
-}
-const OPERATORS = [
-    { value: "=", label: "Igual a" },
-    { value: "<>", label: "Diferente de" },
-    { value: ">", label: "Mayor que" },
-    { value: "<", label: "Menor que" },
-    { value: ">=", label: "Mayor o igual que" },
-    { value: "<=", label: "Menor o igual que" },
-    { value: "LIKE", label: "Contiene" },
-    { value: "NOT LIKE", label: "No contiene" },
-    { value: "IN", label: "En lista" },
-    { value: "NOT IN", label: "No en lista" },
-    { value: "IS NULL", label: "Es nulo" },
-    { value: "IS NOT NULL", label: "No es nulo" }
-];
-
-// Períodos predefinidos para fechas
-const DATE_PERIODS = [
-    { label: "Últimos 7 días", days: 7 },
-    { label: "Últimos 30 días", days: 30 },
-    { label: "Últimos 90 días", days: 90 },
-    { label: "Este mes", days: null, custom: true },
-    { label: "Mes anterior", days: null, custom: true },
-    { label: "Este año", days: null, custom: true },
-    { label: "Personalizado", days: null, custom: true }
-];
-
-// Helper para generar IDs únicos
-const generateId = () => Math.random().toString(36).substr(2, 9);
-
-// Configuración de columnas de búsqueda por tipo de reporte
-const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
-    ventas: [
-        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "ART.Descripcion1", prefix: "ART." },
-        { key: "cliente", label: "Cliente", icon: Users, color: "text-green-500", tableField: "C.Nombre", prefix: "C." },
-        { key: "categoria", label: "Categoría", icon: Filter, color: "text-purple-500", tableField: "ART.Categoria", prefix: "ART." },
-        { key: "codigo", label: "Código", icon: DollarSign, color: "text-yellow-500", tableField: "ventad.Codigo", prefix: "ventad." }
-    ],
-    compras: [
-        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "ART.Descripcion1", prefix: "ART." },
-        { key: "proveedor", label: "Proveedor", icon: ShoppingCart, color: "text-orange-500", tableField: "P.Nombre", prefix: "P." },
-        { key: "fabricante", label: "Fabricante", icon: Building, color: "text-red-500", tableField: "ART.Fabricante", prefix: "ART." },
-        { key: "codigo", label: "Código", icon: DollarSign, color: "text-yellow-500", tableField: "comprad.Codigo", prefix: "comprad." }
-    ],
-    mermas: [
-        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "art.Descripcion1", prefix: "art." },
-        { key: "concepto", label: "Concepto", icon: Filter, color: "text-purple-500", tableField: "inv.Concepto", prefix: "inv." },
-        { key: "categoria", label: "Categoría", icon: Filter, color: "text-indigo-500", tableField: "art.Categoria", prefix: "art." },
-        { key: "codigo", label: "Código", icon: DollarSign, color: "text-yellow-500", tableField: "invd.Codigo", prefix: "invd." }
-    ],
-    inventario: [
-        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "art.Descripcion1", prefix: "art." },
-        { key: "descripcion", label: "Descripción", icon: Filter, color: "text-purple-500", tableField: "art.Descripcion1", prefix: "art." }
-    ],
-    comparacion: [
-        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "ART.Descripcion1", prefix: "ART." },
-        { key: "categoria", label: "Categoría", icon: Filter, color: "text-purple-500", tableField: "ART.Categoria", prefix: "ART." },
-        { key: "fabricante", label: "Fabricante", icon: Building, color: "text-red-500", tableField: "ART.Fabricante", prefix: "ART." },
-        { key: "codigo", label: "Código", icon: DollarSign, color: "text-yellow-500", tableField: "ventad.Codigo", prefix: "ventad." }
-    ]
-};
-
-// Configuración de consultas por tipo de reporte
-const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
-    ventas: {
-        table: `VENTA AS venta
-            INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID
-            INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo
-            INNER JOIN Cte AS C ON venta.Cliente = C.Cliente`,
-        selects: [
-            { Key: "C.Nombre", Alias: "Cliente" },
-            { Key: "venta.FechaEmision" },
-            { Key: "ventad.Articulo" },
-            { Key: "ART.Descripcion1", Alias: "Nombre" },
-            { Key: "ART.Categoria" },
-            { Key: "ART.Grupo" },
-            { Key: "ART.Linea" },
-            { Key: "ART.Familia" },
-            { Key: "ventad.Cantidad" },
-            { Key: "ventad.Almacen" },
-            { Key: "ventad.Precio", Alias: "Precio unitario" },
-            { Key: "ventad.Costo", Alias: "Costo unitario" },
-            { Key: "ventad.Codigo" }
-        ],
-        agregaciones: [
-            { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
-            { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-            { Key: "ventad.Articulo", Alias: "totalArticulos", Operation: "COUNT DISTINCT" },
-            { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT DISTINCT" },
-            { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" }
-        ],
-        fechaField: "venta.FechaEmision",
-        searchColumns: SEARCH_COLUMNS_CONFIG.ventas
-    },
-    compras: {
-        table: `COMPRA AS compra
-            INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID
-            INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo
-            LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
-        selects: [
-            { Key: "P.Nombre", Alias: "Proveedor" },
-            { Key: "ART.Fabricante" },
-            { Key: "comprad.Articulo" },
-            { Key: "ART.Descripcion1", Alias: "Nombre" },
-            { Key: "ART.Categoria" },
-            { Key: "ART.Grupo" },
-            { Key: "ART.Linea" },
-            { Key: "ART.Familia" },
-            { Key: "comprad.Cantidad" },
-            { Key: "comprad.CantidadInventario" },
-            { Key: "comprad.Costo", Alias: "CostoUnitario" },
-            { Key: "comprad.Almacen" },
-            { Key: "compra.FechaEmision" },
-            { Key: "comprad.Codigo" }
-        ],
-        agregaciones: [
-            { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-            { Key: "comprad.Articulo", Alias: "totalArticulos", Operation: "COUNT DISTINCT" },
-            { Key: "compra.Proveedor", Alias: "totalProveedores", Operation: "COUNT DISTINCT" }
-        ],
-        fechaField: "compra.FechaEmision",
-        searchColumns: SEARCH_COLUMNS_CONFIG.compras
-    },
-    mermas: {
-        table: `INV AS inv
-            INNER JOIN INVD AS invd ON invd.ID = inv.ID
-            INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
-        selects: [
-            { Key: "art.Articulo" },
-            { Key: "art.Descripcion1", Alias: "Nombre" },
-            { Key: "art.Categoria" },
-            { Key: "art.Grupo" },
-            { Key: "art.Linea" },
-            { Key: "art.Familia" },
-            { Key: "inv.Concepto" },
-            { Key: "invd.Cantidad" },
-            { Key: "invd.Costo" },
-            { Key: "invd.Unidad" },
-            { Key: "inv.Sucursal" },
-            { Key: "inv.movid" },
-            { Key: "inv.estatus" },
-            { Key: "inv.FechaEmision" }
-        ],
-        agregaciones: [
-            { Key: "(invd.Costo * invd.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-            { Key: "invd.Articulo", Alias: "totalArticulos", Operation: "COUNT DISTINCT" }
-        ],
-        fechaField: "inv.FechaEmision",
-        searchColumns: SEARCH_COLUMNS_CONFIG.mermas
-    },
-    inventario: {
-        table: `INVD AS invd
-                INNER JOIN inv AS inv ON inv.ID = invd.ID
-                LEFT JOIN Art AS art ON art.Articulo = invd.Articulo`,
-        selects: [
-            { Key: "art.Articulo" },
-            { Key: "art.Descripcion1", Alias: "Nombre" },
-            { Key: "art.Categoria" },
-            { Key: "art.Grupo" },
-            { Key: "art.Linea" },
-            { Key: "art.Familia" },
-            { Key: "inv.Concepto" },
-            { Key: "invd.Costo" },
-            { Key: "invd.Unidad" },
-            { Key: "invd.Cantidad" },
-            { Key: "inv.Sucursal" },
-            { Key: "inv.movid" },
-            { Key: "inv.estatus" },
-            { Key: "inv.FechaEmision" }
-        ],
-        agregaciones: [
-            { Key: "(invd.Costo * invd.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-            { Key: "invd.Articulo", Alias: "totalArticulos", Operation: "COUNT DISTINCT" }
-        ],
-        fechaField: "inv.FechaEmision",
-        searchColumns: SEARCH_COLUMNS_CONFIG.inventario
-    },
-    comparacion: {
-        table: `VENTA AS venta
-        INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID
-        LEFT JOIN COMPRA AS compra ON compra.FechaEmision = venta.FechaEmision
-        LEFT JOIN COMPRAD AS comprad ON comprad.ID = compra.ID AND comprad.Articulo = ventad.Articulo
-        INNER JOIN ART AS ART ON ART.Articulo = ventad.Articulo
-        LEFT JOIN Cte AS C ON venta.Cliente = C.Cliente
-        LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
-        selects: [
-            { Key: "venta.FechaEmision" },
-            { Key: "ventad.Articulo" },
-            { Key: "ART.Descripcion1", Alias: "Nombre" },
-            { Key: "ART.Categoria" },
-            { Key: "ART.Grupo" },
-            { Key: "ART.Linea" },
-            { Key: "ART.Familia" },
-            { Key: "C.Nombre", Alias: "Cliente" },
-            { Key: "P.Nombre", Alias: "Proveedor" },
-            { Key: "ventad.Almacen", Alias: "AlmacenVenta" },
-            { Key: "comprad.Almacen", Alias: "AlmacenCompra" },
-            { Key: "ventad.Cantidad", Alias: "CantidadVenta" },
-            { Key: "comprad.Cantidad", Alias: "CantidadCompra" },
-            { Key: "ventad.Precio", Alias: "PrecioVenta" },
-            { Key: "comprad.Costo", Alias: "CostoCompra" },
-            { Key: "ART.Fabricante" }
-        ],
-        agregaciones: [
-            { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
-            { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "totalCompras", Operation: "SUM" },
-            { Key: "((ventad.Precio * ventad.Cantidad) - (ventad.Costo * ventad.Cantidad))", Alias: "diferencia", Operation: "SUM" },
-            { Key: "ventad.Articulo", Alias: "totalArticulos", Operation: "COUNT DISTINCT" }
-        ],
-        fechaField: "venta.FechaEmision",
-        searchColumns: SEARCH_COLUMNS_CONFIG.comparacion
-    }
-};
-
-// Métricas para cada tipo de reporte con iconos mejorados
-const BENTO_METRICS_CONFIG: Record<string, any[]> = {
-    ventas: [
-        {
-            title: "Ventas",
-            raw: 0,
-            display: formatValue(0, "currency"),
-            type: "currency",
-            icon: DollarSign,
-            description: "Total en ventas"
-        },
-        {
-            title: "Costos",
-            raw: 0,
-            display: formatValue(0, "currency"),
-            type: "currency",
-            icon: Calculator,
-            description: "Total de costos"
-        },
-        {
-            title: "Margen",
-            raw: 0,
-            display: formatValue(0, "percentage"),
-            type: "percent",
-            icon: Percent,
-            description: "Margen de utilidad"
-        },
-        {
-            title: "Utilidad",
-            raw: 0,
-            display: formatValue(0, "currency"),
-            type: "currency",
-            icon: TrendingUp,
-            description: "Utilidad neta"
-        },
-        {
-            title: "Artículos",
-            raw: 0,
-            display: formatValue(0, "number"),
-            type: "number",
-            icon: Package,
-            description: "Artículos vendidos"
-        },
-
-        {
-            title: "Tikets",
-            raw: 0,
-            display: formatValue(0, "number"),
-            type: "number",
-            icon: Package,
-            description: "tikets vendidos"
-        },
-        {
-            title: "Promedio",
-            raw: 0,
-            display: formatValue(0, "number"),
-            type: "number",
-            icon: Package,
-            description: "promedio venta por tiket"
-        }
-    ],
-    compras: [
-        {
-            title: "Costo Total",
-            raw: 0,
-            display: formatValue(0, "currency"),
-            type: "currency",
-            icon: Calculator,
-            description: "Total de compras"
-        },
-        {
-            title: "Artículos",
-            raw: 0,
-            display: formatValue(0, "number"),
-            type: "number",
-            icon: Package,
-            description: "Artículos comprados"
-        },
-        {
-            title: "Proveedores",
-            raw: 0,
-            display: formatValue(0, "number"),
-            type: "number",
-            icon: Users,
-            description: "Proveedores distintos"
-        }
-    ],
-    mermas: [
-        {
-            title: "Costo Merma",
-            raw: 0,
-            display: formatValue(0, "currency"),
-            type: "currency",
-            icon: AlertCircle,
-            description: "Costo por mermas"
-        },
-        {
-            title: "Artículos",
-            raw: 0,
-            display: formatValue(0, "number"),
-            type: "number",
-            icon: Package,
-            description: "Artículos con merma"
-        }
-    ],
-    inventario: [
-        {
-            title: "Costo Total",
-            raw: 0,
-            display: formatValue(0, "currency"),
-            type: "currency",
-            icon: Warehouse,
-            description: "Valor del inventario"
-        },
-        {
-            title: "Artículos",
-            raw: 0,
-            display: formatValue(0, "number"),
-            type: "number",
-            icon: Package,
-            description: "Artículos en inventario"
-        }
-    ],
-    comparacion: [
-        {
-            title: "Ventas",
-            raw: 0,
-            display: formatValue(0, "currency"),
-            type: "currency",
-            icon: DollarSign,
-            description: "Total de ventas"
-        },
-        {
-            title: "Compras",
-            raw: 0,
-            display: formatValue(0, "currency"),
-            type: "currency",
-            icon: ShoppingCart,
-            description: "Total de compras"
-        },
-        {
-            title: "Diferencia",
-            raw: 0,
-            display: formatValue(0, "currency"),
-            type: "currency",
-            icon: GitCompare,
-            description: "Diferencia venta-compra"
-        },
-        {
-            title: "Margen",
-            raw: 0,
-            display: formatValue(0, "percentage"),
-            type: "percent",
-            icon: Percent,
-            description: "Margen comparativo"
-        },
-        {
-            title: "Artículos",
-            raw: 0,
-            display: formatValue(0, "number"),
-            type: "number",
-            icon: Package,
-            description: "Artículos comparados"
-        }
-    ]
-};
-
-// Helper para procesar estadísticas
+// Procesa datos agregados para estadísticas
 const processStatsData = (statsData: any[] | any): StatsData => {
     const out: StatsData = {};
     const dataToProcess = Array.isArray(statsData) ? statsData : [statsData].filter(Boolean);
 
     dataToProcess.forEach((s: any) => {
-        if (!s || typeof s !== 'object') return;
-
+        if (!s || typeof s !== "object") return;
         if (s.totalVentas !== undefined) out.totalVentas = (out.totalVentas ?? 0) + s.totalVentas;
         if (s.totalTikets !== undefined) out.totalTikets = (out.totalTikets ?? 0) + s.totalTikets;
-        if (s.totalVentas !== undefined && s.totalTikets > 0) out.promedio = (out.promedio ?? 0) + s.totalVentas / s.totalTikets;
         if (s.totalCosto !== undefined) out.totalCosto = (out.totalCosto ?? 0) + s.totalCosto;
         if (s.totalArticulos !== undefined) out.totalArticulos = (out.totalArticulos ?? 0) + s.totalArticulos;
         if (s.totalCompras !== undefined) out.totalCompras = (out.totalCompras ?? 0) + s.totalCompras;
-        if (s.totalCostoVenta !== undefined) out.totalCosto = (out.totalCosto ?? 0) + s.totalCostoVenta;
         if (s.diferencia !== undefined) out.diferencia = (out.diferencia ?? 0) + s.diferencia;
         if (s.totalClientes !== undefined) out.totalClientes = (out.totalClientes ?? 0) + s.totalClientes;
         if (s.totalProveedores !== undefined) out.totalProveedores = (out.totalProveedores ?? 0) + s.totalProveedores;
-        if (s.totalMermas !== undefined) out.totalMermas = (out.totalMermas ?? 0) + s.totalMermas;
-        if (s.totalArticulosVenta !== undefined) out.totalArticulos = (out.totalArticulos ?? 0) + s.totalArticulosVenta;
-        if (s.totalArticulosCompra !== undefined) out.totalArticulos = (out.totalArticulos ?? 0) + s.totalArticulosCompra;
     });
 
-    // Calcular utilidad y margen para ventas y comparación
+    // Calcular utilidad y margen
     if (out.totalVentas !== undefined) {
         if (out.totalCosto !== undefined) {
             out.utilidad = +(out.totalVentas - out.totalCosto).toFixed(2);
@@ -522,61 +92,45 @@ const processStatsData = (statsData: any[] | any): StatsData => {
         if (out.totalCompras !== undefined) {
             out.utilidad = +(out.totalVentas - out.totalCompras).toFixed(2);
             out.margen = out.totalVentas > 0 ? +((out.utilidad / out.totalVentas) * 100).toFixed(2) : 0;
+            out.diferencia = out.utilidad;
         }
-
-        // Para comparación, calcular diferencia entre ventas y compras
-        if (out.totalCompras !== undefined) {
-            out.diferencia = +(out.totalVentas - out.totalCompras).toFixed(2);
+        if (out.totalTikets && out.totalTikets > 0) {
+            out.promedio = +(out.totalVentas / out.totalTikets).toFixed(2);
         }
     }
-
     return out;
 };
 
-// Helper para extraer almacenes únicos
-const extractUniqueAlmacenes = (data: TableData[]): string[] => {
-    if (!data.length) return [];
+// Opciones fijas de almacenes
+const ALMACENES_OPCIONES = [
+    { value: "ALMVGPE", label: "Guadalupe" },
+    { value: "ALMMAYO", label: "Mayoreo" },
+    { value: "ALMTEST", label: "Testerazo" },
+    { value: "ALMPALM", label: "Palmas" },
+];
 
-    const almacenes = data
-        .flatMap((item: any) => [item.Almacen, item.AlmacenVenta, item.AlmacenCompra])
-        .filter(Boolean)
-        .filter((value, index, self) => self.indexOf(value) === index);
-
-    return almacenes as string[];
-};
-
-// Helper para formatear fecha a YYYY-MM-DD
-const formatDateToSQL = (date: Date): string => {
-    return date.toISOString();
-};
-
-// Componente principal
 export default function Report() {
-    const [getData] = useGetMasivoWithFiltersMutation();
+    const manager = useManagmentRead();
 
-    // Estado para datos de tabla
+    // Estados principales
     const [reportType, setReportType] = useState<ReportType>("ventas");
-    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [currentPage, setCurrentPage] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
     const [tableLoading, setTableLoading] = useState(false);
     const [dataTable, setDataTable] = useState<TableData[]>([]);
+    const [tableError, setTableError] = useState<string | null>(null);
 
-    // Estado para estadísticas (independiente)
     const [stats, setStats] = useState<StatsData>({});
     const [statsLoading, setStatsLoading] = useState(false);
     const [statsError, setStatsError] = useState<string | null>(null);
-    const [tableError, setTableError] = useState<string | null>(null);
-
-
     const [statsForHour, setStatsForHour] = useState<any[]>([]);
 
-    // Estado para refrescos individuales
     const [refreshingTable, setRefreshingTable] = useState(false);
     const [refreshingStats, setRefreshingStats] = useState(false);
+    const [showStats, setShowStats] = useState(true); // Control de visibilidad del bento grid
 
     // Filtros
-    const [almacenFilter, setAlmacenFilter] = useState<string>("");
-    const [almacenes, setAlmacenes] = useState<string[]>([]);
+    const [almacenFilter, setAlmacenFilter] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [searchColumn, setSearchColumn] = useState<SearchColumn>(SEARCH_COLUMNS_CONFIG.ventas[0]);
     const [showSearchColumnDropdown, setShowSearchColumnDropdown] = useState(false);
@@ -585,399 +139,217 @@ export default function Report() {
     const [suggestionsLoading, setSuggestionsLoading] = useState(false);
     const [quickMode, setQuickMode] = useState(true);
     const [searchApplied, setSearchApplied] = useState(false);
+    const [lastSearch, setLastSearch] = useState<{ term: string; columnKey: string } | null>(null);
 
-    // Estados para filtros avanzados
+    // Filtros avanzados
     const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([
         {
             id: generateId(),
             filters: [{ column: "", operator: "=", value: "", groupId: "" }],
             logicalOperator: "AND",
-            name: "Grupo 1"
-        }
+            name: "Grupo 1",
+        },
     ]);
     const [sortRules, setSortRules] = useState<SortRule[]>([
-        { column: QUERY_CONFIGS["ventas"]?.fechaField || "FechaEmision", direction: "desc" }
+        { column: QUERY_CONFIGS.ventas.fechaField, direction: "desc" },
     ]);
     const [columnSuggestions, setColumnSuggestions] = useState<Record<string, string[]>>({});
     const [activeSuggestionsInput, setActiveSuggestionsInput] = useState<string | null>(null);
     const [showActiveFilters, setShowActiveFilters] = useState(false);
 
-    // Estado para persistir búsqueda entre reportes
-    const [lastSearch, setLastSearch] = useState<{
-        term: string;
-        columnKey: string;
-    } | null>(null);
-
-    // Nuevo estado para filtro de fechas
+    // Fechas
     const [dateRange, setDateRange] = useState<DateRange>({
         from: new Date(new Date().setDate(new Date().getDate() - 30)),
-        to: new Date()
+        to: new Date(),
     });
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Estado para menú móvil
+    // UI móvil
     const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-    // Refs
+    // Refs para manejo de dropdowns y abortos
     const searchInputRef = useRef<HTMLInputElement>(null);
     const searchColumnDropdownRef = useRef<HTMLDivElement>(null);
     const suggestionsRef = useRef<HTMLDivElement>(null);
-    const tableAbortControllerRef = useRef<AbortController | null>(null);
-    const statsAbortControllerRef = useRef<AbortController | null>(null);
-    const statsForHourAbortControllerRef = useRef<AbortController | null>(null);
     const suggestionsAbortControllerRef = useRef<AbortController | null>(null);
     const columnSuggestionsAbortControllerRef = useRef<AbortController | null>(null);
 
-    // Mapeo para mantener búsquedas entre reportes compatibles
-    const getCompatibleSearchColumn = (prevColumnKey: string, newReportType: ReportType): SearchColumn | null => {
-        const newColumns = SEARCH_COLUMNS_CONFIG[newReportType];
-
-        // Intentar encontrar una columna con el mismo key
-        let compatibleColumn = newColumns.find(col => col.key === prevColumnKey);
-
-        // Si no existe, buscar una columna con "articulo" como fallback
-        if (!compatibleColumn) {
-            compatibleColumn = newColumns.find(col => col.key === "articulo");
-        }
-
-        // Si aún no hay, usar la primera columna
-        if (!compatibleColumn && newColumns.length > 0) {
-            compatibleColumn = newColumns[0];
-        }
-
-        return compatibleColumn || null;
-    };
-
-    // Actualizar columna de búsqueda cuando cambia el tipo de reporte
+    // Actualizar columna de búsqueda al cambiar reporte, manteniendo compatibilidad
     useEffect(() => {
         const columns = SEARCH_COLUMNS_CONFIG[reportType];
-
-        if (lastSearch && lastSearch.term && lastSearch.columnKey) {
-            // Intentar mantener la búsqueda anterior si es compatible
-            const compatibleColumn = getCompatibleSearchColumn(lastSearch.columnKey, reportType);
-            if (compatibleColumn) {
-                setSearchColumn(compatibleColumn);
+        if (lastSearch?.term && lastSearch?.columnKey) {
+            const compatible = columns.find((col) => col.key === lastSearch.columnKey) || columns.find((col) => col.key === "articulo") || columns[0];
+            if (compatible) {
+                setSearchColumn(compatible);
                 setSearchTerm(lastSearch.term);
                 setSearchApplied(true);
                 return;
             }
         }
-
-        if (columns && columns.length > 0) {
-            const currentColumnExists = columns.some(col => col.key === searchColumn.key);
-            if (!currentColumnExists) {
-                setSearchColumn(columns[0]);
-            }
-        }
-    }, [reportType]);
-
-    // Inicializar columna de búsqueda
-    useEffect(() => {
-        const columns = SEARCH_COLUMNS_CONFIG[reportType];
-        if (columns && columns.length > 0 && !searchColumn.key) {
+        // Si no hay búsqueda previa, usar primera columna
+        if (columns.length > 0 && !searchColumn.key) {
+            setSearchColumn(columns[0]);
+        } else if (columns.length > 0 && !columns.some((c) => c.key === searchColumn.key)) {
             setSearchColumn(columns[0]);
         }
-    }, []);
+    }, [reportType, lastSearch]);
 
     // Cerrar dropdowns al hacer clic fuera
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            // Cerrar dropdown de columna de búsqueda
-            if (searchColumnDropdownRef.current &&
-                !searchColumnDropdownRef.current.contains(event.target as Node)) {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (searchColumnDropdownRef.current && !searchColumnDropdownRef.current.contains(e.target as Node)) {
                 setShowSearchColumnDropdown(false);
             }
-
-            // Cerrar sugerencias de búsqueda
-            if (suggestionsRef.current &&
-                !suggestionsRef.current.contains(event.target as Node) &&
-                !searchInputRef.current?.contains(event.target as Node)) {
+            if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node) && !searchInputRef.current?.contains(e.target as Node)) {
                 setShowSuggestions(false);
             }
         };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Limpiar errores cuando se inicia una nueva carga
-    useEffect(() => {
-        if (tableLoading || statsLoading) {
-            setTableError(null);
-            setStatsError(null);
-        }
-    }, [tableLoading, statsLoading]);
+    // Construir filtros para el payload
+    const buildFiltros = useCallback(
+        (includeSearchTerm = true) => {
+            const filtrosAnd: any[] = [];
+            const filtrosOr: any[] = [];
 
-    // Construir filtros combinados usando la nueva estructura del endpoint
-    const buildFiltros = useCallback((includeSearchTerm: boolean = true) => {
-        const filtrosAnd: any[] = [];
-        const filtrosOr: any[] = [];
+            if (quickMode) {
+                const basicFilters: any[] = [];
 
-        if (quickMode) {
-            // Filtros básicos en modo rápido
-            const basicFilters: any[] = [];
-
-            // Filtro de búsqueda con columna seleccionada
-            if (searchTerm.length >= 2 && searchColumn.tableField && includeSearchTerm && searchApplied) {
-                basicFilters.push({
-                    Key: searchColumn.tableField,
-                    Operator: "LIKE",
-                    Value: searchTerm
-                });
-            }
-
-            // Filtro de almacén
-            if (almacenFilter) {
-                let almacenField = "venta.Almacen";
-                if (reportType === "compras") almacenField = "comprad.Almacen";
-                else if (reportType === "mermas" || reportType === "inventario") almacenField = "invd.Almacen";
-                else if (reportType === "comparacion") almacenField = "ventad.Almacen";
-
-                basicFilters.push({
-                    Key: almacenField,
-                    Operator: "=",
-                    Value: almacenFilter
-                });
-            }
-
-            // Filtro de fechas
-            if (dateRange.from && dateRange.to) {
-                const fechaField = QUERY_CONFIGS[reportType]?.fechaField;
-                if (fechaField) {
-                    basicFilters.push(
-                        { Key: fechaField, Operator: ">=", Value: formatDateToSQL(dateRange.from) },
-                        { Key: fechaField, Operator: "<=", Value: formatDateToSQL(dateRange.to) }
-                    );
-                }
-            }
-
-            // Filtros específicos por tipo de reporte
-            if (reportType === "ventas") {
-                basicFilters.push(
-                    { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                    { Key: "venta.Mov", Operator: "IN", Value: 'Factura,Factura Credito,Nota' }
-                );
-            } else if (reportType === "compras") {
-                basicFilters.push(
-                    { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                    { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" }
-                );
-            } else if (reportType === "mermas") {
-                basicFilters.push(
-                    { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                    { Key: "inv.Concepto", Operator: "LIKE", Value: "MERMAS" }
-                );
-            } else if (reportType === "inventario") {
-                basicFilters.push(
-                    { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO }
-                );
-            } else if (reportType === "comparacion") {
-                basicFilters.push(
-                    { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                    { Key: "venta.Mov", Operator: "IN", Value: 'Factura,Factura Credito,Nota' },
-                    { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                    { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" }
-                );
-            }
-
-            // Agregar filtros básicos como un grupo AND
-            if (basicFilters.length > 0) {
-                filtrosAnd.push({
-                    Filtros: basicFilters,
-                    OperadorLogico: "AND"
-                });
-            }
-        } else {
-            // Modo avanzado: usar grupos de filtros definidos
-            filterGroups.forEach(group => {
-                const groupFilters = group.filters
-                    .filter(filter => filter.column && (filter.value || filter.operator.includes('NULL')))
-                    .map(filter => ({
-                        Key: filter.column,
-                        Operator: filter.operator,
-                        Value: filter.value || null
-                    }));
-
-                if (groupFilters.length > 0) {
-                    const filterGroup = {
-                        Filtros: groupFilters,
-                        OperadorLogico: group.logicalOperator
-                    };
-
-                    if (group.logicalOperator === "AND") {
-                        filtrosAnd.push(filterGroup);
-                    } else {
-                        filtrosOr.push(filterGroup);
-                    }
-                }
-            });
-
-            // Agregar filtro de fechas como grupo separado
-            if (dateRange.from && dateRange.to) {
-                const fechaField = QUERY_CONFIGS[reportType]?.fechaField;
-                if (fechaField) {
-                    filtrosAnd.push({
-                        Filtros: [
-                            { Key: fechaField, Operator: ">=", Value: formatDateToSQL(dateRange.from) },
-                            { Key: fechaField, Operator: "<=", Value: formatDateToSQL(dateRange.to) }
-                        ],
-                        OperadorLogico: "AND"
+                if (searchTerm.length >= 2 && searchColumn.tableField && includeSearchTerm && searchApplied) {
+                    basicFilters.push({
+                        Key: searchColumn.tableField,
+                        Operator: "LIKE",
+                        Value: searchTerm,
                     });
                 }
-            }
-        }
 
-        return { filtrosAnd, filtrosOr };
-    }, [quickMode, filterGroups, searchTerm, searchColumn, almacenFilter, dateRange, reportType, searchApplied]);
-
-    // Función para cancelar TODAS las peticiones pendientes
-    const cancelAllPendingRequests = () => {
-        // Cancelar petición de tabla
-        if (tableAbortControllerRef.current) {
-            tableAbortControllerRef.current.abort();
-            tableAbortControllerRef.current = null;
-        }
-
-        // Cancelar petición de estadísticas
-        if (statsAbortControllerRef.current) {
-            statsAbortControllerRef.current.abort();
-            statsAbortControllerRef.current = null;
-        }
-
-        // Cancelar petición de estadísticas
-        if (statsForHourAbortControllerRef.current) {
-            statsForHourAbortControllerRef.current.abort();
-            statsForHourAbortControllerRef.current = null;
-        }
-
-        // Cancelar petición de sugerencias
-        if (suggestionsAbortControllerRef.current) {
-            suggestionsAbortControllerRef.current.abort();
-            suggestionsAbortControllerRef.current = null;
-        }
-
-        // Cancelar petición de sugerencias de columna
-        if (columnSuggestionsAbortControllerRef.current) {
-            columnSuggestionsAbortControllerRef.current.abort();
-            columnSuggestionsAbortControllerRef.current = null;
-        }
-
-        setSuggestionsLoading(false);
-    };
-
-    // Función para cargar datos de la tabla (con paginación)
-    const fetchTableData = useCallback(async (page = currentPage, forceRefresh = false) => {
-        if (!QUERY_CONFIGS[reportType]) return;
-
-        // Cancelar peticiones pendientes de tabla
-        cancelAllPendingRequests();
-
-        // Limpiar errores antes de cargar
-        setTableError(null);
-        setTableLoading(!forceRefresh);
-        if (forceRefresh) setRefreshingTable(true);
-
-        try {
-            // Crear nuevo AbortController para esta petición
-            const controller = new AbortController();
-            tableAbortControllerRef.current = controller;
-
-            const queryConfig = QUERY_CONFIGS[reportType];
-            const { filtrosAnd, filtrosOr } = buildFiltros(true);
-
-            const orderRules = quickMode
-                ? [{ Key: queryConfig.fechaField || "FechaEmision", Direction: "desc" }]
-                : sortRules
-                    .filter(sort => sort.column)
-                    .map(sort => ({
-                        Key: sort.column,
-                        Direction: sort.direction.toUpperCase()
-                    }));
-
-            const requestData: any = {
-                table: queryConfig.table,
-                filtros: {
-                    selects: queryConfig.selects,
-                    Order: orderRules
-                },
-                page: page,
-                pageSize: CONFIG.PAGE_SIZE,
-                signal: controller.signal
-            };
-
-            // Agregar filtros según el nuevo modelo
-            if (filtrosAnd.length > 0) {
-                requestData.filtros.FiltrosAnd = filtrosAnd;
-            }
-            if (filtrosOr.length > 0) {
-                requestData.filtros.FiltrosOr = filtrosOr;
-            }
-
-            const response: ApiResponse = await safeCall(() => getData(requestData), "getTableData");
-
-            // Verificar si la petición fue abortada
-            if (controller.signal.aborted) {
-                return;
-            }
-
-            if (response.error) {
-                if (response.error.name === 'AbortError' ||
-                    response.error.message?.includes('aborted') ||
-                    response.error.code === 'ERR_CANCELLED') {
-                    return;
+                if (almacenFilter) {
+                    let almacenField = "venta.Almacen";
+                    if (reportType === "compras") almacenField = "comprad.Almacen";
+                    else if (reportType === "mermas" || reportType === "inventario") almacenField = "invd.Almacen";
+                    else if (reportType === "comparacion") almacenField = "ventad.Almacen";
+                    basicFilters.push({ Key: almacenField, Operator: "=", Value: almacenFilter });
                 }
 
-                throw new Error(response.error.message || "Error al cargar los datos de la tabla");
+                if (dateRange.from && dateRange.to) {
+                    const fechaField = QUERY_CONFIGS[reportType]?.fechaField;
+                    if (fechaField) {
+                        basicFilters.push(
+                            { Key: fechaField, Operator: ">=", Value: formatDateISOString(dateRange.from) },
+                            { Key: fechaField, Operator: "<=", Value: formatDateISOString(dateRange.to) }
+                        );
+                    }
+                }
+
+                // Filtros específicos por reporte
+                if (reportType === "ventas") {
+                    basicFilters.push(
+                        { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+                        { Key: "venta.Mov", Operator: "IN", Value: "Factura,Factura Credito,Nota" }
+                    );
+                } else if (reportType === "compras") {
+                    basicFilters.push(
+                        { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+                        { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" }
+                    );
+                } else if (reportType === "mermas") {
+                    basicFilters.push(
+                        { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+                        { Key: "inv.Concepto", Operator: "LIKE", Value: "MERMAS" }
+                    );
+                } else if (reportType === "inventario") {
+                    basicFilters.push({ Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO });
+                } else if (reportType === "comparacion") {
+                    basicFilters.push(
+                        { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+                        { Key: "venta.Mov", Operator: "IN", Value: "Factura,Factura Credito,Nota" },
+                        { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+                        { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" }
+                    );
+                }
+
+                if (basicFilters.length > 0) {
+                    filtrosAnd.push({ Filtros: basicFilters, OperadorLogico: "AND" });
+                }
+            } else {
+                // Modo avanzado: grupos de filtros
+                filterGroups.forEach((group) => {
+                    const groupFilters = group.filters
+                        .filter((f) => f.column && (f.value || f.operator.includes("NULL")))
+                        .map((f) => ({ Key: f.column, Operator: f.operator, Value: f.value || null }));
+                    if (groupFilters.length > 0) {
+                        const filterGroup = { Filtros: groupFilters, OperadorLogico: group.logicalOperator };
+                        if (group.logicalOperator === "AND") filtrosAnd.push(filterGroup);
+                        else filtrosOr.push(filterGroup);
+                    }
+                });
+
+                if (dateRange.from && dateRange.to) {
+                    const fechaField = QUERY_CONFIGS[reportType]?.fechaField;
+                    if (fechaField) {
+                        filtrosAnd.push({
+                            Filtros: [
+                                { Key: fechaField, Operator: ">=", Value: formatDateISOString(dateRange.from) },
+                                { Key: fechaField, Operator: "<=", Value: formatDateISOString(dateRange.to) },
+                            ],
+                            OperadorLogico: "AND",
+                        });
+                    }
+                }
             }
 
-            const tableData = response.data?.data || [];
-            setCurrentPage(response.data?.page || 1);
+            return { filtrosAnd, filtrosOr };
+        },
+        [quickMode, filterGroups, searchTerm, searchColumn, almacenFilter, dateRange, reportType, searchApplied]
+    );
+
+    // Cargar datos de tabla
+    const fetchTableData = useCallback(async () => {
+        setTableError(null);
+        setTableLoading(true);
+        const config = QUERY_CONFIGS[reportType];
+        const { filtrosAnd, filtrosOr } = buildFiltros(true);
+
+        const orderRules = quickMode
+            ? [{ Key: config.fechaField, Direction: "desc" }]
+            : sortRules.filter((s) => s.column).map((s) => ({ Key: s.column, Direction: s.direction.toUpperCase() }));
+
+        const payload: RequestPayload = {
+            table: config.table,
+            filtros: {
+                selects: config.selects,
+                ...(filtrosAnd.length > 0 && { FiltrosAnd: filtrosAnd }),
+                ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
+                ...(orderRules.length > 0 && { Order: orderRules }),
+            },
+            page: currentPage,
+            pageSize: CONFIG.PAGE_SIZE,
+        };
+
+        const { promise } = manager.execute(payload);
+        const response = await promise;
+        setTableLoading(false);
+        if (response.error) {
+            if (response.error.name === "AbortError") return;
+            setTableError(response.error.message || "Error al cargar datos");
+        } else {
+            setDataTable(response.data?.data || []);
             setTotalRecords(response.data?.totalRecords || response.data?.totalEstimated || 0);
-            setDataTable(tableData);
-
-            // Extraer almacenes únicos
-            const uniqueAlmacenes = extractUniqueAlmacenes(tableData);
-            setAlmacenes(uniqueAlmacenes);
-
-            // Si hay almacén filtrado que ya no existe en los datos, limpiarlo
-            if (almacenFilter && !uniqueAlmacenes.includes(almacenFilter)) {
-                setAlmacenFilter("");
-            }
-
-        } catch (error: any) {
-            // Ignorar errores de aborto
-            if (error.name === 'AbortError' ||
-                error.message?.includes('aborted') ||
-                error.code === 'ERR_CANCELLED') {
-                return;
-            }
-
-            // Solo mostrar error si no fue abortado
-            if (!tableAbortControllerRef.current?.signal.aborted) {
-                setTableError(error.message || "Error al cargar los datos de la tabla");
-            }
-        } finally {
-            // Solo limpiar estados si no fue abortado
-            if (!tableAbortControllerRef.current?.signal.aborted) {
-                setTableLoading(false);
-                setRefreshingTable(false);
-            }
+            setCurrentPage(response.data?.page || 1);
         }
-    }, [reportType, currentPage, getData, buildFiltros, almacenFilter, quickMode, sortRules]);
+    }, [reportType, currentPage, buildFiltros, quickMode, sortRules, manager]);
 
-    // Función para cargar sugerencias de búsqueda
+    // Cargar sugerencias de búsqueda
     const fetchSuggestions = useCallback(async () => {
         if (!searchTerm || searchTerm.length < 2 || !searchColumn.tableField) {
             setSuggestions([]);
             setShowSuggestions(false);
             return;
         }
-
         if (!QUERY_CONFIGS[reportType]) return;
 
-        // Cancelar peticiones pendientes de sugerencias
         if (suggestionsAbortControllerRef.current) {
             suggestionsAbortControllerRef.current.abort();
         }
@@ -989,466 +361,264 @@ export default function Report() {
         suggestionsAbortControllerRef.current = controller;
 
         try {
+            const config = QUERY_CONFIGS[reportType];
+            const basicFilters: any[] = [
+                { Key: searchColumn.tableField, Value: searchTerm, Operator: "LIKE" },
+            ];
 
-            const queryConfig = QUERY_CONFIGS[reportType];
-
-            // Construir filtros básicos (fecha y otros filtros del reporte)
-            const basicFilters: any = [];
-
-            // Filtro de búsqueda principal
-            basicFilters.push({
-                Key: searchColumn.tableField,
-                Value: searchTerm,
-                Operator: "LIKE"
-            });
-
-            // Agregar filtros específicos del reporte
             if (reportType === "ventas") {
                 basicFilters.push(
                     { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                    { Key: "venta.Mov", Operator: "IN", Value: 'Factura,Factura Credito,Nota' }
+                    { Key: "venta.Mov", Operator: "IN", Value: "Factura,Factura Credito,Nota" }
+                );
+            }
+            if (dateRange.from && dateRange.to && config.fechaField) {
+                basicFilters.push(
+                    { Key: config.fechaField, Operator: ">=", Value: formatDateISOString(dateRange.from) },
+                    { Key: config.fechaField, Operator: "<=", Value: formatDateISOString(dateRange.to) }
                 );
             }
 
-            // Filtro de fechas si está configurado
-            if (dateRange.from && dateRange.to) {
-                const fechaField = queryConfig.fechaField;
-                if (fechaField) {
-                    basicFilters.push(
-                        { Key: fechaField, Operator: ">=", Value: formatDateToSQL(dateRange.from) },
-                        { Key: fechaField, Operator: "<=", Value: formatDateToSQL(dateRange.to) }
-                    );
-                }
-            }
-
-            const response: ApiResponse = await safeCall(() => getData({
-                table: queryConfig.table,
+            const payload: RequestPayload = {
+                table: config.table,
                 filtros: {
                     selects: [{ Key: searchColumn.tableField, Alias: "Suggestion" }],
-                    agregaciones: [{
-                        Key: searchColumn.tableField,
-                        Operation: "DISTINCT",
-                        Alias: "Suggestion"
-                    }],
-                    FiltrosAnd: basicFilters.length > 0 ? [{
-                        Filtros: basicFilters,
-                        OperadorLogico: "AND"
-                    }] : undefined,
+                    agregaciones: [
+                        {
+                            Key: searchColumn.tableField,
+                            Operation: "DISTINCT",
+                            Alias: "Suggestion",
+                        },
+                    ],
+                    FiltrosAnd: basicFilters.length > 0 ? [{ Filtros: basicFilters, OperadorLogico: "AND" }] : undefined,
                     Order: [{ Key: "Suggestion", Direction: "ASC" }],
-                    pageSize: 10,
                 },
-                signal: controller.signal
-            }), "getSuggestions");
+                pageSize: 10,
+                signal: controller.signal,
+            };
 
+            const { promise } = manager.execute(payload);
+            const response = await promise;
             if (response.error) {
-                if (!controller.signal.aborted) {
-                    console.error("Error fetching suggestions:", response.error);
-                }
+                if (!controller.signal.aborted) console.error("Error en sugerencias:", response.error);
                 setSuggestions([]);
-                return;
-            }
-
-            const suggestionData = response.data?.data || [];
-            const uniqueSuggestions = suggestionData
-                .map((s: any) => s.Suggestion)
-                .filter((value: any, index: number, self: any[]) =>
-                    self.indexOf(value) === index && value
-                )
-                .slice(0, 10);
-
-            setSuggestions(uniqueSuggestions.map((s: any) => ({ Suggestion: s })));
-        } catch (error: any) {
-            if (!controller.signal.aborted) {
-                console.error("Error in fetchSuggestions:", error);
-                setSuggestions([]);
-            }
-        } finally {
-            if (!controller.signal.aborted) {
-                setSuggestionsLoading(false);
-            }
-        }
-    }, [searchTerm, searchColumn, reportType, getData, dateRange]);
-
-    // Función para obtener sugerencias de columna (para filtros avanzados)
-    const fetchColumnSuggestions = useCallback(async (columnName: string, searchValue: string) => {
-        if (!columnName || !searchValue || searchValue.length < 2) {
-            setActiveSuggestionsInput(null);
-            return;
-        }
-
-        // Cancelar petición anterior de sugerencias de columna
-        if (columnSuggestionsAbortControllerRef.current) {
-            columnSuggestionsAbortControllerRef.current.abort();
-        }
-
-        setActiveSuggestionsInput(columnName);
-
-        const controller = new AbortController();
-        columnSuggestionsAbortControllerRef.current = controller;
-
-        try {
-
-            const response: ApiResponse = await safeCall(() => getData({
-                table: QUERY_CONFIGS[reportType].table,
-                filtros: {
-                    selects: [{ Key: columnName, Alias: "value" }],
-                    FiltrosAnd: [{
-                        Filtros: [{
-                            Key: columnName,
-                            Operator: "LIKE",
-                            Value: `${searchValue}`
-                        }],
-                        OperadorLogico: "AND"
-                    }],
-                    pageSize: 10,
-                },
-                signal: controller.signal
-            }), "getColumnSuggestions");
-
-            if (response.error) {
-                if (!controller.signal.aborted) {
-                    console.error("Error fetching column suggestions:", response.error);
-                }
                 return;
             }
 
             const data = response.data?.data || [];
-            const suggestions = data.map((item: any) => item.value).filter(Boolean);
-
-            setColumnSuggestions(prev => ({
-                ...prev,
-                [columnName]: suggestions
-            }));
+            const unique = data
+                .map((s: any) => s.Suggestion)
+                .filter((v: any, i: number, a: any[]) => a.indexOf(v) === i && v)
+                .slice(0, 10);
+            setSuggestions(unique.map((s: any) => ({ Suggestion: s })));
         } catch (error: any) {
-            if (error.name !== 'AbortError' && !controller?.signal.aborted) {
-                console.error("Error in fetchColumnSuggestions:", error);
-            }
+            if (!controller.signal.aborted) console.error("Error en fetchSuggestions:", error);
         } finally {
-            if (!controller?.signal.aborted) {
-                // No limpiar activeSuggestionsInput aquí, se hace cuando el input pierde focus
-            }
+            if (!controller.signal.aborted) setSuggestionsLoading(false);
         }
-    }, [reportType, getData]);
+    }, [searchTerm, searchColumn, reportType, dateRange, manager]);
 
-    // Función para cargar estadísticas
-    const fetchStatsData = useCallback(async (forceRefresh = false) => {
-        if (!QUERY_CONFIGS[reportType]) return;
-
-        // Cancelar peticiones pendientes de estadísticas
-        if (statsAbortControllerRef.current) {
-            statsAbortControllerRef.current.abort();
-        }
-
-        // Limpiar errores antes de cargar
-        setStatsError(null);
-        setStatsLoading(!forceRefresh);
-        if (forceRefresh) setRefreshingStats(true);
-
-        const controller = new AbortController();
-        statsAbortControllerRef.current = controller;
-
-        try {
-
-            const queryConfig = QUERY_CONFIGS[reportType];
-            const { filtrosAnd, filtrosOr } = buildFiltros(true);
-
-            const requestData: any = {
-                table: queryConfig.table,
-                filtros: {
-                    agregaciones: queryConfig.agregaciones,
-                },
-                signal: controller.signal
-            };
-
-            // Agregar filtros según el nuevo modelo
-            if (filtrosAnd.length > 0) {
-                requestData.filtros.FiltrosAnd = filtrosAnd;
-            }
-            if (filtrosOr.length > 0) {
-                requestData.filtros.FiltrosOr = filtrosOr;
-            }
-
-            const response: ApiResponse = await safeCall(() => getData(requestData), "getStatsData");
-
-            // Verificar si la petición fue abortada
-            if (controller.signal.aborted) {
+    // Cargar sugerencias para filtros avanzados
+    const fetchColumnSuggestions = useCallback(
+        async (columnName: string, searchValue: string) => {
+            if (!columnName || !searchValue || searchValue.length < 2) {
+                setActiveSuggestionsInput(null);
                 return;
             }
 
-            if (response.error) {
-                if (response.error.name === 'AbortError' ||
-                    response.error.message?.includes('aborted') ||
-                    response.error.code === 'ERR_CANCELLED') {
+            if (columnSuggestionsAbortControllerRef.current) {
+                columnSuggestionsAbortControllerRef.current.abort();
+            }
+
+            setActiveSuggestionsInput(columnName);
+            const controller = new AbortController();
+            columnSuggestionsAbortControllerRef.current = controller;
+
+            try {
+                const config = QUERY_CONFIGS[reportType];
+                const payload: RequestPayload = {
+                    table: config.table,
+                    filtros: {
+                        selects: [{ Key: columnName, Alias: "value" }],
+                        FiltrosAnd: [
+                            {
+                                Filtros: [{ Key: columnName, Operator: "LIKE", Value: searchValue }],
+                                OperadorLogico: "AND",
+                            },
+                        ],
+                    },
+                    pageSize: 10,
+                    signal: controller.signal,
+                };
+
+                const { promise } = manager.execute(payload);
+                const response = await promise;
+                if (response.error) {
+                    if (!controller.signal.aborted) console.error("Error en sugerencias de columna:", response.error);
                     return;
                 }
 
-                throw new Error(response.error.message || "Error al cargar las estadísticas");
+                const data = response.data?.data || [];
+                const suggestions = data.map((item: any) => item.value).filter(Boolean);
+                setColumnSuggestions((prev) => ({ ...prev, [columnName]: suggestions }));
+            } catch (error: any) {
+                if (error.name !== "AbortError" && !controller.signal.aborted) {
+                    console.error("Error en fetchColumnSuggestions:", error);
+                }
+            } finally {
+                // No limpiar activeSuggestionsInput aquí; se maneja en onBlur
             }
+        },
+        [reportType, manager]
+    );
 
-            const statsData = response.data?.data || [];
-            const processedStats = processStatsData(statsData);
-            setStats(processedStats);
+    // Cargar estadísticas agregadas
+    const fetchStatsData = useCallback(
+        async (forceRefresh = false) => {
+            if (!showStats) return; // No cargar si está oculto
+            setStatsError(null);
+            setStatsLoading(true);
+            if (forceRefresh) setRefreshingStats(true);
 
-        } catch (error: any) {
-            // Ignorar errores de aborto
-            if (error.name === 'AbortError' ||
-                error.message?.includes('aborted') ||
-                error.code === 'ERR_CANCELLED') {
-                return;
+            const config = QUERY_CONFIGS[reportType];
+            const { filtrosAnd, filtrosOr } = buildFiltros(true);
+
+            const payload: RequestPayload = {
+                table: config.table,
+                filtros: {
+                    agregaciones: config.agregaciones,
+                    ...(filtrosAnd.length > 0 && { FiltrosAnd: filtrosAnd }),
+                    ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
+                },
+                page: 1,
+                pageSize: CONFIG.PAGE_SIZE,
+            };
+
+            const { promise } = manager.execute(payload);
+            const response = await promise;
+            setStatsLoading(false);
+            setRefreshingStats(false);
+            if (response.error) {
+                if (response.error.name === "AbortError") return;
+                setStatsError(response.error.message || "Error al cargar estadísticas");
+            } else {
+                const processed = processStatsData(response.data?.data);
+                setStats(processed);
             }
+        },
+        [reportType, buildFiltros, manager, showStats]
+    );
 
-            // Solo mostrar error si no fue abortado
-            if (!controller.signal.aborted) {
-                setStatsError(error.message || "Error al cargar las estadísticas");
-            }
-        } finally {
-            // Solo limpiar estados si no fue abortado
-            if (!controller.signal.aborted) {
-                setStatsLoading(false);
-                setRefreshingStats(false);
-            }
-        }
-    }, [reportType, getData, buildFiltros]);
+    // Cargar estadísticas por hora (solo ventas)
+    const fetchStatsForHourData = useCallback(
+        async (forceRefresh = false) => {
+            if (!showStats || reportType !== "ventas") return;
+            setStatsError(null);
+            setStatsLoading(true);
+            if (forceRefresh) setRefreshingStats(true);
 
-    // Función para cargar estadísticas por hora
-    // Función para cargar estadísticas por hora
-    const fetchStatsForHourData = useCallback(async (forceRefresh = false) => {
-        if (!QUERY_CONFIGS[reportType] || reportType !== "ventas") return;
-
-        // Cancelar peticiones pendientes de estadísticas por hora
-        if (statsForHourAbortControllerRef.current) {
-            statsForHourAbortControllerRef.current.abort();
-        }
-
-        // Limpiar errores antes de cargar
-        setStatsError(null);
-        setStatsLoading(!forceRefresh);
-        if (forceRefresh) setRefreshingStats(true);
-
-        const controller = new AbortController();
-        statsForHourAbortControllerRef.current = controller;
-
-        try {
-            const queryConfig = QUERY_CONFIGS[reportType];
+            const config = QUERY_CONFIGS[reportType];
             const { filtrosAnd: baseFiltrosAnd, filtrosOr } = buildFiltros(true);
 
-            // Definir los rangos horarios
-            const rangosHorarios = [
-                { hora: "07:00-08:00", value: "08:00:00 AND 09:00:00" },
-                { hora: "08:00-09:00", value: "09:00:00 AND 10:00:00" },
-                { hora: "09:00-10:00", value: "10:00:00 AND 11:00:00" },
-                { hora: "10:00-11:00", value: "11:00:00 AND 12:00:00" },
-                { hora: "11:00-12:00", value: "12:00:00 AND 13:00:00" },
-                { hora: "12:00-13:00", value: "13:00:00 AND 14:00:00" },
-                { hora: "13:00-14:00", value: "14:00:00 AND 15:00:00" },
-                { hora: "14:00-15:00", value: "15:00:00 AND 16:00:00" },
-                { hora: "15:00-16:00", value: "16:00:00 AND 17:00:00" },
-                { hora: "16:00-17:00", value: "17:00:00 AND 18:00:00" },
-                { hora: "17:00-18:00", value: "18:00:00 AND 19:00:00" },
-                { hora: "18:00-19:00", value: "19:00:00 AND 20:00:00" },
-                { hora: "19:00-20:00", value: "20:00:00 AND 21:00:00" },
-                { hora: "20:00-21:00", value: "21:00:00 AND 22:00:00" },
-                { hora: "21:00-22:00", value: "22:00:00 AND 23:00:00" },
-                { hora: "22:00-23:00", value: "23:00:00 AND 23:59:59" },
-                { hora: "23:00-01:00", value: "01:00:00 AND 02:00:00" }
+            const rangos = [
+                { hora: "07:00-08:00", value: "09:00:00 AND 10:00:00" },
+                { hora: "08:00-09:00", value: "10:00:00 AND 11:00:00" },
+                { hora: "09:00-10:00", value: "11:00:00 AND 12:00:00" },
+                { hora: "10:00-11:00", value: "12:00:00 AND 13:00:00" },
+                { hora: "11:00-12:00", value: "13:00:00 AND 14:00:00" },
+                { hora: "12:00-13:00", value: "14:00:00 AND 15:00:00" },
+                { hora: "13:00-14:00", value: "15:00:00 AND 16:00:00" },
+                { hora: "14:00-15:00", value: "16:00:00 AND 17:00:00" },
+                { hora: "15:00-16:00", value: "17:00:00 AND 18:00:00" },
+                { hora: "16:00-17:00", value: "18:00:00 AND 19:00:00" },
+                { hora: "17:00-18:00", value: "19:00:00 AND 20:00:00" },
+                { hora: "18:00-19:00", value: "20:00:00 AND 21:00:00" },
+                { hora: "19:00-20:00", value: "21:00:00 AND 22:00:00" },
+                { hora: "20:00-21:00", value: "22:00:00 AND 23:00:00" },
+                { hora: "21:00-22:00", value: "23:00:00 AND 23:59:59" },
+                { hora: "22:00-23:00", value: "01:00:00 AND 02:00:00" },
             ];
 
-            // Crear array de promesas para todas las peticiones por hora
-            const promesas = rangosHorarios.map(async (rango) => {
-                try {
-                    const requestData: any = {
-                        table: queryConfig.table,
-                        filtros: {
-                            agregaciones: [
-                                { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
-                                { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-                                { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" }
-                            ],
-                        },
-                        signal: controller.signal
-                    };
-
-                    // Construir filtros: base + filtro de hora específico
-                    const filtrosPorHora = [...baseFiltrosAnd];
-                    filtrosPorHora.push({
-                        Filtros: [
-                            {
-                                Key: "venta.FechaRegistro",
-                                Operator: "TIME_BETWEEN",
-                                Value: rango.value
-                            }
+            const promesas = rangos.map(async (rango) => {
+                const payload: RequestPayload = {
+                    table: config.table,
+                    filtros: {
+                        agregaciones: [
+                            { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
+                            { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
+                            { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
                         ],
-                        OperadorLogico: "AND"
-                    });
+                        FiltrosAnd: [
+                            ...baseFiltrosAnd,
+                            {
+                                Filtros: [{ Key: "venta.FechaRegistro", Operator: "TIME_BETWEEN", Value: rango.value }],
+                                OperadorLogico: "AND",
+                            },
+                        ],
+                        ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
+                    },
+                };
 
-                    if (filtrosPorHora.length > 0) {
-                        requestData.filtros.FiltrosAnd = filtrosPorHora;
-                    }
-                    if (filtrosOr.length > 0) {
-                        requestData.filtros.FiltrosOr = filtrosOr;
-                    }
-
-                    const response: ApiResponse = await safeCall(() => getData(requestData), `getStatsForHour_${rango.hora}`);
-
-                    if (response.error) {
-                        if (response.error.name === 'AbortError' ||
-                            response.error.message?.includes('aborted') ||
-                            response.error.code === 'ERR_CANCELLED') {
-                            return null;
-                        }
-                        console.error(`Error en estadísticas para ${rango.hora}:`, response.error);
-                        return null;
-                    }
-
-                    const statsData = response.data?.data?.[0] || {};
-                    return {
-                        hora: rango.hora,
-                        totalVentas: statsData.totalVentas || 0,
-                        totalCosto: statsData.totalCosto || 0,
-                        totalTikets: statsData.totalTikets || 0,
-                        utilidad: (statsData.totalVentas || 0) - (statsData.totalCosto || 0),
-                        margen: statsData.totalVentas ?
-                            (((statsData.totalVentas - (statsData.totalCosto || 0)) / statsData.totalVentas) * 100) : 0
-                    };
-                } catch (error) {
-                    console.error(`Error en petición para ${rango.hora}:`, error);
-                    return null;
-                }
+                const { promise } = manager.execute(payload);
+                const response = await promise;
+                if (response.error) return null;
+                const statsData = response.data?.data?.[0] || {};
+                return {
+                    hora: rango.hora,
+                    totalVentas: statsData.totalVentas || 0,
+                    totalCosto: statsData.totalCosto || 0,
+                    totalTikets: statsData.totalTikets || 0,
+                    utilidad: (statsData.totalVentas || 0) - (statsData.totalCosto || 0),
+                    margen: statsData.totalVentas ? ((statsData.totalVentas - (statsData.totalCosto || 0)) / statsData.totalVentas) * 100 : 0,
+                };
             });
 
-            // Esperar todas las peticiones
             const resultados = await Promise.all(promesas);
+            setStatsForHour(resultados.filter(Boolean));
+            setStatsLoading(false);
+            setRefreshingStats(false);
+        },
+        [reportType, buildFiltros, manager, showStats]
+    );
 
-            // Filtrar resultados nulos y actualizar estado
-            const statsPorHora = resultados.filter(Boolean);
-
-            // Calcular totales generales de las estadísticas por hora
-            const totales = statsPorHora.reduce((acc, stats) => ({
-                totalVentas: (acc.totalVentas || 0) + (stats?.totalVentas || 0),
-                totalCosto: (acc.totalCosto || 0) + (stats?.totalCosto || 0),
-                totalTikets: (acc.totalTikets || 0) + (stats?.totalTikets || 0)
-            }), { totalVentas: 0, totalCosto: 0, totalTikets: 0 });
-
-            // Calcular utilidad y margen general
-            const utilidadGeneral = (totales.totalVentas || 0) - (totales.totalCosto || 0);
-            const margenGeneral = totales.totalVentas ?
-                ((utilidadGeneral / totales.totalVentas) * 100) : 0;
-
-            // Actualizar estadísticas manteniendo las existentes y agregando por hora
-            setStatsForHour(statsPorHora);
-
-        } catch (error: any) {
-            // Ignorar errores de aborto
-            if (error.name === 'AbortError' ||
-                error.message?.includes('aborted') ||
-                error.code === 'ERR_CANCELLED') {
-                return;
+    // Cargar todo (tabla + estadísticas)
+    const fetchCurrentReportData = useCallback(
+        async (page = 1) => {
+            setCurrentPage(page);
+            fetchTableData();
+            if (showStats) {
+                await Promise.all([fetchStatsData(), fetchStatsForHourData()]);
             }
+        },
+        [fetchTableData, fetchStatsData, fetchStatsForHourData, showStats]
+    );
 
-            // Solo mostrar error si no fue abortado
-            if (!controller.signal.aborted) {
-                setStatsError(error.message || "Error al cargar las estadísticas por hora");
-            }
-        } finally {
-            // Solo limpiar estados si no fue abortado
-            if (!controller.signal.aborted) {
-                setStatsLoading(false);
-                setRefreshingStats(false);
-            }
-        }
-    }, [reportType, getData, buildFiltros]);
-    // Función para cargar datos del reporte actual
-    const fetchCurrentReportData = useCallback(async (page = 1) => {
-        cancelAllPendingRequests();
-        setCurrentPage(page);
-
-        // Para comparación, cargar siempre ambos
-        if (reportType === "comparacion") {
-            await Promise.all([
-                fetchTableData(page),
-                fetchStatsData()
-            ]);
-        } else {
-            fetchTableData(page);
-            fetchStatsData();
-            fetchStatsForHourData();
-        }
-    }, [reportType, fetchTableData, fetchStatsData, fetchStatsForHourData]);
-
-    // Función para recargar solo la tabla
-    const refreshTable = () => {
-        setCurrentPage(1);
-        fetchTableData(1, true);
-    };
-
-    // Función para recargar solo las estadísticas
-    const refreshStats = () => {
-        fetchStatsData(true);
-    };
-
-    // Función para recargar ambas
-    const refreshAll = () => {
-        cancelAllPendingRequests();
-        setCurrentPage(1);
-        fetchCurrentReportData(1);
-    };
-
-    // Nueva función para aplicar búsqueda
-    const handleSearchSubmit = () => {
-        if (searchTerm.length >= 2) {
-            setSearchApplied(true);
-            setLastSearch({
-                term: searchTerm,
-                columnKey: searchColumn.key
-            });
-            setCurrentPage(1);
-            fetchCurrentReportData(1);
-        }
-    };
-
-    // Cargar datos iniciales cuando cambian los filtros o el tipo de reporte
+    // Efecto principal: cambiar reporte o filtros dispara carga
     useEffect(() => {
-        // Limpiar mensajes de error previos
         setTableError(null);
         setStatsError(null);
-
-        // Guardar búsqueda actual si existe
-        if (searchApplied && searchTerm) {
-            setLastSearch({
-                term: searchTerm,
-                columnKey: searchColumn.key
-            });
-        }
-
         fetchCurrentReportData(1);
-
-        // Cleanup
         return () => {
-            cancelAllPendingRequests();
+            // Limpieza de peticiones pendientes al desmontar o cambiar dependencias
+            manager.cancelAll();
         };
-    }, [reportType, almacenFilter, dateRange, quickMode]);
+    }, [reportType, almacenFilter, dateRange, quickMode, searchApplied, searchTerm, searchColumn, showStats]);
 
-    // Cambiar página de la tabla
+    // Efecto para cambio de página
     useEffect(() => {
-        if (currentPage !== 1) {
-            cancelAllPendingRequests();
-            fetchTableData(currentPage);
-        }
+        if (currentPage !== 1) fetchTableData();
     }, [currentPage]);
 
-    // Handlers para búsqueda y filtros
+    // Handlers
     const handleSearchChange = (value: string) => {
         setSearchTerm(value);
         setSearchApplied(false);
-
         if (value.length >= 2) {
             fetchSuggestions();
         } else {
             setShowSuggestions(false);
             setSuggestions([]);
-            if (suggestionsAbortControllerRef.current) {
-                suggestionsAbortControllerRef.current.abort();
-            }
+            suggestionsAbortControllerRef.current?.abort();
         }
     };
 
@@ -1458,18 +628,9 @@ export default function Report() {
         setSearchApplied(false);
         setShowSuggestions(false);
         setSuggestions([]);
-
-        // Cancelar sugerencias anteriores
-        if (suggestionsAbortControllerRef.current) {
-            suggestionsAbortControllerRef.current.abort();
-        }
-
-        // Si hay término de búsqueda, actualizar lastSearch
+        suggestionsAbortControllerRef.current?.abort();
         if (searchTerm) {
-            setLastSearch({
-                term: searchTerm,
-                columnKey: column.key
-            });
+            setLastSearch({ term: searchTerm, columnKey: column.key });
         }
     };
 
@@ -1477,16 +638,21 @@ export default function Report() {
         setSearchTerm(suggestion.Suggestion);
         setShowSuggestions(false);
         setSearchApplied(true);
-        setLastSearch({
-            term: suggestion.Suggestion,
-            columnKey: searchColumn.key
-        });
+        setLastSearch({ term: suggestion.Suggestion, columnKey: searchColumn.key });
         setCurrentPage(1);
         fetchCurrentReportData(1);
     };
 
+    const handleSearchSubmit = () => {
+        if (searchTerm.length >= 2) {
+            setSearchApplied(true);
+            setLastSearch({ term: searchTerm, columnKey: searchColumn.key });
+            setCurrentPage(1);
+            fetchCurrentReportData(1);
+        }
+    };
+
     const handleClearFilters = () => {
-        cancelAllPendingRequests();
         setSearchTerm("");
         setSearchApplied(false);
         setLastSearch(null);
@@ -1495,355 +661,248 @@ export default function Report() {
         setAlmacenFilter("");
         setDateRange({
             from: new Date(new Date().setDate(new Date().getDate() - 30)),
-            to: new Date()
+            to: new Date(),
         });
-        // Limpiar filtros avanzados
         setFilterGroups([
             {
                 id: generateId(),
                 filters: [{ column: "", operator: "=", value: "", groupId: "" }],
                 logicalOperator: "AND",
-                name: "Grupo 1"
-            }
+                name: "Grupo 1",
+            },
         ]);
         setCurrentPage(1);
         fetchCurrentReportData(1);
     };
 
     const handleReportTypeChange = (type: ReportType) => {
-        cancelAllPendingRequests();
-
-        // Guardar búsqueda actual si existe
         if (searchApplied && searchTerm) {
-            setLastSearch({
-                term: searchTerm,
-                columnKey: searchColumn.key
-            });
+            setLastSearch({ term: searchTerm, columnKey: searchColumn.key });
         }
-
         setReportType(type);
         setCurrentPage(1);
         setSearchApplied(false);
         setShowMobileMenu(false);
-
-        // La búsqueda se restaurará en el useEffect de reportType
     };
 
-    // Handler para cambio de fecha
     const handleDateChange = (from: Date | null, to: Date | null) => {
-        cancelAllPendingRequests();
         setDateRange({ from, to });
         setCurrentPage(1);
         setShowDatePicker(false);
         fetchCurrentReportData(1);
     };
-
-    // Handler para cambio de almacén
     const handleAlmacenFilterChange = (value: string) => {
-        cancelAllPendingRequests();
         setAlmacenFilter(value);
         setCurrentPage(1);
         fetchCurrentReportData(1);
     };
+    const applyDatePeriod = (period: (typeof DATE_PERIODS)[0]) => {
+        const today = new Date();
+        let from: Date | null = null;
+        let to: Date | null = today;
+        if (period.days) {
+            from = new Date(today);
+            from.setDate(today.getDate() - period.days);
+        } else if (period.label === "Este mes") {
+            from = new Date(today.getFullYear(), today.getMonth(), 1);
+            to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        } else if (period.label === "Mes anterior") {
+            from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            to = new Date(today.getFullYear(), today.getMonth(), 0);
+        } else if (period.label === "Este año") {
+            from = new Date(today.getFullYear(), 0, 1);
+            to = new Date(today.getFullYear(), 11, 31);
+        }
+        handleDateChange(from, to);
+    };
 
-    // Preparar métricas para BentoGrid con datos actuales
+    // Obtener métricas para bento grid
     const getBentoMetrics = () => {
         const baseMetrics = [...BENTO_METRICS_CONFIG[reportType]];
-
-        return baseMetrics.map(metric => {
-            const key = metric.title.toLowerCase().replace(/\s+/g, '');
-            let rawValue = 0;
-
+        return baseMetrics.map((metric) => {
+            const key = metric.title.toLowerCase().replace(/\s+/g, "");
+            let raw = 0;
             switch (key) {
                 case "ventas":
-                    rawValue = stats.totalVentas || 0;
-                    metric.display = formatValue(rawValue, "currency");
+                    raw = stats.totalVentas || 0;
+                    metric.display = formatValue(raw, "currency");
                     break;
                 case "tikets":
-                    rawValue = stats.totalTikets || 0;
-                    metric.display = formatValue(rawValue, "number");
+                    raw = stats.totalTikets || 0;
+                    metric.display = formatValue(raw, "number");
                     break;
                 case "promedio":
-                    rawValue = stats.promedio || 0;
-                    metric.display = formatValue(rawValue, "currency");
+                    raw = stats.promedio || 0;
+                    metric.display = formatValue(raw, "currency");
                     break;
                 case "costos":
-                    rawValue = -(stats.totalCosto || 0);
-                    metric.display = formatValue(stats.totalCosto || 0, "currency");
+                case "costototal":
+                case "costomerma":
+                    raw = stats.totalCosto || 0;
+                    metric.display = formatValue(raw, "currency");
                     break;
                 case "margen":
-                    rawValue = stats.margen || 0;
-                    metric.display = formatValue(rawValue, "percentage");
+                    raw = stats.margen || 0;
+                    metric.display = formatValue(raw, "percentage");
                     break;
                 case "utilidad":
-                    rawValue = stats.utilidad || 0;
-                    metric.display = formatValue(rawValue, "currency");
+                    raw = stats.utilidad || 0;
+                    metric.display = formatValue(raw, "currency");
                     break;
                 case "artículos":
-                    rawValue = stats.totalArticulos || 0;
-                    metric.display = formatValue(rawValue, "number");
-                    break;
-                case "costototal":
-                    rawValue = -(stats.totalCosto || 0);
-                    metric.display = formatValue(stats.totalCosto || 0, "currency");
+                    raw = stats.totalArticulos || 0;
+                    metric.display = formatValue(raw, "number");
                     break;
                 case "proveedores":
-                    rawValue = stats.totalProveedores || 0;
-                    metric.display = formatValue(rawValue, "number");
-                    break;
-                case "costomerma":
-                    rawValue = -(stats.totalCosto || 0);
-                    metric.display = formatValue(stats.totalCosto || 0, "currency");
+                    raw = stats.totalProveedores || 0;
+                    metric.display = formatValue(raw, "number");
                     break;
                 case "compras":
-                    rawValue = stats.totalCompras || 0;
-                    metric.display = formatValue(rawValue, "currency");
+                    raw = stats.totalCompras || 0;
+                    metric.display = formatValue(raw, "currency");
                     break;
                 case "diferencia":
-                    rawValue = stats.diferencia || 0;
-                    metric.display = formatValue(rawValue, "currency");
+                    raw = stats.diferencia || 0;
+                    metric.display = formatValue(raw, "currency");
                     break;
+                default:
+                    raw = 0;
             }
-
-            metric.raw = rawValue;
+            metric.raw = raw;
             return metric;
         });
     };
 
-    // Helpers para estilos de Bento
-    function getBentoState(value: number) {
-        if (value > 0) return "positive";
-        if (value < 0) return "negative";
-        return "neutral";
-    }
-
-    const bentoStyles: Record<any, any> = {
-        positive: { bg: "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800", text: "text-green-600 dark:text-green-400" },
-        negative: { bg: "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800", text: "text-red-600 dark:text-red-400" },
-        neutral: { bg: "bg-gray-50 border-gray-200 dark:bg-gray-800/50 dark:border-gray-700", text: "text-gray-800 dark:text-gray-300" }
-    };
-
-    const bentoIcons: Record<string, any> = {
-        positive: TrendingUp,
-        negative: TrendingDown,
-        neutral: Minus
-    };
+    const getBentoState = (value: number) => (value > 0 ? "positive" : value < 0 ? "negative" : "neutral");
+    const bentoIcons = { positive: TrendingUp, negative: TrendingDown, neutral: Minus };
 
     const totalPages = Math.ceil(totalRecords / CONFIG.PAGE_SIZE);
     const bentoMetrics = getBentoMetrics();
     const searchColumns = SEARCH_COLUMNS_CONFIG[reportType];
 
-    // Formatear fecha para display
-    const formatDateDisplay = (date: Date | null): string => {
-        if (!date) return "Seleccionar";
-        return date.toLocaleDateString('es-ES', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-    };
-
-    // Función para obtener período actual de búsqueda
     const getCurrentPeriod = () => {
         if (!dateRange.from || !dateRange.to) return "Sin período definido";
-
         const fromStr = formatDateDisplay(dateRange.from);
         const toStr = formatDateDisplay(dateRange.to);
-
-        // Verificar si coincide con algún período predefinido
-        for (const period of DATE_PERIODS) {
-            if (period.days) {
-                const expectedFrom = new Date(new Date().setDate(new Date().getDate() - period.days));
-                if (formatDateDisplay(expectedFrom) === fromStr && formatDateDisplay(new Date()) === toStr) {
-                    return period.label;
-                }
+        for (const p of DATE_PERIODS) {
+            if (p.days) {
+                const expected = new Date(new Date().setDate(new Date().getDate() - p.days));
+                if (formatDateDisplay(expected) === fromStr && formatDateDisplay(new Date()) === toStr) return p.label;
             }
         }
-
         return `${fromStr} - ${toStr}`;
     };
 
-    // Handlers para filtros avanzados
+    const getAvailableColumns = () => {
+        const config = QUERY_CONFIGS[reportType];
+        if (!config) return [];
+        return config.selects.map((select: any) => ({
+            value: select.Key,
+            label: `${select.Key.split(".")[0]}.${select.Alias || select.Key.split(".")[1] || select.Key}`,
+        }));
+    };
+
+    // Handlers para filtros avanzados (se mantienen igual)
     const handleAdvancedFilterChange = (groupId: string, filterIndex: number, field: keyof FilterRule, value: any) => {
-        setFilterGroups(prev => prev.map(group => {
-            if (group.id === groupId) {
-                const newFilters = [...group.filters];
-
-                // Actualizar el filtro específico
-                if (field === 'value' && value && value.length >= 2 && newFilters[filterIndex].column) {
-                    // Buscar sugerencias después de un pequeño delay
-                    setTimeout(() => {
-                        fetchColumnSuggestions(newFilters[filterIndex].column, value);
-                    }, 300);
+        setFilterGroups((prev) =>
+            prev.map((group) => {
+                if (group.id === groupId) {
+                    const newFilters = [...group.filters];
+                    if (field === "value" && value?.length >= 2 && newFilters[filterIndex].column) {
+                        setTimeout(() => fetchColumnSuggestions(newFilters[filterIndex].column, value), 300);
+                    }
+                    if (field === "operator" && (value === "IS NULL" || value === "IS NOT NULL")) {
+                        newFilters[filterIndex] = { ...newFilters[filterIndex], [field]: value, value: "" };
+                    } else {
+                        newFilters[filterIndex] = { ...newFilters[filterIndex], [field]: value };
+                    }
+                    return { ...group, filters: newFilters };
                 }
-
-                // Si estamos cambiando el operador a NULL/IS NOT NULL, limpiar el valor
-                if (field === 'operator' && (value === 'IS NULL' || value === 'IS NOT NULL')) {
-                    newFilters[filterIndex] = { ...newFilters[filterIndex], [field]: value, value: '' };
-                } else {
-                    newFilters[filterIndex] = { ...newFilters[filterIndex], [field]: value };
-                }
-
-                return { ...group, filters: newFilters };
-            }
-            return group;
-        }));
+                return group;
+            })
+        );
     };
 
-    // Función para agregar nuevo filtro a un grupo
     const addAdvancedFilter = (groupId: string) => {
-        setFilterGroups(prev => prev.map(group => {
-            if (group.id === groupId) {
-                return {
-                    ...group,
-                    filters: [...group.filters, { column: "", operator: "=", value: "", groupId }]
-                };
-            }
-            return group;
-        }));
+        setFilterGroups((prev) =>
+            prev.map((group) =>
+                group.id === groupId
+                    ? { ...group, filters: [...group.filters, { column: "", operator: "=", value: "", groupId }] }
+                    : group
+            )
+        );
     };
 
-    // Función para eliminar filtro de un grupo
     const removeAdvancedFilter = (groupId: string, filterIndex: number) => {
-        setFilterGroups(prev => prev.map(group => {
-            if (group.id === groupId && group.filters.length > 1) {
-                const newFilters = group.filters.filter((_, i) => i !== filterIndex);
-                return { ...group, filters: newFilters };
-            }
-            return group;
-        }));
+        setFilterGroups((prev) =>
+            prev.map((group) => {
+                if (group.id === groupId && group.filters.length > 1) {
+                    return { ...group, filters: group.filters.filter((_, i) => i !== filterIndex) };
+                }
+                return group;
+            })
+        );
     };
 
-    // Función para agregar nuevo grupo de filtros
     const addFilterGroup = () => {
-        const newGroupId = generateId();
-        setFilterGroups(prev => [...prev, {
-            id: newGroupId,
-            filters: [{ column: "", operator: "=", value: "", groupId: newGroupId }],
-            logicalOperator: "AND",
-            name: `Grupo ${prev.length + 1}`
-        }]);
+        const newId = generateId();
+        setFilterGroups((prev) => [
+            ...prev,
+            {
+                id: newId,
+                filters: [{ column: "", operator: "=", value: "", groupId: newId }],
+                logicalOperator: "AND",
+                name: `Grupo ${prev.length + 1}`,
+            },
+        ]);
     };
 
-    // Función para eliminar grupo de filtros
     const removeFilterGroup = (groupId: string) => {
         if (filterGroups.length > 1) {
-            setFilterGroups(prev => prev.filter(group => group.id !== groupId));
+            setFilterGroups((prev) => prev.filter((g) => g.id !== groupId));
         }
     };
 
-    // Función para cambiar operador lógico de un grupo
-    const handleGroupLogicalOperatorChange = (groupId: string, operator: 'AND' | 'OR') => {
-        setFilterGroups(prev => prev.map(group => {
-            if (group.id === groupId) {
-                return { ...group, logicalOperator: operator };
-            }
-            return group;
-        }));
+    const handleGroupLogicalOperatorChange = (groupId: string, operator: "AND" | "OR") => {
+        setFilterGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, logicalOperator: operator } : g)));
     };
 
-    // Función para cambiar nombre de un grupo
     const handleGroupNameChange = (groupId: string, name: string) => {
-        setFilterGroups(prev => prev.map(group => {
-            if (group.id === groupId) {
-                return { ...group, name };
-            }
-            return group;
-        }));
+        setFilterGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name } : g)));
     };
 
-    // Función para manejar cambios en ordenamiento
     const handleSortChange = (index: number, field: keyof SortRule, value: any) => {
         const newSorts = [...sortRules];
         newSorts[index] = { ...newSorts[index], [field]: value };
         setSortRules(newSorts);
     };
 
-    // Función para agregar nuevo ordenamiento
-    const addSortRule = () => {
-        setSortRules([...sortRules, { column: "", direction: "asc" }]);
-    };
-
-    // Función para eliminar ordenamiento
+    const addSortRule = () => setSortRules([...sortRules, { column: "", direction: "asc" }]);
     const removeSortRule = (index: number) => {
-        if (sortRules.length > 1) {
-            const newSorts = sortRules.filter((_, i) => i !== index);
-            setSortRules(newSorts);
-        }
+        if (sortRules.length > 1) setSortRules(sortRules.filter((_, i) => i !== index));
     };
 
-    // Función para aplicar filtros avanzados
     const applyAdvancedFilters = () => {
-        cancelAllPendingRequests();
         setCurrentPage(1);
         fetchCurrentReportData(1);
     };
 
-    // Obtener columnas disponibles de la configuración actual (con prefijo)
-    const getAvailableColumns = () => {
-        const config = QUERY_CONFIGS[reportType];
-        if (!config) return [];
-
-        return config.selects.map(select => {
-            const prefix = select.Key.split('.')[0] + '.';
-            return {
-                value: select.Key,
-                label: `${prefix}${select.Alias || select.Key.split('.')[1] || select.Key}`
-            };
-        });
-    };
-
-    // Función para aplicar período de fecha
-    const applyDatePeriod = (period: typeof DATE_PERIODS[0]) => {
-        const today = new Date();
-        let fromDate: Date | null = null;
-        let toDate: Date | null = today;
-
-        if (period.days) {
-            fromDate = new Date(today);
-            fromDate.setDate(today.getDate() - period.days);
-        } else if (period.label === "Este mes") {
-            fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
-            toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        } else if (period.label === "Mes anterior") {
-            fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-            toDate = new Date(today.getFullYear(), today.getMonth(), 0);
-        } else if (period.label === "Este año") {
-            fromDate = new Date(today.getFullYear(), 0, 1);
-            toDate = new Date(today.getFullYear(), 11, 31);
-        }
-
-        handleDateChange(fromDate, toDate);
-    };
-
-    // Función para obtener resumen de filtros activos
     const getActiveFiltersSummary = () => {
-        const summary = [];
-
-        if (dateRange.from && dateRange.to) {
-            summary.push(`Período: ${getCurrentPeriod()}`);
-        }
-
-        if (almacenFilter) {
-            summary.push(`Almacén: ${almacenFilter}`);
-        }
-
-        if (searchApplied && searchTerm) {
-            summary.push(`Búsqueda: ${searchColumn.label} contiene "${searchTerm}"`);
-        }
-
+        const summary: string[] = [];
+        if (dateRange.from && dateRange.to) summary.push(`Período: ${getCurrentPeriod()}`);
+        if (almacenFilter) summary.push(`Almacén: ${almacenFilter}`);
+        if (searchApplied && searchTerm) summary.push(`Búsqueda: ${searchColumn.label} contiene "${searchTerm}"`);
         if (!quickMode) {
-            filterGroups.forEach((group, groupIndex) => {
-                const activeFilters = group.filters.filter(f => f.column && (f.value || f.operator.includes('NULL')));
-                if (activeFilters.length > 0) {
-                    const filterDesc = activeFilters.map(f =>
-                        `${f.column.split('.')[1] || f.column} ${f.operator} ${f.value || '(nulo)'}`
-                    ).join(` ${group.logicalOperator} `);
-                    summary.push(`${group.name || `Grupo ${groupIndex + 1}`}: ${filterDesc}`);
+            filterGroups.forEach((g, idx) => {
+                const active = g.filters.filter((f) => f.column && (f.value || f.operator.includes("NULL")));
+                if (active.length) {
+                    const desc = active
+                        .map((f) => `${f.column.split(".")[1] || f.column} ${f.operator} ${f.value || "(nulo)"}`)
+                        .join(` ${g.logicalOperator} `);
+                    summary.push(`${g.name || `Grupo ${idx + 1}`}: ${desc}`);
                 }
             });
         }
-
         return summary;
     };
 
@@ -1854,9 +913,7 @@ export default function Report() {
                 {/* Header móvil */}
                 <ul className="md:hidden mb-4">
                     <li className="flex items-center justify-between">
-                        <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200">
-                            Reportería
-                        </h1>
+                        <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200">Reportería</h1>
                         <button
                             onClick={() => setShowMobileMenu(!showMobileMenu)}
                             className="p-2 rounded-lg border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600"
@@ -1864,8 +921,6 @@ export default function Report() {
                             {showMobileMenu ? <ChevronUp size={20} /> : <Menu size={20} />}
                         </button>
                     </li>
-
-                    {/* Selector de reporte en móvil */}
                     <li className="mt-3">
                         <select
                             value={reportType}
@@ -1902,14 +957,10 @@ export default function Report() {
                                     <option value="comparacion">Comparación</option>
                                 </select>
                             </section>
-
-                            {/* Información del período actual */}
                             <div className="text-sm text-gray-600 dark:text-gray-400">
                                 <Calendar className="inline-block mr-1 h-4 w-4" />
                                 {getCurrentPeriod()}
                             </div>
-
-                            {/* Botón para ver filtros activos */}
                             <button
                                 onClick={() => setShowActiveFilters(!showActiveFilters)}
                                 className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300"
@@ -1918,52 +969,61 @@ export default function Report() {
                                 {showActiveFilters ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 Filtros
                             </button>
+                            <button
+                                onClick={() => setShowStats(!showStats)}
+                                className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300"
+                                title={showStats ? "Ocultar estadísticas" : "Mostrar estadísticas"}
+                            >
+                                {showStats ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                Stats
+                            </button>
                         </div>
-
-                        {/* Mostrar resumen de filtros activos */}
                         {showActiveFilters && getActiveFiltersSummary().length > 0 && (
                             <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
                                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtros activos:</div>
                                 <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                                    {getActiveFiltersSummary().map((filter, index) => (
-                                        <div key={index} className="flex items-center">
+                                    {getActiveFiltersSummary().map((f, i) => (
+                                        <div key={i} className="flex items-center">
                                             <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
-                                            {filter}
+                                            {f}
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         )}
                     </li>
-
                     <li className="flex gap-2">
                         <button
-                            onClick={refreshStats}
+                            onClick={() => fetchStatsData(true)}
                             disabled={statsLoading || refreshingStats}
                             className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
                             title="Recargar solo estadísticas"
                         >
-                            <RefreshCw className={`w-4 h-4 ${refreshingStats ? 'animate-spin' : ''}`} />
+                            <RefreshCw className={`w-4 h-4 ${refreshingStats ? "animate-spin" : ""}`} />
                             Stats
                         </button>
-
                         <button
-                            onClick={refreshTable}
+                            onClick={() => {
+                                setRefreshingTable(true);
+                                fetchTableData().finally(() => setRefreshingTable(false));
+                            }}
                             disabled={tableLoading || refreshingTable}
                             className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
                             title="Recargar solo tabla"
                         >
-                            <RefreshCw className={`w-4 h-4 ${refreshingTable ? 'animate-spin' : ''}`} />
+                            <RefreshCw className={`w-4 h-4 ${refreshingTable ? "animate-spin" : ""}`} />
                             Tabla
                         </button>
-
                         <button
-                            onClick={refreshAll}
-                            disabled={(tableLoading && statsLoading)}
+                            onClick={() => {
+                                setCurrentPage(1);
+                                fetchCurrentReportData(1);
+                            }}
+                            disabled={tableLoading || statsLoading}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
                             title="Recargar todo"
                         >
-                            <RefreshCw className={`w-4 h-4 ${(refreshingTable && refreshingStats) ? 'animate-spin' : ''}`} />
+                            <RefreshCw className={`w-4 h-4 ${tableLoading || statsLoading ? "animate-spin" : ""}`} />
                             <span className="hidden md:inline">Recargar Todo</span>
                             <span className="md:hidden">Todo</span>
                         </button>
@@ -1975,66 +1035,61 @@ export default function Report() {
                     <ul className="md:hidden mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                         <li className="grid grid-cols-2 gap-2 mb-3">
                             <button
-                                onClick={refreshStats}
+                                onClick={() => fetchStatsData(true)}
                                 disabled={statsLoading || refreshingStats}
                                 className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 dark:bg-gray-700 dark:border-gray-600"
-                                title="Recargar solo estadísticas"
                             >
-                                <RefreshCw className={`w-4 h-4 ${refreshingStats ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`w-4 h-4 ${refreshingStats ? "animate-spin" : ""}`} />
                                 <span className="text-sm">Stats</span>
                             </button>
-
                             <button
-                                onClick={refreshTable}
+                                onClick={() => {
+                                    setRefreshingTable(true);
+                                    fetchTableData().finally(() => setRefreshingTable(false));
+                                }}
                                 disabled={tableLoading || refreshingTable}
                                 className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 dark:bg-gray-700 dark:border-gray-600"
-                                title="Recargar solo tabla"
                             >
-                                <RefreshCw className={`w-4 h-4 ${refreshingTable ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`w-4 h-4 ${refreshingTable ? "animate-spin" : ""}`} />
                                 <span className="text-sm">Tabla</span>
                             </button>
                         </li>
-
                         <li className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                             Reporte: {reportType.charAt(0).toUpperCase() + reportType.slice(1)}
                         </li>
-
-                        <li className="text-sm text-gray-600 dark:text-gray-400">
-                            Período: {getCurrentPeriod()}
-                        </li>
+                        <li className="text-sm text-gray-600 dark:text-gray-400">Período: {getCurrentPeriod()}</li>
                     </ul>
                 )}
 
-                {/* Mensajes de error con mejor diseño */}
+                {/* Mensajes de error */}
                 {statsError && !statsLoading && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
                         <div className="flex items-start gap-3">
-                            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                            <AlertCircle className="h-5 w-5 mt-0.5" />
                             <div className="flex-1">
                                 <div className="font-medium mb-1">Error en estadísticas</div>
                                 <div className="text-sm">{statsError}</div>
                             </div>
-                            <button
-                                onClick={refreshStats}
-                                className="text-sm font-medium underline hover:no-underline flex items-center gap-1"
-                            >
+                            <button onClick={() => fetchStatsData(true)} className="text-sm font-medium underline hover:no-underline flex items-center gap-1">
                                 <RefreshCw className="h-3 w-3" />
                                 Reintentar
                             </button>
                         </div>
                     </div>
                 )}
-
                 {tableError && !tableLoading && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
                         <div className="flex items-start gap-3">
-                            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                            <AlertCircle className="h-5 w-5 mt-0.5" />
                             <div className="flex-1">
-                                <div className="font-medium mb-1">Error en tabla de datos</div>
+                                <div className="font-medium mb-1">Error en tabla</div>
                                 <div className="text-sm">{tableError}</div>
                             </div>
                             <button
-                                onClick={refreshTable}
+                                onClick={() => {
+                                    setRefreshingTable(true);
+                                    fetchTableData().finally(() => setRefreshingTable(false));
+                                }}
                                 className="text-sm font-medium underline hover:no-underline flex items-center gap-1"
                             >
                                 <RefreshCw className="h-3 w-3" />
@@ -2044,17 +1099,20 @@ export default function Report() {
                     </div>
                 )}
 
-                {/* Indicadores de carga con estado más claro */}
+                {/* Indicador de carga global */}
                 {(tableLoading || refreshingTable || statsLoading || refreshingStats) && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
                         <div className="flex items-center gap-3">
                             <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
                             <div className="flex-1">
                                 <div className="font-medium text-blue-700 dark:text-blue-300">
-                                    {refreshingTable ? "Actualizando tabla..." :
-                                        refreshingStats ? "Actualizando estadísticas..." :
-                                            tableLoading ? "Cargando datos..." :
-                                                "Cargando estadísticas..."}
+                                    {refreshingTable
+                                        ? "Actualizando tabla..."
+                                        : refreshingStats
+                                            ? "Actualizando estadísticas..."
+                                            : tableLoading
+                                                ? "Cargando datos..."
+                                                : "Cargando estadísticas..."}
                                 </div>
                                 {reportType === "comparacion" && (
                                     <div className="text-sm text-blue-600/80 dark:text-blue-400/80 mt-1">
@@ -2066,30 +1124,26 @@ export default function Report() {
                     </div>
                 )}
 
-                {/* Estadísticas */}
-                {reportType && bentoMetrics.length > 0 && (
+                {/* BentoGrid (estadísticas) - Solo se renderiza si showStats = true */}
+                {showStats && reportType && bentoMetrics.length > 0 && (
                     <div className="mb-6">
-                        <BentoGrid
-                            cols={4}
-                            loading={statsLoading || refreshingStats}
-                        >
+                        <BentoGrid cols={4} loading={statsLoading || refreshingStats}>
                             {bentoMetrics.map((item: any, index: number) => {
                                 const state = getBentoState(item.raw);
                                 const StateIcon = bentoIcons[state];
                                 const ItemIcon = item.icon;
-
                                 return (
                                     <BentoItem
                                         key={index}
                                         title={item.title}
                                         description={item.description}
-                                        icon={<StateIcon className={`w-4 h-4 ${bentoStyles[state].text}`} />}
+                                        icon={<StateIcon className="w-4 h-4" />}
                                         iconRight
-                                        className={`border ${bentoStyles[state].bg} dark:text-gray-200 p-3 md:p-4`}
+                                        className="border dark:text-gray-200 p-3 md:p-4"
                                         loading={statsLoading || refreshingStats}
                                     >
                                         <div className="flex items-center justify-between">
-                                            <div className={`text-lg md:text-xl relative font-bold ${bentoStyles[state].text} truncate`}>
+                                            <div className="text-lg md:text-xl relative font-bold truncate">
                                                 {statsLoading && !refreshingStats ? (
                                                     <Loader2 className="h-5 w-5 animate-spin" />
                                                 ) : (
@@ -2104,64 +1158,55 @@ export default function Report() {
                                 );
                             })}
 
-
-
-                            {reportType === "ventas" && (<BentoItem
-                                title="Ventas por hora"
-                                description="Distribución de ventas por rangos horarios"
-                                icon={<DollarSign className="w-4 h-4 text-white" />}
-                                iconRight
-                                className="border text-white bg-green-600 border-green-700 dark:text-gray-200 p-3 md:p-4"
-                                loading={statsLoading || refreshingStats}
-                            >
-                                <div className="flex flex-col gap-2">
-                                    {statsForHour.length > 0 && (
-                                        <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
-                                            {/* Cabecera */}
-                                            <div className="flex gap-2 justify-between text-xs sticky top-0 bg-green-600/90 px-1 py-1 border-b border-green-700">
-                                                <span className="font-medium text-white/90 w-16">HORA</span>
-                                                <span className="font-bold text-white/90 flex-1 text-right">VENTAS</span>
-                                                <span className="font-bold text-white/90 flex-1 text-right">TICKETS</span>
-                                                <span className="font-bold text-white/90 flex-1 text-right">UTILIDAD</span>
+                            {reportType === "ventas" && (
+                                <BentoItem
+                                    title="Ventas por hora"
+                                    description="Distribución por rangos horarios"
+                                    icon={<DollarSign className="w-4 h-4 text-white" />}
+                                    iconRight
+                                    className="border text-white bg-green-600 border-green-700 dark:text-gray-200 p-3 md:p-4"
+                                    loading={statsLoading || refreshingStats}
+                                >
+                                    <div className="flex flex-col gap-2">
+                                        {statsForHour.length > 0 ? (
+                                            <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
+                                                <div className="flex gap-2 justify-between text-xs sticky top-0 bg-green-600/90 px-1 py-1 border-b border-green-700">
+                                                    <span className="font-medium text-white/90 w-16">HORA</span>
+                                                    <span className="font-bold text-white/90 flex-1 text-right">VENTAS</span>
+                                                    <span className="font-bold text-white/90 flex-1 text-right">TICKETS</span>
+                                                    <span className="font-bold text-white/90 flex-1 text-right">UTILIDAD</span>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    {statsForHour.map((item) => (
+                                                        <div
+                                                            key={item.hora}
+                                                            className="flex gap-2 justify-between text-xs hover:bg-white/5 rounded px-1 py-1 transition-colors cursor-pointer"
+                                                        >
+                                                            <span className="font-medium text-white/80 w-16">{item.hora}</span>
+                                                            <span className="font-semibold text-white/90 flex-1 text-right">
+                                                                {formatValue(item.totalVentas, "currency")}
+                                                            </span>
+                                                            <span className="font-semibold text-white/90 flex-1 text-right">
+                                                                {formatValue(item.totalTikets, "number")}
+                                                            </span>
+                                                            <span
+                                                                className={`font-semibold flex-1 text-right ${item.utilidad >= 0 ? "text-yellow-400" : "text-red-400"
+                                                                    }`}
+                                                            >
+                                                                {formatValue(item.utilidad, "currency")}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-
-                                            {/* Lista de horas */}
-                                            <div className="space-y-1">
-                                                {statsForHour.map((item) => (
-                                                    <div
-                                                        key={`hour-${item.hora}`}
-                                                        className="flex gap-2 justify-between text-xs hover:bg-white/5 rounded px-1 py-1 transition-colors cursor-pointer"
-                                                    >
-                                                        <span className="font-medium text-white/80 w-16">{item.hora}</span>
-                                                        <span className="font-semibold text-white/90 flex-1 text-right">
-                                                            {formatValue(item.totalVentas, "currency")}
-                                                        </span>
-                                                        <span className="font-semibold text-white/90 flex-1 text-right">
-                                                            {formatValue(item.totalTikets, "number")}
-                                                        </span>
-                                                        <span className={`font-semibold flex-1 text-right ${item.utilidad >= 0 ? 'text-yellow-400' : 'text-red-400'
-                                                            }`}>
-                                                            {formatValue(item.utilidad, "currency")}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Estado vacío */}
-                                    {statsForHour.length === 0 && (
-                                        <div className="text-center py-4 text-sm text-white/60">
-                                            No hay datos disponibles para este período
-                                        </div>
-                                    )}
-                                </div>
-                            </BentoItem>)}
-
-
+                                        ) : (
+                                            <div className="text-center py-4 text-sm text-white/60">No hay datos disponibles</div>
+                                        )}
+                                    </div>
+                                </BentoItem>
+                            )}
                         </BentoGrid>
 
-                        {/* Mensaje especial para comparación */}
                         {reportType === "comparacion" && (
                             <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
                                 <GitCompare className="h-3 w-3 inline mr-1" />
@@ -2171,217 +1216,204 @@ export default function Report() {
                     </div>
                 )}
 
-                {/* Tabla y paginación */}
+                {/* Tabla */}
                 {reportType && (
                     <article className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
-                        {/* Filtros - Versión móvil */}
-                        <div className="md:hidden mb-6">
-                            <div className="space-y-3">
-                                {/* Información del período */}
-                                <div className="text-sm text-gray-600 dark:text-gray-400 p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                                    <Calendar className="inline-block mr-1 h-4 w-4" />
-                                    {getCurrentPeriod()}
-                                </div>
+                        {/* Filtros móvil */}
+                        <div className="md:hidden mb-6 space-y-3">
+                            <div className="text-sm text-gray-600 dark:text-gray-400 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                                <Calendar className="inline-block mr-1 h-4 w-4" />
+                                {getCurrentPeriod()}
+                            </div>
 
-                                {/* Filtro de fecha móvil */}
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setShowDatePicker(!showDatePicker)}
-                                        className="flex items-center justify-between w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="h-4 w-4 text-gray-500" />
-                                            <span className="text-sm">
-                                                {dateRange.from && dateRange.to
-                                                    ? `${formatDateDisplay(dateRange.from)} - ${formatDateDisplay(dateRange.to)}`
-                                                    : "Rango de fechas"}
-                                            </span>
-                                        </div>
-                                        <ChevronDown className="h-4 w-4 text-gray-500" />
-                                    </button>
-
-                                    {showDatePicker && (
-                                        <div className="absolute z-50 mt-1 w-full p-3 bg-white border border-gray-300 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
-                                            <div className="flex flex-col gap-3">
-                                                <div>
-                                                    <label className="block text-sm font-medium mb-1">Desde:</label>
-                                                    <input
-                                                        type="datetime-local"
-                                                        value={dateRange.from ? dateRange.from.toISOString().split('T')[0] + 'T' + dateRange.from.toTimeString().substring(0, 5) : ''}
-                                                        onChange={(e) => handleDateChange(
-                                                            e.target.value ? new Date(e.target.value) : null,
-                                                            dateRange.to
-                                                        )}
-                                                        className="w-full border rounded-lg px-3 py-2 text-sm"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium mb-1">Hasta:</label>
-                                                    <input
-                                                        type="datetime-local"
-                                                        value={dateRange.to ? dateRange.to.toISOString().split('T')[0] + 'T' + dateRange.to.toTimeString().substring(0, 5) : ''}
-                                                        onChange={(e) => handleDateChange(
-                                                            dateRange.from,
-                                                            e.target.value ? new Date(e.target.value) : null
-                                                        )}
-                                                        className="w-full border rounded-lg px-3 py-2 text-sm"
-                                                    />
-                                                </div>
-                                                <div className="flex justify-between pt-2 border-t">
-                                                    <button
-                                                        onClick={() => setShowDatePicker(false)}
-                                                        className="text-sm px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-                                                    >
-                                                        Cancelar
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setShowDatePicker(false)}
-                                                        className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                                                    >
-                                                        Aplicar
-                                                    </button>
-                                                </div>
+                            {/* Selector de fecha móvil */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowDatePicker(!showDatePicker)}
+                                    className="flex items-center justify-between w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="h-4 w-4 text-gray-500" />
+                                        <span className="text-sm">
+                                            {dateRange.from && dateRange.to
+                                                ? `${formatDateDisplay(dateRange.from)} - ${formatDateDisplay(dateRange.to)}`
+                                                : "Rango de fechas"}
+                                        </span>
+                                    </div>
+                                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                                </button>
+                                {showDatePicker && (
+                                    <div className="absolute z-50 mt-1 w-full p-3 bg-white border border-gray-300 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
+                                        <div className="flex flex-col gap-3">
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Desde:</label>
+                                                <input
+                                                    type="date"
+                                                    value={dateRange.from ? dateRange.from.toISOString().split("T")[0] : ""}
+                                                    onChange={(e) =>
+                                                        handleDateChange(e.target.value ? new Date(e.target.value) : null, dateRange.to)
+                                                    }
+                                                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                                                />
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Filtro de almacén móvil */}
-                                {almacenes.length > 0 && (
-                                    <div className="relative">
-                                        <Building className="absolute size-5 left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                        <select
-                                            value={almacenFilter}
-                                            onChange={(e) => handleAlmacenFilterChange(e.target.value)}
-                                            className="w-full pl-10 pr-8 py-2.5 border rounded-lg bg-white appearance-none dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm"
-                                        >
-                                            <option value="">Todos los almacenes</option>
-
-                                            <option key="Guadalupe" value="ALMVGPE">
-                                                Guadalupe
-                                            </option>
-                                            <option key="Mayoreo" value="ALMMAYO">
-                                                Mayoreo
-                                            </option>
-                                            <option key="Testerazo" value="ALMTEST">
-                                                Testerazo
-                                            </option>
-                                            <option key="Palmas" value="ALMPALM">
-                                                Palmas
-                                            </option>
-                                        </select>
-                                    </div>
-                                )}
-
-                                {/* Búsqueda móvil */}
-                                <div className="space-y-2">
-                                    {/* Selector de columna de búsqueda */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <searchColumn.icon className={`h-4 w-4 ${searchColumn.color}`} />
-                                            <span className="text-sm font-medium">{searchColumn.label}</span>
-                                            {searchColumn.prefix && (
-                                                <span className="text-xs text-gray-500">({searchColumn.prefix})</span>
-                                            )}
-                                        </div>
-                                        {searchColumns.length > 1 && (
-                                            <button
-                                                onClick={() => setShowSearchColumnDropdown(!showSearchColumnDropdown)}
-                                                className="p-1 rounded border border-gray-300"
-                                            >
-                                                <ChevronDown className="h-3 w-3" />
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {showSearchColumnDropdown && searchColumns.length > 1 && (
-                                        <div className="border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800">
-                                            <div className="grid grid-cols-2 gap-1">
-                                                {searchColumns.map((column) => (
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Hasta:</label>
+                                                <input
+                                                    type="date"
+                                                    value={dateRange.to ? dateRange.to.toISOString().split("T")[0] : ""}
+                                                    onChange={(e) =>
+                                                        handleDateChange(dateRange.from, e.target.value ? new Date(e.target.value) : null)
+                                                    }
+                                                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                                                />
+                                            </div>
+                                            <div className="flex gap-2 pt-2 border-t">
+                                                {DATE_PERIODS.map((p) => (
                                                     <button
-                                                        key={column.key}
-                                                        type="button"
-                                                        onClick={() => handleSearchColumnChange(column)}
-                                                        className={`flex items-center gap-1 px-2 py-1.5 text-xs rounded ${column.key === searchColumn.key
-                                                            ? 'bg-blue-50 border border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800'
-                                                            : 'bg-gray-50 border border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700'}`}
+                                                        key={p.label}
+                                                        onClick={() => applyDatePeriod(p)}
+                                                        className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 dark:bg-gray-700"
                                                     >
-                                                        <column.icon className={`h-3 w-3 ${column.color}`} />
-                                                        {column.label}
-                                                        {column.prefix && (
-                                                            <span className="text-xs text-gray-500">({column.prefix})</span>
-                                                        )}
+                                                        {p.label}
                                                     </button>
                                                 ))}
                                             </div>
-                                        </div>
-                                    )}
-
-                                    {/* Input de búsqueda con botón */}
-                                    <div className="flex gap-2">
-                                        <div className="relative flex-1">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                            <input
-                                                ref={searchInputRef}
-                                                value={searchTerm}
-                                                onChange={(e) => handleSearchChange(e.target.value)}
-                                                onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
-                                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
-                                                placeholder={`Buscar por ${searchColumn.label.toLowerCase()}...`}
-                                                className="w-full pl-10 pr-3 py-2.5 border rounded-lg dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm"
-                                            />
-
-                                            {searchTerm && (
+                                            <div className="flex justify-between">
                                                 <button
-                                                    onClick={() => {
-                                                        setSearchTerm("");
-                                                        setSearchApplied(false);
-                                                        setLastSearch(null);
-                                                    }}
-                                                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                                                    onClick={() => setShowDatePicker(false)}
+                                                    className="text-sm px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700"
                                                 >
-                                                    <X className="h-4 w-4 text-gray-400" />
+                                                    Cancelar
                                                 </button>
-                                            )}
-                                        </div>
-                                        <button
-                                            onClick={handleSearchSubmit}
-                                            disabled={searchTerm.length < 2 || tableLoading}
-                                            className="px-3 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                                        >
-                                            <Search className="h-4 w-4" />
-                                        </button>
-                                    </div>
-
-                                    {/* Sugerencias */}
-                                    {showSuggestions && suggestions.length > 0 && (
-                                        <div ref={suggestionsRef} className="border border-gray-300 rounded-lg shadow-sm dark:border-gray-700">
-                                            <div className="max-h-40 overflow-y-auto">
-                                                {suggestionsLoading ? (
-                                                    <div className="p-3 text-center text-gray-500">
-                                                        <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                                                        Buscando...
-                                                    </div>
-                                                ) : (
-                                                    suggestions.map((suggestion, index) => (
-                                                        <button
-                                                            key={index}
-                                                            type="button"
-                                                            onClick={() => handleSuggestionSelect(suggestion)}
-                                                            className="w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-left flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                                                        >
-                                                            <searchColumn.icon className={`size-4 ${searchColumn.color}`} />
-                                                            <span className="text-xs truncate">{suggestion.Suggestion}</span>
-                                                        </button>
-                                                    ))
-                                                )}
+                                                <button
+                                                    onClick={() => setShowDatePicker(false)}
+                                                    className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                                >
+                                                    Aplicar
+                                                </button>
                                             </div>
                                         </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Almacén móvil */}
+                            <div className="relative">
+                                <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <select
+                                    value={almacenFilter}
+                                    onChange={(e) => handleAlmacenFilterChange(e.target.value)}
+                                    className="w-full pl-10 pr-8 py-2.5 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm"
+                                >
+                                    <option value="">Todos los almacenes</option>
+                                    {ALMACENES_OPCIONES.map((opt) => (
+                                        <option key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Búsqueda móvil */}
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <searchColumn.icon className={`h-4 w-4 ${searchColumn.color}`} />
+                                        <span className="text-sm font-medium">{searchColumn.label}</span>
+                                        {searchColumn.prefix && <span className="text-xs text-gray-500">({searchColumn.prefix})</span>}
+                                    </div>
+                                    {searchColumns.length > 1 && (
+                                        <button
+                                            onClick={() => setShowSearchColumnDropdown(!showSearchColumnDropdown)}
+                                            className="p-1 rounded border border-gray-300"
+                                        >
+                                            <ChevronDown className="h-3 w-3" />
+                                        </button>
                                     )}
                                 </div>
 
-                                {/* Botones de acción móvil */}
+                                {showSearchColumnDropdown && searchColumns.length > 1 && (
+                                    <div className="border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800">
+                                        <div className="grid grid-cols-2 gap-1">
+                                            {searchColumns.map((column) => (
+                                                <button
+                                                    key={column.key}
+                                                    type="button"
+                                                    onClick={() => handleSearchColumnChange(column)}
+                                                    className={`flex items-center gap-1 px-2 py-1.5 text-xs rounded ${column.key === searchColumn.key
+                                                        ? "bg-blue-50 border border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800"
+                                                        : "bg-gray-50 border border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700"
+                                                        }`}
+                                                >
+                                                    <column.icon className={`h-3 w-3 ${column.color}`} />
+                                                    {column.label}
+                                                    {column.prefix && <span className="text-xs text-gray-500">({column.prefix})</span>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                        <input
+                                            ref={searchInputRef}
+                                            value={searchTerm}
+                                            onChange={(e) => handleSearchChange(e.target.value)}
+                                            onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
+                                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                            onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
+                                            placeholder={`Buscar por ${searchColumn.label.toLowerCase()}...`}
+                                            className="w-full pl-10 pr-3 py-2.5 border rounded-lg dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm"
+                                        />
+                                        {searchTerm && (
+                                            <button
+                                                onClick={() => {
+                                                    setSearchTerm("");
+                                                    setSearchApplied(false);
+                                                    setLastSearch(null);
+                                                }}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2"
+                                            >
+                                                <X className="h-4 w-4 text-gray-400" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={handleSearchSubmit}
+                                        disabled={searchTerm.length < 2 || tableLoading}
+                                        className="px-3 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                    >
+                                        <Search className="h-4 w-4" />
+                                    </button>
+                                </div>
+
+                                {showSuggestions && suggestions.length > 0 && (
+                                    <div ref={suggestionsRef} className="border border-gray-300 rounded-lg shadow-sm dark:border-gray-700">
+                                        <div className="max-h-40 overflow-y-auto">
+                                            {suggestionsLoading ? (
+                                                <div className="p-3 text-center text-gray-500">
+                                                    <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                                                    Buscando...
+                                                </div>
+                                            ) : (
+                                                suggestions.map((suggestion, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => handleSuggestionSelect(suggestion)}
+                                                        className="w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-left flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                                                    >
+                                                        <searchColumn.icon className={`size-4 ${searchColumn.color}`} />
+                                                        <span className="text-xs truncate">{suggestion.Suggestion}</span>
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="flex gap-2 pt-2">
                                     {(searchApplied || almacenFilter || dateRange.from || dateRange.to) && (
                                         <button
@@ -2392,7 +1424,6 @@ export default function Report() {
                                             Limpiar filtros
                                         </button>
                                     )}
-
                                     <button
                                         onClick={() => setQuickMode((q) => !q)}
                                         className={`flex-1 px-3 py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm ${quickMode
@@ -2407,11 +1438,10 @@ export default function Report() {
                             </div>
                         </div>
 
-                        {/* Filtros - Versión desktop */}
+                        {/* Filtros desktop */}
                         <div className="hidden md:flex flex-col gap-3 mb-6">
                             <div className="flex flex-wrap gap-3 items-center">
-                                {/* Filtro de fecha */}
-                                {quickMode === false ? (
+                                {!quickMode ? (
                                     <section className="w-full">
                                         <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
                                             <div className="flex items-center justify-between mb-3">
@@ -2437,20 +1467,21 @@ export default function Report() {
                                                 </div>
                                             </div>
 
-                                            {/* Grupos de filtros */}
-                                            {filterGroups.map((group, groupIndex) => (
+                                            {filterGroups.map((group, groupIdx) => (
                                                 <div key={group.id} className="mb-4 p-3 bg-white dark:bg-gray-900 rounded border border-gray-300">
                                                     <div className="flex items-center justify-between mb-3">
                                                         <div className="flex items-center gap-2">
                                                             <input
                                                                 type="text"
-                                                                value={group.name || `Grupo ${groupIndex + 1}`}
+                                                                value={group.name || `Grupo ${groupIdx + 1}`}
                                                                 onChange={(e) => handleGroupNameChange(group.id, e.target.value)}
                                                                 className="text-sm font-medium border-b border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent"
                                                             />
                                                             <select
                                                                 value={group.logicalOperator}
-                                                                onChange={(e) => handleGroupLogicalOperatorChange(group.id, e.target.value as 'AND' | 'OR')}
+                                                                onChange={(e) =>
+                                                                    handleGroupLogicalOperatorChange(group.id, e.target.value as "AND" | "OR")
+                                                                }
                                                                 className="text-xs border rounded px-2 py-1"
                                                             >
                                                                 <option value="AND">AND</option>
@@ -2475,18 +1506,22 @@ export default function Report() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Filtros dentro del grupo */}
-                                                    {group.filters.map((filter, filterIndex) => (
-                                                        <div key={filterIndex} className="flex flex-col md:flex-row gap-2 mb-3 p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                                                    {group.filters.map((filter, filterIdx) => (
+                                                        <div
+                                                            key={filterIdx}
+                                                            className="flex flex-col md:flex-row gap-2 mb-3 p-3 bg-gray-50 dark:bg-gray-800 rounded"
+                                                        >
                                                             <div className="flex-1">
                                                                 <label className="block text-xs font-medium mb-1">Columna</label>
                                                                 <select
                                                                     value={filter.column}
-                                                                    onChange={(e) => handleAdvancedFilterChange(group.id, filterIndex, 'column', e.target.value)}
+                                                                    onChange={(e) =>
+                                                                        handleAdvancedFilterChange(group.id, filterIdx, "column", e.target.value)
+                                                                    }
                                                                     className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm dark:bg-gray-900"
                                                                 >
                                                                     <option value="">Seleccionar columna</option>
-                                                                    {getAvailableColumns().map(col => (
+                                                                    {getAvailableColumns().map((col) => (
                                                                         <option key={col.value} value={col.value}>
                                                                             {col.label}
                                                                         </option>
@@ -2498,10 +1533,12 @@ export default function Report() {
                                                                 <label className="block text-xs font-medium mb-1">Operador</label>
                                                                 <select
                                                                     value={filter.operator}
-                                                                    onChange={(e) => handleAdvancedFilterChange(group.id, filterIndex, 'operator', e.target.value)}
+                                                                    onChange={(e) =>
+                                                                        handleAdvancedFilterChange(group.id, filterIdx, "operator", e.target.value)
+                                                                    }
                                                                     className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm dark:bg-gray-900"
                                                                 >
-                                                                    {OPERATORS.map(op => (
+                                                                    {OPERATORS.map((op) => (
                                                                         <option key={op.value} value={op.value}>
                                                                             {op.label}
                                                                         </option>
@@ -2514,36 +1551,37 @@ export default function Report() {
                                                                 <input
                                                                     type="text"
                                                                     value={filter.value}
-                                                                    onChange={(e) => handleAdvancedFilterChange(group.id, filterIndex, 'value', e.target.value)}
+                                                                    onChange={(e) =>
+                                                                        handleAdvancedFilterChange(group.id, filterIdx, "value", e.target.value)
+                                                                    }
                                                                     onFocus={() => setActiveSuggestionsInput(filter.column)}
                                                                     onBlur={() => setTimeout(() => setActiveSuggestionsInput(null), 200)}
-                                                                    disabled={filter.operator.includes('NULL')}
-                                                                    placeholder={filter.operator.includes('NULL') ? 'No aplica' : 'Ingrese valor...'}
+                                                                    disabled={filter.operator.includes("NULL")}
+                                                                    placeholder={filter.operator.includes("NULL") ? "No aplica" : "Ingrese valor..."}
                                                                     className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm dark:bg-gray-900 disabled:opacity-50"
                                                                 />
-
-                                                                {/* Sugerencias de autocompletado */}
                                                                 {activeSuggestionsInput === filter.column &&
                                                                     columnSuggestions[filter.column] &&
                                                                     filter.value && (
                                                                         <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 rounded shadow-lg max-h-40 overflow-y-auto">
-                                                                            {columnSuggestionsAbortControllerRef.current && !columnSuggestionsAbortControllerRef.current.signal.aborted ? (
+                                                                            {columnSuggestionsAbortControllerRef.current &&
+                                                                                !columnSuggestionsAbortControllerRef.current.signal.aborted ? (
                                                                                 <div className="p-2 text-center text-sm">
                                                                                     <Loader2 className="h-3 w-3 animate-spin inline mr-1" />
                                                                                     Cargando...
                                                                                 </div>
                                                                             ) : (
-                                                                                columnSuggestions[filter.column].map((suggestion, idx) => (
+                                                                                columnSuggestions[filter.column].map((sugg, idx) => (
                                                                                     <button
                                                                                         key={idx}
                                                                                         type="button"
                                                                                         onClick={() => {
-                                                                                            handleAdvancedFilterChange(group.id, filterIndex, 'value', suggestion);
+                                                                                            handleAdvancedFilterChange(group.id, filterIdx, "value", sugg);
                                                                                             setActiveSuggestionsInput(null);
                                                                                         }}
                                                                                         className="w-full p-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-300 last:border-b-0"
                                                                                     >
-                                                                                        {suggestion}
+                                                                                        {sugg}
                                                                                     </button>
                                                                                 ))
                                                                             )}
@@ -2553,7 +1591,7 @@ export default function Report() {
 
                                                             <div className="flex items-end">
                                                                 <button
-                                                                    onClick={() => removeAdvancedFilter(group.id, filterIndex)}
+                                                                    onClick={() => removeAdvancedFilter(group.id, filterIdx)}
                                                                     disabled={group.filters.length <= 1}
                                                                     className="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded disabled:opacity-50 dark:text-red-400"
                                                                 >
@@ -2565,9 +1603,10 @@ export default function Report() {
                                                 </div>
                                             ))}
 
-                                            {/* Períodos de fecha predefinidos */}
                                             <div className="mb-4">
-                                                <h4 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Períodos de Fecha Rápidos</h4>
+                                                <h4 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                                                    Períodos de Fecha Rápidos
+                                                </h4>
                                                 <div className="flex flex-wrap gap-2">
                                                     {DATE_PERIODS.map((period) => (
                                                         <button
@@ -2581,7 +1620,6 @@ export default function Report() {
                                                 </div>
                                             </div>
 
-                                            {/* Ordenamiento */}
                                             <div className="border-t border-gray-300 pt-4">
                                                 <div className="flex items-center justify-between mb-3">
                                                     <h3 className="font-medium text-gray-700 dark:text-gray-300">Ordenamiento</h3>
@@ -2593,37 +1631,35 @@ export default function Report() {
                                                     </button>
                                                 </div>
 
-                                                {sortRules.map((sort, index) => (
-                                                    <div key={index} className="flex gap-2 mb-3">
+                                                {sortRules.map((sort, idx) => (
+                                                    <div key={idx} className="flex gap-2 mb-3">
                                                         <div className="flex-1">
                                                             <select
                                                                 value={sort.column}
-                                                                onChange={(e) => handleSortChange(index, 'column', e.target.value)}
+                                                                onChange={(e) => handleSortChange(idx, "column", e.target.value)}
                                                                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm dark:bg-gray-900"
                                                             >
                                                                 <option value="">Seleccionar columna</option>
-                                                                {getAvailableColumns().map(col => (
+                                                                {getAvailableColumns().map((col) => (
                                                                     <option key={col.value} value={col.value}>
                                                                         {col.label}
                                                                     </option>
                                                                 ))}
                                                             </select>
                                                         </div>
-
                                                         <div className="w-32">
                                                             <select
                                                                 value={sort.direction}
-                                                                onChange={(e) => handleSortChange(index, 'direction', e.target.value)}
+                                                                onChange={(e) => handleSortChange(idx, "direction", e.target.value)}
                                                                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm dark:bg-gray-900"
                                                             >
                                                                 <option value="asc">Ascendente</option>
                                                                 <option value="desc">Descendente</option>
                                                             </select>
                                                         </div>
-
                                                         <div className="flex items-center">
                                                             <button
-                                                                onClick={() => removeSortRule(index)}
+                                                                onClick={() => removeSortRule(idx)}
                                                                 disabled={sortRules.length <= 1}
                                                                 className="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded disabled:opacity-50 dark:text-red-400"
                                                             >
@@ -2634,7 +1670,6 @@ export default function Report() {
                                                 ))}
                                             </div>
 
-                                            {/* Botones de acción */}
                                             <div className="flex justify-between gap-2 mt-4 pt-4 border-t border-gray-300">
                                                 <button
                                                     onClick={() => {
@@ -2643,10 +1678,10 @@ export default function Report() {
                                                                 id: generateId(),
                                                                 filters: [{ column: "", operator: "=", value: "", groupId: "" }],
                                                                 logicalOperator: "AND",
-                                                                name: "Grupo 1"
-                                                            }
+                                                                name: "Grupo 1",
+                                                            },
                                                         ]);
-                                                        setSortRules([{ column: QUERY_CONFIGS[reportType]?.fechaField || "FechaEmision", direction: "desc" }]);
+                                                        setSortRules([{ column: QUERY_CONFIGS[reportType]?.fechaField, direction: "desc" }]);
                                                     }}
                                                     className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
                                                 >
@@ -2665,6 +1700,7 @@ export default function Report() {
                                     </section>
                                 ) : (
                                     <>
+                                        {/* Modo rápido: filtros básicos */}
                                         <div className="relative">
                                             <button
                                                 onClick={() => setShowDatePicker(!showDatePicker)}
@@ -2677,33 +1713,41 @@ export default function Report() {
                                                         : "Rango de fechas"}
                                                 </span>
                                             </button>
-
                                             {showDatePicker && (
                                                 <div className="absolute z-50 mt-1 p-3 bg-white border border-gray-300 rounded shadow-lg dark:bg-gray-800 dark:border-gray-700">
                                                     <div className="flex flex-col gap-2">
                                                         <div>
                                                             <label className="block text-sm font-medium mb-1">Desde:</label>
                                                             <input
-                                                                type="datetime-local"
-                                                                value={dateRange.from ? dateRange.from.toISOString().split('T')[0] + 'T' + dateRange.from.toTimeString().substring(0, 5) : ''}
-                                                                onChange={(e) => handleDateChange(
-                                                                    e.target.value ? new Date(e.target.value) : null,
-                                                                    dateRange.to
-                                                                )}
-                                                                className="w-full border rounded-lg px-3 py-2 text-sm"
+                                                                type="date"
+                                                                value={dateRange.from ? dateRange.from.toISOString().split("T")[0] : ""}
+                                                                onChange={(e) =>
+                                                                    handleDateChange(e.target.value ? new Date(e.target.value) : null, dateRange.to)
+                                                                }
+                                                                className="w-full border rounded px-3 py-2 text-sm"
                                                             />
                                                         </div>
                                                         <div>
                                                             <label className="block text-sm font-medium mb-1">Hasta:</label>
                                                             <input
-                                                                type="datetime-local"
-                                                                value={dateRange.to ? dateRange.to.toISOString().split('T')[0] + 'T' + dateRange.to.toTimeString().substring(0, 5) : ''}
-                                                                onChange={(e) => handleDateChange(
-                                                                    dateRange.from,
-                                                                    e.target.value ? new Date(e.target.value) : null
-                                                                )}
-                                                                className="w-full border rounded-lg px-3 py-2 text-sm"
+                                                                type="date"
+                                                                value={dateRange.to ? dateRange.to.toISOString().split("T")[0] : ""}
+                                                                onChange={(e) =>
+                                                                    handleDateChange(dateRange.from, e.target.value ? new Date(e.target.value) : null)
+                                                                }
+                                                                className="w-full border rounded px-3 py-2 text-sm"
                                                             />
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-1 mt-2">
+                                                            {DATE_PERIODS.map((p) => (
+                                                                <button
+                                                                    key={p.label}
+                                                                    onClick={() => applyDatePeriod(p)}
+                                                                    className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 dark:bg-gray-700"
+                                                                >
+                                                                    {p.label}
+                                                                </button>
+                                                            ))}
                                                         </div>
                                                         <div className="flex justify-end mt-2">
                                                             <button
@@ -2718,35 +1762,23 @@ export default function Report() {
                                             )}
                                         </div>
 
-                                        {/* Filtro de almacén */}
-                                        {almacenes.length > 0 && (
-                                            <div className="relative">
-                                                <Building className="absolute size-5 left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                                <select
-                                                    value={almacenFilter}
-                                                    onChange={(e) => handleAlmacenFilterChange(e.target.value)}
-                                                    className="pl-9 pr-8 py-2 border rounded bg-white appearance-none dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                                                >
-                                                    <option value="">Todos los almacenes</option>
-                                                    <option key="Guadalupe" value="ALMVGPE">
-                                                        Guadalupe
+                                        <div className="relative">
+                                            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                            <select
+                                                value={almacenFilter}
+                                                onChange={(e) => handleAlmacenFilterChange(e.target.value)}
+                                                className="pl-9 pr-8 py-2 border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                                            >
+                                                <option value="">Todos los almacenes</option>
+                                                {ALMACENES_OPCIONES.map((opt) => (
+                                                    <option key={opt.value} value={opt.value}>
+                                                        {opt.label}
                                                     </option>
-                                                    <option key="Mayoreo" value="ALMMAYO">
-                                                        Mayoreo
-                                                    </option>
-                                                    <option key="Testerazo" value="ALMTEST">
-                                                        Testerazo
-                                                    </option>
-                                                    <option key="Palmas" value="ALMPALM">
-                                                        Palmas
-                                                    </option>
-                                                </select>
-                                            </div>
-                                        )}
+                                                ))}
+                                            </select>
+                                        </div>
 
-                                        {/* Búsqueda con selector de columna */}
                                         <div className="relative flex" ref={suggestionsRef}>
-                                            {/* Selector de columna de búsqueda */}
                                             <div className="relative" ref={searchColumnDropdownRef}>
                                                 <button
                                                     type="button"
@@ -2756,7 +1788,6 @@ export default function Report() {
                                                     <searchColumn.icon className={`h-4 w-4 ${searchColumn.color}`} />
                                                     <ChevronDown className="h-3 w-3 text-gray-500" />
                                                 </button>
-
                                                 {showSearchColumnDropdown && searchColumns.length > 1 && (
                                                     <div className="absolute z-20 mt-1 w-48 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
                                                         {searchColumns.map((column) => (
@@ -2764,7 +1795,7 @@ export default function Report() {
                                                                 key={column.key}
                                                                 type="button"
                                                                 onClick={() => handleSearchColumnChange(column)}
-                                                                className={`flex items-center gap-2 w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${column.key === searchColumn.key ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                                                                className={`flex items-center gap-2 w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${column.key === searchColumn.key ? "bg-blue-50 dark:bg-blue-900/30" : ""
                                                                     }`}
                                                             >
                                                                 <column.icon className={`h-4 w-4 ${column.color}`} />
@@ -2778,7 +1809,6 @@ export default function Report() {
                                                 )}
                                             </div>
 
-                                            {/* Input de búsqueda */}
                                             <div className="relative flex-1">
                                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                                 <input
@@ -2787,11 +1817,10 @@ export default function Report() {
                                                     onChange={(e) => handleSearchChange(e.target.value)}
                                                     onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
                                                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
+                                                    onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
                                                     placeholder={`Buscar por ${searchColumn.label.toLowerCase()}...`}
                                                     className="pl-9 pr-3 py-2 border rounded-r w-64 dark:bg-gray-700 border-gray-300 dark:border-gray-600"
                                                 />
-
                                                 {searchTerm && (
                                                     <button
                                                         onClick={() => {
@@ -2807,18 +1836,15 @@ export default function Report() {
                                                 )}
                                             </div>
 
-                                            {/* Botón de buscar */}
                                             <button
                                                 onClick={handleSearchSubmit}
                                                 disabled={searchTerm.length < 2 || tableLoading}
                                                 className="ml-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                                title="Buscar"
                                             >
                                                 <Search className="h-4 w-4" />
                                                 <span>Buscar</span>
                                             </button>
 
-                                            {/* Sugerencias */}
                                             {showSuggestions && suggestions.length > 0 && (
                                                 <div className="absolute z-10 w-full mt-10 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
                                                     {suggestionsLoading ? (
@@ -2827,9 +1853,9 @@ export default function Report() {
                                                             Buscando...
                                                         </div>
                                                     ) : (
-                                                        suggestions.map((suggestion, index) => (
+                                                        suggestions.map((suggestion, idx) => (
                                                             <button
-                                                                key={index}
+                                                                key={idx}
                                                                 type="button"
                                                                 onClick={() => handleSuggestionSelect(suggestion)}
                                                                 className="w-full p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
@@ -2843,7 +1869,6 @@ export default function Report() {
                                             )}
                                         </div>
 
-                                        {/* Botón para limpiar filtros */}
                                         {(searchApplied || almacenFilter || dateRange.from || dateRange.to) && (
                                             <button
                                                 onClick={handleClearFilters}
@@ -2856,7 +1881,6 @@ export default function Report() {
                                     </>
                                 )}
 
-                                {/* Modo rápido */}
                                 <button
                                     onClick={() => setQuickMode((q) => !q)}
                                     className={`px-3 py-2 rounded flex items-center gap-1 h-fit ${quickMode
@@ -2865,42 +1889,24 @@ export default function Report() {
                                         }`}
                                 >
                                     <Zap className="h-4 w-4" />
-                                    {quickMode === true ? "Modo rápido" : "Modo normal"}
+                                    {quickMode ? "Modo rápido" : "Modo normal"}
                                 </button>
                             </div>
                         </div>
+
+                        {/* Tabla */}
                         <div className="overflow-x-auto -mx-3 md:mx-0">
-                            <DynamicTable
-                                data={dataTable}
-                                loading={tableLoading || refreshingTable}
-                            />
+                            <DynamicTable data={dataTable} loading={tableLoading || refreshingTable} />
                         </div>
 
-                        {totalPages > 1 && !tableLoading && !refreshingTable && (
+                        {totalPages > 1 && !tableLoading && (
                             <div className="mt-4 md:mt-6">
                                 <Pagination
                                     currentPage={currentPage}
                                     totalPages={totalPages}
-                                    loading={tableLoading || refreshingTable}
+                                    loading={tableLoading}
                                     setCurrentPage={setCurrentPage}
                                 />
-                            </div>
-                        )}
-
-                        {/* Información sobre comparación */}
-                        {reportType === "comparacion" && dataTable.length > 0 && (
-                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
-                                <div className="flex items-start gap-2">
-                                    <GitCompare className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
-                                    <div className="text-sm text-blue-700 dark:text-blue-300">
-                                        <div className="font-medium">Información del reporte comparativo:</div>
-                                        <div className="mt-1">
-                                            Este reporte muestra tanto ventas como compras en una sola vista.
-                                            Los artículos aparecerán duplicados si tienen movimientos en ambos tipos.
-                                            Use los filtros para analizar datos específicos.
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         )}
                     </article>

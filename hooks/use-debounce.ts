@@ -18,7 +18,7 @@ export function useDebounce<T>(value: T, delay = 500): T {
 
 export async function safeCall<T>(
   fn: () => Promise<T>,
-  context: string
+  context: string,
 ): Promise<T> {
   try {
     const res: any = await fn();

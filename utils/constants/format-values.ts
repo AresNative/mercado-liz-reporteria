@@ -66,3 +66,14 @@ export const formatDateToISO = (dateString?: string): string | null => {
   if (!dateString) return null;
   return new Date(dateString).toISOString().split("T")[0];
 };
+export const formatDateISOString = (date: Date): string => {
+  return date.toISOString();
+};
+export const formatDateDisplay = (date: Date | null): string => {
+  if (!date) return "Seleccionar";
+  return date.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
