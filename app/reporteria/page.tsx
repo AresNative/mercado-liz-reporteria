@@ -30,16 +30,15 @@ import {
 } from "lucide-react";
 import Header from "@/template/header";
 import Footer from "@/template/footer";
-import { RequestPayload, useManagmentRead } from "./class/global";
+import { RequestPayload, useManagmentRead } from "./class/api";
 import { FilterGroup, FilterRule, ReportType } from "./types/consultas";
 import { CONFIG, QUERY_CONFIGS, SEARCH_COLUMNS_CONFIG } from "./utils/config";
 import { DATE_PERIODS, OPERATORS } from "./utils/consultas";
 import { BENTO_METRICS_CONFIG } from "./utils/stats";
 import { DateRange } from "./types/sample";
 import { SearchColumn } from "./types/config";
-
-// Helper para IDs únicos
-const generateId = () => Math.random().toString(36).substr(2, 9);
+import { v4 as uuidv4 } from "uuid";
+import { FilterBuilder } from "./class/filter";
 
 // Interfaz para datos de tabla
 export interface TableData {
@@ -144,7 +143,7 @@ export default function Report() {
     // Filtros avanzados
     const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([
         {
-            id: generateId(),
+            id: uuidv4(),
             filters: [{ column: "", operator: "=", value: "", groupId: "" }],
             logicalOperator: "AND",
             name: "Grupo 1",
@@ -163,9 +162,6 @@ export default function Report() {
         to: new Date(),
     });
     const [showDatePicker, setShowDatePicker] = useState(false);
-
-    // UI móvil
-    const [showMobileMenu, setShowMobileMenu] = useState(false);
 
     // Refs para manejo de dropdowns y abortos
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -211,96 +207,18 @@ export default function Report() {
     // Construir filtros para el payload
     const buildFiltros = useCallback(
         (includeSearchTerm = true) => {
-            const filtrosAnd: any[] = [];
-            const filtrosOr: any[] = [];
-
-            if (quickMode) {
-                const basicFilters: any[] = [];
-
-                if (searchTerm.length >= 2 && searchColumn.tableField && includeSearchTerm && searchApplied) {
-                    basicFilters.push({
-                        Key: searchColumn.tableField,
-                        Operator: "LIKE",
-                        Value: searchTerm,
-                    });
-                }
-
-                if (almacenFilter) {
-                    let almacenField = "venta.Almacen";
-                    if (reportType === "compras") almacenField = "comprad.Almacen";
-                    else if (reportType === "mermas" || reportType === "inventario") almacenField = "invd.Almacen";
-                    else if (reportType === "comparacion") almacenField = "ventad.Almacen";
-                    basicFilters.push({ Key: almacenField, Operator: "=", Value: almacenFilter });
-                }
-
-                if (dateRange.from && dateRange.to) {
-                    const fechaField = QUERY_CONFIGS[reportType]?.fechaField;
-                    if (fechaField) {
-                        basicFilters.push(
-                            { Key: fechaField, Operator: ">=", Value: formatDateISOString(dateRange.from) },
-                            { Key: fechaField, Operator: "<=", Value: formatDateISOString(dateRange.to) }
-                        );
-                    }
-                }
-
-                // Filtros específicos por reporte
-                if (reportType === "ventas") {
-                    basicFilters.push(
-                        { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                        { Key: "venta.Mov", Operator: "IN", Value: "Factura,Factura Credito,Nota" }
-                    );
-                } else if (reportType === "compras") {
-                    basicFilters.push(
-                        { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                        { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" }
-                    );
-                } else if (reportType === "mermas") {
-                    basicFilters.push(
-                        { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                        { Key: "inv.Concepto", Operator: "LIKE", Value: "MERMAS" }
-                    );
-                } else if (reportType === "inventario") {
-                    basicFilters.push({ Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO });
-                } else if (reportType === "comparacion") {
-                    basicFilters.push(
-                        { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                        { Key: "venta.Mov", Operator: "IN", Value: "Factura,Factura Credito,Nota" },
-                        { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                        { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" }
-                    );
-                }
-
-                if (basicFilters.length > 0) {
-                    filtrosAnd.push({ Filtros: basicFilters, OperadorLogico: "AND" });
-                }
-            } else {
-                // Modo avanzado: grupos de filtros
-                filterGroups.forEach((group) => {
-                    const groupFilters = group.filters
-                        .filter((f) => f.column && (f.value || f.operator.includes("NULL")))
-                        .map((f) => ({ Key: f.column, Operator: f.operator, Value: f.value || null }));
-                    if (groupFilters.length > 0) {
-                        const filterGroup = { Filtros: groupFilters, OperadorLogico: group.logicalOperator };
-                        if (group.logicalOperator === "AND") filtrosAnd.push(filterGroup);
-                        else filtrosOr.push(filterGroup);
-                    }
-                });
-
-                if (dateRange.from && dateRange.to) {
-                    const fechaField = QUERY_CONFIGS[reportType]?.fechaField;
-                    if (fechaField) {
-                        filtrosAnd.push({
-                            Filtros: [
-                                { Key: fechaField, Operator: ">=", Value: formatDateISOString(dateRange.from) },
-                                { Key: fechaField, Operator: "<=", Value: formatDateISOString(dateRange.to) },
-                            ],
-                            OperadorLogico: "AND",
-                        });
-                    }
-                }
-            }
-
-            return { filtrosAnd, filtrosOr };
+            const builder = new FilterBuilder({
+                quickMode,
+                filterGroups,
+                searchTerm,
+                searchColumn,
+                almacenFilter,
+                dateRange,
+                reportType,
+                searchApplied,
+                includeSearchTerm,
+            });
+            return builder.build();
         },
         [quickMode, filterGroups, searchTerm, searchColumn, almacenFilter, dateRange, reportType, searchApplied]
     );
@@ -465,8 +383,6 @@ export default function Report() {
                 if (error.name !== "AbortError" && !controller.signal.aborted) {
                     console.error("Error en fetchColumnSuggestions:", error);
                 }
-            } finally {
-                // No limpiar activeSuggestionsInput aquí; se maneja en onBlur
             }
         },
         [reportType, manager]
@@ -665,7 +581,7 @@ export default function Report() {
         });
         setFilterGroups([
             {
-                id: generateId(),
+                id: uuidv4(),
                 filters: [{ column: "", operator: "=", value: "", groupId: "" }],
                 logicalOperator: "AND",
                 name: "Grupo 1",
@@ -682,7 +598,6 @@ export default function Report() {
         setReportType(type);
         setCurrentPage(1);
         setSearchApplied(false);
-        setShowMobileMenu(false);
     };
 
     const handleDateChange = (from: Date | null, to: Date | null) => {
@@ -773,25 +688,9 @@ export default function Report() {
         });
     };
 
-    const getBentoState = (value: number) => (value > 0 ? "positive" : value < 0 ? "negative" : "neutral");
-    const bentoIcons = { positive: TrendingUp, negative: TrendingDown, neutral: Minus };
-
     const totalPages = Math.ceil(totalRecords / CONFIG.PAGE_SIZE);
     const bentoMetrics = getBentoMetrics();
     const searchColumns = SEARCH_COLUMNS_CONFIG[reportType];
-
-    const getCurrentPeriod = () => {
-        if (!dateRange.from || !dateRange.to) return "Sin período definido";
-        const fromStr = formatDateDisplay(dateRange.from);
-        const toStr = formatDateDisplay(dateRange.to);
-        for (const p of DATE_PERIODS) {
-            if (p.days) {
-                const expected = new Date(new Date().setDate(new Date().getDate() - p.days));
-                if (formatDateDisplay(expected) === fromStr && formatDateDisplay(new Date()) === toStr) return p.label;
-            }
-        }
-        return `${fromStr} - ${toStr}`;
-    };
 
     const getAvailableColumns = () => {
         const config = QUERY_CONFIGS[reportType];
@@ -845,7 +744,7 @@ export default function Report() {
     };
 
     const addFilterGroup = () => {
-        const newId = generateId();
+        const newId = uuidv4();
         setFilterGroups((prev) => [
             ...prev,
             {
@@ -889,7 +788,6 @@ export default function Report() {
 
     const getActiveFiltersSummary = () => {
         const summary: string[] = [];
-        if (dateRange.from && dateRange.to) summary.push(`Período: ${getCurrentPeriod()}`);
         if (almacenFilter) summary.push(`Almacén: ${almacenFilter}`);
         if (searchApplied && searchTerm) summary.push(`Búsqueda: ${searchColumn.label} contiene "${searchTerm}"`);
         if (!quickMode) {
@@ -914,12 +812,6 @@ export default function Report() {
                 <ul className="md:hidden mb-4">
                     <li className="flex items-center justify-between">
                         <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200">Reportería</h1>
-                        <button
-                            onClick={() => setShowMobileMenu(!showMobileMenu)}
-                            className="p-2 rounded-lg border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600"
-                        >
-                            {showMobileMenu ? <ChevronUp size={20} /> : <Menu size={20} />}
-                        </button>
                     </li>
                     <li className="mt-3">
                         <select
@@ -957,10 +849,6 @@ export default function Report() {
                                     <option value="comparacion">Comparación</option>
                                 </select>
                             </section>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                                <Calendar className="inline-block mr-1 h-4 w-4" />
-                                {getCurrentPeriod()}
-                            </div>
                             <button
                                 onClick={() => setShowActiveFilters(!showActiveFilters)}
                                 className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300"
@@ -1030,37 +918,6 @@ export default function Report() {
                     </li>
                 </ul>
 
-                {/* Menú móvil */}
-                {showMobileMenu && (
-                    <ul className="md:hidden mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <li className="grid grid-cols-2 gap-2 mb-3">
-                            <button
-                                onClick={() => fetchStatsData(true)}
-                                disabled={statsLoading || refreshingStats}
-                                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 dark:bg-gray-700 dark:border-gray-600"
-                            >
-                                <RefreshCw className={`w-4 h-4 ${refreshingStats ? "animate-spin" : ""}`} />
-                                <span className="text-sm">Stats</span>
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setRefreshingTable(true);
-                                    fetchTableData().finally(() => setRefreshingTable(false));
-                                }}
-                                disabled={tableLoading || refreshingTable}
-                                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 dark:bg-gray-700 dark:border-gray-600"
-                            >
-                                <RefreshCw className={`w-4 h-4 ${refreshingTable ? "animate-spin" : ""}`} />
-                                <span className="text-sm">Tabla</span>
-                            </button>
-                        </li>
-                        <li className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            Reporte: {reportType.charAt(0).toUpperCase() + reportType.slice(1)}
-                        </li>
-                        <li className="text-sm text-gray-600 dark:text-gray-400">Período: {getCurrentPeriod()}</li>
-                    </ul>
-                )}
-
                 {/* Mensajes de error */}
                 {statsError && !statsLoading && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
@@ -1129,15 +986,12 @@ export default function Report() {
                     <div className="mb-6">
                         <BentoGrid cols={4} loading={statsLoading || refreshingStats}>
                             {bentoMetrics.map((item: any, index: number) => {
-                                const state = getBentoState(item.raw);
-                                const StateIcon = bentoIcons[state];
                                 const ItemIcon = item.icon;
                                 return (
                                     <BentoItem
                                         key={index}
                                         title={item.title}
                                         description={item.description}
-                                        icon={<StateIcon className="w-4 h-4" />}
                                         iconRight
                                         className="border dark:text-gray-200 p-3 md:p-4"
                                         loading={statsLoading || refreshingStats}
@@ -1160,16 +1014,15 @@ export default function Report() {
 
                             {reportType === "ventas" && (
                                 <BentoItem
-                                    title="Ventas por hora"
-                                    description="Distribución por rangos horarios"
+                                    title="Por hora"
                                     icon={<DollarSign className="w-4 h-4 text-white" />}
                                     iconRight
                                     className="border text-white bg-green-600 border-green-700 dark:text-gray-200 p-3 md:p-4"
                                     loading={statsLoading || refreshingStats}
                                 >
-                                    <div className="flex flex-col gap-2">
+                                    <div className="flex flex-col gap-2 overflow-visible">
                                         {statsForHour.length > 0 ? (
-                                            <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
+                                            <div className="space-y-1 max-h-30 overflow-y-auto pr-1">
                                                 <div className="flex gap-2 justify-between text-xs sticky top-0 bg-green-600/90 px-1 py-1 border-b border-green-700">
                                                     <span className="font-medium text-white/90 w-16">HORA</span>
                                                     <span className="font-bold text-white/90 flex-1 text-right">VENTAS</span>
@@ -1221,11 +1074,6 @@ export default function Report() {
                     <article className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
                         {/* Filtros móvil */}
                         <div className="md:hidden mb-6 space-y-3">
-                            <div className="text-sm text-gray-600 dark:text-gray-400 p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                                <Calendar className="inline-block mr-1 h-4 w-4" />
-                                {getCurrentPeriod()}
-                            </div>
-
                             {/* Selector de fecha móvil */}
                             <div className="relative">
                                 <button
@@ -1445,12 +1293,6 @@ export default function Report() {
                                     <section className="w-full">
                                         <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
                                             <div className="flex items-center justify-between mb-3">
-                                                <div>
-                                                    <h3 className="font-medium text-gray-700 dark:text-gray-300">Filtros Avanzados</h3>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                        Período actual: {getCurrentPeriod()}
-                                                    </div>
-                                                </div>
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={addFilterGroup}
@@ -1675,7 +1517,7 @@ export default function Report() {
                                                     onClick={() => {
                                                         setFilterGroups([
                                                             {
-                                                                id: generateId(),
+                                                                id: uuidv4(),
                                                                 filters: [{ column: "", operator: "=", value: "", groupId: "" }],
                                                                 logicalOperator: "AND",
                                                                 name: "Grupo 1",

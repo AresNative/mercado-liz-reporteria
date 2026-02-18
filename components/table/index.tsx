@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useMemo, useEffect } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, Download, Grid2x2X, X } from "lucide-react";
 import { ViewTR } from "./toggle-view";
 import { cn } from "@/utils/functions/cn";
@@ -267,39 +267,41 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-zinc-600">
-                            {filteredAndSortedData.map((item: any) => (
-                                <motion.tr
-                                    key={item.ID || JSON.stringify(item)}
-                                    className={cn(onRowClick && "cursor-pointer", "hover:bg-zinc-50 dark:hover:bg-zinc-600")}
-                                    onClick={() => {
-                                        if (typeof onRowClick === 'function') {
-                                            onRowClick(item);
-                                        }
-                                    }}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                >
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <input
-                                            type="checkbox"
-                                            className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                            checked={selectedRows.includes(item.ID || JSON.stringify(item))}
-                                            onChange={() => toggleRowSelection(item.ID || JSON.stringify(item))}
-                                        />
-                                    </td>
-                                    {columns.map((column: any) => (visibleColumns[column] && (
-                                        <td
-                                            key={`${item.ID || JSON.stringify(item)}-${column}`}
-                                            className={`px-6 py-4 whitespace-nowrap ${!visibleColumns[column] ? 'relative' : ''}`}
-                                        >
-                                            <div className="text-sm text-gray-900 dark:text-white">
-                                                {formatValue(column, item[column])}
-                                            </div>
+                            <AnimatePresence>
+                                {filteredAndSortedData.map((item: any) => (
+                                    <motion.tr
+                                        key={item.ID || JSON.stringify(item)}
+                                        className={cn(onRowClick && "cursor-pointer", "hover:bg-zinc-50 dark:hover:bg-zinc-600")}
+                                        onClick={() => {
+                                            if (typeof onRowClick === 'function') {
+                                                onRowClick(item);
+                                            }
+                                        }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                    >
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                                checked={selectedRows.includes(item.ID || JSON.stringify(item))}
+                                                onChange={() => toggleRowSelection(item.ID || JSON.stringify(item))}
+                                            />
                                         </td>
-                                    )))}
-                                </motion.tr>
-                            ))}
+                                        {columns.map((column: any) => (visibleColumns[column] && (
+                                            <td
+                                                key={`${item.ID || JSON.stringify(item)}-${column}`}
+                                                className={`px-6 py-4 whitespace-nowrap ${!visibleColumns[column] ? 'relative' : ''}`}
+                                            >
+                                                <div className="text-sm text-gray-900 dark:text-white">
+                                                    {formatValue(column, item[column])}
+                                                </div>
+                                            </td>
+                                        )))}
+                                    </motion.tr>
+                                ))}
+                            </AnimatePresence>
                         </tbody>
                     </table>
                 </div>

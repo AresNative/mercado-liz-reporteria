@@ -40,7 +40,7 @@ import {
     Filter
 } from "lucide-react";
 import { Field } from "@/utils/types/interfaces";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { useAppDispatch } from "@/hooks/selector";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
 
@@ -640,303 +640,309 @@ export default function ScrumScreen() {
                         <div className="lg:col-span-3 space-y-6">
                             {/* Panel de Sprints */}
                             {selectedProject && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-5 border border-gray-200"
-                                >
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                                        <div>
-                                            <h2 className="text-xl font-bold text-gray-800">
-                                                Sprints - {selectedProject.nombre}
-                                            </h2>
-                                            <p className="text-gray-600 text-sm mt-1">
-                                                {selectedProject.descripcion?.substring(0, 120)}
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                color="success"
-                                                onClick={() => {
-                                                    setEditingItem(null);
-                                                    openModal("sprintModal");
-                                                }}
-                                                disabled={loading.sprints}
-                                            >
-                                                <Plus className="size-5" />
-                                                <span>Nuevo Sprint</span>
-                                            </Button>
-                                            <AvatarGroup data={teamAvatars} size="" />
-                                        </div>
-                                    </div>
-
-                                    <BentoGrid cols={3} loading={loading.sprints && sprints.length === 0}>
-                                        {sprints.map((sprint) => {
-                                            const isActive = () => {
-                                                const now = new Date();
-                                                const start = new Date(sprint.fecha_inicio);
-                                                const end = new Date(sprint.fecha_fin);
-                                                return now >= start && now <= end;
-                                            };
-
-                                            return (
-                                                <div
-                                                    key={sprint.id}
-                                                    onClick={() => handleSprintClick(sprint.id)}
-                                                >
-                                                    <BentoItem
-                                                        className={`cursor-pointer transition-all ${selectedSprintId === sprint.id
-                                                            ? 'ring-2 ring-green-500 bg-green-50/50'
-                                                            : 'hover:bg-gray-50'
-                                                            }`}
-                                                        title={sprint.nombre}
-                                                        description={`${sprint.nombre} - ${isActive() ? 'En curso' : 'Planificado'}`}
-                                                        icon={<Zap className={`size-5 ${isActive() ? 'text-green-600' : 'text-gray-400'}`} />}
-                                                    >
-                                                        <div className="space-y-2 text-sm">
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-gray-500">Inicio:</span>
-                                                                <span className="font-medium">
-                                                                    {new Date(sprint.fecha_inicio).toLocaleDateString()}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-gray-500">Fin:</span>
-                                                                <span className="font-medium">
-                                                                    {new Date(sprint.fecha_fin).toLocaleDateString()}
-                                                                </span>
-                                                            </div>
-                                                            <div className="pt-2 border-t border-gray-100">
-                                                                <div className="flex items-center justify-between text-xs text-gray-500">
-                                                                    <span>Tiempo restante:</span>
-                                                                    <span className="font-medium text-blue-600">
-                                                                        <CountdownTimer
-                                                                            endDate={new Date(sprint.fecha_fin)}
-                                                                            refrech={dummyRefresh}
-                                                                        />
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </BentoItem>
-                                                </div>
-                                            );
-                                        })}
-
-                                        {sprints.length === 0 && !loading.sprints && (
-                                            <BentoItem
-                                                colSpan={3}
-                                                title="No hay sprints"
-                                                description="Crea un sprint para comenzar a trabajar en este proyecto"
-                                                icon={<Calendar className="text-gray-400 size-5" />}
-                                            >
+                                <AnimatePresence>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-5 border border-gray-200"
+                                    >
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                            <div>
+                                                <h2 className="text-xl font-bold text-gray-800">
+                                                    Sprints - {selectedProject.nombre}
+                                                </h2>
+                                                <p className="text-gray-600 text-sm mt-1">
+                                                    {selectedProject.descripcion?.substring(0, 120)}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-2">
                                                 <Button
                                                     color="success"
-                                                    onClick={() => openModal("sprintModal")}
+                                                    onClick={() => {
+                                                        setEditingItem(null);
+                                                        openModal("sprintModal");
+                                                    }}
                                                     disabled={loading.sprints}
                                                 >
-                                                    <Plus className="size-4" />
-                                                    <span>Crear Primer Sprint</span>
+                                                    <Plus className="size-5" />
+                                                    <span>Nuevo Sprint</span>
                                                 </Button>
-                                            </BentoItem>
-                                        )}
-                                    </BentoGrid>
-                                </motion.div>
+                                                <AvatarGroup data={teamAvatars} size="" />
+                                            </div>
+                                        </div>
+
+                                        <BentoGrid cols={3} loading={loading.sprints && sprints.length === 0}>
+                                            {sprints.map((sprint) => {
+                                                const isActive = () => {
+                                                    const now = new Date();
+                                                    const start = new Date(sprint.fecha_inicio);
+                                                    const end = new Date(sprint.fecha_fin);
+                                                    return now >= start && now <= end;
+                                                };
+
+                                                return (
+                                                    <div
+                                                        key={sprint.id}
+                                                        onClick={() => handleSprintClick(sprint.id)}
+                                                    >
+                                                        <BentoItem
+                                                            className={`cursor-pointer transition-all ${selectedSprintId === sprint.id
+                                                                ? 'ring-2 ring-green-500 bg-green-50/50'
+                                                                : 'hover:bg-gray-50'
+                                                                }`}
+                                                            title={sprint.nombre}
+                                                            description={`${sprint.nombre} - ${isActive() ? 'En curso' : 'Planificado'}`}
+                                                            icon={<Zap className={`size-5 ${isActive() ? 'text-green-600' : 'text-gray-400'}`} />}
+                                                        >
+                                                            <div className="space-y-2 text-sm">
+                                                                <div className="flex justify-between items-center">
+                                                                    <span className="text-gray-500">Inicio:</span>
+                                                                    <span className="font-medium">
+                                                                        {new Date(sprint.fecha_inicio).toLocaleDateString()}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center">
+                                                                    <span className="text-gray-500">Fin:</span>
+                                                                    <span className="font-medium">
+                                                                        {new Date(sprint.fecha_fin).toLocaleDateString()}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="pt-2 border-t border-gray-100">
+                                                                    <div className="flex items-center justify-between text-xs text-gray-500">
+                                                                        <span>Tiempo restante:</span>
+                                                                        <span className="font-medium text-blue-600">
+                                                                            <CountdownTimer
+                                                                                endDate={new Date(sprint.fecha_fin)}
+                                                                                refrech={dummyRefresh}
+                                                                            />
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </BentoItem>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {sprints.length === 0 && !loading.sprints && (
+                                                <BentoItem
+                                                    colSpan={3}
+                                                    title="No hay sprints"
+                                                    description="Crea un sprint para comenzar a trabajar en este proyecto"
+                                                    icon={<Calendar className="text-gray-400 size-5" />}
+                                                >
+                                                    <Button
+                                                        color="success"
+                                                        onClick={() => openModal("sprintModal")}
+                                                        disabled={loading.sprints}
+                                                    >
+                                                        <Plus className="size-4" />
+                                                        <span>Crear Primer Sprint</span>
+                                                    </Button>
+                                                </BentoItem>
+                                            )}
+                                        </BentoGrid>
+                                    </motion.div>
+                                </AnimatePresence>
                             )}
 
                             {/* Panel de Tareas */}
                             {selectedSprint && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-5 border border-gray-200"
-                                >
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                                        <div>
-                                            <h2 className="text-xl font-bold text-gray-800">
-                                                Tareas - {selectedSprint.nombre}
-                                            </h2>
-                                            <p className="text-gray-600 text-sm mt-1">
-                                                Sprint activo
-                                            </p>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    color={activeView === 'board' ? 'success' : 'info'}
-                                                    size="small"
-                                                    onClick={() => setActiveView('board')}
-                                                    disabled={loading.tasks}
-                                                >
-                                                    <FileText className="size-4" />
-                                                    <span>Tablero</span>
-                                                </Button>
-                                                <Button
-                                                    color={activeView === 'list' ? 'success' : 'info'}
-                                                    size="small"
-                                                    onClick={() => setActiveView('list')}
-                                                    disabled={loading.tasks}
-                                                >
-                                                    <ListTodo className="size-4" />
-                                                    <span>Lista</span>
-                                                </Button>
+                                <AnimatePresence>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-5 border border-gray-200"
+                                    >
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                            <div>
+                                                <h2 className="text-xl font-bold text-gray-800">
+                                                    Tareas - {selectedSprint.nombre}
+                                                </h2>
+                                                <p className="text-gray-600 text-sm mt-1">
+                                                    Sprint activo
+                                                </p>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    color={filterPriority === 'all' ? 'success' : 'info'}
-                                                    size="small"
-                                                    onClick={() => setFilterPriority('all')}
-                                                    disabled={loading.tasks}
-                                                >
-                                                    <span>Todas</span>
-                                                </Button>
-                                                <Button
-                                                    color={filterPriority === 'alta' ? 'success' : 'info'}
-                                                    size="small"
-                                                    onClick={() => setFilterPriority('alta')}
-                                                    disabled={loading.tasks}
-                                                >
-                                                    <AlertTriangle className="size-4" />
-                                                    <span>Alta</span>
-                                                </Button>
-                                            </div>
-                                            <Button
-                                                color="success"
-                                                onClick={() => {
-                                                    setEditingItem(null);
-                                                    openModal("taskModal");
-                                                }}
-                                                disabled={loading.tasks}
-                                            >
-                                                <Plus className="size-5" />
-                                                <span>Nueva Tarea</span>
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    {/* Estadísticas rápidas */}
-                                    <div className="mb-6">
-                                        <BentoGrid cols={4} loading={loading.tasks && tasks.length === 0}>
-                                            <BentoItem
-                                                title="Total"
-                                                description={taskStats.total.toString()}
-                                                icon={<ListTodo className="text-blue-600 size-5" />}
-                                            />
-                                            <BentoItem
-                                                title="Pendientes"
-                                                description={taskStats.pendiente.toString()}
-                                                icon={<Clock className="text-yellow-600 size-5" />}
-                                            />
-                                            <BentoItem
-                                                title="En Progreso"
-                                                description={taskStats.progreso.toString()}
-                                                icon={<GitPullRequest className="text-orange-600 size-5" />}
-                                            />
-                                            <BentoItem
-                                                title="Completadas"
-                                                description={taskStats.completado.toString()}
-                                                icon={<CheckCircle className="text-green-600 size-5" />}
-                                            />
-                                        </BentoGrid>
-                                    </div>
-
-                                    {/* Lista de Tareas */}
-                                    <div className="space-y-3">
-                                        {filteredTasks.map((task) => (
-                                            <BentoItem
-                                                key={task.id}
-                                                className="hover:shadow-md transition-all"
-                                                icon={
-                                                    <div className={`p-2 rounded-full ${task.prioridad === 'alta' ? 'bg-red-100 text-red-600' :
-                                                        task.prioridad === 'media' ? 'bg-yellow-100 text-yellow-600' :
-                                                            'bg-blue-100 text-blue-600'
-                                                        }`}
+                                            <div className="flex flex-wrap gap-2">
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        color={activeView === 'board' ? 'success' : 'info'}
+                                                        size="small"
+                                                        onClick={() => setActiveView('board')}
+                                                        disabled={loading.tasks}
                                                     >
-                                                        <ListTodo className="size-5" />
-                                                    </div>
-                                                }
-                                                title={task.titulo}
-                                                description={task.descripcion?.substring(0, 120) + '...'}
-                                                header={
-                                                    <div className="flex justify-between items-center mb-2">
-                                                        <div className="flex gap-2">
-                                                            <Badge
-                                                                color={task.estado === 'completado' ? 'green' :
-                                                                    task.estado === 'en_progreso' ? 'blue' :
-                                                                        task.estado === 'en_revision' ? 'purple' : 'gray'}
-                                                                text={task.estado}
-                                                            />
-                                                            {task.prioridad === 'alta' && (
-                                                                <Badge color="red" text="Alta Prioridad" />
-                                                            )}
-                                                        </div>
-                                                        <div className="flex gap-1">
-                                                            <Button
-                                                                color="info"
-                                                                size="small"
-                                                                onClick={() => {
-                                                                    setEditingItem(task);
-                                                                    openModal("taskModal");
-                                                                }}
-                                                                disabled={loading.tasks}
-                                                            >
-                                                                <Edit className="size-4" />
-                                                            </Button>
-                                                            <Button
-                                                                color="info"
-                                                                size="small"
-                                                                disabled={loading.tasks}
-                                                            >
-                                                                <MoreHorizontal className="size-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                }
-                                            >
-                                                <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-3">
-                                                    {task.fecha_limite && (
-                                                        <div className="flex items-center gap-1">
-                                                            <Calendar className="size-4" />
-                                                            <span>Vence: {new Date(task.fecha_limite).toLocaleDateString()}</span>
-                                                        </div>
-                                                    )}
-                                                    {task.fecha_creacion && (
-                                                        <div className="flex items-center gap-1">
-                                                            <Clock className="size-4" />
-                                                            <span>Creada: {new Date(task.fecha_creacion).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}</span>
-                                                        </div>
-                                                    )}
-                                                    {task.usuario_asignado_id && (
-                                                        <div className="flex items-center gap-1">
-                                                            <Users className="size-4" />
-                                                            <span>Asignado</span>
-                                                        </div>
-                                                    )}
+                                                        <FileText className="size-4" />
+                                                        <span>Tablero</span>
+                                                    </Button>
+                                                    <Button
+                                                        color={activeView === 'list' ? 'success' : 'info'}
+                                                        size="small"
+                                                        onClick={() => setActiveView('list')}
+                                                        disabled={loading.tasks}
+                                                    >
+                                                        <ListTodo className="size-4" />
+                                                        <span>Lista</span>
+                                                    </Button>
                                                 </div>
-                                            </BentoItem>
-                                        ))}
-
-                                        {filteredTasks.length === 0 && !loading.tasks && (
-                                            <BentoItem
-                                                title="No hay tareas"
-                                                description={filterPriority !== 'all'
-                                                    ? `No hay tareas con prioridad ${filterPriority}`
-                                                    : "Comienza creando tu primera tarea para este sprint"
-                                                }
-                                                icon={<ListTodo className="text-gray-400 size-5" />}
-                                            >
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        color={filterPriority === 'all' ? 'success' : 'info'}
+                                                        size="small"
+                                                        onClick={() => setFilterPriority('all')}
+                                                        disabled={loading.tasks}
+                                                    >
+                                                        <span>Todas</span>
+                                                    </Button>
+                                                    <Button
+                                                        color={filterPriority === 'alta' ? 'success' : 'info'}
+                                                        size="small"
+                                                        onClick={() => setFilterPriority('alta')}
+                                                        disabled={loading.tasks}
+                                                    >
+                                                        <AlertTriangle className="size-4" />
+                                                        <span>Alta</span>
+                                                    </Button>
+                                                </div>
                                                 <Button
                                                     color="success"
-                                                    onClick={() => openModal("taskModal")}
+                                                    onClick={() => {
+                                                        setEditingItem(null);
+                                                        openModal("taskModal");
+                                                    }}
                                                     disabled={loading.tasks}
                                                 >
-                                                    <Plus className="size-4" />
-                                                    <span>Crear Primera Tarea</span>
+                                                    <Plus className="size-5" />
+                                                    <span>Nueva Tarea</span>
                                                 </Button>
-                                            </BentoItem>
-                                        )}
-                                    </div>
-                                </motion.div>
+                                            </div>
+                                        </div>
+
+                                        {/* Estadísticas rápidas */}
+                                        <div className="mb-6">
+                                            <BentoGrid cols={4} loading={loading.tasks && tasks.length === 0}>
+                                                <BentoItem
+                                                    title="Total"
+                                                    description={taskStats.total.toString()}
+                                                    icon={<ListTodo className="text-blue-600 size-5" />}
+                                                />
+                                                <BentoItem
+                                                    title="Pendientes"
+                                                    description={taskStats.pendiente.toString()}
+                                                    icon={<Clock className="text-yellow-600 size-5" />}
+                                                />
+                                                <BentoItem
+                                                    title="En Progreso"
+                                                    description={taskStats.progreso.toString()}
+                                                    icon={<GitPullRequest className="text-orange-600 size-5" />}
+                                                />
+                                                <BentoItem
+                                                    title="Completadas"
+                                                    description={taskStats.completado.toString()}
+                                                    icon={<CheckCircle className="text-green-600 size-5" />}
+                                                />
+                                            </BentoGrid>
+                                        </div>
+
+                                        {/* Lista de Tareas */}
+                                        <div className="space-y-3">
+                                            {filteredTasks.map((task) => (
+                                                <BentoItem
+                                                    key={task.id}
+                                                    className="hover:shadow-md transition-all"
+                                                    icon={
+                                                        <div className={`p-2 rounded-full ${task.prioridad === 'alta' ? 'bg-red-100 text-red-600' :
+                                                            task.prioridad === 'media' ? 'bg-yellow-100 text-yellow-600' :
+                                                                'bg-blue-100 text-blue-600'
+                                                            }`}
+                                                        >
+                                                            <ListTodo className="size-5" />
+                                                        </div>
+                                                    }
+                                                    title={task.titulo}
+                                                    description={task.descripcion?.substring(0, 120) + '...'}
+                                                    header={
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <div className="flex gap-2">
+                                                                <Badge
+                                                                    color={task.estado === 'completado' ? 'green' :
+                                                                        task.estado === 'en_progreso' ? 'blue' :
+                                                                            task.estado === 'en_revision' ? 'purple' : 'gray'}
+                                                                    text={task.estado}
+                                                                />
+                                                                {task.prioridad === 'alta' && (
+                                                                    <Badge color="red" text="Alta Prioridad" />
+                                                                )}
+                                                            </div>
+                                                            <div className="flex gap-1">
+                                                                <Button
+                                                                    color="info"
+                                                                    size="small"
+                                                                    onClick={() => {
+                                                                        setEditingItem(task);
+                                                                        openModal("taskModal");
+                                                                    }}
+                                                                    disabled={loading.tasks}
+                                                                >
+                                                                    <Edit className="size-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    color="info"
+                                                                    size="small"
+                                                                    disabled={loading.tasks}
+                                                                >
+                                                                    <MoreHorizontal className="size-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                >
+                                                    <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-3">
+                                                        {task.fecha_limite && (
+                                                            <div className="flex items-center gap-1">
+                                                                <Calendar className="size-4" />
+                                                                <span>Vence: {new Date(task.fecha_limite).toLocaleDateString()}</span>
+                                                            </div>
+                                                        )}
+                                                        {task.fecha_creacion && (
+                                                            <div className="flex items-center gap-1">
+                                                                <Clock className="size-4" />
+                                                                <span>Creada: {new Date(task.fecha_creacion).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}</span>
+                                                            </div>
+                                                        )}
+                                                        {task.usuario_asignado_id && (
+                                                            <div className="flex items-center gap-1">
+                                                                <Users className="size-4" />
+                                                                <span>Asignado</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </BentoItem>
+                                            ))}
+
+                                            {filteredTasks.length === 0 && !loading.tasks && (
+                                                <BentoItem
+                                                    title="No hay tareas"
+                                                    description={filterPriority !== 'all'
+                                                        ? `No hay tareas con prioridad ${filterPriority}`
+                                                        : "Comienza creando tu primera tarea para este sprint"
+                                                    }
+                                                    icon={<ListTodo className="text-gray-400 size-5" />}
+                                                >
+                                                    <Button
+                                                        color="success"
+                                                        onClick={() => openModal("taskModal")}
+                                                        disabled={loading.tasks}
+                                                    >
+                                                        <Plus className="size-4" />
+                                                        <span>Crear Primera Tarea</span>
+                                                    </Button>
+                                                </BentoItem>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                </AnimatePresence>
                             )}
 
                             {/* Mensajes cuando no hay selección */}

@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { Eye, EyeOff, MoreVertical } from "lucide-react";
 import { useEffect, useRef } from "react";
 

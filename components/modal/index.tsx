@@ -6,6 +6,7 @@ import { cn } from "@/utils/functions/cn"
 import { useAppDispatch, useAppSelector } from "@/hooks/selector"
 import { useEffect } from "react"
 import { closeModalReducer } from "@/hooks/reducers/drop-down"
+import { motion, AnimatePresence } from "motion/react"
 
 interface ModalProps {
     modalName: string
@@ -15,7 +16,6 @@ interface ModalProps {
 }
 
 export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalProps) {
-    // Handle escape key
     const dialogRef = React.useRef<HTMLDialogElement | null>(null);
     const dispatch = useAppDispatch();
     const isOpen = useAppSelector((state: any) => state.dropDownReducer.modals[modalName]);
@@ -27,7 +27,6 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
 
         if (isOpen) {
             document.addEventListener("keydown", handleEscape)
-            // Prevent scrolling when modal is open
             document.body.style.overflow = "hidden"
         }
 
@@ -53,7 +52,6 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
         full: "sm:max-w-full",
     }
 
-    //if (!isOpen) return null
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
@@ -63,6 +61,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
     return (
         <dialog
             id={modalName}
@@ -70,37 +69,46 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
             open={isOpen}
             className={cn("inset-0 z-50 bg-transparent max-h-screen w-full")}
             aria-modal="true"
-            aria-labelledby={`modal-${modalName}`}>
+            aria-labelledby={`modal-${modalName}`}
+        >
+            {/* Fondo oscuro (sin animación para mantener la inmediatez) */}
+            <div className="fixed inset-0 bg-black/20 bg-opacity-85 backdrop-blur-xs transition-opacity" onClick={handleBackdropClick} />
 
-            <div className="fixed inset-0 bg-black/20 bg-opacity-85 transition-opacity" onClick={handleBackdropClick} />
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.section
+                        key="modal-content"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                        className={cn(
+                            "fixed inset-0 h-screen md:h-fit md:max-h-[90dvh] mx-auto overflow-auto md:w-11/12 md:my-4 md:rounded-lg bg-[var(--background)] text-left shadow-xl",
+                            maxWidthClasses[maxWidth],
+                        )}
+                    >
+                        {/* Botón de cierre y título */}
+                        <form method="dialog" className="relative flex items-center justify-between gap-2 m-2 border-b py-2 border-gray-200">
+                            <h3
+                                id="modal-title"
+                                className="absolute left-0 right-0 text-center text-gray-900 dark:text-white pointer-events-none"
+                            >
+                                {title}
+                            </h3>
+                            <button
+                                className="cursor-pointer relative z-10 ml-auto bg-[var(--background)] text-green-700 hover:text-green-500 dark:text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                                onClick={handleBackdropClick}
+                            >
+                                <span className="sr-only">Close</span>
+                                <X className="h-6 w-6" aria-hidden="true" />
+                            </button>
+                        </form>
 
-            <section
-                className={cn(
-                    "fixed inset-0 h-screen md:h-fit md:max-h-[90dvh] mx-auto overflow-auto md:w-11/12 md:my-4 md:rounded-lg bg-[var(--background)] text-left shadow-xl transition-all",
-                    maxWidthClasses[maxWidth],
+                        {/* Contenido */}
+                        <main className="p-4 m-auto">{children}</main>
+                    </motion.section>
                 )}
-            >
-                {/* Close button */}
-                <form method="dialog" className="relative flex items-center justify-between gap-2 m-2 border-b py-2 border-gray-200">
-                    <h3
-                        id="modal-title"
-                        className="absolute left-0 right-0 text-center text-gray-900 dark:text-white pointer-events-none"
-                    >
-                        {title}
-                    </h3>
-                    <button
-                        className="cursor-pointer relative z-10 ml-auto bg-[var(--background)] text-green-700 hover:text-green-500 dark:text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                        onClick={handleBackdropClick}
-                    >
-                        <span className="sr-only">Close</span>
-                        <X className="h-6 w-6" aria-hidden="true" />
-                    </button>
-                </form>
-
-                {/* Content */}
-                <main className="p-4 m-auto">{children}</main>
-            </section>
+            </AnimatePresence>
         </dialog>
     )
 }
-
