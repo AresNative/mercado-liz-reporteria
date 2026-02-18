@@ -257,7 +257,7 @@ export default function Report() {
             setTotalRecords(response.data?.totalRecords || response.data?.totalEstimated || 0);
             setCurrentPage(response.data?.page || 1);
         }
-    }, [reportType, currentPage, buildFiltros, quickMode, sortRules, manager]);
+    }, [reportType, currentPage, buildFiltros, sortRules, manager]);
 
     // Cargar sugerencias de búsqueda
     const fetchSuggestions = useCallback(async () => {
@@ -518,7 +518,7 @@ export default function Report() {
             // Limpieza de peticiones pendientes al desmontar o cambiar dependencias
             manager.cancelAll();
         };
-    }, [reportType, almacenFilter, dateRange, quickMode, searchApplied, searchTerm, searchColumn, showStats]);
+    }, [reportType, almacenFilter, dateRange, searchApplied, searchTerm, searchColumn, showStats]);
 
     // Efecto para cambio de página
     useEffect(() => {
