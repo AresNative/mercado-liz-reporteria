@@ -144,7 +144,7 @@ export interface SearchableSelectProps {
   clearErrors: (name: string) => void;
   register: (
     name: string,
-    options: Record<string, unknown>
+    options: Record<string, unknown>,
   ) => Record<string, unknown>;
   errors: Record<string, { message?: string } | undefined>;
 }

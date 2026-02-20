@@ -30,15 +30,16 @@ import {
 } from "lucide-react";
 import Header from "@/template/header";
 import Footer from "@/template/footer";
-import { RequestPayload, useManagmentRead } from "./class/api";
-import { FilterGroup, FilterRule, ReportType } from "./types/consultas";
-import { CONFIG, QUERY_CONFIGS, SEARCH_COLUMNS_CONFIG } from "./utils/config";
-import { DATE_PERIODS, OPERATORS } from "./utils/consultas";
 import { BENTO_METRICS_CONFIG } from "./utils/stats";
-import { DateRange } from "./types/sample";
 import { SearchColumn } from "./types/config";
 import { v4 as uuidv4 } from "uuid";
-import { FilterBuilder } from "./class/filter";
+import { RequestPayload, useManagmentRead } from "@/hooks/classes/api";
+import { ReportType } from "./types/consultas";
+import { CONFIG, QUERY_CONFIGS, SEARCH_COLUMNS_CONFIG } from "./utils/config-constants";
+import { FilterGroup, FilterRule } from "@/utils/types/consultas";
+import { AppliedFilters, DateRange } from "./types/filter";
+import { FilterBuilder } from "./utils/filter-class";
+import { DATE_PERIODS, OPERATORS } from "./utils/consultas-constants";
 
 // Interfaz para datos de tabla
 export interface TableData {
@@ -104,14 +105,14 @@ const processStatsData = (statsData: any[] | any): StatsData => {
 const ALMACENES_OPCIONES = [
     { value: "ALMVGPE", label: "Guadalupe" },
     { value: "ALMMAYO", label: "Mayoreo" },
-    { value: "ALMTEST", label: "Testerazo" },
+    { value: "ALMTESTE", label: "Testerazo" },
     { value: "ALMPALM", label: "Palmas" },
 ];
 
 export default function Report() {
     const manager = useManagmentRead();
 
-    // Estados principales
+    // Estados principales (borradores)
     const [reportType, setReportType] = useState<ReportType>("ventas");
     const [currentPage, setCurrentPage] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
@@ -128,7 +129,7 @@ export default function Report() {
     const [refreshingStats, setRefreshingStats] = useState(false);
     const [showStats, setShowStats] = useState(true); // Control de visibilidad del bento grid
 
-    // Filtros
+    // Filtros borrador
     const [almacenFilter, setAlmacenFilter] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [searchColumn, setSearchColumn] = useState<SearchColumn>(SEARCH_COLUMNS_CONFIG.ventas[0]);
@@ -140,7 +141,7 @@ export default function Report() {
     const [searchApplied, setSearchApplied] = useState(false);
     const [lastSearch, setLastSearch] = useState<{ term: string; columnKey: string } | null>(null);
 
-    // Filtros avanzados
+    // Filtros avanzados borrador
     const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([
         {
             id: uuidv4(),
@@ -156,19 +157,43 @@ export default function Report() {
     const [activeSuggestionsInput, setActiveSuggestionsInput] = useState<string | null>(null);
     const [showActiveFilters, setShowActiveFilters] = useState(false);
 
-    // Fechas
+    // Fechas borrador
     const [dateRange, setDateRange] = useState<DateRange>({
         from: new Date(new Date().setDate(new Date().getDate() - 30)),
         to: new Date(),
     });
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Refs para manejo de dropdowns y abortos
+    // Filtros aplicados (los que realmente se usan para consultar)
+    const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({
+        reportType: "ventas" as ReportType,
+        almacenFilter: "",
+        searchTerm: "",
+        searchColumn: SEARCH_COLUMNS_CONFIG.ventas[0],
+        searchApplied: false,
+        dateRange: {
+            from: new Date(new Date().setDate(new Date().getDate() - 30)),
+            to: new Date(),
+        },
+        filterGroups: [
+            {
+                id: uuidv4(),
+                filters: [{ column: "", operator: "=", value: "", groupId: "" }],
+                logicalOperator: "AND",
+                name: "Grupo 1",
+            },
+        ],
+        sortRules: [{ column: QUERY_CONFIGS.ventas.fechaField, direction: "desc" }],
+        quickMode: true,
+    });
+
+    // Refs
     const searchInputRef = useRef<HTMLInputElement>(null);
     const searchColumnDropdownRef = useRef<HTMLDivElement>(null);
     const suggestionsRef = useRef<HTMLDivElement>(null);
     const suggestionsAbortControllerRef = useRef<AbortController | null>(null);
     const columnSuggestionsAbortControllerRef = useRef<AbortController | null>(null);
+    const initialMount = useRef(true);
 
     // Actualizar columna de búsqueda al cambiar reporte, manteniendo compatibilidad
     useEffect(() => {
@@ -204,7 +229,7 @@ export default function Report() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Construir filtros para el payload
+    // Construir filtros para el payload basado en appliedFilters
     const buildFiltros = useCallback(
         (includeSearchTerm = true) => {
             const builder = new FilterBuilder({
@@ -221,18 +246,19 @@ export default function Report() {
             return builder.build();
         },
         [quickMode, filterGroups, searchTerm, searchColumn, almacenFilter, dateRange, reportType, searchApplied]
+
     );
 
     // Cargar datos de tabla
     const fetchTableData = useCallback(async () => {
         setTableError(null);
         setTableLoading(true);
-        const config = QUERY_CONFIGS[reportType];
+        const config = QUERY_CONFIGS[appliedFilters.reportType];
         const { filtrosAnd, filtrosOr } = buildFiltros(true);
 
-        const orderRules = quickMode
+        const orderRules = appliedFilters.quickMode
             ? [{ Key: config.fechaField, Direction: "desc" }]
-            : sortRules.filter((s) => s.column).map((s) => ({ Key: s.column, Direction: s.direction.toUpperCase() }));
+            : appliedFilters.sortRules.filter((s) => s.column).map((s) => ({ Key: s.column, Direction: s.direction.toUpperCase() }));
 
         const payload: RequestPayload = {
             table: config.table,
@@ -259,7 +285,7 @@ export default function Report() {
         }
     }, [reportType, currentPage, buildFiltros, sortRules, manager]);
 
-    // Cargar sugerencias de búsqueda
+    // Cargar sugerencias de búsqueda (basadas en borrador, no en applied)
     const fetchSuggestions = useCallback(async () => {
         if (!searchTerm || searchTerm.length < 2 || !searchColumn.tableField) {
             setSuggestions([]);
@@ -290,6 +316,7 @@ export default function Report() {
                     { Key: "venta.Mov", Operator: "IN", Value: "Factura,Factura Credito,Nota" }
                 );
             }
+            // Usar el rango de fechas del borrador para sugerencias también (es intuitivo)
             if (dateRange.from && dateRange.to && config.fechaField) {
                 basicFilters.push(
                     { Key: config.fechaField, Operator: ">=", Value: formatDateISOString(dateRange.from) },
@@ -388,7 +415,7 @@ export default function Report() {
         [reportType, manager]
     );
 
-    // Cargar estadísticas agregadas
+    // Cargar estadísticas agregadas (usando appliedFilters)
     const fetchStatsData = useCallback(
         async (forceRefresh = false) => {
             if (!showStats) return; // No cargar si está oculto
@@ -437,22 +464,37 @@ export default function Report() {
             const { filtrosAnd: baseFiltrosAnd, filtrosOr } = buildFiltros(true);
 
             const rangos = [
-                { hora: "07:00-08:00", value: "09:00:00 AND 10:00:00" },
-                { hora: "08:00-09:00", value: "10:00:00 AND 11:00:00" },
-                { hora: "09:00-10:00", value: "11:00:00 AND 12:00:00" },
-                { hora: "10:00-11:00", value: "12:00:00 AND 13:00:00" },
-                { hora: "11:00-12:00", value: "13:00:00 AND 14:00:00" },
-                { hora: "12:00-13:00", value: "14:00:00 AND 15:00:00" },
-                { hora: "13:00-14:00", value: "15:00:00 AND 16:00:00" },
-                { hora: "14:00-15:00", value: "16:00:00 AND 17:00:00" },
-                { hora: "15:00-16:00", value: "17:00:00 AND 18:00:00" },
-                { hora: "16:00-17:00", value: "18:00:00 AND 19:00:00" },
-                { hora: "17:00-18:00", value: "19:00:00 AND 20:00:00" },
-                { hora: "18:00-19:00", value: "20:00:00 AND 21:00:00" },
-                { hora: "19:00-20:00", value: "21:00:00 AND 22:00:00" },
-                { hora: "20:00-21:00", value: "22:00:00 AND 23:00:00" },
-                { hora: "21:00-22:00", value: "23:00:00 AND 23:59:59" },
-                { hora: "22:00-23:00", value: "01:00:00 AND 02:00:00" },
+                { hora: "07:00-07:30", value: "09:00:00 AND 09:30:00" },
+                { hora: "07:30-08:00", value: "09:30:00 AND 10:00:00" },
+                { hora: "08:00-08:30", value: "10:00:00 AND 10:30:00" },
+                { hora: "08:30-09:00", value: "10:30:00 AND 11:00:00" },
+                { hora: "09:00-09:30", value: "11:00:00 AND 11:30:00" },
+                { hora: "09:30-10:00", value: "11:30:00 AND 12:00:00" },
+                { hora: "10:00-10:30", value: "12:00:00 AND 12:30:00" },
+                { hora: "10:30-11:00", value: "12:30:00 AND 13:00:00" },
+                { hora: "11:00-11:30", value: "13:00:00 AND 13:30:00" },
+                { hora: "11:30-12:00", value: "13:30:00 AND 14:00:00" },
+                { hora: "12:00-12:30", value: "14:00:00 AND 14:30:00" },
+                { hora: "12:30-13:00", value: "14:30:00 AND 15:00:00" },
+                { hora: "13:00-13:30", value: "15:00:00 AND 15:30:00" },
+                { hora: "13:30-14:00", value: "15:30:00 AND 16:00:00" },
+                { hora: "14:00-14:30", value: "16:00:00 AND 16:30:00" },
+                { hora: "14:30-15:00", value: "16:30:00 AND 17:00:00" },
+                { hora: "15:00-15:30", value: "17:00:00 AND 17:30:00" },
+                { hora: "15:30-16:00", value: "17:30:00 AND 18:00:00" },
+                { hora: "16:00-16:30", value: "18:00:00 AND 18:30:00" },
+                { hora: "16:30-17:00", value: "18:30:00 AND 19:00:00" },
+                { hora: "17:00-17:30", value: "19:00:00 AND 19:30:00" },
+                { hora: "17:30-18:00", value: "19:30:00 AND 20:00:00" },
+                { hora: "18:00-18:30", value: "20:00:00 AND 20:30:00" },
+                { hora: "18:30-19:00", value: "20:30:00 AND 21:00:00" },
+                { hora: "19:00-19:30", value: "21:00:00 AND 21:30:00" },
+                { hora: "19:30-20:00", value: "21:30:00 AND 22:00:00" },
+                { hora: "20:00-20:30", value: "22:00:00 AND 22:30:00" },
+                { hora: "20:30-21:00", value: "22:30:00 AND 23:00:00" },
+                { hora: "21:00-21:30", value: "23:00:00 AND 23:30:00" },
+                { hora: "21:30-22:00", value: "23:30:00 AND 23:59:59" },
+                { hora: "22:00-22:30", value: "01:00:00 AND 01:30:00" },
             ];
 
             const promesas = rangos.map(async (rango) => {
@@ -509,7 +551,7 @@ export default function Report() {
         [fetchTableData, fetchStatsData, fetchStatsForHourData, showStats]
     );
 
-    // Efecto principal: cambiar reporte o filtros dispara carga
+    // Efecto principal: cuando cambian los filtros aplicados o la página, cargar datos
     useEffect(() => {
         setTableError(null);
         setStatsError(null);
@@ -520,12 +562,31 @@ export default function Report() {
         };
     }, [reportType, almacenFilter, dateRange, searchApplied, searchTerm, searchColumn, showStats]);
 
-    // Efecto para cambio de página
-    useEffect(() => {
-        if (currentPage !== 1) fetchTableData();
-    }, [currentPage]);
+    // Handlers para aplicar filtros
+    const applyAllFilters = () => {
+        setAppliedFilters({
+            reportType,
+            almacenFilter,
+            searchTerm,
+            searchColumn,
+            searchApplied: searchTerm.length >= 2,
+            dateRange,
+            filterGroups,
+            sortRules,
+            quickMode,
+        });
+        setCurrentPage(1);
+    };
 
-    // Handlers
+    const applyDateRange = (from: Date | null, to: Date | null) => {
+        setAppliedFilters((prev) => ({
+            ...prev,
+            dateRange: { from, to },
+        }));
+        setCurrentPage(1);
+    };
+
+    // Handlers de búsqueda
     const handleSearchChange = (value: string) => {
         setSearchTerm(value);
         setSearchApplied(false);
@@ -553,32 +614,26 @@ export default function Report() {
     const handleSuggestionSelect = (suggestion: any) => {
         setSearchTerm(suggestion.Suggestion);
         setShowSuggestions(false);
-        setSearchApplied(true);
-        setLastSearch({ term: suggestion.Suggestion, columnKey: searchColumn.key });
-        setCurrentPage(1);
-        fetchCurrentReportData(1);
+        // No aplicar automáticamente, solo rellenar el campo
     };
 
     const handleSearchSubmit = () => {
         if (searchTerm.length >= 2) {
             setSearchApplied(true);
-            setLastSearch({ term: searchTerm, columnKey: searchColumn.key });
-            setCurrentPage(1);
-            fetchCurrentReportData(1);
+            applyAllFilters();
         }
     };
 
     const handleClearFilters = () => {
+        const defaultFrom = new Date(new Date().setDate(new Date().getDate() - 30));
+        const defaultTo = new Date();
         setSearchTerm("");
         setSearchApplied(false);
         setLastSearch(null);
         setSuggestions([]);
         setSearchColumn(SEARCH_COLUMNS_CONFIG[reportType][0]);
         setAlmacenFilter("");
-        setDateRange({
-            from: new Date(new Date().setDate(new Date().getDate() - 30)),
-            to: new Date(),
-        });
+        setDateRange({ from: defaultFrom, to: defaultTo });
         setFilterGroups([
             {
                 id: uuidv4(),
@@ -587,8 +642,27 @@ export default function Report() {
                 name: "Grupo 1",
             },
         ]);
+        setSortRules([{ column: QUERY_CONFIGS[reportType]?.fechaField, direction: "desc" }]);
+        // Aplicar inmediatamente
+        setAppliedFilters({
+            reportType,
+            almacenFilter: "",
+            searchTerm: "",
+            searchColumn: SEARCH_COLUMNS_CONFIG[reportType][0],
+            searchApplied: false,
+            dateRange: { from: defaultFrom, to: defaultTo },
+            filterGroups: [
+                {
+                    id: uuidv4(),
+                    filters: [{ column: "", operator: "=", value: "", groupId: "" }],
+                    logicalOperator: "AND",
+                    name: "Grupo 1",
+                },
+            ],
+            sortRules: [{ column: QUERY_CONFIGS[reportType]?.fechaField, direction: "desc" }],
+            quickMode,
+        });
         setCurrentPage(1);
-        fetchCurrentReportData(1);
     };
 
     const handleReportTypeChange = (type: ReportType) => {
@@ -596,21 +670,25 @@ export default function Report() {
             setLastSearch({ term: searchTerm, columnKey: searchColumn.key });
         }
         setReportType(type);
+        // Actualizar appliedFilters también para cambiar el reporte
+        setAppliedFilters((prev) => ({
+            ...prev,
+            reportType: type,
+        }));
         setCurrentPage(1);
         setSearchApplied(false);
     };
 
     const handleDateChange = (from: Date | null, to: Date | null) => {
         setDateRange({ from, to });
-        setCurrentPage(1);
-        setShowDatePicker(false);
-        fetchCurrentReportData(1);
+        // No aplicar todavía
     };
+
     const handleAlmacenFilterChange = (value: string) => {
         setAlmacenFilter(value);
-        setCurrentPage(1);
-        fetchCurrentReportData(1);
+        // No aplicar todavía
     };
+
     const applyDatePeriod = (period: (typeof DATE_PERIODS)[0]) => {
         const today = new Date();
         let from: Date | null = null;
@@ -628,7 +706,10 @@ export default function Report() {
             from = new Date(today.getFullYear(), 0, 1);
             to = new Date(today.getFullYear(), 11, 31);
         }
-        handleDateChange(from, to);
+        // Actualizar borrador y luego aplicar solo el rango de fechas
+        setDateRange({ from, to });
+        applyDateRange(from, to);
+        setShowDatePicker(false);
     };
 
     // Obtener métricas para bento grid
@@ -701,7 +782,7 @@ export default function Report() {
         }));
     };
 
-    // Handlers para filtros avanzados (se mantienen igual)
+    // Handlers para filtros avanzados (actualizan borrador)
     const handleAdvancedFilterChange = (groupId: string, filterIndex: number, field: keyof FilterRule, value: any) => {
         setFilterGroups((prev) =>
             prev.map((group) => {
@@ -782,25 +863,39 @@ export default function Report() {
     };
 
     const applyAdvancedFilters = () => {
-        setCurrentPage(1);
-        fetchCurrentReportData(1);
+        applyAllFilters();
     };
 
     const getActiveFiltersSummary = () => {
         const summary: string[] = [];
-        if (almacenFilter) summary.push(`Almacén: ${almacenFilter}`);
-        if (searchApplied && searchTerm) summary.push(`Búsqueda: ${searchColumn.label} contiene "${searchTerm}"`);
+        const { almacenFilter, searchApplied, searchTerm, searchColumn, dateRange, filterGroups, quickMode } = appliedFilters;
+
+        // Mostrar rango de fechas si está definido
+        if (dateRange.from && dateRange.to) {
+            summary.push(`Fechas: ${formatDateDisplay(dateRange.from)} - ${formatDateDisplay(dateRange.to)}`);
+        }
+
+        if (almacenFilter) {
+            const almacenLabel = ALMACENES_OPCIONES.find(opt => opt.value === almacenFilter)?.label || almacenFilter;
+            summary.push(`Almacén: ${almacenLabel}`);
+        }
+
+        if (searchApplied && searchTerm) {
+            summary.push(`Búsqueda: ${searchColumn.label} contiene "${searchTerm}"`);
+        }
+
         if (!quickMode) {
             filterGroups.forEach((g, idx) => {
                 const active = g.filters.filter((f) => f.column && (f.value || f.operator.includes("NULL")));
                 if (active.length) {
                     const desc = active
-                        .map((f) => `${f.column.split(".")[1] || f.column} ${f.operator} ${f.value || "(nulo)"}`)
+                        .map((f) => `${f.column.split('.')[1] || f.column} ${f.operator} ${f.value || '(nulo)'}`)
                         .join(` ${g.logicalOperator} `);
                     summary.push(`${g.name || `Grupo ${idx + 1}`}: ${desc}`);
                 }
             });
         }
+
         return summary;
     };
 
@@ -971,7 +1066,7 @@ export default function Report() {
                                                 ? "Cargando datos..."
                                                 : "Cargando estadísticas..."}
                                 </div>
-                                {reportType === "comparacion" && (
+                                {appliedFilters.reportType === "comparacion" && (
                                     <div className="text-sm text-blue-600/80 dark:text-blue-400/80 mt-1">
                                         Este reporte combina datos de ventas y compras, puede tardar un momento...
                                     </div>
@@ -1099,7 +1194,7 @@ export default function Report() {
                                                     type="date"
                                                     value={dateRange.from ? dateRange.from.toISOString().split("T")[0] : ""}
                                                     onChange={(e) =>
-                                                        handleDateChange(e.target.value ? new Date(e.target.value) : null, dateRange.to)
+                                                        handleDateChange(new Date(e.target.value), dateRange.to)
                                                     }
                                                     className="w-full border rounded-lg px-3 py-2 text-sm"
                                                 />
@@ -1110,7 +1205,7 @@ export default function Report() {
                                                     type="date"
                                                     value={dateRange.to ? dateRange.to.toISOString().split("T")[0] : ""}
                                                     onChange={(e) =>
-                                                        handleDateChange(dateRange.from, e.target.value ? new Date(e.target.value) : null)
+                                                        handleDateChange(dateRange.from, new Date(e.target.value))
                                                     }
                                                     className="w-full border rounded-lg px-3 py-2 text-sm"
                                                 />
@@ -1134,7 +1229,10 @@ export default function Report() {
                                                     Cancelar
                                                 </button>
                                                 <button
-                                                    onClick={() => setShowDatePicker(false)}
+                                                    onClick={() => {
+                                                        applyDateRange(dateRange.from, dateRange.to);
+                                                        setShowDatePicker(false);
+                                                    }}
                                                     className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                                                 >
                                                     Aplicar
@@ -1564,7 +1662,7 @@ export default function Report() {
                                                                 type="date"
                                                                 value={dateRange.from ? dateRange.from.toISOString().split("T")[0] : ""}
                                                                 onChange={(e) =>
-                                                                    handleDateChange(e.target.value ? new Date(e.target.value) : null, dateRange.to)
+                                                                    handleDateChange(new Date(e.target.value), dateRange.to)
                                                                 }
                                                                 className="w-full border rounded px-3 py-2 text-sm"
                                                             />
@@ -1575,7 +1673,7 @@ export default function Report() {
                                                                 type="date"
                                                                 value={dateRange.to ? dateRange.to.toISOString().split("T")[0] : ""}
                                                                 onChange={(e) =>
-                                                                    handleDateChange(dateRange.from, e.target.value ? new Date(e.target.value) : null)
+                                                                    handleDateChange(dateRange.from, new Date(e.target.value))
                                                                 }
                                                                 className="w-full border rounded px-3 py-2 text-sm"
                                                             />
@@ -1593,8 +1691,11 @@ export default function Report() {
                                                         </div>
                                                         <div className="flex justify-end mt-2">
                                                             <button
-                                                                onClick={() => setShowDatePicker(false)}
-                                                                className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+                                                                onClick={() => {
+                                                                    applyDateRange(dateRange.from, dateRange.to);
+                                                                    setShowDatePicker(false);
+                                                                }}
+                                                                className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                                                             >
                                                                 Aplicar
                                                             </button>

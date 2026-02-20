@@ -71,9 +71,9 @@ export const formatDateISOString = (date: Date): string => {
 };
 export const formatDateDisplay = (date: Date | null): string => {
   if (!date) return "Seleccionar";
-  return date.toLocaleDateString("es-ES", {
+  return date.toISOString().split("T")[0]; /* .toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  });
+  }); */
 };

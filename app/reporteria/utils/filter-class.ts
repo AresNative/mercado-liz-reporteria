@@ -1,8 +1,9 @@
-import { formatDateISOString } from "@/utils/constants/format-values";
-import { FilterGroup, ReportType } from "../types/consultas";
+import { FilterGroup } from "@/utils/types/consultas";
 import { SearchColumn } from "../types/config";
-import { DateRange } from "../types/sample";
-import { CONFIG, QUERY_CONFIGS } from "../utils/config";
+import { DateRange } from "../types/filter";
+import { ReportType } from "../types/consultas";
+import { formatDateISOString } from "@/utils/constants/format-values";
+import { CONFIG, QUERY_CONFIGS } from "./config-constants";
 
 export interface FilterBuilderParams {
   quickMode: boolean;

@@ -2,8 +2,8 @@
 import { useRef, useEffect } from "react";
 import { useGetMasivoWithFiltersMutation } from "@/hooks/api/api_int";
 import { safeCall } from "@/hooks/use-debounce";
-import { ApiResponse } from "../types/consultas";
 import { v4 as uuidv4 } from "uuid";
+import { ApiResponse } from "@/utils/types/consultas";
 
 export interface RequestPayload {
   table: string;

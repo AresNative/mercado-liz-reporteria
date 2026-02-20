@@ -1,12 +1,12 @@
 import { Modal } from "@/components/modal";
 import { useCallback, useRef, useState } from "react";
 import { formatDateISOString } from "@/utils/constants/format-values";
-import { ApiResponse, ReportType } from "../types/consultas";
-import { DateRange } from "../types/sample";
-import { QUERY_CONFIGS } from "../utils/config";
+import { DateRange } from "../types/filter";
+import { QUERY_CONFIGS } from "../utils/config-constants";
 import { SearchColumn } from "../types/config";
-import { RequestPayload, useManagmentRead } from "../class/api";
-import { FilterBuilder } from "../class/filter";
+import { ReportType } from "../types/consultas";
+import { RequestPayload, useManagmentRead } from "@/hooks/classes/api";
+import { FilterBuilder } from "../utils/filter-class";
 
 // SearchColumn dummy para cuando no se usa búsqueda
 const dummySearchColumn: SearchColumn = {
