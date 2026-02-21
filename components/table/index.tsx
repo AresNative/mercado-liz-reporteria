@@ -1,11 +1,16 @@
 "use client";
 
 import type React from "react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, Download, Grid2x2X, X } from "lucide-react";
 import { ViewTR } from "./toggle-view";
 import { cn } from "@/utils/functions/cn";
+// Importamos funciones de formato
+import {
+    formatValue as formatNumberValue,
+    formatDateDisplay,
+} from "@/utils/constants/format-values";
 
 export type DataItem = Record<string, any>;
 
@@ -15,13 +20,45 @@ interface DynamicTableProps {
     onRowClick?: (rowData: any) => void;
 }
 
-const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRowClick }) => {
-    // Si está cargando, mostramos el skeleton
-    if (loading) {
-        return <TableSkeleton />;
-    }
+// Funciones auxiliares para detectar tipos de columna (pueden moverse a un helper)
+const isDateColumn = (key: string): boolean => {
+    const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return normalizedKey.includes("fecha") || normalizedKey.includes("date");
+};
 
-    // Detectamos si los datos tienen estructura agrupada (con array de Pujas)
+const isPercentageColumn = (key: string): boolean => {
+    const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return normalizedKey.includes("porcentaje") || key.includes("IVA") || key.includes("IEPS");
+};
+
+const isCurrencyColumn = (key: string): boolean => {
+    const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return (
+        normalizedKey.includes("price") ||
+        normalizedKey.includes("precio") ||
+        normalizedKey.includes("diferencia") ||
+        normalizedKey.includes("puja") ||
+        normalizedKey.includes("importe") ||
+        normalizedKey.includes("costo")
+    );
+};
+
+const isNumberColumn = (key: string): boolean => {
+    const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return normalizedKey.includes("cantidad") || normalizedKey.includes("numero");
+};
+
+const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRowClick }) => {
+    const tableRef = useRef<HTMLDivElement>(null);
+
+    // Estados existentes
+    const [selectedRows, setSelectedRows] = useState<string[]>([]);
+    const [sortColumn, setSortColumn] = useState<string | null>(null);
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+    const [showColumnMenu, setShowColumnMenu] = useState<string | null>(null);
+    const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({});
+
+    // Detectar datos agrupados
     const isGroupedData = useMemo(() => {
         return data.length > 0 && data[0].Pujas && Array.isArray(data[0].Pujas);
     }, [data]);
@@ -45,17 +82,14 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         return [...baseColumns, ...providerColumns];
     }, [baseColumns, providerColumns]);
 
-    // Preparamos los datos para mostrar
+    // Preparar datos para mostrar (aplanar pujas)
     const displayData = useMemo(() => {
         if (!isGroupedData) return data;
 
         return data.map(item => {
             const newItem = { ...item };
-
-            // Eliminamos el array de Pujas del objeto principal
             delete newItem.Pujas;
 
-            // Añadimos las pujas como propiedades directas
             if (item.Pujas && Array.isArray(item.Pujas)) {
                 item.Pujas.forEach((puja: any) => {
                     const providerKey = `Proveedor_${puja.Proveedor.replace('#', '')}`;
@@ -70,12 +104,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         });
     }, [data, isGroupedData]);
 
-    const [selectedRows, setSelectedRows] = useState<string[]>([]);
-    const [sortColumn, setSortColumn] = useState<string | null>(null);
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-    const [showColumnMenu, setShowColumnMenu] = useState<string | null>(null);
-    const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({});
-
+    // Inicializar visibilidad de columnas
     useEffect(() => {
         setVisibleColumns((prev) => {
             return columns.reduce((acc, column) => {
@@ -85,6 +114,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         });
     }, [columns]);
 
+    // Handlers
     const toggleColumn = (column: string) => {
         setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }));
     };
@@ -104,69 +134,27 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         }
     };
 
-    const formatValue = (key: string, value: any) => {
+    // Formatear valor de celda usando las utilidades importadas
+    const formatCellValue = (key: string, value: any) => {
         if (value === null || value === undefined) return '-';
 
         // Si es un objeto de proveedor (contiene puja y cantidad)
         if (typeof value === 'object' && value !== null && 'puja' in value) {
             return (
                 <div className="flex flex-col">
-                    <span>Puja: ${value.puja.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    <span>Cantidad: {value.cantidad}</span>
+                    <span>Puja: {formatNumberValue(value.puja, "currency", 2)}</span>
+                    <span>Cantidad: {formatNumberValue(value.cantidad, "number", 2)}</span>
                 </div>
             );
         }
 
-        const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-        // Formato de fechas
-        if ((normalizedKey.includes('fecha') || normalizedKey.includes('date'))) {
-            try {
-                const date = new Date(value);
-                if (isNaN(date.getTime())) return value;
-                return date.toLocaleDateString('es-ES', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                });
-            } catch (error) {
-                console.warn(`Error formateando fecha para ${key}:`, error);
-                return value;
-            }
-        }
-
-        // Formato de porcentajes
-        if ((normalizedKey.includes('porcentaje') || key.includes('IVA') || key.includes('IEPS'))) {
-            return `${value}%`;
-        }
-
-        // Formato de precios
-        if (
-            (normalizedKey.includes('price') ||
-                normalizedKey.includes('precio') ||
-                normalizedKey.includes('diferencia') ||
-                normalizedKey.includes('puja') ||
-                normalizedKey.includes('importe') ||
-                normalizedKey.includes('costo')) &&
-            typeof value === 'number'
-        ) {
-            return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        }
-
-        // Formato de cantidades
-        if (normalizedKey.includes('cantidad') && typeof value === 'number') {
-            return value % 1 === 0
-                ? value.toString()
-                : value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        // Formato booleano
+        // Booleanos
         if (typeof value === 'boolean') {
             return value ? <Check color="green" size={18} /> : <X color="red" size={18} />;
         }
 
-        // Formato de archivos
-        if (normalizedKey === 'file' && typeof value === 'object') {
+        // Archivos (campo 'file')
+        if (key.toLowerCase() === 'file' && typeof value === 'object') {
             return value?.content ? (
                 <Download
                     size={18}
@@ -183,9 +171,40 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
             );
         }
 
-        return value.toString();
+        // Fechas
+        if (isDateColumn(key)) {
+            try {
+                const date = new Date(value);
+                if (isNaN(date.getTime())) return value;
+                // Usar formatDateDisplay que devuelve fecha localizada (DD/MM/YYYY)
+                return formatDateDisplay(date);
+            } catch {
+                return value;
+            }
+        }
+
+        // Porcentajes
+        if (isPercentageColumn(key) && typeof value === 'number') {
+            return formatNumberValue(value, "percentage", 2);
+        }
+
+        // Moneda
+        if (isCurrencyColumn(key) && typeof value === 'number') {
+            return formatNumberValue(value, "currency", 2);
+        }
+
+        // Números (cantidades, etc.)
+        if (typeof value === 'number') {
+            // Si es número entero, mostrar sin decimales; si tiene decimales, con 2
+            const decimals = Number.isInteger(value) ? 0 : 2;
+            return formatNumberValue(value, "number", decimals);
+        }
+
+        // Por defecto, convertir a string
+        return String(value);
     };
 
+    // Ordenar datos
     const filteredAndSortedData = useMemo(() => {
         return [...displayData].sort((a: any, b: any) => {
             if (!sortColumn) return 0;
@@ -196,11 +215,41 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
             if (aValue === null || aValue === undefined) return 1;
             if (bValue === null || bValue === undefined) return -1;
 
-            return sortDirection === "asc"
-                ? aValue < bValue ? -1 : 1
-                : aValue > bValue ? -1 : 1;
+            const comparison = aValue < bValue ? -1 : 1;
+            return sortDirection === "asc" ? comparison : -comparison;
         });
     }, [displayData, sortColumn, sortDirection]);
+
+    // Manejadores de teclado para filas
+    const handleRowKeyDown = (e: React.KeyboardEvent, item: any, index: number) => {
+        switch (e.key) {
+            case "ArrowDown":
+                e.preventDefault();
+                const nextRow = document.querySelector(`[data-row-index="${index + 1}"]`);
+                (nextRow as HTMLElement)?.focus();
+                break;
+            case "ArrowUp":
+                e.preventDefault();
+                const prevRow = document.querySelector(`[data-row-index="${index - 1}"]`);
+                (prevRow as HTMLElement)?.focus();
+                break;
+            case "Enter":
+                e.preventDefault();
+                if (onRowClick) onRowClick(item);
+                break;
+            case " ":
+                e.preventDefault();
+                toggleRowSelection(item.ID || JSON.stringify(item));
+                break;
+            default:
+                break;
+        }
+    };
+
+    // Renderizado condicional
+    if (loading) {
+        return <TableSkeleton />;
+    }
 
     if (displayData.length === 0) {
         return (
@@ -213,12 +262,20 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
     }
 
     return (
-        <div className="w-full space-y-8 relative">
+        <div className="w-full space-y-8 relative" ref={tableRef}>
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-600">
                 <div className="flex items-center space-x-2">
-                    <ViewTR {...{ setShowColumnMenu, column: 'toggle', toggleColumn, showColumnMenu, visibleColumns, allColumns: true }} />
+                    <ViewTR
+                        setShowColumnMenu={setShowColumnMenu}
+                        column="toggle"
+                        toggleColumn={toggleColumn}
+                        showColumnMenu={showColumnMenu}
+                        visibleColumns={visibleColumns}
+                        allColumns={true}
+                    />
                 </div>
             </div>
+
             <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-600 shadow-md rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -236,71 +293,96 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
                                                     : displayData.map((item: any) => item.ID || JSON.stringify(item))
                                             )
                                         }
+                                        aria-label="Seleccionar todas las filas"
                                     />
                                 </th>
                                 {columns.map((column) => (
-                                    visibleColumns[column] && (<th
-                                        key={column}
-                                        className={`relative px-6 py-3 text-left text-xs font-medium ${visibleColumns[column] ? 'text-gray-500 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500'} tracking-wider`}
-                                    >
-                                        <ul className="flex items-center">
-                                            <li className="flex items-center space-x-1">
+                                    visibleColumns[column] && (
+                                        <th
+                                            key={column}
+                                            className="relative px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 tracking-wider"
+                                        >
+                                            <div className="flex items-center">
                                                 <button
-                                                    className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300"
+                                                    className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                                                     onClick={() => toggleSort(column)}
+                                                    aria-label={`Ordenar por ${column}`}
                                                 >
                                                     <span>{column.replace('Proveedor_', 'Prov. ')}</span>
                                                     <ChevronDown
-                                                        className={`h-4 w-4 ${sortColumn === column
+                                                        className={`h-4 w-4 transition-transform ${sortColumn === column
                                                             ? sortDirection === "asc"
-                                                                ? "transform rotate-180"
+                                                                ? "rotate-180"
                                                                 : ""
-                                                            : ""
+                                                            : "opacity-50"
                                                             }`}
                                                     />
                                                 </button>
-                                                <ViewTR {...{ setShowColumnMenu, column, toggleColumn, showColumnMenu, visibleColumns }} />
-                                            </li>
-                                        </ul>
-                                    </th>)
+                                                <ViewTR
+                                                    setShowColumnMenu={setShowColumnMenu}
+                                                    column={column}
+                                                    toggleColumn={toggleColumn}
+                                                    showColumnMenu={showColumnMenu}
+                                                    visibleColumns={visibleColumns}
+                                                />
+                                            </div>
+                                        </th>
+                                    )
                                 ))}
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-zinc-600">
                             <AnimatePresence>
-                                {filteredAndSortedData.map((item: any) => (
-                                    <motion.tr
-                                        key={item.ID || JSON.stringify(item)}
-                                        className={cn(onRowClick && "cursor-pointer", "hover:bg-zinc-50 dark:hover:bg-zinc-600")}
-                                        onClick={() => {
-                                            if (typeof onRowClick === 'function') {
-                                                onRowClick(item);
-                                            }
-                                        }}
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                    >
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <input
-                                                type="checkbox"
-                                                className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                                checked={selectedRows.includes(item.ID || JSON.stringify(item))}
-                                                onChange={() => toggleRowSelection(item.ID || JSON.stringify(item))}
-                                            />
-                                        </td>
-                                        {columns.map((column: any) => (visibleColumns[column] && (
-                                            <td
-                                                key={`${item.ID || JSON.stringify(item)}-${column}`}
-                                                className={`px-6 py-4 whitespace-nowrap ${!visibleColumns[column] ? 'relative' : ''}`}
-                                            >
-                                                <div className="text-sm text-gray-900 dark:text-white">
-                                                    {formatValue(column, item[column])}
-                                                </div>
+                                {filteredAndSortedData.map((item: any, index: number) => {
+                                    const rowId = item.ID || JSON.stringify(item);
+                                    const isSelected = selectedRows.includes(rowId);
+                                    return (
+                                        <motion.tr
+                                            key={rowId}
+                                            data-row-index={index}
+                                            tabIndex={0}
+                                            role="row"
+                                            aria-selected={isSelected}
+                                            className={cn(
+                                                onRowClick && "cursor-pointer",
+                                                "hover:bg-zinc-50 dark:hover:bg-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset",
+                                                isSelected && "bg-blue-50 dark:bg-blue-900/20"
+                                            )}
+                                            onClick={() => {
+                                                if (onRowClick) onRowClick(item);
+                                            }}
+                                            onDoubleClick={() => {
+                                                if (onRowClick) onRowClick(item);
+                                            }}
+                                            onKeyDown={(e) => handleRowKeyDown(e, item, index)}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <input
+                                                    type="checkbox"
+                                                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                                    checked={isSelected}
+                                                    onChange={() => toggleRowSelection(rowId)}
+                                                    onClick={(e) => e.stopPropagation()} // Evitar doble acción
+                                                    aria-label={`Seleccionar fila ${index + 1}`}
+                                                />
                                             </td>
-                                        )))}
-                                    </motion.tr>
-                                ))}
+                                            {columns.map((column: string) => (
+                                                visibleColumns[column] && (
+                                                    <td
+                                                        key={`${rowId}-${column}`}
+                                                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white"
+                                                    >
+                                                        {formatCellValue(column, item[column])}
+                                                    </td>
+                                                )
+                                            ))}
+                                        </motion.tr>
+                                    );
+                                })}
                             </AnimatePresence>
                         </tbody>
                     </table>
@@ -316,21 +398,17 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
     );
 };
 
-// Componente Skeleton para el estado de carga
+// Componente Skeleton (sin cambios, solo se muestra cuando loading)
 const TableSkeleton = () => {
-    // Número de filas y columnas para el skeleton
     const skeletonRows = 5;
     const skeletonColumns = 4;
 
     return (
         <div className="w-full space-y-8 animate-pulse">
-            {/* Header skeleton */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-600">
                 <div className="h-7 w-48 bg-gray-300 dark:bg-zinc-700 rounded"></div>
                 <div className="h-8 w-8 bg-gray-300 dark:bg-zinc-700 rounded"></div>
             </div>
-
-            {/* Tabla skeleton */}
             <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-600 shadow-md rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -363,8 +441,6 @@ const TableSkeleton = () => {
                     </table>
                 </div>
             </div>
-
-            {/* Footer skeleton */}
             <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                 <div className="h-4 w-48 bg-gray-300 dark:bg-zinc-700 rounded"></div>
             </div>

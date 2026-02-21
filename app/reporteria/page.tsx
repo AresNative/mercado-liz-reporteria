@@ -10,9 +10,6 @@ import {
 } from "@/utils/constants/format-values";
 import {
     DollarSign,
-    TrendingUp,
-    Minus,
-    TrendingDown,
     RefreshCw,
     Building,
     Loader2,
@@ -21,8 +18,6 @@ import {
     Zap,
     Calendar,
     ChevronDown,
-    Menu,
-    ChevronUp,
     AlertCircle,
     GitCompare,
     Eye,
@@ -40,6 +35,9 @@ import { FilterGroup, FilterRule } from "@/utils/types/consultas";
 import { AppliedFilters, DateRange } from "./types/filter";
 import { FilterBuilder } from "./utils/filter-class";
 import { DATE_PERIODS, OPERATORS } from "./utils/consultas-constants";
+import { ModalReporting } from "./components/modal-reporting";
+import { openModalReducer } from "@/hooks/reducers/drop-down";
+import { useAppDispatch } from "@/hooks/selector";
 
 // Interfaz para datos de tabla
 export interface TableData {
@@ -111,6 +109,7 @@ const ALMACENES_OPCIONES = [
 
 export default function Report() {
     const manager = useManagmentRead();
+    const dispatch = useAppDispatch();
 
     // Estados principales (borradores)
     const [reportType, setReportType] = useState<ReportType>("ventas");
@@ -1115,7 +1114,8 @@ export default function Report() {
                                     className="border text-white bg-green-600 border-green-700 dark:text-gray-200 p-3 md:p-4"
                                     loading={statsLoading || refreshingStats}
                                 >
-                                    <div className="flex flex-col gap-2 overflow-visible">
+                                    <div className="flex flex-col gap-2 overflow-visible"
+                                        onClick={() => { dispatch(openModalReducer({ modalName: "reporting" })) }}>
                                         {statsForHour.length > 0 ? (
                                             <div className="space-y-1 max-h-30 overflow-y-auto pr-1">
                                                 <div className="flex gap-2 justify-between text-xs sticky top-0 bg-green-600/90 px-1 py-1 border-b border-green-700">
@@ -1855,6 +1855,7 @@ export default function Report() {
                     </article>
                 )}
             </section>
+            <ModalReporting reportType={reportType} />
             <Footer />
         </>
     );
