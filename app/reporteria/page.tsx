@@ -38,6 +38,7 @@ import { DATE_PERIODS, OPERATORS } from "./utils/consultas-constants";
 import { ModalReporting } from "./components/modal-reporting";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
 import { useAppDispatch } from "@/hooks/selector";
+import { Button } from "@/components/button";
 
 // Interfaz para datos de tabla
 export interface TableData {
@@ -451,103 +452,16 @@ export default function Report() {
         [reportType, buildFiltros, manager, showStats]
     );
 
-    // Cargar estadísticas por hora (solo ventas)
-    const fetchStatsForHourData = useCallback(
-        async (forceRefresh = false) => {
-            if (!showStats || reportType !== "ventas") return;
-            setStatsError(null);
-            setStatsLoading(true);
-            if (forceRefresh) setRefreshingStats(true);
-
-            const config = QUERY_CONFIGS[reportType];
-            const { filtrosAnd: baseFiltrosAnd, filtrosOr } = buildFiltros(true);
-
-            const rangos = [
-                { hora: "07:00-07:30", value: "09:00:00 AND 09:30:00" },
-                { hora: "07:30-08:00", value: "09:30:00 AND 10:00:00" },
-                { hora: "08:00-08:30", value: "10:00:00 AND 10:30:00" },
-                { hora: "08:30-09:00", value: "10:30:00 AND 11:00:00" },
-                { hora: "09:00-09:30", value: "11:00:00 AND 11:30:00" },
-                { hora: "09:30-10:00", value: "11:30:00 AND 12:00:00" },
-                { hora: "10:00-10:30", value: "12:00:00 AND 12:30:00" },
-                { hora: "10:30-11:00", value: "12:30:00 AND 13:00:00" },
-                { hora: "11:00-11:30", value: "13:00:00 AND 13:30:00" },
-                { hora: "11:30-12:00", value: "13:30:00 AND 14:00:00" },
-                { hora: "12:00-12:30", value: "14:00:00 AND 14:30:00" },
-                { hora: "12:30-13:00", value: "14:30:00 AND 15:00:00" },
-                { hora: "13:00-13:30", value: "15:00:00 AND 15:30:00" },
-                { hora: "13:30-14:00", value: "15:30:00 AND 16:00:00" },
-                { hora: "14:00-14:30", value: "16:00:00 AND 16:30:00" },
-                { hora: "14:30-15:00", value: "16:30:00 AND 17:00:00" },
-                { hora: "15:00-15:30", value: "17:00:00 AND 17:30:00" },
-                { hora: "15:30-16:00", value: "17:30:00 AND 18:00:00" },
-                { hora: "16:00-16:30", value: "18:00:00 AND 18:30:00" },
-                { hora: "16:30-17:00", value: "18:30:00 AND 19:00:00" },
-                { hora: "17:00-17:30", value: "19:00:00 AND 19:30:00" },
-                { hora: "17:30-18:00", value: "19:30:00 AND 20:00:00" },
-                { hora: "18:00-18:30", value: "20:00:00 AND 20:30:00" },
-                { hora: "18:30-19:00", value: "20:30:00 AND 21:00:00" },
-                { hora: "19:00-19:30", value: "21:00:00 AND 21:30:00" },
-                { hora: "19:30-20:00", value: "21:30:00 AND 22:00:00" },
-                { hora: "20:00-20:30", value: "22:00:00 AND 22:30:00" },
-                { hora: "20:30-21:00", value: "22:30:00 AND 23:00:00" },
-                { hora: "21:00-21:30", value: "23:00:00 AND 23:30:00" },
-                { hora: "21:30-22:00", value: "23:30:00 AND 23:59:59" },
-                { hora: "22:00-22:30", value: "01:00:00 AND 01:30:00" },
-            ];
-
-            const promesas = rangos.map(async (rango) => {
-                const payload: RequestPayload = {
-                    table: config.table,
-                    filtros: {
-                        agregaciones: [
-                            { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
-                            { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-                            { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
-                        ],
-                        FiltrosAnd: [
-                            ...baseFiltrosAnd,
-                            {
-                                Filtros: [{ Key: "venta.FechaRegistro", Operator: "TIME_BETWEEN", Value: rango.value }],
-                                OperadorLogico: "AND",
-                            },
-                        ],
-                        ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
-                    },
-                };
-
-                const { promise } = manager.execute(payload);
-                const response = await promise;
-                if (response.error) return null;
-                const statsData = response.data?.data?.[0] || {};
-                return {
-                    hora: rango.hora,
-                    totalVentas: statsData.totalVentas || 0,
-                    totalCosto: statsData.totalCosto || 0,
-                    totalTikets: statsData.totalTikets || 0,
-                    utilidad: (statsData.totalVentas || 0) - (statsData.totalCosto || 0),
-                    margen: statsData.totalVentas ? ((statsData.totalVentas - (statsData.totalCosto || 0)) / statsData.totalVentas) * 100 : 0,
-                };
-            });
-
-            const resultados = await Promise.all(promesas);
-            setStatsForHour(resultados.filter(Boolean));
-            setStatsLoading(false);
-            setRefreshingStats(false);
-        },
-        [reportType, buildFiltros, manager, showStats]
-    );
-
     // Cargar todo (tabla + estadísticas)
     const fetchCurrentReportData = useCallback(
         async (page = 1) => {
             setCurrentPage(page);
             fetchTableData();
             if (showStats) {
-                await Promise.all([fetchStatsData(), fetchStatsForHourData()]);
+                await Promise.all([fetchStatsData()]);
             }
         },
-        [fetchTableData, fetchStatsData, fetchStatsForHourData, showStats]
+        [fetchTableData, fetchStatsData, showStats]
     );
 
     // Efecto principal: cuando cambian los filtros aplicados o la página, cargar datos
@@ -1105,54 +1019,6 @@ export default function Report() {
                                     </BentoItem>
                                 );
                             })}
-
-                            {reportType === "ventas" && (
-                                <BentoItem
-                                    title="Por hora"
-                                    icon={<DollarSign className="w-4 h-4 text-white" />}
-                                    iconRight
-                                    className="border text-white bg-green-600 border-green-700 dark:text-gray-200 p-3 md:p-4"
-                                    loading={statsLoading || refreshingStats}
-                                >
-                                    <div className="flex flex-col gap-2 overflow-visible"
-                                        onClick={() => { dispatch(openModalReducer({ modalName: "reporting" })) }}>
-                                        {statsForHour.length > 0 ? (
-                                            <div className="space-y-1 max-h-30 overflow-y-auto pr-1">
-                                                <div className="flex gap-2 justify-between text-xs sticky top-0 bg-green-600/90 px-1 py-1 border-b border-green-700">
-                                                    <span className="font-medium text-white/90 w-16">HORA</span>
-                                                    <span className="font-bold text-white/90 flex-1 text-right">VENTAS</span>
-                                                    <span className="font-bold text-white/90 flex-1 text-right">TICKETS</span>
-                                                    <span className="font-bold text-white/90 flex-1 text-right">UTILIDAD</span>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    {statsForHour.map((item) => (
-                                                        <div
-                                                            key={item.hora}
-                                                            className="flex gap-2 justify-between text-xs hover:bg-white/5 rounded px-1 py-1 transition-colors cursor-pointer"
-                                                        >
-                                                            <span className="font-medium text-white/80 w-16">{item.hora}</span>
-                                                            <span className="font-semibold text-white/90 flex-1 text-right">
-                                                                {formatValue(item.totalVentas, "currency")}
-                                                            </span>
-                                                            <span className="font-semibold text-white/90 flex-1 text-right">
-                                                                {formatValue(item.totalTikets, "number")}
-                                                            </span>
-                                                            <span
-                                                                className={`font-semibold flex-1 text-right ${item.utilidad >= 0 ? "text-yellow-400" : "text-red-400"
-                                                                    }`}
-                                                            >
-                                                                {formatValue(item.utilidad, "currency")}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-4 text-sm text-white/60">No hay datos disponibles</div>
-                                        )}
-                                    </div>
-                                </BentoItem>
-                            )}
                         </BentoGrid>
 
                         {reportType === "comparacion" && (
@@ -1163,7 +1029,20 @@ export default function Report() {
                         )}
                     </div>
                 )}
-
+                {reportType === "ventas" && (
+                    <BentoItem
+                        title="Mas detalles"
+                        icon={<DollarSign className="w-4 h-4 text-white" />}
+                        iconRight
+                        className="border text-white bg-green-500 border-green-700 dark:text-gray-200 p-3 md:p-4"
+                    >
+                        <section>
+                            <Button
+                                label="Venta desglosada" color="success" size="small"
+                                onClick={() => { dispatch(openModalReducer({ modalName: "reporting" })) }} />
+                        </section>
+                    </BentoItem>
+                )}
                 {/* Tabla */}
                 {reportType && (
                     <article className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
