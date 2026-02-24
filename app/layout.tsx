@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Solución integral de gestión empresarial | Administración, ventas y compras",
+  title: "Mercados Liz | administración, ventas y compras",
   description: "Plataforma integral para la gestión empresarial: control de empleados, administración de recursos, ventas, compras, mermas y proyectos en un solo sistema.",
   viewport: "width=device-width, initial-scale=1, maximum-scale=1",
 };
