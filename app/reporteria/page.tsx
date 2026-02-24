@@ -29,7 +29,7 @@ import { BENTO_METRICS_CONFIG } from "./utils/stats";
 import { SearchColumn } from "./types/config";
 import { v4 as uuidv4 } from "uuid";
 import { RequestPayload, useManagmentRead } from "@/hooks/classes/api";
-import { ReportType } from "./types/consultas";
+import { ReportType, StatsData } from "./types/consultas";
 import { CONFIG, QUERY_CONFIGS, SEARCH_COLUMNS_CONFIG } from "./utils/config-constants";
 import { FilterGroup, FilterRule } from "@/utils/types/consultas";
 import { AppliedFilters, DateRange } from "./types/filter";
@@ -43,21 +43,6 @@ import { Button } from "@/components/button";
 // Interfaz para datos de tabla
 export interface TableData {
     [key: string]: any;
-}
-
-// Interfaz para estadísticas procesadas
-export interface StatsData {
-    totalVentas?: number;
-    totalTikets?: number;
-    totalCosto?: number;
-    totalArticulos?: number;
-    totalClientes?: number;
-    totalProveedores?: number;
-    totalCompras?: number;
-    diferencia?: number;
-    utilidad?: number;
-    margen?: number;
-    promedio?: number;
 }
 
 export interface SortRule {
@@ -123,7 +108,6 @@ export default function Report() {
     const [stats, setStats] = useState<StatsData>({});
     const [statsLoading, setStatsLoading] = useState(false);
     const [statsError, setStatsError] = useState<string | null>(null);
-    const [statsForHour, setStatsForHour] = useState<any[]>([]);
 
     const [refreshingTable, setRefreshingTable] = useState(false);
     const [refreshingStats, setRefreshingStats] = useState(false);
@@ -140,7 +124,7 @@ export default function Report() {
     const [quickMode, setQuickMode] = useState(true);
     const [searchApplied, setSearchApplied] = useState(false);
     const [lastSearch, setLastSearch] = useState<{ term: string; columnKey: string } | null>(null);
-
+    const [showModal, setShowModal] = useState(false);
     // Filtros avanzados borrador
     const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([
         {
@@ -193,7 +177,6 @@ export default function Report() {
     const suggestionsRef = useRef<HTMLDivElement>(null);
     const suggestionsAbortControllerRef = useRef<AbortController | null>(null);
     const columnSuggestionsAbortControllerRef = useRef<AbortController | null>(null);
-    const initialMount = useRef(true);
 
     // Actualizar columna de búsqueda al cambiar reporte, manteniendo compatibilidad
     useEffect(() => {
@@ -245,8 +228,7 @@ export default function Report() {
             });
             return builder.build();
         },
-        [quickMode, filterGroups, searchTerm, searchColumn, almacenFilter, dateRange, reportType, searchApplied]
-
+        [quickMode, filterGroups, almacenFilter, dateRange, reportType, searchApplied]
     );
 
     // Cargar datos de tabla
@@ -454,12 +436,11 @@ export default function Report() {
 
     // Cargar todo (tabla + estadísticas)
     const fetchCurrentReportData = useCallback(
-        async (page = 1) => {
-            setCurrentPage(page);
+        async () => {
             fetchTableData();
-            if (showStats) {
+            /* if (showStats) {
                 await Promise.all([fetchStatsData()]);
-            }
+            } */
         },
         [fetchTableData, fetchStatsData, showStats]
     );
@@ -467,13 +448,11 @@ export default function Report() {
     // Efecto principal: cuando cambian los filtros aplicados o la página, cargar datos
     useEffect(() => {
         setTableError(null);
-        setStatsError(null);
-        fetchCurrentReportData(1);
+        fetchCurrentReportData();
         return () => {
-            // Limpieza de peticiones pendientes al desmontar o cambiar dependencias
             manager.cancelAll();
         };
-    }, [reportType, almacenFilter, dateRange, searchApplied, searchTerm, searchColumn, showStats]);
+    }, [reportType, almacenFilter, dateRange, searchApplied, searchColumn, showStats, currentPage]); // ✅ Agregado currentPage
 
     // Handlers para aplicar filtros
     const applyAllFilters = () => {
@@ -503,13 +482,7 @@ export default function Report() {
     const handleSearchChange = (value: string) => {
         setSearchTerm(value);
         setSearchApplied(false);
-        if (value.length >= 2) {
-            fetchSuggestions();
-        } else {
-            setShowSuggestions(false);
-            setSuggestions([]);
-            suggestionsAbortControllerRef.current?.abort();
-        }
+        fetchSuggestions();
     };
 
     const handleSearchColumnChange = (column: SearchColumn) => {
@@ -524,10 +497,10 @@ export default function Report() {
         }
     };
 
-    const handleSuggestionSelect = (suggestion: any) => {
-        setSearchTerm(suggestion.Suggestion);
+    const handleSuggestionSelect = (suggestion: string) => {
+        setSearchTerm(suggestion);
         setShowSuggestions(false);
-        // No aplicar automáticamente, solo rellenar el campo
+        handleSearchSubmit();
     };
 
     const handleSearchSubmit = () => {
@@ -913,7 +886,7 @@ export default function Report() {
                         <button
                             onClick={() => {
                                 setCurrentPage(1);
-                                fetchCurrentReportData(1);
+                                fetchCurrentReportData();
                             }}
                             disabled={tableLoading || statsLoading}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
@@ -1032,237 +1005,19 @@ export default function Report() {
                 {reportType === "ventas" && (
                     <BentoItem
                         title="Mas detalles"
-                        icon={<DollarSign className="w-4 h-4 text-white" />}
                         iconRight
                         className="border text-white bg-green-500 border-green-700 dark:text-gray-200 p-3 md:p-4"
                     >
                         <section>
                             <Button
                                 label="Venta desglosada" color="success" size="small"
-                                onClick={() => { dispatch(openModalReducer({ modalName: "reporting" })) }} />
+                                onClick={() => { setShowModal(true); dispatch(openModalReducer({ modalName: "reporting" })) }} />
                         </section>
                     </BentoItem>
                 )}
                 {/* Tabla */}
                 {reportType && (
                     <article className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
-                        {/* Filtros móvil */}
-                        <div className="md:hidden mb-6 space-y-3">
-                            {/* Selector de fecha móvil */}
-                            <div className="relative">
-                                <button
-                                    onClick={() => setShowDatePicker(!showDatePicker)}
-                                    className="flex items-center justify-between w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="h-4 w-4 text-gray-500" />
-                                        <span className="text-sm">
-                                            {dateRange.from && dateRange.to
-                                                ? `${formatDateDisplay(dateRange.from)} - ${formatDateDisplay(dateRange.to)}`
-                                                : "Rango de fechas"}
-                                        </span>
-                                    </div>
-                                    <ChevronDown className="h-4 w-4 text-gray-500" />
-                                </button>
-                                {showDatePicker && (
-                                    <div className="absolute z-50 mt-1 w-full p-3 bg-white border border-gray-300 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
-                                        <div className="flex flex-col gap-3">
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Desde:</label>
-                                                <input
-                                                    type="date"
-                                                    value={dateRange.from ? dateRange.from.toISOString().split("T")[0] : ""}
-                                                    onChange={(e) =>
-                                                        handleDateChange(new Date(e.target.value), dateRange.to)
-                                                    }
-                                                    className="w-full border rounded-lg px-3 py-2 text-sm"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Hasta:</label>
-                                                <input
-                                                    type="date"
-                                                    value={dateRange.to ? dateRange.to.toISOString().split("T")[0] : ""}
-                                                    onChange={(e) =>
-                                                        handleDateChange(dateRange.from, new Date(e.target.value))
-                                                    }
-                                                    className="w-full border rounded-lg px-3 py-2 text-sm"
-                                                />
-                                            </div>
-                                            <div className="flex gap-2 pt-2 border-t">
-                                                {DATE_PERIODS.map((p) => (
-                                                    <button
-                                                        key={p.label}
-                                                        onClick={() => applyDatePeriod(p)}
-                                                        className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 dark:bg-gray-700"
-                                                    >
-                                                        {p.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <button
-                                                    onClick={() => setShowDatePicker(false)}
-                                                    className="text-sm px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700"
-                                                >
-                                                    Cancelar
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        applyDateRange(dateRange.from, dateRange.to);
-                                                        setShowDatePicker(false);
-                                                    }}
-                                                    className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                                                >
-                                                    Aplicar
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Almacén móvil */}
-                            <div className="relative">
-                                <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                <select
-                                    value={almacenFilter}
-                                    onChange={(e) => handleAlmacenFilterChange(e.target.value)}
-                                    className="w-full pl-10 pr-8 py-2.5 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm"
-                                >
-                                    <option value="">Todos los almacenes</option>
-                                    {ALMACENES_OPCIONES.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Búsqueda móvil */}
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <searchColumn.icon className={`h-4 w-4 ${searchColumn.color}`} />
-                                        <span className="text-sm font-medium">{searchColumn.label}</span>
-                                        {searchColumn.prefix && <span className="text-xs text-gray-500">({searchColumn.prefix})</span>}
-                                    </div>
-                                    {searchColumns.length > 1 && (
-                                        <button
-                                            onClick={() => setShowSearchColumnDropdown(!showSearchColumnDropdown)}
-                                            className="p-1 rounded border border-gray-300"
-                                        >
-                                            <ChevronDown className="h-3 w-3" />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {showSearchColumnDropdown && searchColumns.length > 1 && (
-                                    <div className="border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800">
-                                        <div className="grid grid-cols-2 gap-1">
-                                            {searchColumns.map((column) => (
-                                                <button
-                                                    key={column.key}
-                                                    type="button"
-                                                    onClick={() => handleSearchColumnChange(column)}
-                                                    className={`flex items-center gap-1 px-2 py-1.5 text-xs rounded ${column.key === searchColumn.key
-                                                        ? "bg-blue-50 border border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800"
-                                                        : "bg-gray-50 border border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700"
-                                                        }`}
-                                                >
-                                                    <column.icon className={`h-3 w-3 ${column.color}`} />
-                                                    {column.label}
-                                                    {column.prefix && <span className="text-xs text-gray-500">({column.prefix})</span>}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="flex gap-2">
-                                    <div className="relative flex-1">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                        <input
-                                            ref={searchInputRef}
-                                            value={searchTerm}
-                                            onChange={(e) => handleSearchChange(e.target.value)}
-                                            onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
-                                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                            onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
-                                            placeholder={`Buscar por ${searchColumn.label.toLowerCase()}...`}
-                                            className="w-full pl-10 pr-3 py-2.5 border rounded-lg dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm"
-                                        />
-                                        {searchTerm && (
-                                            <button
-                                                onClick={() => {
-                                                    setSearchTerm("");
-                                                    setSearchApplied(false);
-                                                    setLastSearch(null);
-                                                }}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2"
-                                            >
-                                                <X className="h-4 w-4 text-gray-400" />
-                                            </button>
-                                        )}
-                                    </div>
-                                    <button
-                                        onClick={handleSearchSubmit}
-                                        disabled={searchTerm.length < 2 || tableLoading}
-                                        className="px-3 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                                    >
-                                        <Search className="h-4 w-4" />
-                                    </button>
-                                </div>
-
-                                {showSuggestions && suggestions.length > 0 && (
-                                    <div ref={suggestionsRef} className="border border-gray-300 rounded-lg shadow-sm dark:border-gray-700">
-                                        <div className="max-h-40 overflow-y-auto">
-                                            {suggestionsLoading ? (
-                                                <div className="p-3 text-center text-gray-500">
-                                                    <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                                                    Buscando...
-                                                </div>
-                                            ) : (
-                                                suggestions.map((suggestion, idx) => (
-                                                    <button
-                                                        key={idx}
-                                                        type="button"
-                                                        onClick={() => handleSuggestionSelect(suggestion)}
-                                                        className="w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-left flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                                                    >
-                                                        <searchColumn.icon className={`size-4 ${searchColumn.color}`} />
-                                                        <span className="text-xs truncate">{suggestion.Suggestion}</span>
-                                                    </button>
-                                                ))
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="flex gap-2 pt-2">
-                                    {(searchApplied || almacenFilter || dateRange.from || dateRange.to) && (
-                                        <button
-                                            onClick={handleClearFilters}
-                                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 text-sm"
-                                        >
-                                            <X className="h-4 w-4" />
-                                            Limpiar filtros
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => setQuickMode((q) => !q)}
-                                        className={`flex-1 px-3 py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm ${quickMode
-                                            ? "bg-blue-600 text-white"
-                                            : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                                            }`}
-                                    >
-                                        <Zap className="h-4 w-4" />
-                                        {quickMode ? "Rápido" : "Normal"}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Filtros desktop */}
                         <div className="hidden md:flex flex-col gap-3 mb-6">
                             <div className="flex flex-wrap gap-3 items-center">
@@ -1643,21 +1398,21 @@ export default function Report() {
                                                     placeholder={`Buscar por ${searchColumn.label.toLowerCase()}...`}
                                                     className="pl-9 pr-3 py-2 border rounded-r w-64 dark:bg-gray-700 border-gray-300 dark:border-gray-600"
                                                 />
-                                                {searchTerm && (
-                                                    <button
-                                                        onClick={() => {
-                                                            setSearchTerm("");
-                                                            setSearchApplied(false);
-                                                            setLastSearch(null);
-                                                            setShowSuggestions(false);
-                                                        }}
-                                                        className="absolute right-10 top-1/2 -translate-y-1/2"
-                                                    >
-                                                        <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                                                    </button>
-                                                )}
                                             </div>
 
+                                            {searchTerm && (
+                                                <button
+                                                    onClick={() => {
+                                                        setSearchTerm("");
+                                                        setSearchApplied(false);
+                                                        setLastSearch(null);
+                                                        setShowSuggestions(false);
+                                                    }}
+                                                    className="size-10 mx-2 rounded-md flex items-center justify-center border border-gray-400 text-gray-400 hover:text-gray-600"
+                                                >
+                                                    <X className="size-4  text-gray-400 hover:text-gray-600" />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={handleSearchSubmit}
                                                 disabled={searchTerm.length < 2 || tableLoading}
@@ -1668,7 +1423,7 @@ export default function Report() {
                                             </button>
 
                                             {showSuggestions && suggestions.length > 0 && (
-                                                <div className="absolute z-10 w-full mt-10 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
+                                                <section className="absolute z-50 w-full mt-10 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
                                                     {suggestionsLoading ? (
                                                         <div className="p-3 text-center text-gray-500">
                                                             <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
@@ -1679,7 +1434,7 @@ export default function Report() {
                                                             <button
                                                                 key={idx}
                                                                 type="button"
-                                                                onClick={() => handleSuggestionSelect(suggestion)}
+                                                                onClick={() => handleSuggestionSelect(suggestion.Suggestion)}
                                                                 className="w-full p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                                                             >
                                                                 <searchColumn.icon className={`size-4 ${searchColumn.color}`} />
@@ -1687,7 +1442,7 @@ export default function Report() {
                                                             </button>
                                                         ))
                                                     )}
-                                                </div>
+                                                </section>
                                             )}
                                         </div>
 
@@ -1734,7 +1489,7 @@ export default function Report() {
                     </article>
                 )}
             </section>
-            <ModalReporting reportType={reportType} />
+            <ModalReporting open={showModal} reportType={reportType} />
             <Footer />
         </>
     );
