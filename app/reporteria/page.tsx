@@ -1325,71 +1325,73 @@ export default function Report() {
                                         </div>
 
                                         <div className="relative flex" ref={suggestionsRef}>
-                                            <div className="relative" ref={searchColumnDropdownRef}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowSearchColumnDropdown(!showSearchColumnDropdown)}
-                                                    className="flex items-center gap-1 px-3 py-2 border border-r-0 border-gray-300 rounded-l bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-600"
-                                                >
-                                                    <searchColumn.icon className={`h-4 w-4 ${searchColumn.color}`} />
-                                                    <ChevronDown className="h-3 w-3 text-gray-500" />
-                                                </button>
-                                                {showSearchColumnDropdown && searchColumns.length > 1 && (
-                                                    <div className="absolute z-20 mt-1 w-48 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
-                                                        {searchColumns.map((column) => (
-                                                            <button
-                                                                key={column.key}
-                                                                type="button"
-                                                                onClick={() => handleSearchColumnChange(column)}
-                                                                className={`flex items-center gap-2 w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${column.key === searchColumn.key ? "bg-blue-50 dark:bg-blue-900/30" : ""
-                                                                    }`}
-                                                            >
-                                                                <column.icon className={`h-4 w-4 ${column.color}`} />
-                                                                <span className="text-sm">{column.label}</span>
-                                                                {column.prefix && (
-                                                                    <span className="text-xs text-gray-500 ml-auto">({column.prefix})</span>
-                                                                )}
-                                                            </button>
-                                                        ))}
+                                            <section className="flex flex-col md:flex-row gap-2">
+                                                <ul className="flex items-center gap-0">
+                                                    <div className="relative" ref={searchColumnDropdownRef}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowSearchColumnDropdown(!showSearchColumnDropdown)}
+                                                            className="flex items-center gap-1 px-3 py-2 border border-r-0 border-gray-300 rounded-l bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-600"
+                                                        >
+                                                            <searchColumn.icon className={`h-4 w-4 ${searchColumn.color}`} />
+                                                            <ChevronDown className="h-3 w-3 text-gray-500" />
+                                                        </button>
+                                                        {showSearchColumnDropdown && searchColumns.length > 1 && (
+                                                            <div className="absolute z-20 mt-1 w-48 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
+                                                                {searchColumns.map((column) => (
+                                                                    <button
+                                                                        key={column.key}
+                                                                        type="button"
+                                                                        onClick={() => handleSearchColumnChange(column)}
+                                                                        className={`flex items-center gap-2 w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${column.key === searchColumn.key ? "bg-blue-50 dark:bg-blue-900/30" : ""
+                                                                            }`}
+                                                                    >
+                                                                        <column.icon className={`h-4 w-4 ${column.color}`} />
+                                                                        <span className="text-sm">{column.label}</span>
+                                                                        {column.prefix && (
+                                                                            <span className="text-xs text-gray-500 ml-auto">({column.prefix})</span>
+                                                                        )}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )}
-                                            </div>
-
-                                            <div className="relative flex-1">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                                <input
-                                                    ref={searchInputRef}
-                                                    value={searchTerm}
-                                                    onChange={(e) => handleSearchChange(e.target.value)}
-                                                    onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
-                                                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                                    onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
-                                                    placeholder={`Buscar por ${searchColumn.label.toLowerCase()}...`}
-                                                    className="pl-9 pr-3 py-2 border rounded-r w-64 dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                                                />
-                                            </div>
-
-                                            {searchTerm && (
+                                                    <div className="relative flex-1">
+                                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                                        <input
+                                                            ref={searchInputRef}
+                                                            value={searchTerm}
+                                                            onChange={(e) => handleSearchChange(e.target.value)}
+                                                            onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
+                                                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                                            onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
+                                                            placeholder={`Buscar por ${searchColumn.label.toLowerCase()}...`}
+                                                            className="pl-9 pr-3 py-2 w-27 border rounded-r  dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                                                        />
+                                                    </div>
+                                                    {searchTerm && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setSearchTerm("");
+                                                                setSearchApplied(false);
+                                                                setLastSearch(null);
+                                                                setShowSuggestions(false);
+                                                            }}
+                                                            className="size-10 mx-2 absolute right-3 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600"
+                                                        >
+                                                            <X className="size-4  text-gray-400 hover:text-gray-600" />
+                                                        </button>
+                                                    )}
+                                                </ul>
                                                 <button
-                                                    onClick={() => {
-                                                        setSearchTerm("");
-                                                        setSearchApplied(false);
-                                                        setLastSearch(null);
-                                                        setShowSuggestions(false);
-                                                    }}
-                                                    className="size-10 mx-2 rounded-md flex items-center justify-center border border-gray-400 text-gray-400 hover:text-gray-600"
+                                                    onClick={handleSearchSubmit}
+                                                    disabled={searchTerm.length < 2 || tableLoading}
+                                                    className="ml-2 px-4 py-2 w-fit bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                                 >
-                                                    <X className="size-4  text-gray-400 hover:text-gray-600" />
+                                                    <Search className="h-4 w-4" />
+                                                    <span>Buscar</span>
                                                 </button>
-                                            )}
-                                            <button
-                                                onClick={handleSearchSubmit}
-                                                disabled={searchTerm.length < 2 || tableLoading}
-                                                className="ml-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                            >
-                                                <Search className="h-4 w-4" />
-                                                <span>Buscar</span>
-                                            </button>
+                                            </section>
 
                                             {showSuggestions && suggestions.length > 0 && (
                                                 <section className="absolute z-50 w-full mt-10 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
