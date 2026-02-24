@@ -288,25 +288,6 @@ export default function Report() {
         suggestionsAbortControllerRef.current = controller;
 
         try {
-            const config = QUERY_CONFIGS[reportType];
-            const basicFilters: any[] = [
-                { Key: searchColumn.tableField, Value: searchTerm, Operator: "LIKE" },
-            ];
-
-            if (reportType === "ventas") {
-                basicFilters.push(
-                    { Key: "venta.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                    { Key: "venta.Mov", Operator: "IN", Value: "Factura,Factura Credito,Nota" }
-                );
-            }
-            // Usar el rango de fechas del borrador para sugerencias también (es intuitivo)
-            if (dateRange.from && dateRange.to && config.fechaField) {
-                basicFilters.push(
-                    { Key: config.fechaField, Operator: ">=", Value: formatDateISOString(dateRange.from) },
-                    { Key: config.fechaField, Operator: "<=", Value: formatDateISOString(dateRange.to) }
-                );
-            }
-
             const payload: RequestPayload = {
                 table: `${searchColumn.table} WHERE ${searchColumn.tableField} LIKE '%${searchTerm}%'`,
                 filtros: {
