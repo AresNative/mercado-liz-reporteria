@@ -5,6 +5,7 @@ export interface SearchColumn {
   color: string;
   tableField?: string; // Campo específico en la tabla
   prefix?: string; // Prefijo para mostrar en lugar del alias
+  table: string; // Prefijo para mostrar en lugar del alias
 }
 export interface QueryConfig {
   table: string;

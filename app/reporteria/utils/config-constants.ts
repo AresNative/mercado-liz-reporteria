@@ -33,6 +33,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-blue-500",
       tableField: "ART.Descripcion1",
       prefix: "ART.",
+      table: "ART",
     },
     {
       key: "cliente",
@@ -41,6 +42,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-green-500",
       tableField: "C.Nombre",
       prefix: "C.",
+      table: "C",
     },
     {
       key: "categoria",
@@ -49,6 +51,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-purple-500",
       tableField: "ART.Categoria",
       prefix: "ART.",
+      table: "ART",
     },
     {
       key: "codigo",
@@ -57,6 +60,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-yellow-500",
       tableField: "ventad.Codigo",
       prefix: "ventad.",
+      table: "ventad",
     },
   ],
   compras: [
@@ -67,6 +71,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-blue-500",
       tableField: "ART.Descripcion1",
       prefix: "ART.",
+      table: "ART",
     },
     {
       key: "proveedor",
@@ -75,6 +80,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-orange-500",
       tableField: "P.Nombre",
       prefix: "P.",
+      table: "P",
     },
     {
       key: "fabricante",
@@ -83,14 +89,16 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-red-500",
       tableField: "ART.Fabricante",
       prefix: "ART.",
+      table: "ART",
     },
     {
       key: "codigo",
       label: "Código",
       icon: DollarSign,
       color: "text-yellow-500",
-      tableField: "comprad.Codigo",
+      tableField: "CB.Codigo",
       prefix: "comprad.",
+      table: "comprad",
     },
   ],
   mermas: [
@@ -101,6 +109,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-blue-500",
       tableField: "art.Descripcion1",
       prefix: "art.",
+      table: "art",
     },
     {
       key: "concepto",
@@ -109,6 +118,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-purple-500",
       tableField: "inv.Concepto",
       prefix: "inv.",
+      table: "inv",
     },
     {
       key: "categoria",
@@ -117,6 +127,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-indigo-500",
       tableField: "art.Categoria",
       prefix: "art.",
+      table: "art",
     },
     {
       key: "codigo",
@@ -125,6 +136,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-yellow-500",
       tableField: "invd.Codigo",
       prefix: "invd.",
+      table: "invd",
     },
   ],
   inventario: [
@@ -135,6 +147,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-blue-500",
       tableField: "art.Descripcion1",
       prefix: "art.",
+      table: "art",
     },
     {
       key: "descripcion",
@@ -143,6 +156,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-purple-500",
       tableField: "art.Descripcion1",
       prefix: "art.",
+      table: "art",
     },
   ],
   comparacion: [
@@ -153,6 +167,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-blue-500",
       tableField: "ART.Descripcion1",
       prefix: "ART.",
+      table: "ART",
     },
     {
       key: "categoria",
@@ -161,6 +176,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-purple-500",
       tableField: "ART.Categoria",
       prefix: "ART.",
+      table: "ART",
     },
     {
       key: "fabricante",
@@ -169,6 +185,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-red-500",
       tableField: "ART.Fabricante",
       prefix: "ART.",
+      table: "ART",
     },
     {
       key: "codigo",
@@ -177,6 +194,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-yellow-500",
       tableField: "ventad.Codigo",
       prefix: "ventad.",
+      table: "ventad",
     },
   ],
 };
@@ -197,6 +215,7 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
       { Key: "ART.Grupo" },
       { Key: "ART.Linea" },
       { Key: "ART.Familia" },
+      { Key: "ART.Factor" },
       { Key: "ventad.Cantidad" },
       { Key: "ventad.Almacen" },
       { Key: "ventad.Precio", Alias: "Precio unitario" },
@@ -215,9 +234,9 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         Operation: "SUM",
       },
       {
-        Key: "ventad.Articulo",
+        Key: "(ventad.Cantidad * ART.Factor)",
         Alias: "totalArticulos",
-        Operation: "COUNT DISTINCT",
+        Operation: "SUM",
       },
       {
         Key: "venta.Cliente",
@@ -233,22 +252,26 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
     table: `COMPRA AS compra
             INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID
             INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo
+            INNER JOIN CB AS cb ON cb.Cuenta = art.Articulo
             LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
     selects: [
+      { Key: "CB.Codigo" },
       { Key: "P.Nombre", Alias: "Proveedor" },
       { Key: "ART.Fabricante" },
       { Key: "comprad.Articulo" },
       { Key: "ART.Descripcion1", Alias: "Nombre" },
       { Key: "ART.Categoria" },
       { Key: "ART.Grupo" },
-      { Key: "ART.Linea" },
-      { Key: "ART.Familia" },
+      /* { Key: "ART.Linea" },
+      { Key: "ART.Familia" }, */
       { Key: "comprad.Cantidad" },
+      { Key: "comprad.Unidad" },
+      { Key: "comprad.Factor" },
       { Key: "comprad.CantidadInventario" },
+      { Key: "comprad.DescuentoLinea", Alias: "Descuento" },
       { Key: "comprad.Costo", Alias: "CostoUnitario" },
       { Key: "comprad.Almacen" },
       { Key: "compra.FechaEmision" },
-      { Key: "comprad.Codigo" },
     ],
     agregaciones: [
       {
@@ -257,9 +280,9 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         Operation: "SUM",
       },
       {
-        Key: "comprad.Articulo",
+        Key: "comprad.CantidadInventario",
         Alias: "totalArticulos",
-        Operation: "COUNT DISTINCT",
+        Operation: "SUM",
       },
       {
         Key: "compra.Proveedor",
@@ -297,9 +320,9 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         Operation: "SUM",
       },
       {
-        Key: "invd.Articulo",
+        Key: "(invd.Cantidad * ART.Factor)",
         Alias: "totalArticulos",
-        Operation: "COUNT DISTINCT",
+        Operation: "SUM",
       },
     ],
     fechaField: "inv.FechaEmision",
@@ -332,9 +355,9 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         Operation: "SUM",
       },
       {
-        Key: "invd.Articulo",
+        Key: "(invd.Cantidad * ART.Factor)",
         Alias: "totalArticulos",
-        Operation: "COUNT DISTINCT",
+        Operation: "SUM",
       },
     ],
     fechaField: "inv.FechaEmision",

@@ -1,6 +1,9 @@
 // global.ts
 import { useRef, useEffect } from "react";
-import { useGetMasivoWithFiltersMutation } from "@/hooks/api/api_int";
+import {
+  useGetMasivoWithFiltersMutation,
+  useGetWithFiltersGeneralInIntelisisMutation,
+} from "@/hooks/api/api_int";
 import { safeCall } from "@/hooks/use-debounce";
 import { v4 as uuidv4 } from "uuid";
 import { ApiResponse } from "@/utils/types/consultas";
@@ -96,6 +99,23 @@ export class ManagmentRead {
 
 export function useManagmentRead(): ManagmentRead {
   const [getData] = useGetMasivoWithFiltersMutation();
+  const managerRef = useRef<ManagmentRead | null>(null);
+
+  if (!managerRef.current) {
+    managerRef.current = new ManagmentRead(getData);
+  }
+
+  useEffect(() => {
+    const manager = managerRef.current;
+    return () => {
+      manager?.cancelAll();
+    };
+  }, []);
+
+  return managerRef.current;
+}
+export function useManagmentSearch(): ManagmentRead {
+  const [getData] = useGetWithFiltersGeneralInIntelisisMutation();
   const managerRef = useRef<ManagmentRead | null>(null);
 
   if (!managerRef.current) {

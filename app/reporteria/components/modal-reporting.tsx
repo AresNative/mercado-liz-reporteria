@@ -42,6 +42,7 @@ const dummySearchColumn: SearchColumn = {
     icon: () => null,
     color: "",
     tableField: "",
+    table: ""
 };
 
 // Componente para tarjetas de resumen usando el componente Card proporcionado

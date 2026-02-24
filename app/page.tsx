@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
-
+import { SpeedInsights } from "@vercel/speed-insights/next"
 export default function Home() {
   const router = useRouter()
 
@@ -32,6 +32,7 @@ export default function Home() {
   }, []);
   return (
     <>
+      <SpeedInsights />
       <Header />
       {/* Hero Section */}
       <header className="text-center bg-[url(/fondo.png)] bg-cover text-green-800 dark:text-green-200 bg-no-repeat bg-center relative">

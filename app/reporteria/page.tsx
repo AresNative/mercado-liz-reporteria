@@ -28,7 +28,7 @@ import Footer from "@/template/footer";
 import { BENTO_METRICS_CONFIG } from "./utils/stats";
 import { SearchColumn } from "./types/config";
 import { v4 as uuidv4 } from "uuid";
-import { RequestPayload, useManagmentRead } from "@/hooks/classes/api";
+import { RequestPayload, useManagmentRead, useManagmentSearch } from "@/hooks/classes/api";
 import { ReportType, StatsData } from "./types/consultas";
 import { CONFIG, QUERY_CONFIGS, SEARCH_COLUMNS_CONFIG } from "./utils/config-constants";
 import { FilterGroup, FilterRule } from "@/utils/types/consultas";
@@ -95,6 +95,7 @@ const ALMACENES_OPCIONES = [
 
 export default function Report() {
     const manager = useManagmentRead();
+    const managerSearch = useManagmentSearch();
     const dispatch = useAppDispatch();
 
     // Estados principales (borradores)
@@ -307,24 +308,17 @@ export default function Report() {
             }
 
             const payload: RequestPayload = {
-                table: config.table,
+                table: `${searchColumn.table} WHERE ${searchColumn.tableField} LIKE '%${searchTerm}%'`,
                 filtros: {
                     selects: [{ Key: searchColumn.tableField, Alias: "Suggestion" }],
-                    agregaciones: [
-                        {
-                            Key: searchColumn.tableField,
-                            Operation: "DISTINCT",
-                            Alias: "Suggestion",
-                        },
-                    ],
-                    FiltrosAnd: basicFilters.length > 0 ? [{ Filtros: basicFilters, OperadorLogico: "AND" }] : undefined,
-                    Order: [{ Key: "Suggestion", Direction: "ASC" }],
+                    FiltrosAnd: [],
+                    Order: [{ Key: searchColumn.tableField, Direction: "ASC" }],
                 },
                 pageSize: 10,
                 signal: controller.signal,
             };
 
-            const { promise } = manager.execute(payload);
+            const { promise } = managerSearch.execute(payload);
             const response = await promise;
             if (response.error) {
                 if (!controller.signal.aborted) console.error("Error en sugerencias:", response.error);
@@ -333,11 +327,7 @@ export default function Report() {
             }
 
             const data = response.data?.data || [];
-            const unique = data
-                .map((s: any) => s.Suggestion)
-                .filter((v: any, i: number, a: any[]) => a.indexOf(v) === i && v)
-                .slice(0, 10);
-            setSuggestions(unique.map((s: any) => ({ Suggestion: s })));
+            setSuggestions(data);
         } catch (error: any) {
             if (!controller.signal.aborted) console.error("Error en fetchSuggestions:", error);
         } finally {
@@ -438,9 +428,7 @@ export default function Report() {
     const fetchCurrentReportData = useCallback(
         async () => {
             fetchTableData();
-            /* if (showStats) {
-                await Promise.all([fetchStatsData()]);
-            } */
+            fetchStatsData()
         },
         [fetchTableData, fetchStatsData, showStats]
     );
@@ -461,7 +449,7 @@ export default function Report() {
             almacenFilter,
             searchTerm,
             searchColumn,
-            searchApplied: searchTerm.length >= 2,
+            searchApplied: searchTerm ? true : false,
             dateRange,
             filterGroups,
             sortRules,
@@ -1019,7 +1007,7 @@ export default function Report() {
                 {reportType && (
                     <article className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
                         {/* Filtros desktop */}
-                        <div className="hidden md:flex flex-col gap-3 mb-6">
+                        <div className="md:flex flex-col gap-3 mb-6">
                             <div className="flex flex-wrap gap-3 items-center">
                                 {!quickMode ? (
                                     <section className="w-full">
