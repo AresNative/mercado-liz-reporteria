@@ -15,7 +15,7 @@ export default function Card(props: Resumen) {
             <motion.div whileHover={{ scale: 1.02 }} className="w-full bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 overflow-hidden shadow rounded-lg">
                 <article className="p-5">
                     <div className="flex items-center">
-                        <label className="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                        <label className="flex-shrink-0 bg-green-500 rounded-md p-3">
                             {props.icon}
                         </label>
                         <div className="ml-5 w-0 flex-1">
