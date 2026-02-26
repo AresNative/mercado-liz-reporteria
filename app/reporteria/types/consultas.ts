@@ -17,4 +17,6 @@ export interface StatsData {
   utilidad?: number;
   margen?: number;
   promedio?: number;
+  minimoCosto?: number;
+  maximoCosto?: number;
 }

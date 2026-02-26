@@ -65,6 +65,8 @@ const processStatsData = (statsData: any[] | any): StatsData => {
         if (s.diferencia !== undefined) out.diferencia = (out.diferencia ?? 0) + s.diferencia;
         if (s.totalClientes !== undefined) out.totalClientes = (out.totalClientes ?? 0) + s.totalClientes;
         if (s.totalProveedores !== undefined) out.totalProveedores = (out.totalProveedores ?? 0) + s.totalProveedores;
+        if (s.minimoCosto !== undefined) out.minimoCosto = (out.minimoCosto ?? 0) + s.minimoCosto;
+        if (s.maximoCosto !== undefined) out.maximoCosto = (out.maximoCosto ?? 0) + s.maximoCosto;
     });
 
     // Calcular utilidad y margen
@@ -77,6 +79,7 @@ const processStatsData = (statsData: any[] | any): StatsData => {
             out.utilidad = +(out.totalVentas - out.totalCompras).toFixed(2);
             out.margen = out.totalVentas > 0 ? +((out.utilidad / out.totalVentas) * 100).toFixed(2) : 0;
             out.diferencia = out.utilidad;
+            out.promedio = out.totalCompras > 0 ? +(out.totalVentas / out.totalCompras).toFixed(2) : 0;
         }
         if (out.totalTikets && out.totalTikets > 0) {
             out.promedio = +(out.totalVentas / out.totalTikets).toFixed(2);
@@ -148,7 +151,6 @@ export default function Report() {
     ]);
     const [columnSuggestions, setColumnSuggestions] = useState<Record<string, string[]>>({});
     const [activeSuggestionsInput, setActiveSuggestionsInput] = useState<string | null>(null);
-    const [showActiveFilters, setShowActiveFilters] = useState(false);
 
     const suggestionsContainerRef = useRef<HTMLDivElement>(null);
     // Fechas borrador
@@ -605,8 +607,18 @@ export default function Report() {
     // Obtener métricas para bento grid
     const getBentoMetrics = () => {
         const baseMetrics = [...BENTO_METRICS_CONFIG[reportType]];
-        return baseMetrics.map((metric) => {
+
+        // Filtrar métricas de costo mínimo y máximo si no hay searchTerm
+        const filteredMetrics = !appliedFilters.searchApplied
+            ? baseMetrics.filter(metric => {
+                const key = metric.title.toLowerCase().replace(/\s+/g, "");
+                return key !== "costomínimo" && key !== "costomáximo";
+            })
+            : baseMetrics;
+
+        return filteredMetrics.map((metric) => {
             const key = metric.title.toLowerCase().replace(/\s+/g, "");
+
             let raw = 0;
             switch (key) {
                 case "ventas":
@@ -619,12 +631,6 @@ export default function Report() {
                     break;
                 case "promedio":
                     raw = stats.promedio || 0;
-                    metric.display = formatValue(raw, "currency");
-                    break;
-                case "costos":
-                case "costototal":
-                case "costomerma":
-                    raw = stats.totalCosto || 0;
                     metric.display = formatValue(raw, "currency");
                     break;
                 case "margen":
@@ -649,6 +655,20 @@ export default function Report() {
                     break;
                 case "diferencia":
                     raw = stats.diferencia || 0;
+                    metric.display = formatValue(raw, "currency");
+                    break;
+                case "costomínimo":
+                    raw = stats.minimoCosto || 0;
+                    metric.display = formatValue(raw, "currency");
+                    break;
+                case "costomáximo":
+                    raw = stats.maximoCosto || 0;
+                    metric.display = formatValue(raw, "currency");
+                    break;
+                case "costos":
+                case "costototal":
+                case "costomerma":
+                    raw = stats.totalCosto || 0;
                     metric.display = formatValue(raw, "currency");
                     break;
                 default:
@@ -850,14 +870,6 @@ export default function Report() {
                                 </select>
                             </section>
                             <button
-                                onClick={() => setShowActiveFilters(!showActiveFilters)}
-                                className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300"
-                                title={showActiveFilters ? "Ocultar filtros activos" : "Ver filtros activos"}
-                            >
-                                {showActiveFilters ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                Filtros
-                            </button>
-                            <button
                                 onClick={() => setShowStats(!showStats)}
                                 className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300"
                                 title={showStats ? "Ocultar estadísticas" : "Mostrar estadísticas"}
@@ -866,19 +878,17 @@ export default function Report() {
                                 Stats
                             </button>
                         </div>
-                        {showActiveFilters && getActiveFiltersSummary().length > 0 && (
-                            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtros activos:</div>
-                                <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                                    {getActiveFiltersSummary().map((f, i) => (
-                                        <div key={i} className="flex items-center">
-                                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
-                                            {f}
-                                        </div>
-                                    ))}
-                                </div>
+                        <div className="sticky top-10 mt-2 p-2 bg-gray-50/70 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtros activos:</div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                                {getActiveFiltersSummary().map((f, i) => (
+                                    <div key={i} className="flex items-center">
+                                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
+                                        {f}
+                                    </div>
+                                ))}
                             </div>
-                        )}
+                        </div>
                     </li>
                     <li className="flex gap-2">
                         <button
@@ -984,30 +994,32 @@ export default function Report() {
                 {/* BentoGrid (estadísticas) - Solo se renderiza si showStats = true */}
                 {showStats && reportType && bentoMetrics.length > 0 && (
                     <div className="mb-2">
-                        <BentoGrid cols={4} loading={statsLoading || refreshingStats}>
+                        <BentoGrid cols={7} loading={statsLoading || refreshingStats}>
                             {bentoMetrics.map((item: any, index: number) => {
                                 const ItemIcon = item.icon;
+                                const styles = item.styles || {};
+
                                 return (
                                     <BentoItem
                                         key={index}
                                         title={item.title}
                                         description={item.description}
                                         iconRight
-                                        className="border dark:text-gray-200 p-3 md:p-4"
+                                        className={`border dark:text-gray-200 p-3 md:p-4`}
                                         loading={statsLoading || refreshingStats}
                                     >
-                                        <div className="flex items-center justify-between">
-                                            <div className="text-lg md:text-xl relative font-bold truncate">
+                                        <article className={`flex items-center justify-between`}>
+                                            <label className={`text-lg relative font-bold truncate`}>
                                                 {statsLoading && !refreshingStats ? (
-                                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                                    <Loader2 className="size-4 animate-spin" />
                                                 ) : (
                                                     <span className="truncate">{item.display}</span>
                                                 )}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <ItemIcon className="w-5 h-5 opacity-70 text-gray-600 dark:text-gray-400" />
-                                            </div>
-                                        </div>
+                                            </label>
+                                            <section className="flex items-center gap-2">
+                                                <ItemIcon className={`size-4 opacity-70 ${styles.icon || 'text-gray-600 dark:text-gray-400'}`} />
+                                            </section>
+                                        </article>
                                     </BentoItem>
                                 );
                             })}
@@ -1425,6 +1437,24 @@ export default function Report() {
                                                                     setSearchApplied(false);
                                                                     setLastSearch(null);
                                                                     setShowSuggestions(false);
+                                                                    setAppliedFilters({
+                                                                        reportType,
+                                                                        almacenFilter: "",
+                                                                        searchTerm: "",
+                                                                        searchColumn: SEARCH_COLUMNS_CONFIG[reportType][0],
+                                                                        searchApplied: false,
+                                                                        dateRange: dateRange,
+                                                                        filterGroups: [
+                                                                            {
+                                                                                id: uuidv4(),
+                                                                                filters: [{ column: "", operator: "=", value: "", groupId: "" }],
+                                                                                logicalOperator: "AND",
+                                                                                name: "Grupo 1",
+                                                                            },
+                                                                        ],
+                                                                        sortRules: [{ column: QUERY_CONFIGS[reportType]?.fechaField, direction: "desc" }],
+                                                                        quickMode,
+                                                                    });
                                                                 }}
                                                                 className="bg-white/80 size-10 mx-2 absolute right-2 md:right-0 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600"
                                                             >

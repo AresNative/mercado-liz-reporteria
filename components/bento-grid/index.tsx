@@ -11,6 +11,8 @@ const colClasses: Record<number, string> = {
     4: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4",
     5: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
     6: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6",
+    7: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7",
+    8: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8",
     12: "sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12",
 }
 

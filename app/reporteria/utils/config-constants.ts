@@ -286,6 +286,16 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
         Alias: "totalProveedores",
         Operation: "COUNT DISTINCT",
       },
+      {
+        Key: "comprad.Costo",
+        Alias: "minimoCosto",
+        Operation: "MIN",
+      },
+      {
+        Key: "comprad.Costo",
+        Alias: "maximoCosto",
+        Operation: "MAX",
+      },
     ],
     fechaField: "compra.FechaEmision",
     searchColumns: SEARCH_COLUMNS_CONFIG.compras,
