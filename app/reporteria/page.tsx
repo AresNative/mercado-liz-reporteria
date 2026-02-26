@@ -510,10 +510,8 @@ export default function Report() {
     };
 
     const handleSearchSubmit = () => {
-        if (searchTerm.length >= 2) {
-            setSearchApplied(true);
-            applyAllFilters();
-        }
+        setSearchApplied(true);
+        applyAllFilters();
     };
 
     const handleClearFilters = () => {
@@ -985,7 +983,7 @@ export default function Report() {
 
                 {/* BentoGrid (estadísticas) - Solo se renderiza si showStats = true */}
                 {showStats && reportType && bentoMetrics.length > 0 && (
-                    <div className="mb-6">
+                    <div className="mb-2">
                         <BentoGrid cols={4} loading={statsLoading || refreshingStats}>
                             {bentoMetrics.map((item: any, index: number) => {
                                 const ItemIcon = item.icon;
@@ -1027,13 +1025,13 @@ export default function Report() {
                     <BentoItem
                         title="Mas detalles"
                         iconRight
-                        className="border text-white bg-green-500 border-green-700 dark:text-gray-200 p-3 md:p-4"
+                        className="mb-6 text-white bg-linear-to-r from-green-800 to-green-600 dark:text-gray-200 p-3 md:p-4"
                     >
-                        <section>
+                        <ul>
                             <Button
                                 label="Venta desglosada" color="success" size="small"
                                 onClick={() => { setShowModal(true); dispatch(openModalReducer({ modalName: "reporting" })) }} />
-                        </section>
+                        </ul>
                     </BentoItem>
                 )}
                 {/* Tabla */}
@@ -1408,7 +1406,7 @@ export default function Report() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className="relative flex-1">
+                                                    <div className="relative flex items-center">
                                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                                         <input
                                                             ref={searchInputRef}
@@ -1420,27 +1418,26 @@ export default function Report() {
                                                             placeholder={`Buscar por ${searchColumn.label.toLowerCase()}...`}
                                                             className="pl-9 pr-3 py-2 w-52 border rounded-r  dark:bg-gray-700 border-gray-300 dark:border-gray-600"
                                                         />
+                                                        {searchTerm && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSearchTerm("");
+                                                                    setSearchApplied(false);
+                                                                    setLastSearch(null);
+                                                                    setShowSuggestions(false);
+                                                                }}
+                                                                className="bg-white/80 size-10 mx-2 absolute right-2 md:right-0 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600"
+                                                            >
+                                                                <X className="size-4 text-red-500 hover:text-red-600" />
+                                                            </button>
+                                                        )}
                                                     </div>
-                                                    {searchTerm && (
-                                                        <button
-                                                            onClick={() => {
-                                                                setSearchTerm("");
-                                                                setSearchApplied(false);
-                                                                setLastSearch(null);
-                                                                setShowSuggestions(false);
-                                                            }}
-                                                            className="size-10 mx-2 absolute right-3 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600"
-                                                        >
-                                                            <X className="size-4  text-gray-400 hover:text-gray-600" />
-                                                        </button>
-                                                    )}
                                                 </ul>
                                                 <button
                                                     onClick={handleSearchSubmit}
-                                                    disabled={searchTerm.length < 2 || tableLoading}
-                                                    className="ml-2 px-4 py-2 w-fit bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                    className="ml-2 px-3 py-2 w-fit h-fit bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                                 >
-                                                    <Search className="h-4 w-4" />
+                                                    <Search className="size-4" />
                                                     <span>Buscar</span>
                                                 </button>
                                             </section>
@@ -1476,7 +1473,7 @@ export default function Report() {
                                                 onClick={handleClearFilters}
                                                 className="flex items-center gap-2 px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300"
                                             >
-                                                <X className="h-4 w-4" />
+                                                <X className="size-4" />
                                                 Limpiar filtros
                                             </button>
                                         )}
@@ -1485,12 +1482,12 @@ export default function Report() {
 
                                 <button
                                     onClick={() => setQuickMode((q) => !q)}
-                                    className={`px-3 py-2 rounded flex items-center gap-1 h-fit ${quickMode
+                                    className={`px-3 py-2 rounded flex items-center gap-2 ${quickMode
                                         ? "bg-blue-600 text-white"
                                         : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                         }`}
                                 >
-                                    <Zap className="h-4 w-4" />
+                                    <Zap className="size-4" />
                                     {quickMode ? "Modo rápido" : "Modo normal"}
                                 </button>
                             </div>
