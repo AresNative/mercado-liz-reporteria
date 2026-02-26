@@ -207,20 +207,19 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
             INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo
             INNER JOIN Cte AS C ON venta.Cliente = C.Cliente`,
     selects: [
+      { Key: "ventad.Codigo" },
       { Key: "C.Nombre", Alias: "Cliente" },
-      { Key: "venta.FechaEmision" },
       { Key: "ventad.Articulo" },
       { Key: "ART.Descripcion1", Alias: "Nombre" },
       { Key: "ART.Categoria" },
       { Key: "ART.Grupo" },
-      { Key: "ART.Linea" },
-      { Key: "ART.Familia" },
-      { Key: "ART.Factor" },
       { Key: "ventad.Cantidad" },
-      { Key: "ventad.Almacen" },
+      { Key: "ventad.Unidad" },
+      { Key: "ventad.Factor" },
       { Key: "ventad.Precio", Alias: "Precio unitario" },
       { Key: "ventad.Costo", Alias: "Costo unitario" },
-      { Key: "ventad.Codigo" },
+      { Key: "ventad.Almacen" },
+      { Key: "venta.FechaEmision" },
     ],
     agregaciones: [
       {
@@ -262,8 +261,6 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
       { Key: "ART.Descripcion1", Alias: "Nombre" },
       { Key: "ART.Categoria" },
       { Key: "ART.Grupo" },
-      /* { Key: "ART.Linea" },
-      { Key: "ART.Familia" }, */
       { Key: "comprad.Cantidad" },
       { Key: "comprad.Unidad" },
       { Key: "comprad.Factor" },

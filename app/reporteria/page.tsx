@@ -117,11 +117,19 @@ export default function Report() {
     // Filtros borrador
     const [almacenFilter, setAlmacenFilter] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
+
     const [searchColumn, setSearchColumn] = useState<SearchColumn>(SEARCH_COLUMNS_CONFIG.ventas[0]);
     const [showSearchColumnDropdown, setShowSearchColumnDropdown] = useState(false);
+
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+    const [suggestionsPage, setSuggestionsPage] = useState(1);
+    const [suggestionsTotalPages, setSuggestionsTotalPages] = useState(1);
+    const [suggestionsAll, setSuggestionsAll] = useState<any[]>([]);
+    const [suggestionsHasMore, setSuggestionsHasMore] = useState(false);
+    const [suggestionsLoadingMore, setSuggestionsLoadingMore] = useState(false);
+
     const [quickMode, setQuickMode] = useState(true);
     const [searchApplied, setSearchApplied] = useState(false);
     const [lastSearch, setLastSearch] = useState<{ term: string; columnKey: string } | null>(null);
@@ -142,6 +150,7 @@ export default function Report() {
     const [activeSuggestionsInput, setActiveSuggestionsInput] = useState<string | null>(null);
     const [showActiveFilters, setShowActiveFilters] = useState(false);
 
+    const suggestionsContainerRef = useRef<HTMLDivElement>(null);
     // Fechas borrador
     const [dateRange, setDateRange] = useState<DateRange>({
         from: new Date(new Date().setDate(new Date().getDate() - 30)),
@@ -269,25 +278,32 @@ export default function Report() {
     }, [reportType, currentPage, buildFiltros, sortRules, manager]);
 
     // Cargar sugerencias de búsqueda (basadas en borrador, no en applied)
-    const fetchSuggestions = useCallback(async () => {
+    const fetchSuggestions = useCallback(async (reset = false) => {
         if (!searchTerm || searchTerm.length < 2 || !searchColumn.tableField) {
             setSuggestions([]);
+            setSuggestionsAll([]);
             setShowSuggestions(false);
             return;
         }
         if (!QUERY_CONFIGS[reportType]) return;
 
+        // Cancelar petición anterior
         if (suggestionsAbortControllerRef.current) {
             suggestionsAbortControllerRef.current.abort();
         }
 
+        const nextPage = reset ? 1 : suggestionsPage + 1;
+        if (!reset && nextPage > suggestionsTotalPages) return; // No hay más páginas
+
         setSuggestionsLoading(true);
+        if (!reset) setSuggestionsLoadingMore(true);
         setShowSuggestions(true);
 
         const controller = new AbortController();
         suggestionsAbortControllerRef.current = controller;
 
         try {
+            // Construir payload correcto con filtros (sin WHERE en table)
             const payload: RequestPayload = {
                 table: `${searchColumn.table} WHERE ${searchColumn.tableField} LIKE '%${searchTerm}%'`,
                 filtros: {
@@ -295,26 +311,43 @@ export default function Report() {
                     FiltrosAnd: [],
                     Order: [{ Key: searchColumn.tableField, Direction: "ASC" }],
                 },
+                page: nextPage,
                 pageSize: 10,
                 signal: controller.signal,
             };
 
             const { promise } = managerSearch.execute(payload);
             const response = await promise;
+
             if (response.error) {
                 if (!controller.signal.aborted) console.error("Error en sugerencias:", response.error);
-                setSuggestions([]);
                 return;
             }
 
             const data = response.data?.data || [];
-            setSuggestions(data);
+            const totalRecords = response.data?.totalRecords || response.data?.totalEstimated || 0;
+            const totalPages = Math.ceil(totalRecords / 10);
+
+            if (reset) {
+                setSuggestionsAll(data);
+                setSuggestionsPage(1);
+            } else {
+                setSuggestionsAll(prev => [...prev, ...data]);
+                setSuggestionsPage(nextPage);
+            }
+            setSuggestionsTotalPages(totalPages);
+            setSuggestionsHasMore(nextPage < totalPages);
         } catch (error: any) {
-            if (!controller.signal.aborted) console.error("Error en fetchSuggestions:", error);
+            if (error.name !== "AbortError" && !controller.signal.aborted) {
+                console.error("Error en fetchSuggestions:", error);
+            }
         } finally {
-            if (!controller.signal.aborted) setSuggestionsLoading(false);
+            if (!controller.signal.aborted) {
+                setSuggestionsLoading(false);
+                setSuggestionsLoadingMore(false);
+            }
         }
-    }, [searchTerm, searchColumn, reportType, dateRange, manager]);
+    }, [searchTerm, searchColumn, reportType, managerSearch, suggestionsPage, suggestionsTotalPages]);
 
     // Cargar sugerencias para filtros avanzados
     const fetchColumnSuggestions = useCallback(
@@ -451,7 +484,11 @@ export default function Report() {
     const handleSearchChange = (value: string) => {
         setSearchTerm(value);
         setSearchApplied(false);
-        fetchSuggestions();
+        // Reiniciar paginación de sugerencias
+        setSuggestionsPage(1);
+        setSuggestionsAll([]);
+        setSuggestionsHasMore(false);
+        fetchSuggestions(true); // reset = true
     };
 
     const handleSearchColumnChange = (column: SearchColumn) => {
@@ -636,6 +673,21 @@ export default function Report() {
             label: `${select.Key.split(".")[0]}.${select.Alias || select.Key.split(".")[1] || select.Key}`,
         }));
     };
+
+    useEffect(() => {
+        const container = suggestionsContainerRef.current;
+        if (!container || !showSuggestions || !suggestionsHasMore || suggestionsLoadingMore) return;
+
+        const handleScroll = () => {
+            const { scrollTop, scrollHeight, clientHeight } = container;
+            if (scrollTop + clientHeight >= scrollHeight - 20) { // Umbral de 20px
+                fetchSuggestions(false); // reset = false (siguiente página)
+            }
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [showSuggestions, suggestionsHasMore, suggestionsLoadingMore, fetchSuggestions]);
 
     // Handlers para filtros avanzados (actualizan borrador)
     const handleAdvancedFilterChange = (groupId: string, filterIndex: number, field: keyof FilterRule, value: any) => {
@@ -1366,7 +1418,7 @@ export default function Report() {
                                                             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                                             onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
                                                             placeholder={`Buscar por ${searchColumn.label.toLowerCase()}...`}
-                                                            className="pl-9 pr-3 py-2 w-27 border rounded-r  dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                                                            className="pl-9 pr-3 py-2 w-52 border rounded-r  dark:bg-gray-700 border-gray-300 dark:border-gray-600"
                                                         />
                                                     </div>
                                                     {searchTerm && (
@@ -1393,25 +1445,27 @@ export default function Report() {
                                                 </button>
                                             </section>
 
-                                            {showSuggestions && suggestions.length > 0 && (
-                                                <section className="absolute z-50 w-full mt-10 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
-                                                    {suggestionsLoading ? (
-                                                        <div className="p-3 text-center text-gray-500">
+                                            {showSuggestions && suggestionsAll.length > 0 && (
+                                                <section
+                                                    ref={suggestionsContainerRef}
+                                                    className="absolute z-50 w-full mt-10 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto dark:bg-gray-800 dark:border-gray-700"
+                                                >
+                                                    {suggestionsAll.map((suggestion, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            type="button"
+                                                            onClick={() => handleSuggestionSelect(suggestion.Suggestion)}
+                                                            className="w-full p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                                                        >
+                                                            <searchColumn.icon className={`size-4 ${searchColumn.color}`} />
+                                                            <span className="text-xs truncate">{suggestion.Suggestion}</span>
+                                                        </button>
+                                                    ))}
+                                                    {suggestionsLoadingMore && (
+                                                        <div className="p-2 text-center text-gray-500">
                                                             <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                                                            Buscando...
+                                                            Cargando más...
                                                         </div>
-                                                    ) : (
-                                                        suggestions.map((suggestion, idx) => (
-                                                            <button
-                                                                key={idx}
-                                                                type="button"
-                                                                onClick={() => handleSuggestionSelect(suggestion.Suggestion)}
-                                                                className="w-full p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                                                            >
-                                                                <searchColumn.icon className={`size-4 ${searchColumn.color}`} />
-                                                                <span className="text-xs truncate">{suggestion.Suggestion}</span>
-                                                            </button>
-                                                        ))
                                                     )}
                                                 </section>
                                             )}
