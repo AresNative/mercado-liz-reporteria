@@ -505,10 +505,88 @@ export default function Report() {
         }
     };
 
-    const handleSuggestionSelect = (suggestion: string) => {
-        setSearchTerm(suggestion);
+    const handleSuggestionSelect = async (suggestion: string) => {
         setShowSuggestions(false);
-        handleSearchSubmit();
+
+        // Actualizar estados locales
+        setSearchTerm(suggestion);
+        setSearchApplied(true);
+        setLastSearch({ term: suggestion, columnKey: searchColumn.key });
+
+        // Construir los nuevos appliedFilters
+        const newAppliedFilters = {
+            reportType,
+            almacenFilter,
+            searchTerm: suggestion,
+            searchColumn,
+            searchApplied: true,
+            dateRange,
+            filterGroups,
+            sortRules,
+            quickMode,
+        };
+
+        // Actualizar appliedFilters
+        setAppliedFilters(newAppliedFilters);
+
+        // Esperar a que se actualice el estado
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Llamar directamente a la función que carga los datos
+        setTableLoading(true);
+        setCurrentPage(1);
+
+        try {
+            // Construir el payload manualmente
+            const config = QUERY_CONFIGS[reportType];
+            const builder = new FilterBuilder({
+                quickMode,
+                filterGroups: newAppliedFilters.filterGroups,
+                searchTerm: suggestion,
+                searchColumn,
+                almacenFilter,
+                dateRange,
+                reportType,
+                searchApplied: true,
+                includeSearchTerm: true,
+            });
+
+            const { filtrosAnd, filtrosOr } = builder.build();
+
+            const orderRules = quickMode
+                ? [{ Key: config.fechaField, Direction: "desc" }]
+                : sortRules.filter((s) => s.column).map((s) => ({ Key: s.column, Direction: s.direction.toUpperCase() }));
+
+            const payload: RequestPayload = {
+                table: config.table,
+                filtros: {
+                    selects: config.selects,
+                    ...(filtrosAnd.length > 0 && { FiltrosAnd: filtrosAnd }),
+                    ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
+                    ...(orderRules.length > 0 && { Order: orderRules }),
+                },
+                page: 1,
+                pageSize: CONFIG.PAGE_SIZE,
+            };
+
+            const { promise } = manager.execute(payload);
+            const response = await promise;
+
+            if (response.error) {
+                if (response.error.name !== "AbortError") {
+                    setTableError(response.error.message || "Error al cargar datos");
+                }
+            } else {
+                setDataTable(response.data?.data || []);
+                setTotalRecords(response.data?.totalRecords || response.data?.totalEstimated || 0);
+            }
+        } catch (error: any) {
+            if (error.name !== "AbortError") {
+                setTableError(error.message || "Error al cargar datos");
+            }
+        } finally {
+            setTableLoading(false);
+        }
     };
 
     const handleSearchSubmit = () => {
@@ -1184,7 +1262,7 @@ export default function Report() {
                                                                                             handleAdvancedFilterChange(group.id, filterIdx, "value", sugg);
                                                                                             setActiveSuggestionsInput(null);
                                                                                         }}
-                                                                                        className="w-full p-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-300 last:border-b-0"
+                                                                                        className="w-full p-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-300 last:border-b-0 whitespace-normal break-words overflow-wrap-break-word"
                                                                                     >
                                                                                         {sugg}
                                                                                     </button>
@@ -1485,7 +1563,9 @@ export default function Report() {
                                                             className="w-full p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                                                         >
                                                             <searchColumn.icon className={`size-4 ${searchColumn.color}`} />
-                                                            <span className="text-xs truncate">{suggestion.Suggestion}</span>
+                                                            <span className="text-xs whitespace-normal break-words flex-1 text-left">
+                                                                {suggestion.Suggestion}
+                                                            </span>
                                                         </button>
                                                     ))}
                                                     {suggestionsLoadingMore && (
