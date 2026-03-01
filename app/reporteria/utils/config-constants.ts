@@ -249,10 +249,10 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
   },
   compras: {
     table: `COMPRA AS compra
-INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID
-INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo
-LEFT JOIN CB AS cb ON cb.Cuenta = art.Articulo AND cb.Codigo = comprad.Codigo
-LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
+            INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID
+            INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo
+            LEFT JOIN CB AS cb ON cb.Cuenta = art.Articulo AND cb.Codigo = comprad.Codigo
+            LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
     /* INNER JOIN CB AS cb ON cb.Cuenta = art.Articulo */
     selects: [
       { Key: "CB.Codigo" },
