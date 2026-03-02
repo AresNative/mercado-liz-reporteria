@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
     Check,
@@ -11,11 +11,11 @@ import {
     FileText,
     Grid2x2X,
     X,
-    Printer
+    Printer,
+    Loader2
 } from "lucide-react";
 import { ViewTR } from "./toggle-view";
 import { cn } from "@/utils/functions/cn";
-// Importamos funciones de formato
 import {
     formatValue as formatNumberValue,
     formatDateDisplay,
@@ -31,9 +31,16 @@ interface DynamicTableProps {
     data: Record<string, any>[];
     loading?: boolean;
     onRowClick?: (rowData: any) => void;
+    onExportAll?: () => Promise<Record<string, any>[]>;
+    exportingAll?: boolean;
+    // Nuevas props para manejar selección entre páginas
+    selectedRows?: string[];
+    onSelectedRowsChange?: (selectedRows: string[]) => void;
+    // Identificador único para cada fila (por defecto usa 'ID' o JSON.stringify)
+    rowIdField?: string;
 }
 
-// Funciones auxiliares para detectar tipos de columna (pueden moverse a un helper)
+// Funciones auxiliares para detectar tipos de columna
 const isDateColumn = (key: string): boolean => {
     const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return normalizedKey.includes("fecha") || normalizedKey.includes("date");
@@ -52,32 +59,78 @@ const isCurrencyColumn = (key: string): boolean => {
         normalizedKey.includes("diferencia") ||
         normalizedKey.includes("puja") ||
         normalizedKey.includes("importe") ||
-        normalizedKey.includes("costo")
+        normalizedKey.includes("costo") ||
+        normalizedKey.includes("venta") ||
+        normalizedKey.includes("compra")
     );
 };
 
 const isNumberColumn = (key: string): boolean => {
     const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return normalizedKey.includes("cantidad") || normalizedKey.includes("numero");
+    return normalizedKey.includes("cantidad") || normalizedKey.includes("numero") || normalizedKey.includes("tiket");
 };
 
-const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRowClick }) => {
+const DynamicTable: React.FC<DynamicTableProps> = ({
+    data,
+    loading = false,
+    onRowClick,
+    onExportAll,
+    exportingAll = false,
+    selectedRows: externalSelectedRows,
+    onSelectedRowsChange,
+    rowIdField = 'ID'
+}) => {
     const tableRef = useRef<HTMLDivElement>(null);
     const [showExportMenu, setShowExportMenu] = useState(false);
+    const [showExportAllMenu, setShowExportAllMenu] = useState(false);
+    const [exportAllLoading, setExportAllLoading] = useState(false);
     const exportMenuRef = useRef<HTMLDivElement>(null);
+    const exportAllMenuRef = useRef<HTMLDivElement>(null);
 
     // Estados existentes
-    const [selectedRows, setSelectedRows] = useState<string[]>([]);
+    const [internalSelectedRows, setInternalSelectedRows] = useState<string[]>([]);
     const [sortColumn, setSortColumn] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
     const [showColumnMenu, setShowColumnMenu] = useState<string | null>(null);
     const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({});
 
-    // Cerrar menú de exportación al hacer clic fuera
+    // Usar estado externo o interno
+    const selectedRows = externalSelectedRows ?? internalSelectedRows;
+
+    // Función para actualizar selección
+    const updateSelectedRows = useCallback((newSelectedRows: string[] | ((prev: string[]) => string[])) => {
+        if (onSelectedRowsChange) {
+            // Si hay callback externo, usarlo
+            const updated = typeof newSelectedRows === 'function'
+                ? newSelectedRows(selectedRows)
+                : newSelectedRows;
+            onSelectedRowsChange(updated);
+        } else {
+            // Si no, usar estado interno
+            setInternalSelectedRows(prev =>
+                typeof newSelectedRows === 'function' ? newSelectedRows(prev) : newSelectedRows
+            );
+        }
+    }, [onSelectedRowsChange, selectedRows]);
+
+    // Obtener ID único para una fila
+    const getRowId = useCallback((item: any): string => {
+        return item[rowIdField] || JSON.stringify(item);
+    }, [rowIdField]);
+
+    // Verificar si una fila está seleccionada
+    const isRowSelected = useCallback((rowId: string): boolean => {
+        return selectedRows.includes(rowId);
+    }, [selectedRows]);
+
+    // Cerrar menús al hacer clic fuera
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
                 setShowExportMenu(false);
+            }
+            if (exportAllMenuRef.current && !exportAllMenuRef.current.contains(event.target as Node)) {
+                setShowExportAllMenu(false);
             }
         };
 
@@ -146,9 +199,11 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }));
     };
 
-    const toggleRowSelection = (id: string) => {
-        setSelectedRows((prev) =>
-            prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    const toggleRowSelection = (rowId: string) => {
+        updateSelectedRows(prev =>
+            prev.includes(rowId)
+                ? prev.filter(id => id !== rowId)
+                : [...prev, rowId]
         );
     };
 
@@ -161,12 +216,38 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         }
     };
 
-    // Obtener datos seleccionados
-    const getSelectedData = () => {
-        return filteredAndSortedData.filter((item: any) =>
-            selectedRows.includes(item.ID || JSON.stringify(item))
-        );
+    const selectAllRows = () => {
+        const currentPageIds = displayData.map(item => getRowId(item));
+
+        updateSelectedRows(prev => {
+            // Verificar si todas las filas de la página actual están seleccionadas
+            const allCurrentPageSelected = currentPageIds.every(id => prev.includes(id));
+
+            if (allCurrentPageSelected) {
+                // Si todas están seleccionadas, deseleccionar solo las de esta página
+                return prev.filter(id => !currentPageIds.includes(id));
+            } else {
+                // Si no, seleccionar todas las de esta página (sin perder selecciones de otras páginas)
+                const newSelection = [...prev];
+                currentPageIds.forEach(id => {
+                    if (!newSelection.includes(id)) {
+                        newSelection.push(id);
+                    }
+                });
+                return newSelection;
+            }
+        });
     };
+
+    // Obtener datos seleccionados (de todas las páginas)
+    const getSelectedData = useCallback(() => {
+        // Nota: Esto solo devuelve los datos de la página actual que están seleccionados
+        // Para obtener todos los datos seleccionados de todas las páginas, 
+        // necesitaríamos que el componente padre maneje eso
+        return displayData.filter(item =>
+            selectedRows.includes(getRowId(item))
+        );
+    }, [displayData, selectedRows, getRowId]);
 
     // Obtener columnas visibles para exportación
     const getVisibleColumnsForExport = () => {
@@ -222,7 +303,28 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         return String(value);
     };
 
-    // Exportar a Excel
+    // Función genérica para exportar datos completos
+    const exportCompleteData = async (exportFunction: (data: any[]) => Promise<void> | void) => {
+        if (!onExportAll) return;
+
+        setExportAllLoading(true);
+        try {
+            const allData = await onExportAll();
+            if (allData && allData.length > 0) {
+                await exportFunction(allData);
+            } else {
+                alert('No hay datos para exportar');
+            }
+        } catch (error) {
+            console.error('Error al exportar todos los datos:', error);
+            alert('Error al cargar todos los datos para exportación');
+        } finally {
+            setExportAllLoading(false);
+            setShowExportAllMenu(false);
+        }
+    };
+
+    // Exportar a Excel (datos seleccionados)
     const exportToExcel = () => {
         const selectedData = getSelectedData();
         if (selectedData.length === 0) {
@@ -230,10 +332,24 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
             return;
         }
 
+        performExcelExport(selectedData);
+        setShowExportMenu(false);
+    };
+
+    // Exportar a Excel (todos los datos)
+    const exportAllToExcel = () => {
+        if (!onExportAll) {
+            alert('No disponible');
+            return;
+        }
+        exportCompleteData(performExcelExport);
+    };
+
+    const performExcelExport = (dataToExport: any[]) => {
         const visibleCols = getVisibleColumnsForExport();
 
         // Preparar datos para Excel
-        const excelData = selectedData.map((item: any) => {
+        const excelData = dataToExport.map((item: any) => {
             const row: Record<string, string> = {};
             visibleCols.forEach(col => {
                 row[col.replace('Proveedor_', 'Prov. ')] = formatCellValueForExport(col, item[col]);
@@ -257,11 +373,9 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         saveAs(data, `exportacion_${new Date().toISOString().split('T')[0]}.xlsx`);
-
-        setShowExportMenu(false);
     };
 
-    // Exportar a PDF
+    // Exportar a PDF (datos seleccionados)
     const exportToPDF = () => {
         const selectedData = getSelectedData();
         if (selectedData.length === 0) {
@@ -269,6 +383,20 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
             return;
         }
 
+        performPDFExport(selectedData);
+        setShowExportMenu(false);
+    };
+
+    // Exportar a PDF (todos los datos)
+    const exportAllToPDF = () => {
+        if (!onExportAll) {
+            alert('No disponible');
+            return;
+        }
+        exportCompleteData(performPDFExport);
+    };
+
+    const performPDFExport = (dataToExport: any[]) => {
         const visibleCols = getVisibleColumnsForExport();
 
         // Crear documento PDF
@@ -282,13 +410,13 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         doc.text('Reporte de Datos', 14, 15);
         doc.setFontSize(10);
         doc.text(`Generado: ${new Date().toLocaleString()}`, 14, 22);
-        doc.text(`Registros: ${selectedData.length}`, 14, 28);
+        doc.text(`Registros: ${dataToExport.length}`, 14, 28);
 
         // Preparar cabeceras
         const headers = visibleCols.map(col => col.replace('Proveedor_', 'Prov. '));
 
         // Preparar datos
-        const bodyData = selectedData.map((item: any) => {
+        const bodyData = dataToExport.map((item: any) => {
             return visibleCols.map(col => formatCellValueForExport(col, item[col]));
         });
 
@@ -315,10 +443,9 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
 
         // Guardar PDF
         doc.save(`exportacion_${new Date().toISOString().split('T')[0]}.pdf`);
-        setShowExportMenu(false);
     };
 
-    // Imprimir
+    // Imprimir (datos seleccionados)
     const handlePrint = () => {
         const selectedData = getSelectedData();
         if (selectedData.length === 0) {
@@ -326,6 +453,20 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
             return;
         }
 
+        performPrint(selectedData);
+        setShowExportMenu(false);
+    };
+
+    // Imprimir (todos los datos)
+    const handlePrintAll = () => {
+        if (!onExportAll) {
+            alert('No disponible');
+            return;
+        }
+        exportCompleteData(performPrint);
+    };
+
+    const performPrint = (dataToExport: any[]) => {
         const visibleCols = getVisibleColumnsForExport();
 
         // Crear ventana de impresión
@@ -338,7 +479,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         // Generar contenido HTML
         const headers = visibleCols.map(col => col.replace('Proveedor_', 'Prov. '));
 
-        const tableRows = selectedData.map((item: any) => {
+        const tableRows = dataToExport.map((item: any) => {
             return `<tr>
                 ${visibleCols.map(col => `<td>${formatCellValueForExport(col, item[col])}</td>`).join('')}
             </tr>`;
@@ -363,7 +504,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
                 <h1>Reporte de Datos</h1>
                 <div class="info">
                     <p>Generado: ${new Date().toLocaleString()}</p>
-                    <p>Registros: ${selectedData.length}</p>
+                    <p>Registros: ${dataToExport.length}</p>
                 </div>
                 <table>
                     <thead>
@@ -380,8 +521,6 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         printWindow.document.write(htmlContent);
         printWindow.document.close();
         printWindow.print();
-
-        setShowExportMenu(false);
     };
 
     // Formatear valor de celda (para visualización)
@@ -486,7 +625,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
                 break;
             case " ":
                 e.preventDefault();
-                toggleRowSelection(item.ID || JSON.stringify(item));
+                toggleRowSelection(getRowId(item));
                 break;
             default:
                 break;
@@ -508,6 +647,9 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         );
     }
 
+    const allCurrentPageSelected = displayData.length > 0 &&
+        displayData.every(item => isRowSelected(getRowId(item)));
+
     return (
         <div className="w-full space-y-8 relative" ref={tableRef}>
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-600">
@@ -521,23 +663,32 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
                         allColumns={true}
                     />
 
-                    {/* Botón de exportación */}
+                    {/* Botón de seleccionar todos */}
+                    <button
+                        onClick={selectAllRows}
+                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors text-sm dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                    >
+                        {allCurrentPageSelected ? 'Deseleccionar página' : 'Seleccionar página'}
+                    </button>
+
+                    {/* Botón de exportación para datos seleccionados */}
                     {selectedRows.length > 0 && (
                         <div className="relative" ref={exportMenuRef}>
                             <button
                                 onClick={() => setShowExportMenu(!showExportMenu)}
                                 className="flex items-center space-x-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                                aria-label="Exportar datos"
+                                aria-label="Exportar datos seleccionados"
                                 aria-expanded={showExportMenu}
                                 aria-haspopup="true"
+                                disabled={exportAllLoading}
                             >
                                 <Download size={18} />
-                                <span>Exportar ({selectedRows.length})</span>
+                                <span>Exportar selección ({selectedRows.length})</span>
                                 <ChevronDown size={16} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
                             </button>
 
                             <AnimatePresence>
-                                {showExportMenu && (
+                                {showExportMenu && !exportAllLoading && (
                                     <motion.div
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -578,6 +729,69 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
                             </AnimatePresence>
                         </div>
                     )}
+
+                    {/* Botón de exportación para todos los datos (todas las páginas) */}
+                    {onExportAll && (
+                        <div className="relative" ref={exportAllMenuRef}>
+                            <button
+                                onClick={() => setShowExportAllMenu(!showExportAllMenu)}
+                                className="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                aria-label="Exportar todos los datos"
+                                aria-expanded={showExportAllMenu}
+                                aria-haspopup="true"
+                                disabled={exportAllLoading}
+                            >
+                                {exportAllLoading ? (
+                                    <Loader2 size={18} className="animate-spin" />
+                                ) : (
+                                    <Download size={18} />
+                                )}
+                                <span>Exportar todo</span>
+                                <ChevronDown size={16} className={`transition-transform ${showExportAllMenu ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            <AnimatePresence>
+                                {showExportAllMenu && !exportAllLoading && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="absolute left-0 mt-2 w-56 bg-white dark:bg-zinc-800 rounded-md shadow-lg border border-gray-200 dark:border-zinc-700 z-50"
+                                        role="menu"
+                                        aria-label="Opciones de exportación de todos los datos"
+                                    >
+                                        <div className="py-1">
+                                            <button
+                                                onClick={exportAllToExcel}
+                                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+                                                role="menuitem"
+                                            >
+                                                <FileSpreadsheet size={16} className="mr-3 text-green-600" />
+                                                Exportar todo a Excel
+                                            </button>
+                                            <button
+                                                onClick={exportAllToPDF}
+                                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+                                                role="menuitem"
+                                            >
+                                                <FileText size={16} className="mr-3 text-red-600" />
+                                                Exportar todo a PDF
+                                            </button>
+                                            <button
+                                                onClick={handlePrintAll}
+                                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+                                                role="menuitem"
+                                            >
+                                                <Printer size={16} className="mr-3 text-blue-600" />
+                                                Imprimir todo
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -590,15 +804,9 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
                                     <input
                                         type="checkbox"
                                         className="rounded border-gray-300 dark:border-zinc-600 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                        checked={selectedRows.length === displayData.length && displayData.length > 0}
-                                        onChange={() =>
-                                            setSelectedRows(
-                                                selectedRows.length === displayData.length
-                                                    ? []
-                                                    : displayData.map((item: any) => item.ID || JSON.stringify(item))
-                                            )
-                                        }
-                                        aria-label="Seleccionar todas las filas"
+                                        checked={allCurrentPageSelected}
+                                        onChange={selectAllRows}
+                                        aria-label="Seleccionar todas las filas de esta página"
                                     />
                                 </th>
                                 {columns.map((column) => (
@@ -639,8 +847,8 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
                         <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-zinc-600">
                             <AnimatePresence>
                                 {filteredAndSortedData.map((item: any, index: number) => {
-                                    const rowId = item.ID || JSON.stringify(item);
-                                    const isSelected = selectedRows.includes(rowId);
+                                    const rowId = getRowId(item);
+                                    const isSelected = isRowSelected(rowId);
                                     return (
                                         <motion.tr
                                             key={rowId}
@@ -696,7 +904,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
 
             <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                 <div className="text-sm text-gray-700 dark:text-gray-200">
-                    {selectedRows.length} fila(s) seleccionada(s) de {displayData.length}
+                    {selectedRows.length} fila(s) seleccionada(s) en total
                 </div>
             </div>
         </div>

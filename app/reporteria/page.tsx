@@ -102,6 +102,8 @@ export default function Report() {
     const dispatch = useAppDispatch();
 
     // Estados principales (borradores)
+    const [pageSize, setPageSize] = useState<number>(CONFIG.PAGE_SIZE);
+
     const [reportType, setReportType] = useState<ReportType>("ventas");
     const [currentPage, setCurrentPage] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
@@ -124,9 +126,7 @@ export default function Report() {
     const [searchColumn, setSearchColumn] = useState<SearchColumn>(SEARCH_COLUMNS_CONFIG.ventas[0]);
     const [showSearchColumnDropdown, setShowSearchColumnDropdown] = useState(false);
 
-    const [suggestions, setSuggestions] = useState<any[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
     const [suggestionsPage, setSuggestionsPage] = useState(1);
     const [suggestionsTotalPages, setSuggestionsTotalPages] = useState(1);
     const [suggestionsAll, setSuggestionsAll] = useState<any[]>([]);
@@ -212,6 +212,7 @@ export default function Report() {
 
     // Cerrar dropdowns al hacer clic fuera
     useEffect(() => {
+        fetchCurrentReportData();
         const handleClickOutside = (e: MouseEvent) => {
             if (searchColumnDropdownRef.current && !searchColumnDropdownRef.current.contains(e.target as Node)) {
                 setShowSearchColumnDropdown(false);
@@ -263,7 +264,7 @@ export default function Report() {
                 ...(orderRules.length > 0 && { Order: orderRules }),
             },
             page: currentPage,
-            pageSize: CONFIG.PAGE_SIZE,
+            pageSize: pageSize,
         };
 
         const { promise } = manager.execute(payload);
@@ -277,12 +278,11 @@ export default function Report() {
             setTotalRecords(response.data?.totalRecords || response.data?.totalEstimated || 0);
             setCurrentPage(response.data?.page || 1);
         }
-    }, [reportType, currentPage, buildFiltros, sortRules, manager]);
+    }, [reportType, pageSize, currentPage, buildFiltros, sortRules, manager]);
 
     // Cargar sugerencias de búsqueda (basadas en borrador, no en applied)
     const fetchSuggestions = useCallback(async (reset = false) => {
         if (!searchTerm || searchTerm.length < 2 || !searchColumn.tableField) {
-            setSuggestions([]);
             setSuggestionsAll([]);
             setShowSuggestions(false);
             return;
@@ -296,8 +296,6 @@ export default function Report() {
 
         const nextPage = reset ? 1 : suggestionsPage + 1;
         if (!reset && nextPage > suggestionsTotalPages) return; // No hay más páginas
-
-        setSuggestionsLoading(true);
         if (!reset) setSuggestionsLoadingMore(true);
         setShowSuggestions(true);
 
@@ -328,7 +326,7 @@ export default function Report() {
 
             const data = response.data?.data || [];
             const totalRecords = response.data?.totalRecords || response.data?.totalEstimated || 0;
-            const totalPages = Math.ceil(totalRecords / 10);
+            const totalPages = Math.ceil(totalRecords / pageSize);
 
             if (reset) {
                 setSuggestionsAll(data);
@@ -345,7 +343,6 @@ export default function Report() {
             }
         } finally {
             if (!controller.signal.aborted) {
-                setSuggestionsLoading(false);
                 setSuggestionsLoadingMore(false);
             }
         }
@@ -422,7 +419,7 @@ export default function Report() {
                     ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
                 },
                 page: 1,
-                pageSize: CONFIG.PAGE_SIZE,
+                pageSize: pageSize,
             };
 
             const { promise } = manager.execute(payload);
@@ -456,7 +453,7 @@ export default function Report() {
         return () => {
             manager.cancelAll();
         };
-    }, [reportType, almacenFilter, dateRange, searchApplied, searchColumn, showStats, currentPage]); // ✅ Agregado currentPage
+    }, [reportType, almacenFilter, dateRange, searchApplied, searchColumn, showStats, currentPage, pageSize]); // ✅ Agregado currentPage
 
     // Handlers para aplicar filtros
     const applyAllFilters = () => {
@@ -498,7 +495,6 @@ export default function Report() {
         setShowSearchColumnDropdown(false);
         setSearchApplied(false);
         setShowSuggestions(false);
-        setSuggestions([]);
         suggestionsAbortControllerRef.current?.abort();
         if (searchTerm) {
             setLastSearch({ term: searchTerm, columnKey: column.key });
@@ -566,7 +562,7 @@ export default function Report() {
                     ...(orderRules.length > 0 && { Order: orderRules }),
                 },
                 page: 1,
-                pageSize: CONFIG.PAGE_SIZE,
+                pageSize: pageSize,
             };
 
             const { promise } = manager.execute(payload);
@@ -600,7 +596,6 @@ export default function Report() {
         setSearchTerm("");
         setSearchApplied(false);
         setLastSearch(null);
-        setSuggestions([]);
         setSearchColumn(SEARCH_COLUMNS_CONFIG[reportType][0]);
         setAlmacenFilter("");
         setDateRange({ from: defaultFrom, to: defaultTo });
@@ -757,7 +752,7 @@ export default function Report() {
         });
     };
 
-    const totalPages = Math.ceil(totalRecords / CONFIG.PAGE_SIZE);
+    const totalPages = Math.ceil(totalRecords / pageSize);
     const bentoMetrics = getBentoMetrics();
     const searchColumns = SEARCH_COLUMNS_CONFIG[reportType];
 
@@ -1615,6 +1610,13 @@ export default function Report() {
                                     totalPages={totalPages}
                                     loading={tableLoading}
                                     setCurrentPage={setCurrentPage}
+                                    totalItems={totalRecords}
+                                    itemsPerPage={pageSize}
+                                    onPageSizeChange={(newSize: number) => {
+                                        setPageSize(newSize);
+                                    }}
+                                    pageSizeOptions={CONFIG.PAGE_SIZE_OPTIONS}
+                                    currentPageSize={pageSize}
                                 />
                             </div>
                         )}

@@ -16,6 +16,9 @@ interface PaginationProps {
     totalItems?: number;
     itemsPerPage?: number;
     onJump?: (pages: number) => void;
+    onPageSizeChange?: (newPageSize: number) => void; // Nueva prop
+    pageSizeOptions?: number[]; // Opciones de pageSize
+    currentPageSize?: number; // PageSize actual
 }
 
 type JumpDirection = "forward" | "backward";
@@ -28,13 +31,12 @@ export default function Pagination({
     totalItems = 0,
     itemsPerPage = 0,
     onJump,
+    onPageSizeChange,
+    pageSizeOptions = [10, 25, 50, 100],
+    currentPageSize = 10,
 }: PaginationProps) {
     const [jumpValue, setJumpValue] = useState<number>(5);
     const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
-
-    /* =========================
-       Derivados / Cálculos
-    ========================== */
 
     const isFirstPage = currentPage <= 1;
     const isLastPage = currentPage >= totalPages;
@@ -51,10 +53,6 @@ export default function Pagination({
     }, [currentPage, itemsPerPage, totalItems]);
 
     const jumpOptions = useMemo(() => [1, 5, 10, 25, 50, 100], []);
-
-    /* =========================
-       Handlers
-    ========================== */
 
     const handleJump = useCallback(
         (direction: JumpDirection) => {
@@ -88,9 +86,11 @@ export default function Pagination({
         }
     }, [isLastPage, loading, setCurrentPage, totalPages]);
 
-    /* =========================
-       Render
-    ========================== */
+    const handlePageSizeChange = useCallback((newSize: number) => {
+        if (onPageSizeChange && !loading) {
+            onPageSizeChange(newSize);
+        }
+    }, [onPageSizeChange, loading]);
 
     return (
         <section className="bg-white dark:bg-black border relative border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-lg shadow-sm p-4">
@@ -112,14 +112,38 @@ export default function Pagination({
                     )}
                 </div>
 
-                <button
-                    type="button"
-                    onClick={() => setShowAdvanced(v => !v)}
-                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-                >
-                    <Maximize2 className="size-4" />
-                    {showAdvanced ? "Ocultar controles" : "Controles avanzados"}
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Selector de pageSize */}
+                    {onPageSizeChange && (
+                        <div className="flex items-center gap-2 mr-2">
+                            <label htmlFor="pageSize" className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                                Filas:
+                            </label>
+                            <select
+                                id="pageSize"
+                                value={currentPageSize}
+                                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                                disabled={loading}
+                                className="border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-800 disabled:opacity-50"
+                            >
+                                {pageSizeOptions.map((size) => (
+                                    <option key={size} value={size}>
+                                        {size}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    <button
+                        type="button"
+                        onClick={() => setShowAdvanced(v => !v)}
+                        className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+                    >
+                        <Maximize2 className="size-4" />
+                        {showAdvanced ? "Ocultar controles" : "Controles avanzados"}
+                    </button>
+                </div>
             </header>
 
             {/* Navegación principal */}
@@ -200,6 +224,7 @@ export default function Pagination({
                         </div>
                     </div>
 
+                    {/* Información adicional */}
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 flex justify-between text-sm">
                         {loading ? (
                             <span className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
@@ -210,9 +235,16 @@ export default function Pagination({
                             <span />
                         )}
 
-                        <span className="text-gray-500 dark:text-gray-400">
-                            {totalPages > 1000 ? "Big Data Mode" : "Standard Mode"}
-                        </span>
+                        <div className="flex items-center gap-4">
+                            <span className="text-gray-500 dark:text-gray-400">
+                                {totalPages > 1000 ? "Big Data Mode" : "Standard Mode"}
+                            </span>
+                            {itemsPerPage > 0 && (
+                                <span className="text-gray-500 dark:text-gray-400">
+                                    {itemsPerPage} registros por página
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

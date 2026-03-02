@@ -10,8 +10,9 @@ import { QueryConfig, SearchColumn } from "../types/config";
 import { ReportType } from "../types/consultas";
 
 // Constantes y configuración
-export const CONFIG = {
-  PAGE_SIZE: 10,
+export const CONFIG: any = {
+  PAGE_SIZE: 10, // Valor por defecto
+  PAGE_SIZE_OPTIONS: [10, 25, 50, 100], // Opciones disponibles
   STATUS: { CONCLUIDO: "CONCLUIDO" },
   MARGIN_WARNING: 20,
   MARGIN_CRITICAL: 10,
