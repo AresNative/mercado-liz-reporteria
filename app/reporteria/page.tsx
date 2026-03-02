@@ -1603,7 +1603,7 @@ export default function Report() {
                             <DynamicTable data={dataTable} loading={tableLoading || refreshingTable} />
                         </div>
 
-                        {totalPages > 1 && !tableLoading && (
+                        {!tableLoading && (
                             <div className="mt-4 md:mt-6">
                                 <Pagination
                                     currentPage={currentPage}
