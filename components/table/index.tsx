@@ -11,8 +11,7 @@ import {
     FileText,
     Grid2x2X,
     X,
-    Printer,
-    Loader2
+    Printer
 } from "lucide-react";
 import { ViewTR } from "./toggle-view";
 import { cn } from "@/utils/functions/cn";
@@ -31,10 +30,7 @@ interface DynamicTableProps {
     data: Record<string, any>[];
     loading?: boolean;
     onRowClick?: (rowData: any) => void;
-    // Eliminamos onExportAll y exportingAll
 }
-
-// Funciones auxiliares para detectar tipos de columna
 const isDateColumn = (key: string): boolean => {
     const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return normalizedKey.includes("fecha") || normalizedKey.includes("date");
@@ -57,11 +53,6 @@ const isCurrencyColumn = (key: string): boolean => {
         normalizedKey.includes("venta") ||
         normalizedKey.includes("compra")
     );
-};
-
-const isNumberColumn = (key: string): boolean => {
-    const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return normalizedKey.includes("cantidad") || normalizedKey.includes("numero") || normalizedKey.includes("tiket");
 };
 
 const DynamicTable: React.FC<DynamicTableProps> = ({
@@ -235,7 +226,10 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             return newSet;
         });
     };
-
+    const clearAllSelections = () => {
+        setSelectedRows(new Set());
+        setSelectedRowsData(new Map());
+    };
     // Obtener datos seleccionados de todas las páginas
     const getSelectedData = useCallback((): any[] => {
         return Array.from(selectedRowsData.values());
@@ -614,7 +608,16 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                     >
                         {allCurrentPageSelected ? 'Deseleccionar página' : 'Seleccionar página'}
                     </button>
-
+                    {selectedRows.size > 0 && (
+                        <button
+                            onClick={clearAllSelections}
+                            className="px-3 py-2 flex gap-2 items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors text-sm dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                            aria-label="Deseleccionar todos"
+                            title="Deseleccionar todos"
+                        >
+                            Deseleccionar todos <X size={18} className="text-red-600" />
+                        </button>
+                    )}
                     {/* Botón de exportación para datos seleccionados */}
                     {selectedRows.size > 0 && (
                         <div className="relative" ref={exportMenuRef}>

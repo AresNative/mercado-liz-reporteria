@@ -1067,7 +1067,7 @@ export default function Report() {
                 {/* BentoGrid (estadísticas) - Solo se renderiza si showStats = true */}
                 {showStats && reportType && bentoMetrics.length > 0 && (
                     <div className="mb-2">
-                        <BentoGrid cols={7} loading={statsLoading || refreshingStats}>
+                        <BentoGrid cols={bentoMetrics.length} loading={statsLoading || refreshingStats}>
                             {bentoMetrics.map((item: any, index: number) => {
                                 const ItemIcon = item.icon;
                                 const styles = item.styles || {};
