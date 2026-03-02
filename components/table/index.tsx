@@ -3,7 +3,16 @@
 import type React from "react";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, ChevronDown, Download, Grid2x2X, X } from "lucide-react";
+import {
+    Check,
+    ChevronDown,
+    Download,
+    FileSpreadsheet,
+    FileText,
+    Grid2x2X,
+    X,
+    Printer
+} from "lucide-react";
 import { ViewTR } from "./toggle-view";
 import { cn } from "@/utils/functions/cn";
 // Importamos funciones de formato
@@ -11,6 +20,10 @@ import {
     formatValue as formatNumberValue,
     formatDateDisplay,
 } from "@/utils/constants/format-values";
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export type DataItem = Record<string, any>;
 
@@ -50,6 +63,8 @@ const isNumberColumn = (key: string): boolean => {
 
 const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRowClick }) => {
     const tableRef = useRef<HTMLDivElement>(null);
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const exportMenuRef = useRef<HTMLDivElement>(null);
 
     // Estados existentes
     const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -57,6 +72,18 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
     const [showColumnMenu, setShowColumnMenu] = useState<string | null>(null);
     const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({});
+
+    // Cerrar menú de exportación al hacer clic fuera
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+                setShowExportMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Detectar datos agrupados
     const isGroupedData = useMemo(() => {
@@ -134,7 +161,230 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
         }
     };
 
-    // Formatear valor de celda usando las utilidades importadas
+    // Obtener datos seleccionados
+    const getSelectedData = () => {
+        return filteredAndSortedData.filter((item: any) =>
+            selectedRows.includes(item.ID || JSON.stringify(item))
+        );
+    };
+
+    // Obtener columnas visibles para exportación
+    const getVisibleColumnsForExport = () => {
+        return columns.filter(col => visibleColumns[col]);
+    };
+
+    // Formatear valor para exportación (texto plano)
+    const formatCellValueForExport = (key: string, value: any): string => {
+        if (value === null || value === undefined) return '-';
+
+        // Si es un objeto de proveedor (contiene puja y cantidad)
+        if (typeof value === 'object' && value !== null && 'puja' in value) {
+            return `Puja: ${formatNumberValue(value.puja, "currency", 2)} | Cantidad: ${formatNumberValue(value.cantidad, "number", 2)}`;
+        }
+
+        // Booleanos
+        if (typeof value === 'boolean') {
+            return value ? 'Sí' : 'No';
+        }
+
+        // Archivos (campo 'file')
+        if (key.toLowerCase() === 'file' && typeof value === 'object') {
+            return value?.fileName || 'Archivo';
+        }
+
+        // Fechas
+        if (isDateColumn(key)) {
+            try {
+                const date = new Date(value);
+                if (isNaN(date.getTime())) return String(value);
+                return formatDateDisplay(date);
+            } catch {
+                return String(value);
+            }
+        }
+
+        // Porcentajes
+        if (isPercentageColumn(key) && typeof value === 'number') {
+            return formatNumberValue(value, "percentage", 2);
+        }
+
+        // Moneda
+        if (isCurrencyColumn(key) && typeof value === 'number') {
+            return formatNumberValue(value, "currency", 2);
+        }
+
+        // Números (cantidades, etc.)
+        if (typeof value === 'number') {
+            const decimals = Number.isInteger(value) ? 0 : 2;
+            return formatNumberValue(value, "number", decimals);
+        }
+
+        return String(value);
+    };
+
+    // Exportar a Excel
+    const exportToExcel = () => {
+        const selectedData = getSelectedData();
+        if (selectedData.length === 0) {
+            alert('No hay filas seleccionadas para exportar');
+            return;
+        }
+
+        const visibleCols = getVisibleColumnsForExport();
+
+        // Preparar datos para Excel
+        const excelData = selectedData.map((item: any) => {
+            const row: Record<string, string> = {};
+            visibleCols.forEach(col => {
+                row[col.replace('Proveedor_', 'Prov. ')] = formatCellValueForExport(col, item[col]);
+            });
+            return row;
+        });
+
+        // Crear workbook y worksheet
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(excelData);
+
+        // Ajustar ancho de columnas
+        const colWidths = visibleCols.map(col => ({
+            wch: Math.max(col.length * 2, 15)
+        }));
+        ws['!cols'] = colWidths;
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+
+        // Generar archivo
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(data, `exportacion_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+        setShowExportMenu(false);
+    };
+
+    // Exportar a PDF
+    const exportToPDF = () => {
+        const selectedData = getSelectedData();
+        if (selectedData.length === 0) {
+            alert('No hay filas seleccionadas para exportar');
+            return;
+        }
+
+        const visibleCols = getVisibleColumnsForExport();
+
+        // Crear documento PDF
+        const doc = new jsPDF({
+            orientation: visibleCols.length > 6 ? 'landscape' : 'portrait',
+            unit: 'mm',
+        });
+
+        // Título
+        doc.setFontSize(16);
+        doc.text('Reporte de Datos', 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Generado: ${new Date().toLocaleString()}`, 14, 22);
+        doc.text(`Registros: ${selectedData.length}`, 14, 28);
+
+        // Preparar cabeceras
+        const headers = visibleCols.map(col => col.replace('Proveedor_', 'Prov. '));
+
+        // Preparar datos
+        const bodyData = selectedData.map((item: any) => {
+            return visibleCols.map(col => formatCellValueForExport(col, item[col]));
+        });
+
+        // Generar tabla
+        autoTable(doc, {
+            head: [headers],
+            body: bodyData,
+            startY: 35,
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                overflow: 'linebreak',
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245],
+            },
+            margin: { top: 35 },
+        });
+
+        // Guardar PDF
+        doc.save(`exportacion_${new Date().toISOString().split('T')[0]}.pdf`);
+        setShowExportMenu(false);
+    };
+
+    // Imprimir
+    const handlePrint = () => {
+        const selectedData = getSelectedData();
+        if (selectedData.length === 0) {
+            alert('No hay filas seleccionadas para imprimir');
+            return;
+        }
+
+        const visibleCols = getVisibleColumnsForExport();
+
+        // Crear ventana de impresión
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Por favor, permita ventanas emergentes para imprimir');
+            return;
+        }
+
+        // Generar contenido HTML
+        const headers = visibleCols.map(col => col.replace('Proveedor_', 'Prov. '));
+
+        const tableRows = selectedData.map((item: any) => {
+            return `<tr>
+                ${visibleCols.map(col => `<td>${formatCellValueForExport(col, item[col])}</td>`).join('')}
+            </tr>`;
+        }).join('');
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Reporte de Datos</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    h1 { color: #333; }
+                    .info { margin-bottom: 20px; color: #666; }
+                    table { border-collapse: collapse; width: 100%; }
+                    th { background-color: #2980b9; color: white; padding: 10px; text-align: left; }
+                    td { border: 1px solid #ddd; padding: 8px; }
+                    tr:nth-child(even) { background-color: #f5f5f5; }
+                </style>
+            </head>
+            <body>
+                <h1>Reporte de Datos</h1>
+                <div class="info">
+                    <p>Generado: ${new Date().toLocaleString()}</p>
+                    <p>Registros: ${selectedData.length}</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        printWindow.print();
+
+        setShowExportMenu(false);
+    };
+
+    // Formatear valor de celda (para visualización)
     const formatCellValue = (key: string, value: any) => {
         if (value === null || value === undefined) return '-';
 
@@ -176,7 +426,6 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
             try {
                 const date = new Date(value);
                 if (isNaN(date.getTime())) return value;
-                // Usar formatDateDisplay que devuelve fecha localizada (DD/MM/YYYY)
                 return formatDateDisplay(date);
             } catch {
                 return value;
@@ -195,12 +444,10 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
 
         // Números (cantidades, etc.)
         if (typeof value === 'number') {
-            // Si es número entero, mostrar sin decimales; si tiene decimales, con 2
             const decimals = Number.isInteger(value) ? 0 : 2;
             return formatNumberValue(value, "number", decimals);
         }
 
-        // Por defecto, convertir a string
         return String(value);
     };
 
@@ -273,6 +520,64 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
                         visibleColumns={visibleColumns}
                         allColumns={true}
                     />
+
+                    {/* Botón de exportación */}
+                    {selectedRows.length > 0 && (
+                        <div className="relative" ref={exportMenuRef}>
+                            <button
+                                onClick={() => setShowExportMenu(!showExportMenu)}
+                                className="flex items-center space-x-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                                aria-label="Exportar datos"
+                                aria-expanded={showExportMenu}
+                                aria-haspopup="true"
+                            >
+                                <Download size={18} />
+                                <span>Exportar ({selectedRows.length})</span>
+                                <ChevronDown size={16} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            <AnimatePresence>
+                                {showExportMenu && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="absolute left-0 mt-2 w-56 bg-white dark:bg-zinc-800 rounded-md shadow-lg border border-gray-200 dark:border-zinc-700 z-50"
+                                        role="menu"
+                                        aria-label="Opciones de exportación"
+                                    >
+                                        <div className="py-1">
+                                            <button
+                                                onClick={exportToExcel}
+                                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+                                                role="menuitem"
+                                            >
+                                                <FileSpreadsheet size={16} className="mr-3 text-green-600" />
+                                                Exportar a Excel
+                                            </button>
+                                            <button
+                                                onClick={exportToPDF}
+                                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+                                                role="menuitem"
+                                            >
+                                                <FileText size={16} className="mr-3 text-red-600" />
+                                                Exportar a PDF
+                                            </button>
+                                            <button
+                                                onClick={handlePrint}
+                                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+                                                role="menuitem"
+                                            >
+                                                <Printer size={16} className="mr-3 text-blue-600" />
+                                                Imprimir
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -366,7 +671,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
                                                     className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                                                     checked={isSelected}
                                                     onChange={() => toggleRowSelection(rowId)}
-                                                    onClick={(e) => e.stopPropagation()} // Evitar doble acción
+                                                    onClick={(e) => e.stopPropagation()}
                                                     aria-label={`Seleccionar fila ${index + 1}`}
                                                 />
                                             </td>
@@ -398,7 +703,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({ data, loading = false, onRo
     );
 };
 
-// Componente Skeleton (sin cambios, solo se muestra cuando loading)
+// Componente Skeleton (sin cambios)
 const TableSkeleton = () => {
     const skeletonRows = 5;
     const skeletonColumns = 4;
