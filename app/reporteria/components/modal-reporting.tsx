@@ -387,17 +387,157 @@ const SalesPrediction = ({ historicalData }: { historicalData: any[] }) => {
     );
 };
 
-// Componente para el selector de vistas
+// ==============================================
+// NUEVO COMPONENTE: DailyTrends
+// Muestra estadísticas día por día para un año seleccionado
+// ==============================================
+const DailyTrends = ({ data, year, onYearChange, branch, onBranchChange, loading }: {
+    data: any[];
+    year: number;
+    onYearChange: (year: number) => void;
+    branch: string;
+    onBranchChange: (branch: string) => void;
+    loading: boolean;
+}) => {
+    // Calcular totales del año
+    const totals = data.reduce(
+        (acc, day) => ({
+            totalVentas: acc.totalVentas + day.totalVentas,
+            totalTikets: acc.totalTikets + day.totalTikets,
+            totalClientes: acc.totalClientes + day.totalClientes,
+        }),
+        { totalVentas: 0, totalTikets: 0, totalClientes: 0 }
+    );
+
+    const promedioTicketAnual = totals.totalTikets > 0 ? totals.totalVentas / totals.totalTikets : 0;
+    const promedioClientesPorDia = data.length > 0 ? totals.totalClientes / data.length : 0;
+
+    // Opciones de años (desde 2020 hasta año actual + 1)
+    const currentYear = new Date().getFullYear();
+    const yearOptions = Array.from({ length: currentYear - 2019 + 2 }, (_, i) => 2020 + i);
+
+    return (
+        <div className="space-y-6">
+            {/* Filtros: Año y Sucursal */}
+            <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-gray-500" />
+                    <select
+                        value={year}
+                        onChange={(e) => onYearChange(Number(e.target.value))}
+                        className="px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm"
+                    >
+                        {yearOptions.map((y) => (
+                            <option key={y} value={y}>
+                                {y}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Store className="h-5 w-5 text-gray-500" />
+                    <select
+                        value={branch}
+                        onChange={(e) => onBranchChange(e.target.value)}
+                        className="px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm"
+                    >
+                        <option value="all">Todas las sucursales</option>
+                        {ALMACENES_OPCIONES.map((almacen) => (
+                            <option key={almacen.value} value={almacen.value}>
+                                {almacen.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* Tarjetas de resumen */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card
+                    title="Ventas Anuales"
+                    value={`$${totals.totalVentas.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    icon={<DollarSign className="h-6 w-6 text-white" />}
+                />
+                <Card
+                    title="Total Tickets"
+                    value={totals.totalTikets.toLocaleString()}
+                    icon={<Receipt className="h-6 w-6 text-white" />}
+                />
+                <Card
+                    title="Clientes Únicos"
+                    value={totals.totalClientes.toLocaleString()}
+                    icon={<ShoppingCart className="h-6 w-6 text-white" />}
+                />
+                <Card
+                    title="Ticket Promedio"
+                    value={`$${promedioTicketAnual.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    subText={`${promedioClientesPorDia.toFixed(1)} clientes/día`}
+                    icon={<TrendingUp className="h-6 w-6 text-white" />}
+                />
+            </div>
+
+            {/* Detalle día por día */}
+            <Details title="Evolución Diaria" type="form">
+                {loading ? (
+                    <div className="text-center py-8">Cargando datos diarios...</div>
+                ) : data.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">No hay datos para el período seleccionado</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <DynamicTable data={data} loading={false} />
+                        {/* <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-700">
+                            <thead className="bg-gray-50 dark:bg-zinc-800">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ventas</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tickets</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Clientes</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ticket Promedio</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
+                                {data.map((day, index) => (
+                                    <tr key={index} className="hover:bg-gray-50 dark:hover:bg-zinc-800">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                            {new Date(day.fecha).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                            ${day.totalVentas.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                            {day.totalTikets}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                            {day.totalClientes}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                            ${(day.totalVentas / (day.totalTikets || 1)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table> */}
+                    </div>
+                )}
+            </Details>
+        </div>
+    );
+};
+
+// Componente para el selector de vistas (MODIFICADO para incluir la nueva pestaña)
 const ViewSelector = ({
     branchContent,
     hourContent,
-    predictionContent
+    predictionContent,
+    dailyContent  // NUEVA PROP
 }: {
     branchContent: React.ReactNode;
     hourContent: React.ReactNode;
     predictionContent: React.ReactNode;
+    dailyContent: React.ReactNode;  // NUEVA PROP
 }) => {
-    const [activeView, setActiveView] = useState<'branches' | 'hours' | 'prediction'>('branches');
+    const [activeView, setActiveView] = useState<'branches' | 'hours' | 'prediction' | 'daily'>('branches');  // NUEVO TIPO
 
     return (
         <div className="space-y-4">
@@ -441,12 +581,27 @@ const ViewSelector = ({
                     <Sparkles className="h-4 w-4" />
                     Predicción
                 </button>
+                {/* NUEVO BOTÓN PARA TENDENCIA DIARIA */}
+                <button
+                    onClick={() => setActiveView('daily')}
+                    className={`
+                        flex items-center gap-2 px-4 py-2 rounded-t-lg transition-colors
+                        ${activeView === 'daily'
+                            ? 'bg-purple-500 text-white'
+                            : 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700'
+                        }
+                    `}
+                >
+                    <Calendar className="h-4 w-4" />
+                    Tendencia Diaria
+                </button>
             </div>
 
             <div className="mt-4">
                 {activeView === 'branches' && branchContent}
                 {activeView === 'hours' && hourContent}
                 {activeView === 'prediction' && predictionContent}
+                {activeView === 'daily' && dailyContent}  {/* NUEVA CONDICIÓN */}
             </div>
         </div>
     );
@@ -472,6 +627,14 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
     const [branchTotalsLoading, setBranchTotalsLoading] = useState(false);
     const [branchTotalsError, setBranchTotalsError] = useState<string | null>(null);
     const branchTotalsAbortControllerRef = useRef<AbortController | null>(null);
+
+    // NUEVOS ESTADOS para datos diarios
+    const [dailyData, setDailyData] = useState<any[]>([]);
+    const [dailyLoading, setDailyLoading] = useState(false);
+    const [dailyError, setDailyError] = useState<string | null>(null);
+    const dailyAbortControllerRef = useRef<AbortController | null>(null);
+    const [selectedYear, setSelectedYear] = useState<number>(2025); // Valor por defecto 2025
+    const [selectedBranch, setSelectedBranch] = useState<string>("all");
 
     // Función para obtener estadísticas por hora
     const fetchStatsForHourData = useCallback(
@@ -668,11 +831,118 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
         [reportType, dateRange, manager]
     );
 
+    // NUEVA FUNCIÓN para obtener datos diarios
+    const fetchDailyData = useCallback(
+        async (year: number, branchCode: string, forceRefresh = false) => {
+            if (!QUERY_CONFIGS[reportType] || reportType !== "ventas") return;
+
+            if (dailyAbortControllerRef.current) {
+                dailyAbortControllerRef.current.abort();
+            }
+
+            setDailyError(null);
+            setDailyLoading(!forceRefresh);
+
+            const controller = new AbortController();
+            dailyAbortControllerRef.current = controller;
+
+            try {
+                // Generar array de días del año
+                const startDate = new Date(year, 0, 1);
+                const endDate = new Date(year, 11, 31);
+                const days: Date[] = [];
+                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    days.push(new Date(d));
+                }
+
+                const queryConfig = QUERY_CONFIGS[reportType];
+                const promises = days.map(async (day) => {
+                    // Crear filtro para el día específico
+                    const dayStart = new Date(day);
+                    dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(day);
+                    dayEnd.setHours(23, 59, 59, 999);
+
+                    const builder = new FilterBuilder({
+                        quickMode: true,
+                        filterGroups: [],
+                        searchTerm: "",
+                        searchColumn: dummySearchColumn,
+                        almacenFilter: branchCode === "all" ? "" : branchCode,
+                        dateRange: { from: dayStart, to: dayEnd },
+                        reportType,
+                        searchApplied: false,
+                        includeSearchTerm: false,
+                    });
+                    const { filtrosAnd, filtrosOr } = builder.build();
+
+                    const payload: RequestPayload = {
+                        table: queryConfig.table,
+                        filtros: {
+                            agregaciones: [
+                                { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
+                                { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
+                                { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
+                                { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT DISTINCT" },
+                            ],
+                            FiltrosAnd: filtrosAnd,
+                            ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
+                        },
+                        signal: controller.signal,
+                    };
+
+                    const { promise } = manager.execute(payload);
+                    const response = await promise;
+
+                    if (response.error) {
+                        if (response.error.name === "AbortError") return null;
+                        return null;
+                    }
+
+                    const statsData = response.data?.data?.[0] || {};
+                    return {
+                        fecha: day.toISOString().split('T')[0], // YYYY-MM-DD
+                        totalVentas: statsData.totalVentas || 0,
+                        totalCosto: statsData.totalCosto || 0,
+                        totalTikets: statsData.totalTikets || 0,
+                        totalClientes: statsData.totalClientes || 0,
+                        utilidad: (statsData.totalVentas || 0) - (statsData.totalCosto || 0),
+                    };
+                });
+
+                const resultados = await Promise.all(promises);
+                const dailyStats = resultados.filter(Boolean);
+                setDailyData(dailyStats);
+            } catch (error: any) {
+                if (
+                    error.name === "AbortError" ||
+                    error.message?.includes("aborted") ||
+                    error.code === "ERR_CANCELLED"
+                ) {
+                    return;
+                }
+                if (!controller.signal.aborted) {
+                    setDailyError(error.message || "Error al cargar los datos diarios");
+                }
+            } finally {
+                if (!controller.signal.aborted) {
+                    setDailyLoading(false);
+                }
+            }
+        },
+        [reportType, manager]
+    );
+
     // Cargar ambos conjuntos de datos al montar
     useEffect(() => {
         fetchStatsForHourData();
         fetchBranchTotals();
     }, [fetchStatsForHourData, fetchBranchTotals]);
+
+    // Cargar datos diarios cuando cambia año o sucursal
+    useEffect(() => {
+        fetchDailyData(selectedYear, selectedBranch);
+    }, [selectedYear, selectedBranch, fetchDailyData]);
 
     return (
         <Modal modalName="reporting" maxWidth="full" title="Análisis de Ventas por Sucursal">
@@ -739,6 +1009,25 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
                                 </>
                             ) : (
                                 <div>No hay suficientes datos para generar predicciones</div>
+                            )}
+                        </div>
+                    }
+                    // NUEVA PROP para la vista diaria
+                    dailyContent={
+                        <div className="space-y-6">
+                            {dailyLoading ? (
+                                <div>Cargando datos diarios...</div>
+                            ) : dailyError ? (
+                                <div className="text-red-500">Error: {dailyError}</div>
+                            ) : (
+                                <DailyTrends
+                                    data={dailyData}
+                                    year={selectedYear}
+                                    onYearChange={setSelectedYear}
+                                    branch={selectedBranch}
+                                    onBranchChange={setSelectedBranch}
+                                    loading={dailyLoading}
+                                />
                             )}
                         </div>
                     }

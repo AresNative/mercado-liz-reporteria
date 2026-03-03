@@ -1,18 +1,21 @@
 "use client";
+
+import { useParams } from "next/navigation";
 import { notFound } from "next/navigation";
 import Card from "@/components/card";
 import Details from "@/components/details";
 import Badge from "@/components/badge";
 import AvatarGroup from "@/components/avatar-group";
 import appsData from "../data/apps.json";
-import { Download, Calendar, Users, HardDrive, Tag } from "lucide-react";
+import { Download, Calendar, Users, Tag } from "lucide-react";
 import Link from "next/link";
 import { CountdownTimer } from "@/components/counter-down";
 import Header from "@/template/header";
 import Footer from "@/template/footer";
 
-export default async function PageID({ params }: { params: { id: string } }) {
-    const { id } = await params
+export default function PageID() {
+    const params = useParams();
+    const id = params.id as string;
     const app = appsData.find((a) => a.id === id);
     if (!app) notFound();
 

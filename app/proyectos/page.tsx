@@ -668,7 +668,7 @@ export default function ScrumScreen() {
                                                     <Plus className="size-5" />
                                                     <span>Nuevo Sprint</span>
                                                 </Button>
-                                                <AvatarGroup data={teamAvatars} size="" />
+                                                <AvatarGroup data={teamAvatars} />
                                             </div>
                                         </div>
 
