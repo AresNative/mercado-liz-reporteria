@@ -486,38 +486,6 @@ const DailyTrends = ({ data, year, onYearChange, branch, onBranchChange, loading
                 ) : (
                     <div className="overflow-x-auto">
                         <DynamicTable data={data} loading={false} />
-                        {/* <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-700">
-                            <thead className="bg-gray-50 dark:bg-zinc-800">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ventas</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tickets</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Clientes</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ticket Promedio</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
-                                {data.map((day, index) => (
-                                    <tr key={index} className="hover:bg-gray-50 dark:hover:bg-zinc-800">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                            {new Date(day.fecha).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                            ${day.totalVentas.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                            {day.totalTikets}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                            {day.totalClientes}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                            ${(day.totalVentas / (day.totalTikets || 1)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table> */}
                     </div>
                 )}
             </Details>
@@ -702,15 +670,18 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
                     }
 
                     const statsData = response.data?.data?.[0] || {};
+                    const totalVentas = statsData.totalVentas || 0;
+                    const totalTikets = statsData.totalTikets || 0;
                     return {
                         hora: rango.hora,
-                        totalVentas: statsData.totalVentas || 0,
+                        totalVentas,
                         totalCosto: statsData.totalCosto || 0,
-                        totalTikets: statsData.totalTikets || 0,
-                        utilidad: (statsData.totalVentas || 0) - (statsData.totalCosto || 0),
-                        margen: statsData.totalVentas
-                            ? ((statsData.totalVentas - (statsData.totalCosto || 0)) / statsData.totalVentas) * 100
+                        totalTikets,
+                        utilidad: totalVentas - (statsData.totalCosto || 0),
+                        margen: totalVentas
+                            ? ((totalVentas - (statsData.totalCosto || 0)) / totalVentas) * 100
                             : 0,
+                        ticketPromedio: totalTikets ? totalVentas / totalTikets : 0, // NUEVO CAMPO
                     };
                 });
 
@@ -900,13 +871,16 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
                     }
 
                     const statsData = response.data?.data?.[0] || {};
+                    const totalVentas = statsData.totalVentas || 0;
+                    const totalTikets = statsData.totalTikets || 0;
                     return {
-                        fecha: day.toISOString().split('T')[0], // YYYY-MM-DD
-                        totalVentas: statsData.totalVentas || 0,
+                        fecha: day.toISOString().split('T')[0],
+                        totalVentas,
                         totalCosto: statsData.totalCosto || 0,
-                        totalTikets: statsData.totalTikets || 0,
+                        totalTikets,
                         totalClientes: statsData.totalClientes || 0,
-                        utilidad: (statsData.totalVentas || 0) - (statsData.totalCosto || 0),
+                        utilidad: totalVentas - (statsData.totalCosto || 0),
+                        ticketPromedio: totalTikets ? totalVentas / totalTikets : 0, // NUEVO CAMPO
                     };
                 });
 
