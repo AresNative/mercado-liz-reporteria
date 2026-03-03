@@ -4,7 +4,6 @@ interface Avatar {
 }
 interface Group {
     data: Avatar[];
-    size: ""
 }
 export default function AvatarGroup(props: Group) {
     const { data } = props;

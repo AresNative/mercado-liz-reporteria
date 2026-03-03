@@ -127,7 +127,7 @@ export function BentoItem({
     return (
         <div
             className={cn(
-                "group relative overflow-hidden rounded-xl border border-gray-200 bg-[var(--background)] p-4 transition-all hover:shadow-md",
+                "group relative h-fit rounded-xl border border-gray-200 bg-[var(--background)] p-4 transition-all hover:shadow-md",
                 colSpanClasses[colSpan] ?? "sm:col-span-1",
                 rowSpanClasses[rowSpan] ?? "row-span-1",
                 className

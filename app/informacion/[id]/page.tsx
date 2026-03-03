@@ -18,13 +18,13 @@ export default async function PageID({ params }: { params: { id: string } }) {
 
     // Fecha de expiración de ejemplo para CountdownTimer (opcional)
     const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 3); // 3 días desde ahora
+    expiryDate.setDate(expiryDate.getDate() + 3);
 
     return (
         <>
 
             <Header />
-            <main className="container mx-auto px-4 py-8">
+            <main className="container min-h-svh mx-auto px-4 py-8">
                 <Link href="/informacion" className="text-blue-600 hover:underline mb-6 inline-block">
                     ← Volver al listado
                 </Link>
@@ -32,7 +32,7 @@ export default async function PageID({ params }: { params: { id: string } }) {
                 <div className="grid md:grid-cols-3 gap-8">
                     {/* Columna izquierda: icono y acciones */}
                     <div className="md:col-span-1">
-                        <img src={app.icono} alt={app.nombre} className="w-32 h-32 rounded-2xl mx-auto mb-4" />
+
                         <a
                             href={app.fileUrl}
                             download
@@ -52,7 +52,7 @@ export default async function PageID({ params }: { params: { id: string } }) {
                     {/* Columna derecha: detalles */}
                     <div className="md:col-span-2 space-y-6">
                         <h1 className="text-4xl font-bold">{app.nombre}</h1>
-                        <Badge color="blue" text={app.categoria} />
+                        <Badge color="blue" text={app.category} />
 
                         {/* Tarjetas de resumen con componente Card */}
                         <div className="grid grid-cols-2 gap-4">
@@ -61,19 +61,14 @@ export default async function PageID({ params }: { params: { id: string } }) {
                                 value={app.version}
                                 icon={<Tag className="text-white" />}
                             />
-                            <Card
+                            {/* <Card
                                 title="Tamaño"
                                 value={app.tamaño}
                                 icon={<HardDrive className="text-white" />}
-                            />
-                            <Card
-                                title="Descargas"
-                                value={app.descargas.toLocaleString()}
-                                icon={<Download className="text-white" />}
-                            />
+                            /> */}
                             <Card
                                 title="Fecha"
-                                value={new Date(app.fecha).toLocaleDateString()}
+                                value={new Date(app.date).toLocaleDateString()}
                                 icon={<Calendar className="text-white" />}
                             />
                         </div>
@@ -89,7 +84,7 @@ export default async function PageID({ params }: { params: { id: string } }) {
                         {app.autores && (
                             <div className="flex gap-2 items-center mt-4">
                                 <Users className="w-5 h-5 text-gray-500" />
-                                <AvatarGroup size="" data={app.autores} />
+                                <AvatarGroup data={app.autores} />
                             </div>
                         )}
 

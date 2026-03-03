@@ -19,100 +19,7 @@ import {
 import Link from "next/link";
 import Segment from "@/components/segment";
 import ShareButton from "@/components/share-button";
-
-// Datos completos de artículos sobre actualizaciones de APKs
-const blogPosts = [
-    // Lanzamiento
-    {
-        id: 1,
-        title: "Pickup v1.0.0 – La nueva forma de comprar",
-        excerpt: "Después de meses de desarrollo, lanzamos Pickup, una app ligera y segura para comprar productos en línea.",
-        category: "Lanzamiento",
-        readTime: "5 min",
-        date: "03 Marzo, 2026",
-        image: "/pickup-v1.0.0.png",
-        author: "Equipo Pickup",
-        authorAvatar: "/avatars/team-pickup.jpg",
-        appId: "pickup",
-        version: "1.0.0",
-        tags: ["Lanzamiento"],
-    },
-    // Actualización
-    {
-        id: 2,
-        title: "Mi App 1 v2.5 – Soporte para Android 15 y modo oscuro mejorado",
-        excerpt: "La nueva versión de Mi App 1 incluye optimizaciones para Android 15, un modo oscuro renovado y correcciones de rendimiento.",
-        category: "Actualización",
-        readTime: "4 min",
-        date: "28 Febrero, 2026",
-        image: "/miapp1-update.jpg",
-        author: "María González",
-        authorAvatar: "/avatars/maria.jpg",
-        appId: "mi-app-1",
-        version: "2.5",
-        tags: ["Android 15", "UI/UX"],
-    },
-    // Novedad
-    {
-        id: 3,
-        title: "Otra App ahora se sincroniza con Google Drive",
-        excerpt: "Integramos Google Drive para que puedas respaldar y acceder a tus datos desde cualquier lugar. Actívalo en ajustes.",
-        category: "Novedad",
-        readTime: "3 min",
-        date: "20 Febrero, 2026",
-        image: "/otra-app-drive.jpg",
-        author: "Carlos Ruiz",
-        authorAvatar: "/avatars/carlos.jpg",
-        appId: "otra-app",
-        version: "3.2",
-        tags: ["Nube", "Sincronización"],
-    },
-    // Parche
-    {
-        id: 4,
-        title: "Corrección de errores en Flashlight Plus (v1.2.1)",
-        excerpt: "Solucionamos un problema que causaba cierres inesperados en algunos dispositivos Samsung. Recomendamos actualizar.",
-        category: "Parche",
-        readTime: "2 min",
-        date: "15 Febrero, 2026",
-        image: "/flashlight-patch.jpg",
-        author: "Equipo de Soporte",
-        authorAvatar: "/avatars/support.jpg",
-        appId: "flashlight-plus",
-        version: "1.2.1",
-        tags: ["Bug fix", "Estabilidad"],
-    },
-    // Seguridad
-    {
-        id: 5,
-        title: "Actualización de seguridad crítica para todas las apps",
-        excerpt: "Hemos parcheado una vulnerabilidad en la biblioteca de autenticación. Actualiza tus apps a las últimas versiones.",
-        category: "Seguridad",
-        readTime: "6 min",
-        date: "10 Febrero, 2026",
-        image: "/security-update.jpg",
-        author: "Equipo de Seguridad",
-        authorAvatar: "/avatars/security.jpg",
-        appId: null,
-        version: "múltiple",
-        tags: ["Parche de seguridad", "Crítico"],
-    },
-    // Logro
-    {
-        id: 6,
-        title: "¡Mi App 1 supera las 50.000 descargas!",
-        excerpt: "Gracias a la comunidad por confiar en nosotros. Seguiremos mejorando cada día.",
-        category: "Logro",
-        readTime: "2 min",
-        date: "5 Febrero, 2026",
-        image: "/miapp1-milestone.jpg",
-        author: "Equipo Mi App 1",
-        authorAvatar: "/avatars/team-miapp1.jpg",
-        appId: "mi-app-1",
-        version: "2.4",
-        tags: ["Hito", "Comunidad"],
-    },
-];
+import appsData from "./data/apps.json";
 
 // Artículos recientes (pueden ser algunos de los mismos o diferentes)
 const recentPosts = [
@@ -163,7 +70,7 @@ const recentPosts = [
 // Categorías únicas (aseguramos que estén todas)
 const allCategories = [
     "Todos",
-    ...new Set(blogPosts.map(post => post.category))
+    ...new Set(appsData.map(post => post.category))
 ];
 
 export default function BlogPage() {
@@ -171,8 +78,8 @@ export default function BlogPage() {
 
     // Filtrar posts según categoría seleccionada
     const filteredPosts = useMemo(() => {
-        if (selectedCategory === "Todos") return blogPosts;
-        return blogPosts.filter(post => post.category === selectedCategory);
+        if (selectedCategory === "Todos") return appsData;
+        return appsData.filter(post => post.category === selectedCategory);
     }, [selectedCategory]);
 
     // También podemos filtrar los destacados (primeros 2 del filtrado, o mantener lógica aparte)
@@ -242,7 +149,7 @@ export default function BlogPage() {
                                     key={post.id}
                                     rowSpan={1}
                                     colSpan={1}
-                                    title={post.title}
+                                    title={post.nombre}
                                     description={post.excerpt}
                                     icon={<BookOpen className="size-6 text-primary dark:text-gray-600" />}
                                     className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:shadow-xl transition-shadow"
@@ -251,7 +158,7 @@ export default function BlogPage() {
                                         <div className="relative h-48 w-full overflow-hidden rounded-lg mb-4">
                                             <img
                                                 src={post.image}
-                                                alt={post.title}
+                                                alt={post.nombre}
                                                 className="object-cover w-full h-full hover:scale-105 transition-transform duration-300"
                                             />
                                             <div className="absolute top-4 left-4">
@@ -274,13 +181,13 @@ export default function BlogPage() {
                                                     {post.readTime} lectura
                                                 </span>
                                             </div>
-                                            <ShareButton url={`${process.env.NEXT_DOMINIO_URL}/informacion/${post.id}`} title={post.title} />
+                                            <ShareButton url={`${process.env.NEXT_DOMINIO_URL}/informacion/${post.id}`} title={post.nombre} />
                                         </div>
 
                                         {/* Etiquetas de versión y app */}
                                         <div className="flex gap-2 flex-wrap">
                                             {post.appId && (
-                                                <Badge color="blue" text={`App: ${post.appId}`} />
+                                                <Badge color="blue" text={`${post.appId}`} />
                                             )}
                                             {post.version && (
                                                 <Badge color="purple" text={`v${post.version}`} />
