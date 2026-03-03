@@ -43,6 +43,7 @@ export function BentoGrid({ className, cols = 6, rows, children, loading = false
     if (loading) {
         return (
             <div className={cn(
+                "relative",
                 "grid gap-4 p-4",
                 "grid-cols-1",
                 colClasses[cols] ?? colClasses[6],
@@ -60,6 +61,7 @@ export function BentoGrid({ className, cols = 6, rows, children, loading = false
     return (
         <div
             className={cn(
+                "relative",
                 "grid gap-4 p-4",
                 "grid-cols-1", // fallback mobile
                 colClasses[cols] ?? colClasses[6],

@@ -1,0 +1,33 @@
+[
+  {
+    "id": "1",
+    "nombre": "Mi App 1",
+    "version": "1.2.3",
+    "descripcion": "Descripción detallada de la primera aplicación.",
+    "icono": "/icons/app1.png",
+    "fileUrl": "/pickup-v1.0.0.apk",
+    "tamaño": "15 MB",
+    "categoria": "Utilidades",
+    "fecha": "2025-02-15",
+    "descargas": 1250,
+    "autores": [
+      { "alt": "Autor 1", "src": "/avatars/author1.jpg" },
+      { "alt": "Autor 2", "src": "/avatars/author2.jpg" }
+    ]
+  },
+  {
+    "id": "otra-app",
+    "nombre": "Otra App",
+    "version": "2.0.1",
+    "descripcion": "Descripción de la segunda aplicación.",
+    "icono": "/icons/otra.png",
+    "fileUrl": "/apks/otra-app-v2.0.1.apk",
+    "tamaño": "22 MB",
+    "categoria": "Juegos",
+    "fecha": "2025-02-10",
+    "descargas": 3400,
+    "autores": [
+      { "alt": "Autor 3", "src": "/avatars/author3.jpg" }
+    ]
+  }
+]

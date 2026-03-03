@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_HUBS_URL: process.env.NEXT_PUBLIC_HUBS_URL,
     NEXT_PUBLIC_API_URL_INT: process.env.NEXT_PUBLIC_API_URL_INT,
     NEXT_PUBLIC_TEST_API_URL: process.env.NEXT_PUBLIC_TEST_API_URL,
+    NEXT_DOMINIO_URL: process.env.NEXT_DOMINIO_URL,
 
     // Configuración
     NEXT_PUBLIC_ITEMS_PER_PAGE: process.env.NEXT_PUBLIC_ITEMS_PER_PAGE || "8",

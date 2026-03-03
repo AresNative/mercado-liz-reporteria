@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { motion, AnimatePresence } from "motion/react"
 import type { LucideIcon } from "lucide-react"
 import { cn } from "@/utils/functions/cn"
 
@@ -28,26 +27,26 @@ export interface SegmentProps {
     disabled?: boolean
 }
 
-const sizeStyles: Record<Size, { button: string; label: string; groupPadding: string }> = {
-    sm: { button: "h-8 px-2 rounded-md", label: "text-xs", groupPadding: "p-1" },
-    md: { button: "h-10 px-2 rounded-md", label: "text-sm", groupPadding: "p-1" },
-    lg: { button: "h-12 px-2 rounded-md", label: "text-base", groupPadding: "p-1.5" },
+const sizeStyles: Record<Size, { button: string; groupPadding: string }> = {
+    sm: { button: "px-3 py-1.5 text-xs rounded-full", groupPadding: "p-1" },
+    md: { button: "px-4 py-2 text-sm rounded-full", groupPadding: "p-1" },
+    lg: { button: "px-5 py-2.5 text-base rounded-full", groupPadding: "p-1.5" },
 }
 
-const indicatorByAccent: Record<Accent, string> = {
-    emerald: "bg-green-500/12 ring-1 ring-green-500/30",
-    violet: "bg-violet-500/12 ring-1 ring-violet-500/30",
-    rose: "bg-rose-500/12 ring-1 ring-rose-500/30",
-    amber: "bg-amber-500/14 ring-1 ring-amber-500/30",
-    slate: "bg-slate-500/14 ring-1 ring-slate-500/30",
+const selectedBgByAccent: Record<Accent, string> = {
+    emerald: "bg-emerald-600 text-white",
+    violet: "bg-violet-600 text-white",
+    rose: "bg-rose-600 text-white",
+    amber: "bg-amber-600 text-white",
+    slate: "bg-slate-600 text-white",
 }
 
 const focusRingByAccent: Record<Accent, string> = {
-    emerald: "focus-visible:ring-emerald-500",
-    violet: "focus-visible:ring-violet-500",
-    rose: "focus-visible:ring-rose-500",
-    amber: "focus-visible:ring-amber-500",
-    slate: "focus-visible:ring-slate-500",
+    emerald: "focus-visible:ring-emerald-600",
+    violet: "focus-visible:ring-violet-600",
+    rose: "focus-visible:ring-rose-600",
+    amber: "focus-visible:ring-amber-600",
+    slate: "focus-visible:ring-slate-600",
 }
 
 export function Segment({
@@ -122,7 +121,6 @@ export function Segment({
             }
         } else if (e.key === " " || e.key === "Enter") {
             e.preventDefault()
-            // select focused (current selectedIndex)
             const current = items[selectedIndex]
             if (current && !current.disabled) setSelected(current.value)
             return
@@ -150,7 +148,7 @@ export function Segment({
             aria-disabled={disabled ? "true" : "false"}
             onKeyDown={handleKeyDown}
             className={cn(
-                "inline-flex items-center rounded-md bg-zinc-100 inset-shadow-sm backdrop-blur supports-[backdrop-filter]:bg-zinc-100/40 dark:border-zinc-700 dark:bg-zinc-900/40",
+                "inline-flex items-center gap-1",
                 sizeConf.groupPadding,
                 fullWidth && "w-full",
                 className,
@@ -169,30 +167,19 @@ export function Segment({
                         tabIndex={isSelected ? 0 : -1}
                         onClick={() => !disabled && !item.disabled && setSelected(item.value)}
                         className={cn(
-                            "relative isolate whitespace-nowrap outline-none transition-colors",
-                            "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50",
+                            "whitespace-nowrap font-medium outline-none transition-colors",
                             "focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-zinc-950",
                             focusRingByAccent[accent],
                             sizeConf.button,
                             fullWidth ? "flex-1" : "",
+                            isSelected
+                                ? selectedBgByAccent[accent]
+                                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
+                            (disabled || item.disabled) && "opacity-50 cursor-not-allowed",
                         )}
                     >
-                        <AnimatePresence>
-                            {isSelected && (
-                                <motion.span
-                                    layoutId="segmented-indicator"
-                                    className={cn("absolute inset-0 z-0", "rounded-md shadow-sm", indicatorByAccent[accent])}
-                                    transition={{
-                                        type: "spring",
-                                        stiffness: 500,
-                                        damping: 35,
-                                        mass: 0.6,
-                                    }}
-                                />
-                            )}
-                        </AnimatePresence>
-                        <span className={cn("relative z-10 flex items-center justify-center gap-2", sizeConf.label)}>
-                            {Icon ? <Icon className={cn("size-4", isSelected ? "opacity-100" : "opacity-80")} /> : null}
+                        <span className="flex items-center justify-center gap-2">
+                            {Icon ? <Icon className="size-4" /> : null}
                             <span>{item.label}</span>
                         </span>
                     </button>
