@@ -72,12 +72,12 @@ export default function Home() {
               title="Ahorra tiempo y dinero con nuestra solución integral"
               description="Desde pequeñas empresas hasta grandes corporaciones, nuestro sistema está diseñado para adaptarse a tus necesidades y crecer contigo."
               icon={<HistoryIcon className="size-6 text-primary dark:text-gray-600" />}
-              className="bg-gray-50 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800 px-0 pl-4"
+              className="bg-gray-50 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800 px-0 pl-4 z-20"
             >
-              <article className="float-right -right-4 h-[34dvh] md:w-[70%] rounded-s-full inset-0 bg-[#f2f2f7]">
+              <article className=" float-right -right-4 md:w-[70%] rounded-s-full inset-0 bg-[#f2f2f7]">
                 <img
                   src="/publicidad_1.png"
-                  className="object-cover rounded-s-lg shadow-md"
+                  className="object-cover rounded-s-lg shadow-md h-[29dvh]"
                 />
               </article>
             </BentoItem>
@@ -88,13 +88,7 @@ export default function Home() {
               description="Controla todo el proceso de compras, desde solicitudes hasta recepción de productos."
               icon={<ShoppingCart className="size-6 text-blue-600" />}
               className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-blue-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
-              </div>
-            </BentoItem>
+            />
 
             {/* Gestión de Ventas */}
             <BentoItem
@@ -102,13 +96,7 @@ export default function Home() {
               description="Optimiza tu proceso de ventas con seguimiento de clientes y análisis de rendimiento."
               icon={<Tag className="size-6 text-green-600" />}
               className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-green-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
-              </div>
-            </BentoItem>
+            />
 
             {/* Sistema de Subastas */}
             <BentoItem
@@ -116,13 +104,7 @@ export default function Home() {
               description="Plataforma completa para gestionar subastas de productos y servicios."
               icon={<Gavel className="size-6 text-yellow-600" />}
               className="bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-yellow-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
-              </div>
-            </BentoItem>
+            />
 
             {/* Gestión de Proyectos */}
             <BentoItem
@@ -130,13 +112,7 @@ export default function Home() {
               description="Planifica, ejecuta y monitorea todos tus proyectos en una sola plataforma."
               icon={<CalendarCheck className="size-6 text-purple-600" />}
               className="bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-purple-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
-              </div>
-            </BentoItem>
+            />
 
             {/* Gestión de Empleados */}
             <BentoItem
@@ -144,13 +120,7 @@ export default function Home() {
               description="Administra toda la información de tus colaboradores de forma centralizada."
               icon={<Users className="size-6 text-red-600" />}
               className="bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-red-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
-              </div>
-            </BentoItem>
+            />
 
             {/* Gestión de Nómina */}
             <BentoItem
@@ -158,13 +128,7 @@ export default function Home() {
               description="Calcula y gestiona nóminas de forma automatizada y precisa."
               icon={<Wallet className="size-6 text-cyan-600" />}
               className="bg-cyan-50 dark:bg-cyan-900/30 border-cyan-200 dark:border-cyan-800"
-            >
-              <div className="absolute bottom-1 right-4">
-                <a href="/proyectos" className="inline-flex hover:underline items-center text-cyan-600">
-                  Explorar <ArrowRightIcon className="ml-1 h-4 w-4" />
-                </a>
-              </div>
-            </BentoItem>
+            />
           </BentoGrid>
 
         </div>
