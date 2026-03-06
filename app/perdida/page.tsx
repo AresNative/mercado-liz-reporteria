@@ -301,47 +301,16 @@ export default function ReportingPage() {
 
         try {
             const messageBody = prepareWhatsAppMessage(formData, data);
-            await sendWhatsAppMessage({
-                to: `${formData.phoneNumber}`,
-                body: messageBody
-            });
-            // Intento 1: Enviar mensaje libre
-            /* try {
-                
-
-                showNotification('success', 'Mensaje enviado exitosamente');
-                dispatch(closeModalReducer({ modalName: "whatsapp-modal" }));
-            } catch (error: any) { */
-            // Si está fuera de ventana, enviar plantilla primero
-            /* if (error.message === "OUTSIDE_WINDOW") { */
-            /*  showNotification('info', 'Enviando plantilla de notificación primero...');
- 
-             // Paso 1: Enviar plantilla
-             const templateResult = await sendWhatsAppTemplate(formData.phoneNumber, "reporte");
- 
-             if (!templateResult.success) {
-                 throw new Error('Error al enviar plantilla');
-             } */
-
-            //showNotification('info', 'Plantilla enviada. Ahora enviando el reporte...');
-
-            // Esperar 2 segundos para que la plantilla llegue
-            /* await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Paso 2: Reintentar mensaje libre
-            await sendWhatsAppMessage({
+            await sendWhatsAppTemplate(formData.phoneNumber, "HXe0f860e7bd24d48b274102905fb8d580", { first_name: "John" }/* "HX1a9977eaa21c64a8411e7d96d826f525",
+                {
+                    amount: "$15,000",
+                    date: "05/03/2026"
+                } */);
+            /* await sendWhatsAppMessage({
                 to: `whatsapp:${formData.phoneNumber}`,
                 body: messageBody
-            });
-
-            showNotification('success', 'Reporte enviado exitosamente');
-            dispatch(closeModalReducer({ modalName: "whatsapp-modal" })); */
-            /* } else {
-                // Otro error
-                throw error;
-            } */
-            /*  } */
-
+            }); */
+            // Intento 1: Enviar mensaje libre
         } catch (error: any) {
             console.error('Error enviando WhatsApp:', error);
             showNotification('error', error.message || 'Error al enviar el mensaje');

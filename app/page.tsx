@@ -42,14 +42,6 @@ export default function Home() {
             <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
               La solución todo en uno para gestionar compras, ventas, subastas, proyectos, empleados y nómina
             </p>
-            <ul className="flex flex-col sm:flex-row relative justify-center gap-4 z-10">
-              <a href="https://eusebio.dev" target="_blank" className="bg-white cursor-pointer text-green-600 border-2 border-green-800 hover:bg-gray-100 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
-                Fuente
-              </a>
-              <a href="/informacion" className="bg-white/70 cursor-pointer border-2 border-green-800 hover:bg-white/90 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300">
-                Conocer más
-              </a>
-            </ul>
           </section>
         </div>
       </header>

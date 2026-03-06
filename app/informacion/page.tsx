@@ -20,52 +20,7 @@ import Link from "next/link";
 import Segment from "@/components/segment";
 import ShareButton from "@/components/share-button";
 import appsData from "./data/apps.json";
-
-// Artículos recientes (pueden ser algunos de los mismos o diferentes)
-const recentPosts = [
-    {
-        id: 7,
-        title: "Pickup v1.0.1 – Pequeñas mejoras de rendimiento",
-        category: "Actualización",
-        date: "1 Marzo, 2026",
-        appId: "pickup",
-    },
-    {
-        id: 8,
-        title: "Otra App añade soporte para tablets",
-        category: "Novedad",
-        date: "25 Febrero, 2026",
-        appId: "otra-app",
-    },
-    {
-        id: 9,
-        title: "Corrección en Flashlight Plus (v1.2.2)",
-        category: "Parche",
-        date: "18 Febrero, 2026",
-        appId: "flashlight-plus",
-    },
-    {
-        id: 10,
-        title: "Recomendaciones de seguridad para usuarios",
-        category: "Seguridad",
-        date: "12 Febrero, 2026",
-        appId: null,
-    },
-    {
-        id: 11,
-        title: "Mi App 1 nominada a mejor app del año",
-        category: "Logro",
-        date: "8 Febrero, 2026",
-        appId: "mi-app-1",
-    },
-    {
-        id: 12,
-        title: "Pickup: Beta cerrada para nuevas funciones",
-        category: "Novedad",
-        date: "2 Febrero, 2026",
-        appId: "pickup",
-    },
-];
+import recentPosts from "./data/novedades.json";
 
 // Categorías únicas (aseguramos que estén todas)
 const allCategories = [
@@ -150,7 +105,6 @@ export default function BlogPage() {
                                     rowSpan={1}
                                     colSpan={1}
                                     title={post.nombre}
-                                    description={post.excerpt}
                                     icon={<BookOpen className="size-6 text-primary dark:text-gray-600" />}
                                     className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:shadow-xl transition-shadow"
                                 >

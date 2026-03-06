@@ -19,104 +19,24 @@
       { "alt": "Autor 3", "src": "https://avatars.githubusercontent.com/u/93956966?v=4" }
     ]
   },
-  {
-      "id": 2,
-      "nombre": "Mi App 1 v2.5 – Soporte para Android 15 y modo oscuro mejorado",
-      "excerpt": "La nueva versión de Mi App 1 incluye optimizaciones para Android 15, un modo oscuro renovado y correcciones de rendimiento.",
-      "category": "Actualización",
-      "readTime": "4 min",
-      "date": "28 Febrero, 2026",
-      "image": "/miapp1-update.jpg",
-      "author": "María González",
-      "authorAvatar": "/avatars/maria.jpg",
-      "fileUrl": "/mi-app-1-v2.5.apk",
-      "appId": "mi-app-1",
-      "version": "2.5",
-      "tags": ["Android 15", "UI/UX"],
-      "autores": [
+ {
+    "id": "2",
+    "nombre": "Landing page – Pagina de inicio, presentación de la empresa",
+    "version": "1.0.0",
+    "descripcion": "Después de meses de desarrollo, lanzamos Pickup, una app ligera y segura para comprar productos en línea.",
+    "category": "Lanzamiento",
+    "readTime": "5 min",
+    "date": "03 Marzo, 2026",
+    "image": "/pickup-v1.0.0.png",
+    "author": "Equipo Pickup",
+    "authorAvatar": "/avatars/team-pickup.jpg",
+    "fileUrl": "/pickup-v1.0.0.apk",
+    "appId": "pickup",
+    "tags": ["Lanzamiento"],
+    "autores": [
       { "alt": "Autor 1", "src": "https://avatars.githubusercontent.com/u/82086484?v=4" },
       { "alt": "Autor 2", "src": "https://avatars.githubusercontent.com/u/234133181?v=4" },
       { "alt": "Autor 3", "src": "https://avatars.githubusercontent.com/u/93956966?v=4" }
     ]
-  },
-  {
-      "id": 3,
-      "nombre": "Otra App ahora se sincroniza con Google Drive",
-      "excerpt": "Integramos Google Drive para que puedas respaldar y acceder a tus datos desde cualquier lugar. Actívalo en ajustes.",
-      "category": "Novedad",
-      "readTime": "3 min",
-      "date": "20 Febrero, 2026",
-      "image": "/otra-app-drive.jpg",
-      "author": "Carlos Ruiz",
-      "authorAvatar": "/avatars/carlos.jpg",
-      "fileUrl": "/pickup-v1.0.0.apk",
-      "appId": "otra-app",
-      "version": "3.2",
-      "tags": ["Nube", "Sincronización"],
-      "autores": [
-        { "alt": "Autor 1", "src": "https://avatars.githubusercontent.com/u/82086484?v=4" },
-        { "alt": "Autor 2", "src": "https://avatars.githubusercontent.com/u/234133181?v=4" },
-        { "alt": "Autor 3", "src": "https://avatars.githubusercontent.com/u/93956966?v=4" }
-      ]
-  },
-  {
-      "id": 4,
-      "nombre": "Corrección de errores en Flashlight Plus (v1.2.1)",
-      "excerpt": "Solucionamos un problema que causaba cierres inesperados en algunos dispositivos Samsung. Recomendamos actualizar.",
-      "category": "Parche",
-      "readTime": "2 min",
-      "date": "15 Febrero, 2026",
-      "image": "/flashlight-patch.jpg",
-      "author": "Equipo de Soporte",
-      "authorAvatar": "/avatars/support.jpg",
-      "fileUrl": "/flashlight-plus-v1.2.1.apk",
-      "appId": "flashlight-plus",
-      "version": "1.2.1",
-      "tags": ["Bug fix", "Estabilidad"],
-      "autores": [
-        { "alt": "Autor 1", "src": "https://avatars.githubusercontent.com/u/82086484?v=4" },
-        { "alt": "Autor 2", "src": "https://avatars.githubusercontent.com/u/234133181?v=4" },
-        { "alt": "Autor 3", "src": "https://avatars.githubusercontent.com/u/93956966?v=4" }
-      ]
-  },
-  {
-      "id": 5,
-      "nombre": "Actualización de seguridad crítica para todas las apps",
-      "excerpt": "Hemos parcheado una vulnerabilidad en la biblioteca de autenticación. Actualiza tus apps a las últimas versiones.",
-      "category": "Seguridad",
-      "readTime": "6 min",
-      "date": "10 Febrero, 2026",
-      "image": "/security-update.jpg",
-      "author": "Equipo de Seguridad",
-      "authorAvatar": "/avatars/security.jpg",
-      "fileUrl": "/security-update-v1.0.0.apk",
-      "appId": null,
-      "version": "múltiple",
-      "tags": ["Parche de seguridad", "Crítico"],
-      "autores": [
-        { "alt": "Autor 1", "src": "https://avatars.githubusercontent.com/u/82086484?v=4" },
-        { "alt": "Autor 2", "src": "https://avatars.githubusercontent.com/u/234133181?v=4" },
-        { "alt": "Autor 3", "src": "https://avatars.githubusercontent.com/u/93956966?v=4" }
-      ]
-  },
-  {
-      "id": 6,
-      "nombre": "¡Mi App 1 supera las 50.000 descargas!",
-      "excerpt": "Gracias a la comunidad por confiar en nosotros. Seguiremos mejorando cada día.",
-      "category": "Logro",
-      "readTime": "2 min",
-      "date": "5 Febrero, 2026",
-      "image": "/miapp1-milestone.jpg",
-      "author": "Equipo Mi App 1",
-      "authorAvatar": "/avatars/team-miapp1.jpg",
-      "fileUrl": "/mi-app-1-v2.4.apk",
-      "appId": "mi-app-1",
-      "version": "2.4",
-      "tags": ["Hito", "Comunidad"],
-      "autores": [
-        { "alt": "Autor 1", "src": "https://avatars.githubusercontent.com/u/82086484?v=4" },
-        { "alt": "Autor 2", "src": "https://avatars.githubusercontent.com/u/234133181?v=4" },
-        { "alt": "Autor 3", "src": "https://avatars.githubusercontent.com/u/93956966?v=4" }
-      ]
   }
 ]
