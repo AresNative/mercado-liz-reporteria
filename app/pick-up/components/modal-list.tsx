@@ -455,10 +455,21 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
         try {
             await putGeneral({
                 table: "listas",
-                id: pedidoId,
                 data: {
-                    estado: nuevoEstado,
-                    fecha_actualizacion: new Date().toISOString()
+                    Data: {
+                        "estado": nuevoEstado,
+                        "fecha_actualizacion": new Date().toISOString()
+                    },
+                    Filtros: {
+                        "Filtros": [
+                            {
+                                "Key": "ID",
+                                "Value": pedidoId,
+                                "Operator": "="
+                            }
+                        ],
+
+                    }
                 }
             }).unwrap();
 
@@ -504,11 +515,22 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
 
             await putGeneral({
                 table: "listas",
-                id: listaId,
                 data: {
-                    array_lista: arrayListaActualizado,
-                    fecha_actualizacion: new Date().toISOString()
-                }
+                    Data: {
+                        array_lista: arrayListaActualizado,
+                        fecha_actualizacion: new Date().toISOString()
+                    },
+                    Filtros: {
+                        "Filtros": [
+                            {
+                                "Key": "ID",
+                                "Value": listaId,
+                                "Operator": "="
+                            }
+                        ],
+
+                    }
+                },
             }).unwrap();
 
             setPedidoSeleccionado(prev => prev ? {
@@ -551,11 +573,22 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
 
             await putGeneral({
                 table: "listas",
-                id: listaId,
                 data: {
-                    array_lista: arrayListaActualizado,
-                    fecha_actualizacion: new Date().toISOString()
-                }
+                    Data: {
+                        array_lista: arrayListaActualizado,
+                        fecha_actualizacion: new Date().toISOString()
+                    },
+                    Filtros: {
+                        "Filtros": [
+                            {
+                                "Key": "ID",
+                                "Value": listaId,
+                                "Operator": "="
+                            }
+                        ],
+
+                    }
+                },
             }).unwrap();
 
             setPedidoSeleccionado(prev => prev ? {

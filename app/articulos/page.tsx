@@ -613,13 +613,24 @@ export default function GestionProductosConImagenes() {
         try {
             await putGeneral({
                 table: "articulos",
-                id: productoParaEditar.id,
                 data: {
-                    nombre: data.nombre,
-                    descripcion: data.descripcion,
-                    precio: parseFloat(data.precio),
-                    articulo: data.articulo
-                }
+                    Data: {
+                        nombre: data.nombre,
+                        descripcion: data.descripcion,
+                        precio: parseFloat(data.precio),
+                        articulo: data.articulo
+                    },
+                    Filtros: {
+                        "Filtros": [
+                            {
+                                "Key": "ID",
+                                "Value": productoParaEditar.id,
+                                "Operator": "="
+                            }
+                        ],
+
+                    }
+                },
             }).unwrap();
 
             dispatch(openAlertReducer({
@@ -648,11 +659,22 @@ export default function GestionProductosConImagenes() {
             const updates = selectedIds.map(id =>
                 putGeneral({
                     table: "articulos",
-                    id: id,
                     data: {
-                        precio: data.precio ? parseFloat(data.precio) : undefined,
-                        descripcion: data.descripcion || undefined
-                    }
+                        Data: {
+                            precio: data.precio ? parseFloat(data.precio) : undefined,
+                            descripcion: data.descripcion || undefined
+                        },
+                        Filtros: {
+                            "Filtros": [
+                                {
+                                    "Key": "ID",
+                                    "Value": id,
+                                    "Operator": "="
+                                }
+                            ],
+
+                        }
+                    },
                 })
             );
 

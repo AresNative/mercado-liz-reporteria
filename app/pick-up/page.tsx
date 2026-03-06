@@ -382,13 +382,25 @@ export default function GestionPedidos() {
 
     // ✅ Función para manejar actualizaciones de estado desde el modal
     const handleEstadoActualizadoDesdeModal = useCallback(async (pedidoId: number, nuevoEstado: string) => {
+        if (!pedidoId) return;
         try {
             await putGeneral({
                 table: "listas",
-                id: pedidoId,
                 data: {
-                    estado: nuevoEstado,
-                    fecha_actualizacion: new Date().toISOString()
+                    Data: {
+                        "estado": nuevoEstado,
+                        "fecha_actualizacion": new Date().toISOString()
+                    },
+                    Filtros: {
+                        "Filtros": [
+                            {
+                                "Key": "ID",
+                                "Value": pedidoId,
+                                "Operator": "="
+                            }
+                        ],
+
+                    }
                 }
             }).unwrap();
 
