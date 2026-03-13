@@ -53,7 +53,7 @@ export const BENTO_METRICS_CONFIG: Record<string, any[]> = {
       display: formatValue(0, "currency"),
       type: "currency",
       icon: TrendingUp,
-      description: "Utilidad neta",
+      description: "Utilidad bruta",
       styles: {
         icon: "text-purple-600 dark:text-purple-400",
       },
