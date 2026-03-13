@@ -39,6 +39,7 @@ import { ModalReporting } from "./components/modal-reporting";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
 import { useAppDispatch } from "@/hooks/selector";
 import { Button } from "@/components/button";
+import ScoreCard from "./components/modal-scorecard";
 
 // Interfaz para datos de tabla
 export interface TableData {
@@ -137,6 +138,7 @@ export default function Report() {
     const [searchApplied, setSearchApplied] = useState(false);
     const [lastSearch, setLastSearch] = useState<{ term: string; columnKey: string } | null>(null);
     const [showModal, setShowModal] = useState(false);
+    const [showModal2, setShowModal2] = useState(false);
     // Filtros avanzados borrador
     const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([
         {
@@ -271,6 +273,8 @@ export default function Report() {
         const response = await promise;
         setTableLoading(false);
         if (response.error) {
+            console.log(response);
+
             if (response.error.name === "AbortError") return;
             setTableError(response.error.message || "Error al cargar datos");
         } else {
@@ -1112,10 +1116,13 @@ export default function Report() {
                         iconRight
                         className="mb-6 text-white bg-linear-to-r from-green-800 to-green-600 dark:text-gray-200 p-3 md:p-4"
                     >
-                        <ul>
+                        <ul className="flex gap-2">
                             <Button
                                 label="Venta desglosada" color="success" size="small"
                                 onClick={() => { setShowModal(true); dispatch(openModalReducer({ modalName: "reporting" })) }} />
+                            <Button
+                                label="tarjeta de puntuación" color="success" size="small"
+                                onClick={() => { setShowModal2(true); dispatch(openModalReducer({ modalName: "scorecard" })) }} />
                         </ul>
                     </BentoItem>
                 )}
@@ -1624,6 +1631,7 @@ export default function Report() {
                 )}
             </section>
             <ModalReporting open={showModal} reportType={reportType} />
+            <ScoreCard open={showModal2} />
             <Footer />
         </>
     );
