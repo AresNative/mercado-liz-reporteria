@@ -1,44 +1,17 @@
 // global.ts
 import { useRef, useEffect } from "react";
-import {
-  useGetMasivoWithFiltersMutation,
-  useGetWithFiltersGeneralInIntelisisMutation,
-} from "@/hooks/api/api_int";
 import { safeCall } from "@/hooks/use-debounce";
 import { v4 as uuidv4 } from "uuid";
 import { ApiResponse } from "@/utils/types/consultas";
 
-export interface RequestPayload {
-  table: string;
-  filtros: {
-    selects?: Array<{ Key: string; Alias?: string }>;
-    agregaciones?: Array<{ Key: string; Alias: string; Operation: string }>;
-    Filtros?: Array<{
-      Filtros: Array<{ Key: string; Operator: string; Value: any }>;
-      OperadorLogico: "AND" | "OR";
-    }>;
-    FiltrosAnd?: Array<{
-      Filtros: Array<{ Key: string; Operator: string; Value: any }>;
-      OperadorLogico: "AND" | "OR";
-    }>;
-    FiltrosOr?: Array<{
-      Filtros: Array<{ Key: string; Operator: string; Value: any }>;
-      OperadorLogico: "AND" | "OR";
-    }>;
-    Order?: Array<{ Key: string; Direction: string }>;
-  };
-  page?: number;
-  pageSize?: number;
-  signal?: AbortSignal; // Se añade internamente
-}
-
- export type GetDataFunction = (args: any) => Promise<ApiResponse>;
+import { GetDataFunction, RequestPayload } from "./api";
+import { useGetWithFiltersMutation } from "../api/api";
 
 /**
  * Clase genérica para ejecutar cualquier tipo de consulta al endpoint getData.
  * Maneja automáticamente la cancelación de peticiones previas.
  */
-export class ManagmentRead {
+export class ManagmentWeb {
   private readonly getData: GetDataFunction;
   private activeControllers: Map<string, AbortController> = new Map();
 
@@ -101,29 +74,12 @@ export class ManagmentRead {
   }
 }
 
-export function useManagmentRead(): ManagmentRead {
-  const [getData] = useGetMasivoWithFiltersMutation();
-  const managerRef = useRef<ManagmentRead | null>(null);
+export function useManagmentWeb(): ManagmentWeb {
+  const [getData] = useGetWithFiltersMutation();
+  const managerRef = useRef<ManagmentWeb | null>(null);
 
   if (!managerRef.current) {
-    managerRef.current = new ManagmentRead(getData);
-  }
-
-  useEffect(() => {
-    const manager = managerRef.current;
-    return () => {
-      manager?.cancelAll();
-    };
-  }, []);
-
-  return managerRef.current;
-}
-export function useManagmentSearch(): ManagmentRead {
-  const [getData] = useGetWithFiltersGeneralInIntelisisMutation();
-  const managerRef = useRef<ManagmentRead | null>(null);
-
-  if (!managerRef.current) {
-    managerRef.current = new ManagmentRead(getData);
+    managerRef.current = new ManagmentWeb(getData);
   }
 
   useEffect(() => {
