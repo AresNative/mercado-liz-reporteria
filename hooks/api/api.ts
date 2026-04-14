@@ -102,13 +102,14 @@ export const api = createApi({
       extraOptions: { maxRetries: 2 },
     }),
     getWithFilters: builder.mutation({
-      query: ({ url, page, pageSize, filtros, signal }) => ({
-        url: `${url}/consultar/filtros`,
+      query: ({ table, page, pageSize, filtros, signal }) => ({
+        url: `v1/consultar/filtros`,
         method: "POST",
 
         params: {
           page,
           pageSize,
+          table
         },
         body: filtros,
         signal,
