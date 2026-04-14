@@ -5,7 +5,6 @@ import { BentoGrid, BentoItem } from "@/components/bento-grid";
 import Pagination from "@/components/pagination";
 import {
     formatDateDisplay,
-    formatDateISOString,
     formatValue,
 } from "@/utils/constants/format-values";
 import {
@@ -30,7 +29,7 @@ import { SearchColumn } from "./types/config";
 import { v4 as uuidv4 } from "uuid";
 import { RequestPayload, useManagmentRead, useManagmentSearch } from "@/hooks/classes/api";
 import { ReportType, StatsData } from "./types/consultas";
-import { CONFIG, QUERY_CONFIGS, SEARCH_COLUMNS_CONFIG } from "./utils/config-constants";
+import { CONFIG, QUERY_CONFIGS, SEARCH_COLUMNS_CONFIG, COMPARISON_QUERY_CONFIGS } from "./utils/config-constants";
 import { FilterGroup, FilterRule } from "@/utils/types/consultas";
 import { AppliedFilters, DateRange } from "./types/filter";
 import { FilterBuilder } from "./utils/filter-class";
@@ -73,11 +72,11 @@ const processStatsData = (statsData: any[] | any): StatsData => {
     // Calcular utilidad y margen
     if (out.totalVentas !== undefined) {
         if (out.totalCosto !== undefined) {
-            out.utilidad = +(out.totalVentas - out.totalCosto).toFixed(2);
+            out.utilidad = +(out.totalVentas - out.totalCosto - (out.totalMermas || 0)).toFixed(2);
             out.margen = out.totalVentas > 0 ? +((out.utilidad / out.totalVentas) * 100).toFixed(2) : 0;
         }
         if (out.totalCompras !== undefined) {
-            out.utilidad = +(out.totalVentas - out.totalCompras).toFixed(2);
+            out.utilidad = +(out.totalVentas - out.totalCompras - (out.totalMermas || 0)).toFixed(2);
             out.margen = out.totalVentas > 0 ? +((out.utilidad / out.totalVentas) * 100).toFixed(2) : 0;
             out.diferencia = out.utilidad;
             out.promedio = out.totalCompras > 0 ? +(out.totalVentas / out.totalCompras).toFixed(2) : 0;
@@ -115,6 +114,16 @@ export default function Report() {
     const [stats, setStats] = useState<StatsData>({});
     const [statsLoading, setStatsLoading] = useState(false);
     const [statsError, setStatsError] = useState<string | null>(null);
+
+    // Stats independientes para modo comparación
+    const [comparisonStats, setComparisonStats] = useState<{
+        ventas: StatsData & { totalCostoVentas?: number; totalArticulosVendidos?: number };
+        compras: StatsData & { totalCompras?: number; totalArticulosComprados?: number };
+        mermas: StatsData & { totalMermas?: number; totalArticulosMerma?: number };
+    }>({ ventas: {}, compras: {}, mermas: {} });
+    const [comparisonLoading, setComparisonLoading] = useState(false);
+    // Tab activa en la vista de tabla de comparación
+    const [comparisonTab, setComparisonTab] = useState<"ventas" | "compras" | "mermas">("ventas");
 
     const [refreshingTable, setRefreshingTable] = useState(false);
     const [refreshingStats, setRefreshingStats] = useState(false);
@@ -243,26 +252,85 @@ export default function Report() {
             });
             return builder.build();
         },
-        [quickMode, filterGroups, almacenFilter, dateRange, reportType, searchApplied]
+        [quickMode, filterGroups, searchTerm, searchColumn, almacenFilter, dateRange, reportType, searchApplied]
     );
+
+    // Deriva los alias válidos directamente del string `table` de QUERY_CONFIGS,
+    // leyendo todos los "... AS alias" que aparecen. Así nunca se desincroniza con config-constants.
+    const getValidAliasesFromTable = (tableStr: string): string[] => {
+        const matches = tableStr.matchAll(/\bAS\s+(\w+)/gi);
+        return Array.from(matches, m => m[1]);
+    };
+
+    // Alias válidos por sub-query de comparación — derivados del config real
+    const COMPARISON_VALID_ALIASES = {
+        ventas: getValidAliasesFromTable(QUERY_CONFIGS.ventas.table),
+        compras: getValidAliasesFromTable(QUERY_CONFIGS.compras.table),
+        mermas: getValidAliasesFromTable(QUERY_CONFIGS.mermas.table),
+    };
 
     // Cargar datos de tabla
     const fetchTableData = useCallback(async () => {
         setTableError(null);
         setTableLoading(true);
-        const config = QUERY_CONFIGS[appliedFilters.reportType];
         const { filtrosAnd, filtrosOr } = buildFiltros(true);
 
+        let tableConfig: { table: string; selects: any[]; fechaField: string };
+        let cleanFiltrosAnd = filtrosAnd;
+        let cleanFiltrosOr = filtrosOr;
+
+        if (appliedFilters.reportType === "comparacion") {
+            // Usar el config de la sub-query correspondiente al tab activo
+            const tabCfg = COMPARISON_QUERY_CONFIGS[comparisonTab];
+            const validAliases = COMPARISON_VALID_ALIASES[comparisonTab];
+            console.log(tabCfg, validAliases);
+            
+            // Selects del QUERY_CONFIGS base pero mapeados al tab activo
+            const tabQueryConfig = {
+                ventas: QUERY_CONFIGS.ventas,
+                compras: QUERY_CONFIGS.compras,
+                mermas: QUERY_CONFIGS.mermas,
+            }[comparisonTab];
+
+            tableConfig = {
+                table: tabQueryConfig.table,
+                selects: tabQueryConfig.selects ?? [],
+                fechaField: tabCfg.fechaField,
+            };
+
+            // Limpiar filtros de tablas ajenas
+            cleanFiltrosAnd = filtrosAnd
+                .map((group: any) => {
+                    const cleaned = (group.Filtros ?? [])
+                        .map((f: any) => {
+                            if (!f?.Key) return null;
+                            if (f.Key.includes("FechaEmision")) return { ...f, Key: tabCfg.fechaField };
+                            const alias = f.Key.split(".")[0];
+                            return validAliases.includes(alias as any) ? f : null;
+                        })
+                        .filter(Boolean);
+                    return cleaned.length > 0 ? { ...group, Filtros: cleaned } : null;
+                })
+                .filter(Boolean);
+        } else {
+            const config = QUERY_CONFIGS[appliedFilters.reportType];
+            tableConfig = {
+                table: config.table,
+                selects: config.selects ?? [],
+                fechaField: config.fechaField,
+            };
+        }
+
         const orderRules = appliedFilters.quickMode
-            ? [{ Key: config.fechaField, Direction: "desc" }]
+            ? [{ Key: tableConfig.fechaField, Direction: "desc" }]
             : appliedFilters.sortRules.filter((s) => s.column).map((s) => ({ Key: s.column, Direction: s.direction.toUpperCase() }));
 
         const payload: RequestPayload = {
-            table: config.table,
+            table: tableConfig.table,
             filtros: {
-                selects: config.selects,
-                ...(filtrosAnd.length > 0 && { FiltrosAnd: filtrosAnd }),
-                ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
+                selects: tableConfig.selects,
+                ...(cleanFiltrosAnd.length > 0 && { FiltrosAnd: cleanFiltrosAnd }),
+                ...(cleanFiltrosOr.length > 0 && { FiltrosOr: cleanFiltrosOr }),
                 ...(orderRules.length > 0 && { Order: orderRules }),
             },
             page: currentPage,
@@ -274,7 +342,6 @@ export default function Report() {
         setTableLoading(false);
         if (response.error) {
             console.log(response);
-
             if (response.error.name === "AbortError") return;
             setTableError(response.error.message || "Error al cargar datos");
         } else {
@@ -282,7 +349,7 @@ export default function Report() {
             setTotalRecords(response.data?.totalRecords || response.data?.totalEstimated || 0);
             setCurrentPage(response.data?.page || 1);
         }
-    }, [reportType, pageSize, currentPage, buildFiltros, sortRules, manager]);
+    }, [reportType, pageSize, currentPage, buildFiltros, sortRules, manager, comparisonTab]);
 
     // Cargar sugerencias de búsqueda (basadas en borrador, no en applied)
     const fetchSuggestions = useCallback(async (reset = false) => {
@@ -404,10 +471,144 @@ export default function Report() {
         [reportType, manager]
     );
 
+    // Cargar las tres consultas independientes de comparación en paralelo
+    const fetchComparisonStats = useCallback(
+        async (forceRefresh = false) => {
+            if (!showStats) return;
+            setStatsError(null);
+            setComparisonLoading(true);
+            if (forceRefresh) setRefreshingStats(true);
+
+            const { filtrosAnd } = buildFiltros(true);
+
+            const VALID_ALIASES: Record<keyof typeof COMPARISON_QUERY_CONFIGS, string[]> = {
+                ventas: getValidAliasesFromTable(QUERY_CONFIGS.ventas.table),
+                compras: getValidAliasesFromTable(QUERY_CONFIGS.compras.table),
+                mermas: getValidAliasesFromTable(QUERY_CONFIGS.mermas.table),
+            };
+
+            const makePayload = (key: keyof typeof COMPARISON_QUERY_CONFIGS): RequestPayload => {
+                const cfg = COMPARISON_QUERY_CONFIGS[key];
+                const validAliases = VALID_ALIASES[key];
+
+                const adjustedFiltrosAnd = filtrosAnd
+                    .map((group: any) => {
+                        const cleanedFiltros = (group.Filtros ?? [])
+                            .map((f: any) => {
+                                if (!f?.Key) return null;
+                                // Redirigir filtros de fecha al fechaField correcto de esta sub-query
+                                if (f.Key.includes("FechaEmision")) {
+                                    return { ...f, Key: cfg.fechaField };
+                                }
+                                // Descartar filtros que referencian tablas ajenas (e.g. venta.Estatus en compras)
+                                const alias = f.Key.split(".")[0];
+                                if (!validAliases.includes(alias)) return null;
+                                return f;
+                            })
+                            .filter(Boolean);
+
+                        return cleanedFiltros.length > 0
+                            ? { ...group, Filtros: cleanedFiltros }
+                            : null;
+                    })
+                    .filter(Boolean);
+
+                return {
+                    table: cfg.table,
+                    filtros: {
+                        agregaciones: cfg.agregaciones as any,
+                        ...(adjustedFiltrosAnd.length > 0 && { FiltrosAnd: adjustedFiltrosAnd }),
+                    },
+                    page: 1,
+                    pageSize: 1,
+                };
+            };
+
+            try {
+                // Secuencial — el backend usa tablas temporales (#Tmp_) por sesión;
+                // Promise.all causa que una query referencie la temp de otra (error 208).
+                const resVentas = await manager.execute(makePayload("ventas")).promise;
+                if (resVentas.error) {
+                    if (resVentas.error.name !== "AbortError")
+                        setStatsError(resVentas.error.message || "Error en ventas");
+                    return;
+                }
+                const resCompras = await manager.execute(makePayload("compras")).promise;
+                if (resCompras.error) {
+                    if (resCompras.error.name !== "AbortError")
+                        setStatsError(resCompras.error.message || "Error en compras");
+                    return;
+                }
+                const resMermas = await manager.execute(makePayload("mermas")).promise;
+                if (resMermas.error) {
+                    if (resMermas.error.name !== "AbortError")
+                        setStatsError(resMermas.error.message || "Error en mermas");
+                    return;
+                }
+
+                // Leer el row crudo — los aliases vienen exactamente como los define COMPARISON_QUERY_CONFIGS
+                const v = resVentas.data?.data?.[0] ?? {};
+                const c = resCompras.data?.data?.[0] ?? {};
+                const m = resMermas.data?.data?.[0] ?? {};
+
+                const ventasData: StatsData & Record<string, any> = {
+                    totalVentas: +v.totalVentas || 0,
+                    totalCostoVentas: +v.totalCostoVentas || 0,
+                    totalTikets: +v.totalTikets || 0,
+                    totalArticulosVendidos: +v.totalArticulosVendidos || 0,
+                };
+
+                const comprasData: StatsData & Record<string, any> = {
+                    totalCompras: +c.totalCompras || 0,
+                    totalProveedores: +c.totalProveedores || 0,
+                    totalArticulosComprados: +c.totalArticulosComprados || 0,
+                };
+
+                const mermasData: StatsData & Record<string, any> = {
+                    totalMermas: +m.totalMermas || 0,
+                    totalArticulosMerma: +m.totalArticulosMerma || 0,
+                };
+
+                setComparisonStats({ ventas: ventasData, compras: comprasData, mermas: mermasData });
+
+                // Fusionar en stats global para que los BentoItems existentes sigan funcionando
+                const totalVentas = ventasData.totalVentas ?? 0;
+                const totalCompras = comprasData.totalCompras ?? 0;
+
+                const merged: StatsData = {
+                    totalVentas,
+                    totalCosto: ventasData.totalCostoVentas,
+                    totalTikets: ventasData.totalTikets,
+                    totalCompras,
+                    totalProveedores: comprasData.totalProveedores,
+                    totalArticulos: ventasData.totalArticulosVendidos,
+                };
+                merged.utilidad = +(totalVentas - totalCompras).toFixed(2);
+                merged.margen = totalVentas > 0
+                    ? +((merged.utilidad / totalVentas) * 100).toFixed(2)
+                    : 0;
+                merged.diferencia = merged.utilidad;
+                setStats(merged);
+            } catch (err: any) {
+                if (err?.name !== "AbortError") {
+                    setStatsError("Error al cargar comparación");
+                }
+            } finally {
+                setComparisonLoading(false);
+                setRefreshingStats(false);
+            }
+        },
+        [buildFiltros, manager, showStats]
+    );
+
     // Cargar estadísticas agregadas (usando appliedFilters)
     const fetchStatsData = useCallback(
         async (forceRefresh = false) => {
-            if (!showStats) return; // No cargar si está oculto
+            if (!showStats) return;
+            // En modo comparación, delegar a fetchComparisonStats
+            if (reportType === "comparacion") {
+                return fetchComparisonStats(forceRefresh);
+            }
             setStatsError(null);
             setStatsLoading(true);
             if (forceRefresh) setRefreshingStats(true);
@@ -438,7 +639,7 @@ export default function Report() {
                 setStats(processed);
             }
         },
-        [reportType, buildFiltros, manager, showStats]
+        [reportType, buildFiltros, manager, showStats, fetchComparisonStats]
     );
 
     // Cargar todo (tabla + estadísticas)
@@ -457,7 +658,7 @@ export default function Report() {
         return () => {
             manager.cancelAll();
         };
-    }, [reportType, almacenFilter, dateRange, searchApplied, searchColumn, showStats, currentPage, pageSize]); // ✅ Agregado currentPage
+    }, [reportType, almacenFilter, dateRange, searchApplied, searchColumn, showStats, currentPage, pageSize, comparisonTab]);
 
     // Handlers para aplicar filtros
     const applyAllFilters = () => {
@@ -537,8 +738,10 @@ export default function Report() {
         setCurrentPage(1);
 
         try {
-            // Construir el payload manualmente
-            const config = QUERY_CONFIGS[reportType];
+            // En comparación usar el config del tab activo, no QUERY_CONFIGS.comparacion
+            const config = reportType === "comparacion"
+                ? QUERY_CONFIGS[comparisonTab]
+                : QUERY_CONFIGS[reportType];
             const builder = new FilterBuilder({
                 quickMode,
                 filterGroups: newAppliedFilters.filterGroups,
@@ -639,7 +842,7 @@ export default function Report() {
             setLastSearch({ term: searchTerm, columnKey: searchColumn.key });
         }
         setReportType(type);
-        // Actualizar appliedFilters también para cambiar el reporte
+        if (type === "comparacion") setComparisonTab("ventas");
         setAppliedFilters((prev) => ({
             ...prev,
             reportType: type,
@@ -693,7 +896,8 @@ export default function Report() {
             })
             : baseMetrics;
 
-        return filteredMetrics.map((metric) => {
+        return filteredMetrics.map((metricRaw) => {
+            const metric = { ...metricRaw }; // clonar para no mutar BENTO_METRICS_CONFIG
             const key = metric.title.toLowerCase().replace(/\s+/g, "");
 
             let raw = 0;
@@ -761,8 +965,10 @@ export default function Report() {
     const searchColumns = SEARCH_COLUMNS_CONFIG[reportType];
 
     const getAvailableColumns = () => {
-        const config = QUERY_CONFIGS[reportType];
-        if (!config) return [];
+        const config = reportType === "comparacion"
+            ? QUERY_CONFIGS[comparisonTab]
+            : QUERY_CONFIGS[reportType];
+        if (!config?.selects) return [];
         return config.selects.map((select: any) => ({
             value: select.Key,
             label: `${select.Key.split(".")[0]}.${select.Alias || select.Key.split(".")[1] || select.Key}`,
@@ -967,7 +1173,18 @@ export default function Report() {
                             </div>
                         </div>
                     </li>
+                    
                     <li className="flex gap-2">
+                        {(reportType === "ventas" || reportType === "comparacion") && (
+                            <>
+                                <Button
+                                    label="Venta desglosada" color="success" size="small"
+                                    onClick={() => { setShowModal(true); dispatch(openModalReducer({ modalName: "reporting" })) }} />
+                                <Button
+                                    label="tarjeta de puntuación" color="success" size="small"
+                                    onClick={() => { setShowModal2(true); dispatch(openModalReducer({ modalName: "scorecard" })) }} />
+                            </>
+                        )}
                         <button
                             onClick={() => fetchStatsData(true)}
                             disabled={statsLoading || refreshingStats}
@@ -994,7 +1211,7 @@ export default function Report() {
                                 setCurrentPage(1);
                                 fetchCurrentReportData();
                             }}
-                            disabled={tableLoading || statsLoading}
+                            disabled={tableLoading || statsLoading || comparisonLoading}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
                             title="Recargar todo"
                         >
@@ -1044,7 +1261,7 @@ export default function Report() {
                 )}
 
                 {/* Indicador de carga global */}
-                {(tableLoading || refreshingTable || statsLoading || refreshingStats) && (
+                {(tableLoading || refreshingTable || statsLoading || refreshingStats || comparisonLoading) && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
                         <div className="flex items-center gap-3">
                             <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
@@ -1052,7 +1269,7 @@ export default function Report() {
                                 <div className="font-medium text-blue-700 dark:text-blue-300">
                                     {refreshingTable
                                         ? "Actualizando tabla..."
-                                        : refreshingStats
+                                        : refreshingStats || comparisonLoading
                                             ? "Actualizando estadísticas..."
                                             : tableLoading
                                                 ? "Cargando datos..."
@@ -1060,7 +1277,7 @@ export default function Report() {
                                 </div>
                                 {appliedFilters.reportType === "comparacion" && (
                                     <div className="text-sm text-blue-600/80 dark:text-blue-400/80 mt-1">
-                                        Este reporte combina datos de ventas y compras, puede tardar un momento...
+                                        Ejecutando 3 consultas independientes (ventas → compras → mermas)...
                                     </div>
                                 )}
                             </div>
@@ -1110,25 +1327,160 @@ export default function Report() {
                         )}
                     </div>
                 )}
-                {reportType === "ventas" && (
-                    <BentoItem
-                        title="Mas detalles"
-                        iconRight
-                        className="mb-6 text-white bg-linear-to-r from-green-800 to-green-600 dark:text-gray-200 p-3 md:p-4"
-                    >
-                        <ul className="flex gap-2">
-                            <Button
-                                label="Venta desglosada" color="success" size="small"
-                                onClick={() => { setShowModal(true); dispatch(openModalReducer({ modalName: "reporting" })) }} />
-                            <Button
-                                label="tarjeta de puntuación" color="success" size="small"
-                                onClick={() => { setShowModal2(true); dispatch(openModalReducer({ modalName: "scorecard" })) }} />
-                        </ul>
-                    </BentoItem>
+
+                {/* ── Panel de comparativa detallada ───────────────────────────────── */}
+                {reportType === "comparacion" && showStats && (
+                    <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
+                        {/* Cabecera */}
+                        <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                            <GitCompare className="h-4 w-4 text-indigo-500" />
+                            <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm">
+                                Comparativa del período
+                            </span>
+                            {comparisonLoading && (
+                                <Loader2 className="h-3 w-3 animate-spin text-indigo-400 ml-1" />
+                            )}
+                        </div>
+
+                        {/* Tres columnas */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-gray-700">
+
+                            {/* Ventas */}
+                            <div className="p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+                                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Ventas</span>
+                                </div>
+                                <dl className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Total vendido</dt>
+                                        <dd className="font-medium text-green-600 dark:text-green-400">
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue(comparisonStats.ventas.totalVentas ?? 0, "currency")}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Costo de venta</dt>
+                                        <dd className="font-medium text-gray-700 dark:text-gray-300">
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue((comparisonStats.ventas as any).totalCostoVentas ?? 0, "currency")}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Tickets</dt>
+                                        <dd className="font-medium text-gray-700 dark:text-gray-300">
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue(comparisonStats.ventas.totalTikets ?? 0, "number")}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Artículos distintos</dt>
+                                        <dd className="font-medium text-gray-700 dark:text-gray-300">
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue((comparisonStats.ventas as any).totalArticulosVendidos ?? 0, "number")}
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
+
+                            {/* Compras */}
+                            <div className="p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+                                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Compras</span>
+                                </div>
+                                <dl className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Total comprado</dt>
+                                        <dd className="font-medium text-blue-600 dark:text-blue-400">
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue((comparisonStats.compras as any).totalCompras ?? 0, "currency")}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Proveedores</dt>
+                                        <dd className="font-medium text-gray-700 dark:text-gray-300">
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue(comparisonStats.compras.totalProveedores ?? 0, "number")}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Artículos distintos</dt>
+                                        <dd className="font-medium text-gray-700 dark:text-gray-300">
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue((comparisonStats.compras as any).totalArticulosComprados ?? 0, "number")}
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
+
+                            {/* Mermas + resumen */}
+                            <div className="p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="inline-block w-2 h-2 rounded-full bg-orange-500" />
+                                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Mermas</span>
+                                </div>
+                                <dl className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Total merma</dt>
+                                        <dd className="font-medium text-orange-600 dark:text-orange-400">
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue((comparisonStats.mermas as any).totalMermas ?? 0, "currency")}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Artículos afectados</dt>
+                                        <dd className="font-medium text-gray-700 dark:text-gray-300">
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue((comparisonStats.mermas as any).totalArticulosMerma ?? 0, "number")}
+                                        </dd>
+                                    </div>
+                                </dl>
+
+                                {/* Separador y resumen de utilidad */}
+                                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400 font-medium">Utilidad bruta</dt>
+                                        <dd className={`font-bold ${(stats.utilidad ?? 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue(stats.utilidad ?? 0, "currency")}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400 font-medium">Margen</dt>
+                                        <dd className={`font-bold ${(stats.margen ?? 0) >= 20 ? "text-green-600 dark:text-green-400" : (stats.margen ?? 0) >= 10 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>
+                                            {comparisonLoading ? <Loader2 className="h-3 w-3 animate-spin inline" /> : formatValue(stats.margen ?? 0, "percentage")}
+                                        </dd>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 )}
+                
                 {/* Tabla */}
                 {reportType && (
                     <article className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
+
+                        {/* Tabs de sub-consulta para comparación */}
+                        {reportType === "comparacion" && (
+                            <div className="flex gap-1 mb-5 p-1 bg-gray-100 dark:bg-gray-900 rounded-lg w-fit">
+                                {(["ventas", "compras", "mermas"] as const).map((tab) => {
+                                    const labels = { ventas: "Ventas", compras: "Compras", mermas: "Mermas" };
+                                    const colors = {
+                                        ventas: "bg-white dark:bg-gray-700 text-green-700 dark:text-green-400 shadow-sm",
+                                        compras: "bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-400 shadow-sm",
+                                        mermas: "bg-white dark:bg-gray-700 text-orange-700 dark:text-orange-400 shadow-sm",
+                                    };
+                                    const dots = { ventas: "bg-green-500", compras: "bg-blue-500", mermas: "bg-orange-500" };
+                                    const isActive = comparisonTab === tab;
+                                    return (
+                                        <button
+                                            key={tab}
+                                            onClick={() => { setComparisonTab(tab); setCurrentPage(1); }}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${isActive
+                                                ? colors[tab]
+                                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                                }`}
+                                        >
+                                            <span className={`w-2 h-2 rounded-full ${dots[tab]}`} />
+                                            {labels[tab]}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+
                         {/* Filtros desktop */}
                         <div className="md:flex flex-col gap-3 mb-6">
                             <div className="flex flex-wrap gap-3 items-center">

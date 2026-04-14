@@ -5,31 +5,51 @@ import Header from "@/template/header";
 import { EnvConfig } from "@/utils/constants/env.config";
 import { getCookie } from "@/utils/functions/cookies";
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
-import { useState, ChangeEvent } from "react";
+import { useState, ChangeEvent, FormEvent } from "react";
 
 const USER_DATA_KEY = "userData";
 
-interface ParsedRow {
-    [key: string]: string;
-    Rama: string;
-    Cuenta: string;
-    Propiedad: string;
-    Valor: string;
-}
+// ============================================================================
+// Tipos e interfaces (coinciden con el backend)
+// ============================================================================
 
 interface Filter {
     Key: string;
     Value: string;
-    Operator: string;
+    Operator?: string;
 }
 
-interface UpdateRequest {
-    Data: {
-        Valor: number;
-    };
-    Filtros: {
-        Filtros: Filter[];
-    };
+interface SelectItem {
+    Key: string;
+    Alias?: string;
+}
+
+interface AgregacionItem {
+    Key: string;
+    Operation?: string;
+    Alias?: string;
+}
+
+interface OrderItem {
+    Key: string;
+    Direction?: string;
+}
+
+interface FiltrosRequest {
+    Selects?: SelectItem[];
+    Agregaciones?: AgregacionItem[];
+    Filtros?: Filter[];
+    FiltrosAnd?: { OperadorLogico: string; Filtros: Filter[] }[];
+    FiltrosOr?: { OperadorLogico: string; Filtros: Filter[] }[];
+    Order?: OrderItem[];
+    Having?: Filter[];
+    Page?: number;
+    PageSize?: number;
+}
+
+interface ActualizarRequest {
+    Data: Record<string, any>;
+    Filtros: Filter[];
 }
 
 interface Notification {
@@ -38,469 +58,660 @@ interface Notification {
     type: "success" | "error" | "info";
 }
 
-interface ApiError {
-    row: number;
-    cuenta: string;
-    propiedad: string;
-    error: string;
-}
-
-interface ApiResponse {
-    ok: boolean;
-    status?: number;
-    statusText?: string;
-    error?: string;
-    data?: any;
-}
+// ============================================================================
+// Componente principal
+// ============================================================================
 
 const Page = () => {
-    const [fileContent, setFileContent] = useState<string>("");
-    const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
-    const [isUploading, setIsUploading] = useState<boolean>(false);
-    const [uploadProgress, setUploadProgress] = useState<number>(0);
-    const [tableName, setTableName] = useState<string>("general");
-    const [status, setStatus] = useState<string>("");
+    // Estado global
+    const [activeTab, setActiveTab] = useState<
+        "consultaId" | "consultaAvanzada" | "registrar" | "actualizarMasivo" | "archivar" | "eliminar"
+    >("actualizarMasivo");
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [errors, setErrors] = useState<ApiError[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
-    // Función para mostrar notificaciones
-    const showNotification = (message: string, type: Notification["type"] = "info"): void => {
+    // ── Consulta por ID ──────────────────────────────────────────────────────
+    const [consultaIdTable, setConsultaIdTable] = useState("general");
+    const [consultaIdColumn, setConsultaIdColumn] = useState("id");
+    const [consultaIdValue, setConsultaIdValue] = useState("");
+    const [consultaIdResult, setConsultaIdResult] = useState<any>(null);
+
+    // ── Consulta avanzada ───────────────────────────────────────────────────
+    const [advFromClause, setAdvFromClause] = useState("");
+    const [advPage, setAdvPage] = useState(1);
+    const [advPageSize, setAdvPageSize] = useState(10);
+    const [advFilters, setAdvFilters] = useState<Filter[]>([{ Key: "", Value: "", Operator: "=" }]);
+    const [advResult, setAdvResult] = useState<any>(null);
+
+    // ── Registrar ───────────────────────────────────────────────────────────
+    const [regTable, setRegTable] = useState("general");
+    const [regJson, setRegJson] = useState("{\n  \"campo\": \"valor\"\n}");
+    const [regResult, setRegResult] = useState<any>(null);
+
+    // ── Actualización masiva (original) ─────────────────────────────────────
+    const [fileContent, setFileContent] = useState<string>("");
+    const [parsedData, setParsedData] = useState<any[]>([]);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [massiveTable, setMassiveTable] = useState("general");
+    const [massiveStatus, setMassiveStatus] = useState("");
+    const [massiveErrors, setMassiveErrors] = useState<any[]>([]);
+
+    // ── Archivar / Eliminar ─────────────────────────────────────────────────
+    const [deleteTable, setDeleteTable] = useState("general");
+    const [deleteColumn, setDeleteColumn] = useState("id");
+    const [deleteId, setDeleteId] = useState("");
+    const [deleteResult, setDeleteResult] = useState<any>(null);
+
+    // ============================================================================
+    // Helpers
+    // ============================================================================
+
+    const showNotification = (message: string, type: Notification["type"] = "info") => {
         const id = Date.now();
-        setNotifications(prev => [...prev, { id, message, type }]);
-
-        // Auto-remover notificación después de 5 segundos
+        setNotifications((prev) => [...prev, { id, message, type }]);
         setTimeout(() => {
-            setNotifications(prev => prev.filter(n => n.id !== id));
+            setNotifications((prev) => prev.filter((n) => n.id !== id));
         }, 5000);
     };
 
-    // Función para parsear el archivo TXT
-    const parseTxtFile = (content: string): ParsedRow[] => {
-        const lines = content.split('\n');
-        const data: ParsedRow[] = [];
-
-        if (lines.length === 0) return data;
-
-        // Asumimos que la primera línea son los encabezados
-        const headers = lines[0].split('\t');
-
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-
-            const values = line.split('\t');
-            const row: ParsedRow = {
-                Rama: "",
-                Cuenta: "",
-                Propiedad: "",
-                Valor: ""
-            };
-
-            headers.forEach((header, index) => {
-                if (values[index]) {
-                    const headerKey = header.trim() as keyof ParsedRow;
-                    row[headerKey] = values[index].trim();
-                }
-            });
-
-            // Solo agregar filas que tengan datos mínimos
-            if (row.Cuenta && row.Propiedad && row.Valor) {
-                data.push(row);
-            }
-        }
-
-        return data;
-    };
-
-    // Manejar la carga del archivo
-    const handleFileUpload = (e: ChangeEvent<HTMLInputElement>): void => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event: ProgressEvent<FileReader>) => {
-            const content = event.target?.result as string;
-            setFileContent(content);
-            const parsed = parseTxtFile(content);
-            setParsedData(parsed);
-            showNotification(`${parsed.length} registros cargados exitosamente`, "success");
-        };
-        reader.readAsText(file);
-    };
     const getAuthToken = async (): Promise<string | null> => {
         try {
-            // Primero buscar en cookies
             let token = getCookie("token");
-
-            // Si no hay token en cookies, buscar en localStorage
             if (!token) {
                 const userData = getLocalStorageItem(USER_DATA_KEY);
-
-                // userData es un objeto, necesitamos extraer el token
                 if (userData && typeof userData === "object" && userData.token) {
                     token = userData.token;
                 }
             }
-
             return token;
         } catch (error) {
             console.error("Error obteniendo token:", error);
             return null;
         }
     };
-    // Función para hacer llamadas API
-    const apiRequest = async (url: string, method: string, data: UpdateRequest): Promise<ApiResponse> => {
+
+    const apiRequest = async (url: string, method: string, body?: any) => {
+        const token = await getAuthToken();
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const response = await fetch(url, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : undefined,
+        });
+
+        let data = null;
         try {
-            const token = await getAuthToken();
-
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-            };
-
-            // Agregar token a los headers si existe
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const response = await fetch(url, {
-                method: method,
-                headers,
-                body: JSON.stringify(data)
-            });
-
-            return {
-                ok: response.ok,
-                status: response.status,
-                statusText: response.statusText,
-                data: await response.json()
-            };
-        } catch (error) {
-            return {
-                ok: false,
-                error: error instanceof Error ? error.message : "Error desconocido"
-            };
+            data = await response.json();
+        } catch {
+            // sin body
         }
+
+        if (!response.ok) {
+            throw new Error(data?.Message || data?.message || response.statusText);
+        }
+        return data;
     };
 
-    // Función para procesar actualizaciones
-    const processUpdates = async (): Promise<void> => {
-        if (parsedData.length === 0) {
-            showNotification("No hay datos para procesar", "error");
+    // ============================================================================
+    // Manejadores específicos
+    // ============================================================================
+
+    // ── Consulta por ID ──────────────────────────────────────────────────────
+    const handleConsultaId = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!consultaIdValue) {
+            showNotification("Ingrese un valor ID", "error");
             return;
         }
+        setIsLoading(true);
+        try {
+            const { api_int } = EnvConfig();
+            const url = `${api_int}v1/consultar/${encodeURIComponent(consultaIdValue)}?table=${encodeURIComponent(consultaIdTable)}&column=${encodeURIComponent(consultaIdColumn)}`;
+            const data = await apiRequest(url, "GET");
+            setConsultaIdResult(data);
+            showNotification("Consulta exitosa", "success");
+        } catch (err: any) {
+            showNotification(err.message, "error");
+            setConsultaIdResult({ error: err.message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        setIsUploading(true);
+    // ── Consulta avanzada ────────────────────────────────────────────────────
+    const handleConsultaAvanzada = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!advFromClause.trim()) {
+            showNotification("El campo FROM clause es obligatorio", "error");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const body: FiltrosRequest = {
+                Page: advPage,
+                PageSize: advPageSize,
+                Filtros: advFilters.filter((f) => f.Key && f.Value),
+            };
+            const { api_int } = EnvConfig();
+            const url = `${api_int}v1/consultar?fromClause=${encodeURIComponent(advFromClause)}`;
+            const data = await apiRequest(url, "POST", body);
+            setAdvResult(data);
+            showNotification("Consulta avanzada exitosa", "success");
+        } catch (err: any) {
+            showNotification(err.message, "error");
+            setAdvResult({ error: err.message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const addAdvFilter = () => {
+        setAdvFilters([...advFilters, { Key: "", Value: "", Operator: "=" }]);
+    };
+    const removeAdvFilter = (idx: number) => {
+        setAdvFilters(advFilters.filter((_, i) => i !== idx));
+    };
+    const updateAdvFilter = (idx: number, field: keyof Filter, value: string) => {
+        const newFilters = [...advFilters];
+        newFilters[idx][field] = value;
+        setAdvFilters(newFilters);
+    };
+
+    // ── Registrar ────────────────────────────────────────────────────────────
+    const handleRegistrar = async (e: FormEvent) => {
+        e.preventDefault();
+        let jsonData;
+        try {
+            jsonData = JSON.parse(regJson);
+        } catch {
+            showNotification("JSON inválido", "error");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const { api_int } = EnvConfig();
+            const url = `${api_int}v1/register?table=${encodeURIComponent(regTable)}`;
+            const data = await apiRequest(url, "POST", jsonData);
+            setRegResult(data);
+            showNotification("Registro insertado", "success");
+        } catch (err: any) {
+            showNotification(err.message, "error");
+            setRegResult({ error: err.message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // ── Actualización masiva (desde archivo TXT) ────────────────────────────
+    const parseTxtFile = (content: string): any[] => {
+        const lines = content.split("\n");
+        if (lines.length === 0) return [];
+        const headers = lines[0].split("\t");
+        const data: any[] = [];
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            const values = line.split("\t");
+            const row: any = {};
+            headers.forEach((header, idx) => {
+                row[header.trim()] = values[idx]?.trim() || "";
+            });
+            if (row.Cuenta && row.Propiedad) data.push(row);
+        }
+        return data;
+    };
+
+    const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const content = event.target?.result as string;
+            setFileContent(content);
+            const parsed = parseTxtFile(content);
+            setParsedData(parsed);
+            showNotification(`${parsed.length} registros cargados`, "success");
+        };
+        reader.readAsText(file);
+    };
+
+    const processMassiveUpdates = async () => {
+        if (parsedData.length === 0) {
+            showNotification("No hay datos cargados", "error");
+            return;
+        }
+        setIsLoading(true);
         setUploadProgress(0);
-        setStatus("Iniciando actualización...");
-        setErrors([]);
+        setMassiveStatus("Iniciando...");
+        setMassiveErrors([]);
+        let success = 0;
+        let errors: any[] = [];
+        const { api_int } = EnvConfig();
+        const baseUrl = `${api_int}v1/update/${encodeURIComponent(massiveTable)}`;
 
-        let successCount = 0;
-        let errorCount = 0;
-        const errorList: ApiError[] = [];
-
-        // Procesar cada registro
         for (let i = 0; i < parsedData.length; i++) {
             const row = parsedData[i];
-
-            // Preparar el request
-            const updateRequest: UpdateRequest = {
-                Data: {
-                    Valor: parseFloat(row.Valor) || 0
-                },
-                Filtros: {
-                    Filtros: [
-                        {
-                            Key: "Cuenta",
-                            Value: row.Cuenta,
-                            Operator: "="
-                        },
-                        {
-                            Key: "Propiedad",
-                            Value: row.Propiedad,
-                            Operator: "="
-                        }
-                    ]
-                }
+            const updateRequest: ActualizarRequest = {
+                Data: { Valor: parseFloat(row.Valor) || 0 },
+                Filtros: [
+                    { Key: "Cuenta", Value: row.Cuenta, Operator: "=" },
+                    { Key: "Propiedad", Value: row.Propiedad, Operator: "=" },
+                ],
             };
-
-            // Añadir Rama si existe en los datos
             if (row.Rama) {
-                updateRequest.Filtros.Filtros.push({
-                    Key: "Rama",
-                    Value: row.Rama,
-                    Operator: "="
-                });
+                updateRequest.Filtros.push({ Key: "Rama", Value: row.Rama, Operator: "=" });
             }
-
-            const { api_int: apiUrl } = EnvConfig();
-            // Realizar la llamada API
-            const response = await apiRequest(
-                `${apiUrl}/v1/update/${tableName}`,
-                "PUT",
-                updateRequest
-            );
-
-            if (response.ok) {
-                successCount++;
-            } else {
-                errorCount++;
-                errorList.push({
-                    row: i + 1,
-                    cuenta: row.Cuenta,
-                    propiedad: row.Propiedad,
-                    error: response.error || response.statusText || "Error desconocido"
-                });
+            try {
+                await apiRequest(baseUrl, "PUT", updateRequest);
+                success++;
+            } catch (err: any) {
+                errors.push({ row: i + 1, cuenta: row.Cuenta, propiedad: row.Propiedad, error: err.message });
             }
-
-            // Actualizar progreso
             const progress = Math.round(((i + 1) / parsedData.length) * 100);
             setUploadProgress(progress);
-            setStatus(`Procesando ${i + 1} de ${parsedData.length} registros...`);
-
-            // Pequeño delay para no saturar el servidor
-            await new Promise(resolve => setTimeout(resolve, 100));
+            setMassiveStatus(`Procesando ${i + 1} de ${parsedData.length}`);
+            await new Promise((r) => setTimeout(r, 100));
         }
-
-        setIsUploading(false);
-        setStatus(`Proceso completado. Éxitos: ${successCount}, Errores: ${errorCount}`);
-        setErrors(errorList);
-
-        if (errorCount > 0) {
-            showNotification(`Se encontraron ${errorCount} errores`, "error");
+        setIsLoading(false);
+        setMassiveStatus(`Completado. Éxitos: ${success}, Errores: ${errors.length}`);
+        setMassiveErrors(errors);
+        if (errors.length === 0) {
+            showNotification("Todos los registros fueron actualizados", "success");
         } else {
-            showNotification(`Todos los ${successCount} registros fueron actualizados exitosamente`, "success");
+            showNotification(`${errors.length} errores encontrados`, "error");
         }
     };
 
-    // Vista previa de los datos
-    const renderPreview = () => {
-        if (parsedData.length === 0) {
-            return <p className="text-gray-500">No hay datos cargados</p>;
+    // ── Archivar / Eliminar ──────────────────────────────────────────────────
+    const handleArchive = async () => {
+        if (!deleteId) {
+            showNotification("Ingrese un ID", "error");
+            return;
         }
+        setIsLoading(true);
+        try {
+            const { api_int } = EnvConfig();
+            const url = `${api_int}v1/archivar/${encodeURIComponent(deleteId)}?table=${encodeURIComponent(deleteTable)}&column=${encodeURIComponent(deleteColumn)}`;
+            const data = await apiRequest(url, "DELETE");
+            setDeleteResult(data);
+            showNotification("Registro archivado", "success");
+        } catch (err: any) {
+            showNotification(err.message, "error");
+            setDeleteResult({ error: err.message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        const headers = Object.keys(parsedData[0]);
+    const handleDelete = async () => {
+        if (!deleteId) {
+            showNotification("Ingrese un ID", "error");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const { api_int } = EnvConfig();
+            const url = `${api_int}v1/delete/${encodeURIComponent(deleteId)}?table=${encodeURIComponent(deleteTable)}&column=${encodeURIComponent(deleteColumn)}`;
+            const data = await apiRequest(url, "DELETE");
+            setDeleteResult(data);
+            showNotification("Registro eliminado permanentemente", "success");
+        } catch (err: any) {
+            showNotification(err.message, "error");
+            setDeleteResult({ error: err.message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        return (
-            <div className="mt-4">
-                <h3 className="font-semibold text-lg mb-2">Vista previa (primeras 5 filas):</h3>
-                <div className="overflow-x-auto">
-                    <table className="min-w-full bg-white border border-gray-200">
-                        <thead>
-                            <tr className="bg-gray-50">
-                                {headers.map((header) => (
-                                    <th key={header} className="px-4 py-2 border text-left font-semibold">
-                                        {header}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {parsedData.slice(0, 5).map((row, index) => (
-                                <tr key={index} className="hover:bg-gray-50">
-                                    {headers.map((header, cellIndex) => (
-                                        <td key={cellIndex} className="px-4 py-2 border">
-                                            {row[header]}
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {parsedData.length > 5 && (
-                        <p className="text-sm text-gray-500 mt-2">
-                            Mostrando 5 de {parsedData.length} registros
-                        </p>
-                    )}
+    // ============================================================================
+    // Renderizado
+    // ============================================================================
+
+    const renderNotifications = () => (
+        <div className="fixed top-20 right-4 z-50 space-y-2">
+            {notifications.map((n) => (
+                <div
+                    key={n.id}
+                    className={`p-4 rounded-lg shadow-lg border ${n.type === "success"
+                            ? "bg-green-50 border-green-200 text-green-800"
+                            : n.type === "error"
+                                ? "bg-red-50 border-red-200 text-red-800"
+                                : "bg-blue-50 border-blue-200 text-blue-800"
+                        }`}
+                >
+                    {n.message}
                 </div>
-            </div>
-        );
-    };
+            ))}
+        </div>
+    );
 
-    // Renderizar notificaciones
-    const renderNotifications = () => {
-        if (notifications.length === 0) return null;
-
-        return (
-            <div className="fixed top-20 right-4 z-50 space-y-2">
-                {notifications.map((notification) => (
-                    <div
-                        key={notification.id}
-                        className={`p-4 rounded-lg shadow-lg border ${notification.type === 'success'
-                            ? 'bg-green-50 border-green-200 text-green-800'
-                            : notification.type === 'error'
-                                ? 'bg-red-50 border-red-200 text-red-800'
-                                : 'bg-blue-50 border-blue-200 text-blue-800'
-                            }`}
-                    >
-                        <div className="flex items-center">
-                            {notification.type === 'success' && (
-                                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                            )}
-                            {notification.type === 'error' && (
-                                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                </svg>
-                            )}
-                            <span>{notification.message}</span>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
-    };
-
-    // Renderizar errores
-    const renderErrors = () => {
-        if (errors.length === 0) return null;
-
-        return (
-            <div className="mt-6">
-                <h3 className="font-semibold text-lg text-red-600 mb-2">Errores encontrados:</h3>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-h-60 overflow-y-auto">
-                    {errors.map((error, index) => (
-                        <div key={index} className="mb-2 pb-2 border-b border-red-100 last:border-0">
-                            <p className="text-sm">
-                                <span className="font-medium">Fila {error.row}:</span> Cuenta {error.cuenta}, Propiedad {error.propiedad}
-                            </p>
-                            <p className="text-sm text-red-700">Error: {error.error}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    };
+    const renderTabButton = (
+        id: typeof activeTab,
+        label: string,
+        color: string = "blue"
+    ) => (
+        <button
+            onClick={() => setActiveTab(id)}
+            className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${activeTab === id
+                    ? `bg-${color}-600 text-white`
+                    : `bg-gray-200 text-gray-700 hover:bg-gray-300`
+                }`}
+        >
+            {label}
+        </button>
+    );
 
     return (
         <>
             <Header />
             {renderNotifications()}
-
             <section className="min-h-screen mx-auto max-w-7xl p-4 md:p-6">
-                <h1 className="text-2xl font-bold text-gray-800">Actualizador Masivo de Bonos</h1>
-                <p className="text-gray-600 mb-6">Carga un archivo TXT para actualizar los valores de bonos en la base de datos</p>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">Panel de Administración</h1>
+                <p className="text-gray-600 mb-6">Consume todos los endpoints del API general</p>
 
-                <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                    <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Nombre de la tabla
-                        </label>
-                        <input
-                            type="text"
-                            value={tableName}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) => setTableName(e.target.value)}
-                            className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="general"
-                        />
-                        <p className="text-sm text-gray-500 mt-1">
-                            Tabla en la base de datos donde se actualizarán los datos
-                        </p>
-                    </div>
-
-                    <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Cargar archivo TXT
-                        </label>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                            <input
-                                type="file"
-                                accept=".txt"
-                                onChange={handleFileUpload}
-                                className="hidden"
-                                id="file-upload"
-                            />
-                            <label
-                                htmlFor="file-upload"
-                                className="cursor-pointer inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors"
-                            >
-                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                </svg>
-                                Seleccionar archivo
-                            </label>
-                            <p className="text-sm text-gray-500 mt-2">
-                                Formato requerido: TXT con columnas separadas por tabulaciones (Rama, Cuenta, Propiedad, Valor)
-                            </p>
-                            {parsedData.length > 0 && (
-                                <p className="text-green-600 font-medium mt-2">
-                                    ✓ {parsedData.length} registros cargados exitosamente
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
-                    {renderPreview()}
-
-                    {parsedData.length > 0 && (
-                        <div className="mt-8">
-                            <div className="flex flex-col md:flex-row gap-4">
-                                <button
-                                    onClick={processUpdates}
-                                    disabled={isUploading}
-                                    className={`px-6 py-3 font-medium rounded-md transition-colors ${isUploading
-                                        ? "bg-gray-300 cursor-not-allowed"
-                                        : "bg-green-600 hover:bg-green-700 text-white"
-                                        }`}
-                                >
-                                    {isUploading ? "Procesando..." : "Iniciar Actualización Masiva"}
-                                </button>
-
-                                <button
-                                    onClick={() => {
-                                        setFileContent("");
-                                        setParsedData([]);
-                                        setUploadProgress(0);
-                                        setStatus("");
-                                        setErrors([]);
-                                    }}
-                                    className="px-6 py-3 font-medium bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md transition-colors"
-                                >
-                                    Limpiar Datos
-                                </button>
-                            </div>
-
-                            {isUploading && (
-                                <div className="mt-6">
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-sm font-medium">Progreso</span>
-                                        <span className="text-sm font-medium">{uploadProgress}%</span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-4">
-                                        <div
-                                            className="bg-blue-600 h-4 rounded-full transition-all duration-300"
-                                            style={{ width: `${uploadProgress}%` }}
-                                        ></div>
-                                    </div>
-                                    <p className="text-sm text-gray-600 mt-2">{status}</p>
-                                </div>
-                            )}
-
-                            {!isUploading && status && (
-                                <div className="mt-4 p-4 bg-gray-50 rounded-md">
-                                    <p className="font-medium">{status}</p>
-                                </div>
-                            )}
-
-                            {renderErrors()}
-                        </div>
-                    )}
+                {/* Pestañas */}
+                <div className="flex flex-wrap gap-2 border-b mb-6">
+                    {renderTabButton("consultaId", "Consultar por ID", "blue")}
+                    {renderTabButton("consultaAvanzada", "Consulta avanzada", "purple")}
+                    {renderTabButton("registrar", "Registrar", "green")}
+                    {renderTabButton("actualizarMasivo", "Actualización masiva", "orange")}
+                    {renderTabButton("archivar", "Archivar", "yellow")}
+                    {renderTabButton("eliminar", "Eliminar", "red")}
                 </div>
 
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                    <div className="flex">
-                        <div className="flex-shrink-0">
-                            <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
+                {/* Contenido dinámico */}
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    {activeTab === "consultaId" && (
+                        <form onSubmit={handleConsultaId} className="space-y-4">
+                            <h2 className="text-xl font-semibold">Consultar registro por ID</h2>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium">Tabla</label>
+                                    <input
+                                        type="text"
+                                        value={consultaIdTable}
+                                        onChange={(e) => setConsultaIdTable(e.target.value)}
+                                        className="w-full border rounded p-2"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium">Columna ID</label>
+                                    <input
+                                        type="text"
+                                        value={consultaIdColumn}
+                                        onChange={(e) => setConsultaIdColumn(e.target.value)}
+                                        className="w-full border rounded p-2"
+                                        placeholder="id"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium">Valor ID</label>
+                                    <input
+                                        type="text"
+                                        value={consultaIdValue}
+                                        onChange={(e) => setConsultaIdValue(e.target.value)}
+                                        className="w-full border rounded p-2"
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                            >
+                                {isLoading ? "Consultando..." : "Consultar"}
+                            </button>
+                            {consultaIdResult && (
+                                <pre className="mt-4 p-2 bg-gray-100 rounded overflow-auto max-h-96">
+                                    {JSON.stringify(consultaIdResult, null, 2)}
+                                </pre>
+                            )}
+                        </form>
+                    )}
+
+                    {activeTab === "consultaAvanzada" && (
+                        <form onSubmit={handleConsultaAvanzada} className="space-y-4">
+                            <h2 className="text-xl font-semibold">Consulta avanzada (POST /consultar)</h2>
+                            <div>
+                                <label className="block text-sm font-medium">FROM clause (ej: MiTabla AS t)</label>
+                                <input
+                                    type="text"
+                                    value={advFromClause}
+                                    onChange={(e) => setAdvFromClause(e.target.value)}
+                                    className="w-full border rounded p-2"
+                                    placeholder="Ej: PersonalPropValor AS p"
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label>Página</label>
+                                    <input
+                                        type="number"
+                                        value={advPage}
+                                        onChange={(e) => setAdvPage(Number(e.target.value))}
+                                        className="w-full border rounded p-2"
+                                    />
+                                </div>
+                                <div>
+                                    <label>Filas por página</label>
+                                    <input
+                                        type="number"
+                                        value={advPageSize}
+                                        onChange={(e) => setAdvPageSize(Number(e.target.value))}
+                                        className="w-full border rounded p-2"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block font-medium mb-2">Filtros (AND entre todos)</label>
+                                {advFilters.map((f, idx) => (
+                                    <div key={idx} className="flex gap-2 mb-2">
+                                        <input
+                                            placeholder="Columna"
+                                            value={f.Key}
+                                            onChange={(e) => updateAdvFilter(idx, "Key", e.target.value)}
+                                            className="border rounded p-1 flex-1"
+                                        />
+                                        <select
+                                            value={f.Operator}
+                                            onChange={(e) => updateAdvFilter(idx, "Operator", e.target.value)}
+                                            className="border rounded p-1"
+                                        >
+                                            <option value="=">=</option>
+                                            <option value="!=">!=</option>
+                                            <option value=">">{">"}</option>
+                                            <option value=">=">{">="}</option>
+                                            <option value="<">{"<"}</option>
+                                            <option value="<=">{"<="}</option>
+                                            <option value="LIKE">LIKE</option>
+                                        </select>
+                                        <input
+                                            placeholder="Valor"
+                                            value={f.Value}
+                                            onChange={(e) => updateAdvFilter(idx, "Value", e.target.value)}
+                                            className="border rounded p-1 flex-1"
+                                        />
+                                        <button type="button" onClick={() => removeAdvFilter(idx)} className="text-red-500">
+                                            ✖
+                                        </button>
+                                    </div>
+                                ))}
+                                <button type="button" onClick={addAdvFilter} className="text-blue-600 text-sm">
+                                    + Agregar filtro
+                                </button>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+                            >
+                                {isLoading ? "Consultando..." : "Ejecutar consulta"}
+                            </button>
+                            {advResult && (
+                                <pre className="mt-4 p-2 bg-gray-100 rounded overflow-auto max-h-96">
+                                    {JSON.stringify(advResult, null, 2)}
+                                </pre>
+                            )}
+                        </form>
+                    )}
+
+                    {activeTab === "registrar" && (
+                        <form onSubmit={handleRegistrar} className="space-y-4">
+                            <h2 className="text-xl font-semibold">Registrar nuevo (POST /register)</h2>
+                            <div>
+                                <label>Tabla</label>
+                                <input
+                                    type="text"
+                                    value={regTable}
+                                    onChange={(e) => setRegTable(e.target.value)}
+                                    className="w-full border rounded p-2"
+                                />
+                            </div>
+                            <div>
+                                <label>JSON con los datos</label>
+                                <textarea
+                                    value={regJson}
+                                    onChange={(e) => setRegJson(e.target.value)}
+                                    rows={6}
+                                    className="w-full border rounded p-2 font-mono text-sm"
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                            >
+                                {isLoading ? "Insertando..." : "Registrar"}
+                            </button>
+                            {regResult && (
+                                <pre className="mt-4 p-2 bg-gray-100 rounded overflow-auto">
+                                    {JSON.stringify(regResult, null, 2)}
+                                </pre>
+                            )}
+                        </form>
+                    )}
+
+                    {activeTab === "actualizarMasivo" && (
+                        <div className="space-y-4">
+                            <h2 className="text-xl font-semibold">Actualización masiva desde TXT</h2>
+                            <div>
+                                <label>Tabla destino</label>
+                                <input
+                                    type="text"
+                                    value={massiveTable}
+                                    onChange={(e) => setMassiveTable(e.target.value)}
+                                    className="w-full border rounded p-2"
+                                />
+                            </div>
+                            <div className="border-2 border-dashed p-6 text-center">
+                                <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden" id="massiveFile" />
+                                <label htmlFor="massiveFile" className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded">
+                                    Seleccionar archivo TXT
+                                </label>
+                                {parsedData.length > 0 && (
+                                    <p className="mt-2 text-green-600">✓ {parsedData.length} registros cargados</p>
+                                )}
+                            </div>
+                            {parsedData.length > 0 && (
+                                <>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full border">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="p-2 border">Cuenta</th>
+                                                    <th className="p-2 border">Propiedad</th>
+                                                    <th className="p-2 border">Valor</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {parsedData.slice(0, 5).map((row, i) => (
+                                                    <tr key={i}>
+                                                        <td className="p-2 border">{row.Cuenta}</td>
+                                                        <td className="p-2 border">{row.Propiedad}</td>
+                                                        <td className="p-2 border">{row.Valor}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <button
+                                        onClick={processMassiveUpdates}
+                                        disabled={isLoading}
+                                        className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+                                    >
+                                        {isLoading ? "Procesando..." : "Iniciar actualización masiva"}
+                                    </button>
+                                    {isLoading && (
+                                        <div className="mt-4">
+                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                <div className="bg-orange-600 h-2 rounded-full" style={{ width: `${uploadProgress}%` }} />
+                                            </div>
+                                            <p className="text-sm mt-1">{massiveStatus}</p>
+                                        </div>
+                                    )}
+                                    {massiveErrors.length > 0 && (
+                                        <div className="mt-4 p-2 bg-red-50 border border-red-200 rounded">
+                                            <p className="font-semibold">Errores:</p>
+                                            {massiveErrors.map((err, i) => (
+                                                <p key={i} className="text-sm">Fila {err.row}: {err.error}</p>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
-                        <div className="ml-3">
-                            <p className="text-sm text-yellow-700">
-                                <strong>Importante:</strong> Esta operación actualizará los registros existentes en la base de datos.
-                                Asegúrate de que el formato del archivo sea correcto antes de proceder.
-                            </p>
+                    )}
+
+                    {activeTab === "archivar" && (
+                        <div className="space-y-4">
+                            <h2 className="text-xl font-semibold">Archivar registro (DELETE /archivar/{`{id}`})</h2>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label>Tabla</label>
+                                    <input value={deleteTable} onChange={(e) => setDeleteTable(e.target.value)} className="w-full border rounded p-2" />
+                                </div>
+                                <div>
+                                    <label>Columna ID</label>
+                                    <input value={deleteColumn} onChange={(e) => setDeleteColumn(e.target.value)} className="w-full border rounded p-2" />
+                                </div>
+                                <div>
+                                    <label>Valor ID</label>
+                                    <input value={deleteId} onChange={(e) => setDeleteId(e.target.value)} className="w-full border rounded p-2" />
+                                </div>
+                            </div>
+                            <button onClick={handleArchive} className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">
+                                Archivar
+                            </button>
+                            {deleteResult && <pre className="mt-4 p-2 bg-gray-100 rounded">{JSON.stringify(deleteResult, null, 2)}</pre>}
                         </div>
-                    </div>
+                    )}
+
+                    {activeTab === "eliminar" && (
+                        <div className="space-y-4">
+                            <h2 className="text-xl font-semibold">Eliminar registro (DELETE /delete/{`{id}`})</h2>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label>Tabla</label>
+                                    <input value={deleteTable} onChange={(e) => setDeleteTable(e.target.value)} className="w-full border rounded p-2" />
+                                </div>
+                                <div>
+                                    <label>Columna ID</label>
+                                    <input value={deleteColumn} onChange={(e) => setDeleteColumn(e.target.value)} className="w-full border rounded p-2" />
+                                </div>
+                                <div>
+                                    <label>Valor ID</label>
+                                    <input value={deleteId} onChange={(e) => setDeleteId(e.target.value)} className="w-full border rounded p-2" />
+                                </div>
+                            </div>
+                            <button onClick={handleDelete} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                                Eliminar permanentemente
+                            </button>
+                            {deleteResult && <pre className="mt-4 p-2 bg-gray-100 rounded">{JSON.stringify(deleteResult, null, 2)}</pre>}
+                        </div>
+                    )}
                 </div>
             </section>
             <Footer />

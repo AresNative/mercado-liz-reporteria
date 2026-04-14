@@ -88,14 +88,12 @@ export const api_int = createApi({
     }),
     getWithFiltersGeneralInIntelisis: builder.mutation({
       query: ({ table, page, pageSize, filtros, signal }) => ({
-        url: `/v1/consultar/filtros`,
+        url: `/v1/consultar`,
         method: "POST",
         params: {
-          page,
-          table, // tabla a consultar
-          pageSize,
+          fromClause: table, // tabla a consultar
         },
-        body: filtros,
+        body: { ...filtros, page, pageSize }, // Enviar filtros en el body
         signal,
       }),
       transformErrorResponse: (response: any) => ({

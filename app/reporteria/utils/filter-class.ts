@@ -56,12 +56,11 @@ export class FilterBuilder {
         });
       }
 
-      if (almacenFilter) {
+      if (almacenFilter && reportType !== "comparacion") {
         let almacenField = "venta.Almacen";
         if (reportType === "compras") almacenField = "comprad.Almacen";
         else if (reportType === "mermas" || reportType === "inventario")
           almacenField = "invd.Almacen";
-        else if (reportType === "comparacion") almacenField = "ventad.Almacen";
         basicFilters.push({
           Key: almacenField,
           Operator: "=",
@@ -69,7 +68,7 @@ export class FilterBuilder {
         });
       }
 
-      if (dateRange.from && dateRange.to) {
+      if (dateRange.from && dateRange.to && reportType !== "comparacion") {
         const fechaField = QUERY_CONFIGS[reportType]?.fechaField;
         if (fechaField) {
           basicFilters.push(
@@ -85,6 +84,7 @@ export class FilterBuilder {
             },
           );
         }
+      
       }
 
       // Filtros específicos por reporte
@@ -92,8 +92,8 @@ export class FilterBuilder {
         basicFilters.push(
           {
             Key: "venta.Estatus",
-            Operator: "=",
-            Value: CONFIG.STATUS.CONCLUIDO,
+            Operator: "IN",
+            Value: "CONCLUIDO,PENDIENTE,PROCESAR",
           },
           {
             Key: "venta.Mov",
@@ -122,7 +122,13 @@ export class FilterBuilder {
           Value: CONFIG.STATUS.CONCLUIDO,
         });
       } else if (reportType === "comparacion") {
-        basicFilters.push(
+        // Para comparación emitimos UN grupo por sub-tabla.
+        // El saneador de makePayload en page.tsx descarta los grupos cuyo alias
+        // no pertenece a la sub-query activa, de forma que cada consulta
+        // (ventas / compras / mermas) recibe solo sus propios filtros.
+
+        // Grupo ventas
+        const ventasFilters: any[] = [
           {
             Key: "venta.Estatus",
             Operator: "=",
@@ -133,12 +139,94 @@ export class FilterBuilder {
             Operator: "IN",
             Value: "Factura,Factura Credito,Nota",
           },
+        ];
+        if (almacenFilter) {
+          ventasFilters.push({
+            Key: "ventad.Almacen",
+            Operator: "=",
+            Value: almacenFilter,
+          });
+        }
+        if (dateRange.from && dateRange.to) {
+          ventasFilters.push(
+            {
+              Key: QUERY_CONFIGS.ventas.fechaField,
+              Operator: ">=",
+              Value: formatDateISOString(dateRange.from),
+            },
+            {
+              Key: QUERY_CONFIGS.ventas.fechaField,
+              Operator: "<=",
+              Value: formatDateISOString(dateRange.to),
+            },
+          );
+        }
+
+        // Grupo compras
+        const comprasFilters: any[] = [
           {
             Key: "compra.Estatus",
             Operator: "=",
             Value: CONFIG.STATUS.CONCLUIDO,
           },
           { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" },
+        ];
+        if (almacenFilter) {
+          comprasFilters.push({
+            Key: "comprad.Almacen",
+            Operator: "=",
+            Value: almacenFilter,
+          });
+        }
+        if (dateRange.from && dateRange.to) {
+          comprasFilters.push(
+            {
+              Key: QUERY_CONFIGS.compras.fechaField,
+              Operator: ">=",
+              Value: formatDateISOString(dateRange.from),
+            },
+            {
+              Key: QUERY_CONFIGS.compras.fechaField,
+              Operator: "<=",
+              Value: formatDateISOString(dateRange.to),
+            },
+          );
+        }
+
+        // Grupo mermas
+        const mermasFilters: any[] = [
+          { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+          { Key: "inv.Concepto", Operator: "LIKE", Value: "MERMAS" },
+        ];
+        if (almacenFilter) {
+          mermasFilters.push({
+            Key: "invd.Almacen",
+            Operator: "=",
+            Value: almacenFilter,
+          });
+        }
+        if (dateRange.from && dateRange.to) {
+          mermasFilters.push(
+            {
+              Key: QUERY_CONFIGS.mermas.fechaField,
+              Operator: ">=",
+              Value: formatDateISOString(dateRange.from),
+            },
+            {
+              Key: QUERY_CONFIGS.mermas.fechaField,
+              Operator: "<=",
+              Value: formatDateISOString(dateRange.to),
+            },
+          );
+        }
+
+        // Reemplazar basicFilters por los tres grupos independientes
+        // (vaciamos basicFilters para que el push genérico de abajo no los duplique)
+        basicFilters.length = 0;
+        filtrosAnd.push(
+          { Filtros: ventasFilters, OperadorLogico: "AND" },
+          { Filtros: comprasFilters, OperadorLogico: "AND" },
+          { Filtros: mermasFilters, OperadorLogico: "AND" },
         );
       }
 

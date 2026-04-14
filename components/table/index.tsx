@@ -6,6 +6,8 @@ import { AnimatePresence, motion } from "motion/react";
 import {
     Check,
     ChevronDown,
+    ChevronUp,
+    ChevronsUpDown,
     Download,
     FileSpreadsheet,
     FileText,
@@ -30,568 +32,331 @@ interface DynamicTableProps {
     data: Record<string, any>[];
     loading?: boolean;
     onRowClick?: (rowData: any) => void;
+    /**
+     * Si se pasa, el componente llama este callback cada vez que el usuario
+     * cambia la columna de orden, para que el padre pueda re-fetchear desde
+     * el servidor con el nuevo ORDER BY.
+     */
+    onSortChange?: (column: string, direction: "asc" | "desc") => void;
 }
-const isDateColumn = (key: string): boolean => {
-    const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return normalizedKey.includes("fecha") || normalizedKey.includes("date");
+
+// ── Helpers de tipo de columna ─────────────────────────────────────────────────
+
+const isDateColumn = (key: string) => {
+    const k = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return k.includes("fecha") || k.includes("date");
 };
 
-const isPercentageColumn = (key: string): boolean => {
-    const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return normalizedKey.includes("porcentaje") || key.includes("IVA") || key.includes("IEPS");
+const isPercentageColumn = (key: string) => {
+    const k = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return k.includes("porcentaje") || key.includes("IVA") || key.includes("IEPS");
 };
 
-const isCurrencyColumn = (key: string): boolean => {
-    const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const isCurrencyColumn = (key: string) => {
+    const k = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return (
-        normalizedKey.includes("price") ||
-        normalizedKey.includes("precio") ||
-        normalizedKey.includes("diferencia") ||
-        normalizedKey.includes("puja") ||
-        normalizedKey.includes("importe") ||
-        normalizedKey.includes("costo") ||
-        normalizedKey.includes("venta") ||
-        normalizedKey.includes("compra")
+        k.includes("price") || k.includes("precio") || k.includes("diferencia") ||
+        k.includes("puja") || k.includes("importe") || k.includes("costo") ||
+        k.includes("venta") || k.includes("compra") || k.includes("utilidad") ||
+        k.includes("margen") || k.includes("comprado") || k.includes("ticket")
     );
 };
+
+// ── Icono de sort ──────────────────────────────────────────────────────────────
+
+const SortIcon = ({
+    column,
+    sortColumn,
+    sortDirection,
+}: {
+    column: string;
+    sortColumn: string | null;
+    sortDirection: "asc" | "desc";
+}) => {
+    if (sortColumn !== column)
+        return <ChevronsUpDown size={12} className="opacity-25 shrink-0" />;
+    return sortDirection === "asc"
+        ? <ChevronUp size={12} className="text-blue-500 shrink-0" />
+        : <ChevronDown size={12} className="text-blue-500 shrink-0" />;
+};
+
+// ── Componente principal ───────────────────────────────────────────────────────
 
 const DynamicTable: React.FC<DynamicTableProps> = ({
     data,
     loading = false,
     onRowClick,
+    onSortChange,
 }) => {
     const tableRef = useRef<HTMLDivElement>(null);
-    const [showExportMenu, setShowExportMenu] = useState(false);
-    const exportMenuRef = useRef<HTMLDivElement>(null); // CORREGIDO: sin desestructuración
+    const exportMenuRef = useRef<HTMLDivElement>(null);
 
-    // Estados existentes
+    const [showExportMenu, setShowExportMenu] = useState(false);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [selectedRowsData, setSelectedRowsData] = useState<Map<string, any>>(new Map());
     const [sortColumn, setSortColumn] = useState<string | null>(null);
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [showColumnMenu, setShowColumnMenu] = useState<string | null>(null);
     const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({});
 
-    // Cerrar menús al hacer clic fuera
+    // Cerrar menú de exportación al hacer clic fuera
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        const handle = (e: MouseEvent) => {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node))
                 setShowExportMenu(false);
-            }
         };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []); // CORREGIDO: dependencias vacías
-
-    // Detectar datos agrupados
-    const isGroupedData = useMemo(() => {
-        return data.length > 0 && data[0].Pujas && Array.isArray(data[0].Pujas);
-    }, [data]);
-
-    // Columnas base (excluyendo Pujas)
-    const baseColumns = useMemo(() => {
-        if (data.length === 0) return [];
-        return Object.keys(data[0]).filter(key => key !== 'Pujas');
-    }, [data]);
-
-    // Columnas para proveedores (si hay datos agrupados)
-    const providerColumns = useMemo(() => {
-        if (!isGroupedData || data.length === 0) return [];
-        if (!data[0].Pujas || data[0].Pujas.length === 0) return [];
-
-        return data[0].Pujas.map((puja: any) => `Proveedor_${puja.Proveedor.replace('#', '')}`);
-    }, [data, isGroupedData]);
-
-    // Todas las columnas combinadas
-    const columns = useMemo(() => {
-        return [...baseColumns, ...providerColumns];
-    }, [baseColumns, providerColumns]);
-
-    // Preparar datos para mostrar (aplanar pujas)
-    const displayData = useMemo(() => {
-        if (!isGroupedData) return data;
-
-        return data.map(item => {
-            const newItem = { ...item };
-            delete newItem.Pujas;
-
-            if (item.Pujas && Array.isArray(item.Pujas)) {
-                item.Pujas.forEach((puja: any) => {
-                    const providerKey = `Proveedor_${puja.Proveedor.replace('#', '')}`;
-                    newItem[providerKey] = {
-                        puja: puja.Puja,
-                        cantidad: puja.Cantidad
-                    };
-                });
-            }
-
-            return newItem;
-        });
-    }, [data, isGroupedData]);
-
-    // Inicializar visibilidad de columnas
-    useEffect(() => {
-        setVisibleColumns((prev) => {
-            return columns.reduce((acc, column) => {
-                acc[column] = column in prev ? prev[column] : true;
-                return acc;
-            }, {} as Record<string, boolean>);
-        });
-    }, [columns]);
-
-    // Handlers
-    const toggleColumn = (column: string) => {
-        setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }));
-    };
-
-    // Obtener ID único para una fila
-    const getRowId = useCallback((item: any): string => {
-        return item.ID || JSON.stringify(item);
+        document.addEventListener('mousedown', handle);
+        return () => document.removeEventListener('mousedown', handle);
     }, []);
 
-    // Verificar si una fila está seleccionada
-    const isRowSelected = useCallback((rowId: string): boolean => {
-        return selectedRows.has(rowId);
-    }, [selectedRows]);
+    // Detectar datos agrupados (con Pujas)
+    const isGroupedData = useMemo(
+        () => data.length > 0 && data[0].Pujas && Array.isArray(data[0].Pujas),
+        [data]
+    );
 
-    const toggleRowSelection = (rowId: string, rowData: any) => {
-        setSelectedRows(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(rowId)) {
-                newSet.delete(rowId);
-                // También eliminar los datos
-                setSelectedRowsData(prevData => {
-                    const newData = new Map(prevData);
-                    newData.delete(rowId);
-                    return newData;
-                });
-            } else {
-                newSet.add(rowId);
-                // Guardar los datos completos de la fila
-                setSelectedRowsData(prevData => {
-                    const newData = new Map(prevData);
-                    newData.set(rowId, rowData);
-                    return newData;
-                });
-            }
-            return newSet;
-        });
-    };
+    const baseColumns = useMemo(
+        () => (data.length === 0 ? [] : Object.keys(data[0]).filter(k => k !== 'Pujas')),
+        [data]
+    );
 
-    const toggleSort = (column: string) => {
-        if (sortColumn === column) {
-            setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-        } else {
-            setSortColumn(column);
-            setSortDirection("asc");
-        }
-    };
+    const providerColumns = useMemo(() => {
+        if (!isGroupedData || !data[0]?.Pujas?.length) return [];
+        return data[0].Pujas.map((p: any) => `Proveedor_${p.Proveedor.replace('#', '')}`);
+    }, [data, isGroupedData]);
 
-    const selectAllRows = () => {
-        const currentPageIds = displayData.map(item => getRowId(item));
+    const columns = useMemo(() => [...baseColumns, ...providerColumns], [baseColumns, providerColumns]);
 
-        setSelectedRows(prev => {
-            const newSet = new Set(prev);
-            const allCurrentPageSelected = currentPageIds.every(id => prev.has(id));
-
-            if (allCurrentPageSelected) {
-                // Deseleccionar todas las de esta página
-                currentPageIds.forEach(id => {
-                    newSet.delete(id);
-                    // También eliminar los datos
-                    setSelectedRowsData(prevData => {
-                        const newData = new Map(prevData);
-                        newData.delete(id);
-                        return newData;
-                    });
-                });
-            } else {
-                // Seleccionar todas las de esta página
-                currentPageIds.forEach(id => {
-                    if (!newSet.has(id)) {
-                        newSet.add(id);
-                        // Guardar los datos de la fila si no están ya guardados
-                        const rowData = displayData.find(item => getRowId(item) === id);
-                        if (rowData) {
-                            setSelectedRowsData(prevData => {
-                                const newData = new Map(prevData);
-                                newData.set(id, rowData);
-                                return newData;
-                            });
-                        }
-                    }
-                });
-            }
-            return newSet;
-        });
-    };
-    const clearAllSelections = () => {
-        setSelectedRows(new Set());
-        setSelectedRowsData(new Map());
-    };
-    // Obtener datos seleccionados de todas las páginas
-    const getSelectedData = useCallback((): any[] => {
-        return Array.from(selectedRowsData.values());
-    }, [selectedRowsData]);
-
-    // Obtener columnas visibles para exportación
-    const getVisibleColumnsForExport = () => {
-        return columns.filter(col => visibleColumns[col]);
-    };
-
-    // Formatear valor para exportación (texto plano)
-    const formatCellValueForExport = (key: string, value: any): string => {
-        if (value === null || value === undefined) return '-';
-
-        // Si es un objeto de proveedor (contiene puja y cantidad)
-        if (typeof value === 'object' && value !== null && 'puja' in value) {
-            return `Puja: ${formatNumberValue(value.puja, "currency", 2)} | Cantidad: ${formatNumberValue(value.cantidad, "number", 2)}`;
-        }
-
-        // Booleanos
-        if (typeof value === 'boolean') {
-            return value ? 'Sí' : 'No';
-        }
-
-        // Archivos (campo 'file')
-        if (key.toLowerCase() === 'file' && typeof value === 'object') {
-            return value?.fileName || 'Archivo';
-        }
-
-        // Fechas
-        if (isDateColumn(key)) {
-            try {
-                const date = new Date(value);
-                if (isNaN(date.getTime())) return String(value);
-                return formatDateDisplay(date);
-            } catch {
-                return String(value);
-            }
-        }
-
-        // Porcentajes
-        if (isPercentageColumn(key) && typeof value === 'number') {
-            return formatNumberValue(value, "percentage", 2);
-        }
-
-        // Moneda
-        if (isCurrencyColumn(key) && typeof value === 'number') {
-            return formatNumberValue(value, "currency", 2);
-        }
-
-        // Números (cantidades, etc.)
-        if (typeof value === 'number') {
-            const decimals = Number.isInteger(value) ? 0 : 2;
-            return formatNumberValue(value, "number", decimals);
-        }
-
-        return String(value);
-    };
-
-    // Exportar a Excel (datos seleccionados)
-    const exportToExcel = () => {
-        const selectedData = getSelectedData();
-        if (selectedData.length === 0) {
-            alert('No hay filas seleccionadas para exportar');
-            return;
-        }
-
-        performExcelExport(selectedData);
-        setShowExportMenu(false);
-    };
-
-    const performExcelExport = (dataToExport: any[]) => {
-        const visibleCols = getVisibleColumnsForExport();
-
-        // Preparar datos para Excel
-        const excelData = dataToExport.map((item: any) => {
-            const row: Record<string, string> = {};
-            visibleCols.forEach(col => {
-                row[col.replace('Proveedor_', 'Prov. ')] = formatCellValueForExport(col, item[col]);
+    const displayData = useMemo(() => {
+        if (!isGroupedData) return data;
+        return data.map(item => {
+            const row = { ...item };
+            delete row.Pujas;
+            item.Pujas?.forEach((p: any) => {
+                row[`Proveedor_${p.Proveedor.replace('#', '')}`] = { puja: p.Puja, cantidad: p.Cantidad };
             });
             return row;
         });
+    }, [data, isGroupedData]);
 
-        // Crear workbook y worksheet
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(excelData);
+    // Inicializar / sincronizar columnas visibles
+    useEffect(() => {
+        setVisibleColumns(prev =>
+            columns.reduce((acc, col) => {
+                acc[col] = col in prev ? prev[col] : true;
+                return acc;
+            }, {} as Record<string, boolean>)
+        );
+    }, [columns]);
 
-        // Ajustar ancho de columnas
-        const colWidths = visibleCols.map(col => ({
-            wch: Math.max(col.length * 2, 15)
-        }));
-        ws['!cols'] = colWidths;
+    // Resetear sort cuando llegan datos nuevos desde el padre
+    useEffect(() => {
+        setSortColumn(null);
+        setSortDirection("desc");
+    }, [data]);
 
-        XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+    // ── Sort ───────────────────────────────────────────────────────────────────
 
-        // Generar archivo
-        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveAs(data, `exportacion_${new Date().toISOString().split('T')[0]}.xlsx`);
-    };
+    const toggleSort = useCallback(
+        (column: string) => {
+            setSortColumn(prevCol => {
+                const newDir: "asc" | "desc" = prevCol === column
+                    ? (sortDirection === "asc" ? "desc" : "asc")
+                    : "desc";
+                setSortDirection(newDir);
+                onSortChange?.(column, newDir);
+                return column;
+            });
+        },
+        [sortDirection, onSortChange]
+    );
 
-    // Exportar a PDF (datos seleccionados)
-    const exportToPDF = () => {
-        const selectedData = getSelectedData();
-        if (selectedData.length === 0) {
-            alert('No hay filas seleccionadas para exportar');
-            return;
-        }
-
-        performPDFExport(selectedData);
-        setShowExportMenu(false);
-    };
-
-    const performPDFExport = (dataToExport: any[]) => {
-        const visibleCols = getVisibleColumnsForExport();
-
-        // Crear documento PDF
-        const doc = new jsPDF({
-            orientation: visibleCols.length > 6 ? 'landscape' : 'portrait',
-            unit: 'mm',
-        });
-
-        // Título
-        doc.setFontSize(16);
-        doc.text('Reporte de Datos', 14, 15);
-        doc.setFontSize(10);
-        doc.text(`Generado: ${new Date().toLocaleString()}`, 14, 22);
-        doc.text(`Registros: ${dataToExport.length}`, 14, 28);
-
-        // Preparar cabeceras
-        const headers = visibleCols.map(col => col.replace('Proveedor_', 'Prov. '));
-
-        // Preparar datos
-        const bodyData = dataToExport.map((item: any) => {
-            return visibleCols.map(col => formatCellValueForExport(col, item[col]));
-        });
-
-        // Generar tabla
-        autoTable(doc, {
-            head: [headers],
-            body: bodyData,
-            startY: 35,
-            styles: {
-                fontSize: 8,
-                cellPadding: 2,
-                overflow: 'linebreak',
-            },
-            headStyles: {
-                fillColor: [41, 128, 185],
-                textColor: [255, 255, 255],
-                fontStyle: 'bold',
-            },
-            alternateRowStyles: {
-                fillColor: [245, 245, 245],
-            },
-            margin: { top: 35 },
-        });
-
-        // Guardar PDF
-        doc.save(`exportacion_${new Date().toISOString().split('T')[0]}.pdf`);
-    };
-
-    // Imprimir (datos seleccionados)
-    const handlePrint = () => {
-        const selectedData = getSelectedData();
-        if (selectedData.length === 0) {
-            alert('No hay filas seleccionadas para imprimir');
-            return;
-        }
-
-        performPrint(selectedData);
-        setShowExportMenu(false);
-    };
-
-    const performPrint = (dataToExport: any[]) => {
-        const visibleCols = getVisibleColumnsForExport();
-
-        // Crear ventana de impresión
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            alert('Por favor, permita ventanas emergentes para imprimir');
-            return;
-        }
-
-        // Generar contenido HTML
-        const headers = visibleCols.map(col => col.replace('Proveedor_', 'Prov. '));
-
-        const tableRows = dataToExport.map((item: any) => {
-            return `<tr>
-                ${visibleCols.map(col => `<td>${formatCellValueForExport(col, item[col])}</td>`).join('')}
-            </tr>`;
-        }).join('');
-
-        const htmlContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Reporte de Datos</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 20px; }
-                    h1 { color: #333; }
-                    .info { margin-bottom: 20px; color: #666; }
-                    table { border-collapse: collapse; width: 100%; }
-                    th { background-color: #2980b9; color: white; padding: 10px; text-align: left; }
-                    td { border: 1px solid #ddd; padding: 8px; }
-                    tr:nth-child(even) { background-color: #f5f5f5; }
-                </style>
-            </head>
-            <body>
-                <h1>Reporte de Datos</h1>
-                <div class="info">
-                    <p>Generado: ${new Date().toLocaleString()}</p>
-                    <p>Registros: ${dataToExport.length}</p>
-                </div>
-                <table>
-                    <thead>
-                        <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
-                    </thead>
-                    <tbody>
-                        ${tableRows}
-                    </tbody>
-                </table>
-            </body>
-            </html>
-        `;
-
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        printWindow.print();
-    };
-
-    // Formatear valor de celda (para visualización)
-    const formatCellValue = (key: string, value: any) => {
-        if (value === null || value === undefined) return '-';
-
-        // Si es un objeto de proveedor (contiene puja y cantidad)
-        if (typeof value === 'object' && value !== null && 'puja' in value) {
-            return (
-                <div className="flex flex-col">
-                    <span>Puja: {formatNumberValue(value.puja, "currency", 2)}</span>
-                    <span>Cantidad: {formatNumberValue(value.cantidad, "number", 2)}</span>
-                </div>
-            );
-        }
-
-        // Booleanos
-        if (typeof value === 'boolean') {
-            return value ? <Check color="green" size={18} /> : <X color="red" size={18} />;
-        }
-
-        // Archivos (campo 'file')
-        if (key.toLowerCase() === 'file' && typeof value === 'object') {
-            return value?.content ? (
-                <Download
-                    size={18}
-                    className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                    onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = `data:${value.contentType};base64,${value.content}`;
-                        link.download = value.fileName || 'file';
-                        link.click();
-                    }}
-                />
-            ) : (
-                <X color="gray" size={18} />
-            );
-        }
-
-        // Fechas
-        if (isDateColumn(key)) {
-            try {
-                const date = new Date(value);
-                if (isNaN(date.getTime())) return value;
-                return formatDateDisplay(date);
-            } catch {
-                return value;
-            }
-        }
-
-        // Porcentajes
-        if (isPercentageColumn(key) && typeof value === 'number') {
-            return formatNumberValue(value, "percentage", 2);
-        }
-
-        // Moneda
-        if (isCurrencyColumn(key) && typeof value === 'number') {
-            return formatNumberValue(value, "currency", 2);
-        }
-
-        // Números (cantidades, etc.)
-        if (typeof value === 'number') {
-            const decimals = Number.isInteger(value) ? 0 : 2;
-            return formatNumberValue(value, "number", decimals);
-        }
-
-        return String(value);
-    };
-
-    // Ordenar datos
     const filteredAndSortedData = useMemo(() => {
-        return [...displayData].sort((a: any, b: any) => {
+        return [...displayData].sort((a, b) => {
             if (!sortColumn) return 0;
-            const aValue = a[sortColumn];
-            const bValue = b[sortColumn];
-
-            if (aValue === bValue) return 0;
-            if (aValue === null || aValue === undefined) return 1;
-            if (bValue === null || bValue === undefined) return -1;
-
-            const comparison = aValue < bValue ? -1 : 1;
-            return sortDirection === "asc" ? comparison : -comparison;
+            const av = a[sortColumn];
+            const bv = b[sortColumn];
+            if (av === bv) return 0;
+            if (av == null) return 1;
+            if (bv == null) return -1;
+            const cmp = av < bv ? -1 : 1;
+            return sortDirection === "asc" ? cmp : -cmp;
         });
     }, [displayData, sortColumn, sortDirection]);
 
-    // Manejadores de teclado para filas
-    const handleRowKeyDown = (e: React.KeyboardEvent, item: any, index: number) => {
-        switch (e.key) {
-            case "ArrowDown":
-                e.preventDefault();
-                const nextRow = document.querySelector(`[data-row-index="${index + 1}"]`);
-                (nextRow as HTMLElement)?.focus();
-                break;
-            case "ArrowUp":
-                e.preventDefault();
-                const prevRow = document.querySelector(`[data-row-index="${index - 1}"]`);
-                (prevRow as HTMLElement)?.focus();
-                break;
-            case "Enter":
-                e.preventDefault();
-                if (onRowClick) onRowClick(item);
-                break;
-            case " ":
-                e.preventDefault();
-                toggleRowSelection(getRowId(item), item);
-                break;
-            default:
-                break;
-        }
+    // ── Selección ──────────────────────────────────────────────────────────────
+
+    const getRowId = useCallback((item: any): string => item.ID || JSON.stringify(item), []);
+    const isRowSelected = useCallback((id: string) => selectedRows.has(id), [selectedRows]);
+
+    const toggleRowSelection = (rowId: string, rowData: any) => {
+        setSelectedRows(prev => {
+            const next = new Set(prev);
+            if (next.has(rowId)) {
+                next.delete(rowId);
+                setSelectedRowsData(d => { const n = new Map(d); n.delete(rowId); return n; });
+            } else {
+                next.add(rowId);
+                setSelectedRowsData(d => new Map(d).set(rowId, rowData));
+            }
+            return next;
+        });
     };
 
-    // Renderizado condicional
-    if (loading) {
-        return <TableSkeleton />;
-    }
+    const allCurrentPageSelected =
+        displayData.length > 0 && displayData.every(item => isRowSelected(getRowId(item)));
 
-    if (displayData.length === 0) {
+    const selectAllRows = () => {
+        const ids = displayData.map(item => getRowId(item));
+        setSelectedRows(prev => {
+            const next = new Set(prev);
+            if (allCurrentPageSelected) {
+                ids.forEach(id => {
+                    next.delete(id);
+                    setSelectedRowsData(d => { const n = new Map(d); n.delete(id); return n; });
+                });
+            } else {
+                ids.forEach(id => {
+                    if (!next.has(id)) {
+                        next.add(id);
+                        const rd = displayData.find(i => getRowId(i) === id);
+                        if (rd) setSelectedRowsData(d => new Map(d).set(id, rd));
+                    }
+                });
+            }
+            return next;
+        });
+    };
+
+    const clearAllSelections = () => { setSelectedRows(new Set()); setSelectedRowsData(new Map()); };
+    const getSelectedData = useCallback(() => Array.from(selectedRowsData.values()), [selectedRowsData]);
+    const toggleColumn = (col: string) => setVisibleColumns(p => ({ ...p, [col]: !p[col] }));
+    const getVisibleColumnsForExport = () => columns.filter(c => visibleColumns[c]);
+
+    // ── Formateo ───────────────────────────────────────────────────────────────
+
+    const formatCellValueForExport = (key: string, value: any): string => {
+        if (value == null) return '-';
+        if (typeof value === 'object' && 'puja' in value)
+            return `Puja: ${formatNumberValue(value.puja, "currency", 2)} | Cant.: ${formatNumberValue(value.cantidad, "number", 2)}`;
+        if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+        if (key.toLowerCase() === 'file' && typeof value === 'object') return value?.fileName || 'Archivo';
+        if (isDateColumn(key)) {
+            try { const d = new Date(value); return isNaN(d.getTime()) ? String(value) : formatDateDisplay(d); }
+            catch { return String(value); }
+        }
+        if (isPercentageColumn(key) && typeof value === 'number') return formatNumberValue(value, "percentage", 2);
+        if (isCurrencyColumn(key) && typeof value === 'number') return formatNumberValue(value, "currency", 2);
+        if (typeof value === 'number') return formatNumberValue(value, "number", Number.isInteger(value) ? 0 : 2);
+        return String(value);
+    };
+
+    const formatCellValue = (key: string, value: any): React.ReactNode => {
+        if (value == null) return <span className="text-gray-300 dark:text-gray-600">—</span>;
+        if (typeof value === 'object' && 'puja' in value)
+            return (
+                <div className="flex flex-col text-xs leading-tight">
+                    <span>Puja: {formatNumberValue(value.puja, "currency", 2)}</span>
+                    <span className="text-gray-400">Cant.: {formatNumberValue(value.cantidad, "number", 2)}</span>
+                </div>
+            );
+        if (typeof value === 'boolean') return value ? <Check size={15} className="text-green-500" /> : <X size={15} className="text-red-500" />;
+        if (key.toLowerCase() === 'file' && typeof value === 'object')
+            return value?.content
+                ? <Download size={15} className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                    onClick={() => { const a = document.createElement('a'); a.href = `data:${value.contentType};base64,${value.content}`; a.download = value.fileName || 'file'; a.click(); }} />
+                : <X size={15} className="text-gray-400" />;
+        if (isDateColumn(key)) {
+            try { const d = new Date(value); return isNaN(d.getTime()) ? value : formatDateDisplay(d); }
+            catch { return value; }
+        }
+        if (isPercentageColumn(key) && typeof value === 'number') return formatNumberValue(value, "percentage", 2);
+        if (isCurrencyColumn(key) && typeof value === 'number') return formatNumberValue(value, "currency", 2);
+        if (typeof value === 'number') return formatNumberValue(value, "number", Number.isInteger(value) ? 0 : 2);
+        return String(value);
+    };
+
+    // ── Exportación ────────────────────────────────────────────────────────────
+
+    const performExcelExport = (rows: any[]) => {
+        const cols = getVisibleColumnsForExport();
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows.map(item => {
+            const row: Record<string, string> = {};
+            cols.forEach(c => { row[c.replace('Proveedor_', 'Prov. ')] = formatCellValueForExport(c, item[c]); });
+            return row;
+        }));
+        ws['!cols'] = cols.map(c => ({ wch: Math.max(c.length * 2, 15) }));
+        XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+        const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+            `exportacion_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const performPDFExport = (rows: any[]) => {
+        const cols = getVisibleColumnsForExport();
+        const doc = new jsPDF({ orientation: cols.length > 6 ? 'landscape' : 'portrait', unit: 'mm' });
+        doc.setFontSize(16); doc.text('Reporte de Datos', 14, 15);
+        doc.setFontSize(10); doc.text(`Generado: ${new Date().toLocaleString()}`, 14, 22);
+        autoTable(doc, {
+            head: [cols.map(c => c.replace('Proveedor_', 'Prov. '))],
+            body: rows.map(item => cols.map(c => formatCellValueForExport(c, item[c]))),
+            startY: 30,
+            styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+            headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+        });
+        doc.save(`exportacion_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    const performPrint = (rows: any[]) => {
+        const cols = getVisibleColumnsForExport();
+        const win = window.open('', '_blank');
+        if (!win) { alert('Permite ventanas emergentes para imprimir'); return; }
+        win.document.write(`<!DOCTYPE html><html><head><title>Reporte</title>
+        <style>body{font-family:Arial,sans-serif;margin:20px}
+        table{border-collapse:collapse;width:100%}
+        th{background:#2980b9;color:#fff;padding:8px;text-align:left}
+        td{border:1px solid #ddd;padding:6px}
+        tr:nth-child(even){background:#f5f5f5}</style></head><body>
+        <h2>Reporte de Datos</h2><p>Generado: ${new Date().toLocaleString()} | Registros: ${rows.length}</p>
+        <table><thead><tr>${cols.map(c => `<th>${c.replace('Proveedor_', 'Prov. ')}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(item => `<tr>${cols.map(c => `<td>${formatCellValueForExport(c, item[c])}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table></body></html>`);
+        win.document.close(); win.print();
+    };
+
+    const exportToExcel = () => { const d = getSelectedData(); if (!d.length) { alert('No hay filas seleccionadas'); return; } performExcelExport(d); setShowExportMenu(false); };
+    const exportToPDF = () => { const d = getSelectedData(); if (!d.length) { alert('No hay filas seleccionadas'); return; } performPDFExport(d); setShowExportMenu(false); };
+    const handlePrint = () => { const d = getSelectedData(); if (!d.length) { alert('No hay filas seleccionadas'); return; } performPrint(d); setShowExportMenu(false); };
+
+    // ── Teclado ────────────────────────────────────────────────────────────────
+
+    const handleRowKeyDown = (e: React.KeyboardEvent, item: any, index: number) => {
+        if (e.key === "ArrowDown") { e.preventDefault(); (document.querySelector(`[data-row-index="${index + 1}"]`) as HTMLElement)?.focus(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); (document.querySelector(`[data-row-index="${index - 1}"]`) as HTMLElement)?.focus(); }
+        else if (e.key === "Enter") { e.preventDefault(); onRowClick?.(item); }
+        else if (e.key === " ") { e.preventDefault(); toggleRowSelection(getRowId(item), item); }
+    };
+
+    // ── Renders condicionales ──────────────────────────────────────────────────
+
+    if (loading) return <TableSkeleton />;
+    if (displayData.length === 0)
         return (
             <div className="w-full">
-                <section className="w-fit text-center py-5 m-auto items-center flex gap-2 text-gray-500 dark:text-gray-200">
+                <section className="w-fit text-center py-6 m-auto flex gap-2 text-gray-400 dark:text-gray-500">
                     <Grid2x2X /> Sin datos disponibles
                 </section>
             </div>
         );
-    }
-
-    const allCurrentPageSelected = displayData.length > 0 &&
-        displayData.every(item => isRowSelected(getRowId(item)));
 
     return (
-        <div className="w-full space-y-8 relative" ref={tableRef}>
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-600">
-                <div className="flex items-center space-x-2">
+        <div className="w-full space-y-3 relative" ref={tableRef}>
+
+            {/* ── Toolbar ──────────────────────────────────────────────────── */}
+            <div className="flex items-center justify-between px-2 py-2 border-b border-gray-200 dark:border-zinc-700 flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <ViewTR
                         setShowColumnMenu={setShowColumnMenu}
                         column="toggle"
@@ -600,75 +365,73 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                         visibleColumns={visibleColumns}
                         allColumns={true}
                     />
-
-                    {/* Botón de seleccionar todos */}
                     <button
                         onClick={selectAllRows}
-                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors text-sm dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs dark:bg-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-600 transition-colors"
                     >
                         {allCurrentPageSelected ? 'Deseleccionar página' : 'Seleccionar página'}
                     </button>
                     {selectedRows.size > 0 && (
                         <button
                             onClick={clearAllSelections}
-                            className="px-3 py-2 flex gap-2 items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors text-sm dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                            aria-label="Deseleccionar todos"
-                            title="Deseleccionar todos"
+                            className="px-2.5 py-1.5 flex gap-1 items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs dark:bg-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-600 transition-colors"
                         >
-                            Deseleccionar todos <X size={18} className="text-red-600" />
+                            Deseleccionar todos <X size={12} className="text-red-500" />
                         </button>
                     )}
-                    {/* Botón de exportación para datos seleccionados */}
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {/* Indicador de sort activo con botón para limpiar */}
+                    {sortColumn && (
+                        <span className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800">
+                            {sortDirection === "asc" ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                            <span className="font-medium">{sortColumn}</span>
+                            <button
+                                onClick={() => { setSortColumn(null); setSortDirection("desc"); }}
+                                className="ml-0.5 hover:text-red-500 transition-colors"
+                                title="Quitar orden"
+                            >
+                                <X size={10} />
+                            </button>
+                        </span>
+                    )}
+
+                    {/* Botón de exportar (solo cuando hay selección) */}
                     {selectedRows.size > 0 && (
                         <div className="relative" ref={exportMenuRef}>
                             <button
                                 onClick={() => setShowExportMenu(!showExportMenu)}
-                                className="flex items-center space-x-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                                aria-label="Exportar datos seleccionados"
-                                aria-expanded={showExportMenu}
-                                aria-haspopup="true"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium transition-colors"
                             >
-                                <Download size={18} />
-                                <span>Exportar selección ({selectedRows.size})</span>
-                                <ChevronDown size={16} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+                                <Download size={13} />
+                                Exportar ({selectedRows.size})
+                                <ChevronDown size={11} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
                             </button>
 
                             <AnimatePresence>
                                 {showExportMenu && (
                                     <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
+                                        initial={{ opacity: 0, y: -6 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="absolute left-0 mt-2 w-56 bg-white dark:bg-zinc-800 rounded-md shadow-lg border border-gray-200 dark:border-zinc-700 z-50"
-                                        role="menu"
-                                        aria-label="Opciones de exportación"
+                                        exit={{ opacity: 0, y: -6 }}
+                                        transition={{ duration: 0.12 }}
+                                        className="absolute right-0 mt-1 w-52 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-gray-200 dark:border-zinc-700 z-50"
                                     >
                                         <div className="py-1">
-                                            <button
-                                                onClick={exportToExcel}
-                                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
-                                                role="menuitem"
-                                            >
-                                                <FileSpreadsheet size={16} className="mr-3 text-green-600" />
-                                                Exportar a Excel
-                                            </button>
-                                            <button
-                                                onClick={exportToPDF}
-                                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
-                                                role="menuitem"
-                                            >
-                                                <FileText size={16} className="mr-3 text-red-600" />
-                                                Exportar a PDF
-                                            </button>
-                                            <button
-                                                onClick={handlePrint}
-                                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
-                                                role="menuitem"
-                                            >
-                                                <Printer size={16} className="mr-3 text-blue-600" />
-                                                Imprimir
-                                            </button>
+                                            {[
+                                                { label: 'Exportar a Excel', icon: <FileSpreadsheet size={14} className="text-green-600" />, action: exportToExcel },
+                                                { label: 'Exportar a PDF', icon: <FileText size={14} className="text-red-600" />, action: exportToPDF },
+                                                { label: 'Imprimir', icon: <Printer size={14} className="text-blue-600" />, action: handlePrint },
+                                            ].map(opt => (
+                                                <button
+                                                    key={opt.label}
+                                                    onClick={opt.action}
+                                                    className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                                                >
+                                                    {opt.icon} {opt.label}
+                                                </button>
+                                            ))}
                                         </div>
                                     </motion.div>
                                 )}
@@ -678,103 +441,116 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-600 shadow-md rounded-lg overflow-hidden">
+            {/* ── Tabla ─────────────────────────────────────────────────────── */}
+            <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-zinc-100 dark:bg-zinc-900">
+                        <thead className="bg-zinc-50 dark:bg-zinc-900">
                             <tr>
-                                <th className="relative px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider">
+                                {/* Checkbox global */}
+                                <th className="px-4 py-3 w-10">
                                     <input
                                         type="checkbox"
-                                        className="rounded border-gray-300 dark:border-zinc-600 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                        className="rounded border-gray-300 dark:border-zinc-600 text-blue-600"
                                         checked={allCurrentPageSelected}
                                         onChange={selectAllRows}
-                                        aria-label="Seleccionar todas las filas de esta página"
                                     />
                                 </th>
-                                {columns.map((column) => (
-                                    visibleColumns[column] && (
-                                        <th
-                                            key={column}
-                                            className="relative px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 tracking-wider"
-                                        >
-                                            <div className="flex items-center">
-                                                <button
-                                                    className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-                                                    onClick={() => toggleSort(column)}
-                                                    aria-label={`Ordenar por ${column}`}
-                                                >
-                                                    <span>{column.replace('Proveedor_', 'Prov. ')}</span>
-                                                    <ChevronDown
-                                                        className={`h-4 w-4 transition-transform ${sortColumn === column
-                                                            ? sortDirection === "asc"
-                                                                ? "rotate-180"
-                                                                : ""
-                                                            : "opacity-50"
-                                                            }`}
-                                                    />
-                                                </button>
-                                                <ViewTR
-                                                    setShowColumnMenu={setShowColumnMenu}
+
+                                {columns.map(column => visibleColumns[column] && (
+                                    <th
+                                        key={column}
+                                        className="relative px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider"
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            {/*
+                                             * ── Sort directo en el encabezado ──────────────────────────
+                                             * Click en el nombre de columna → ordena ASC/DESC en el cliente.
+                                             * Si se pasa onSortChange, también notifica al padre para
+                                             * que re-fetchee desde el servidor con el nuevo ORDER BY.
+                                             */}
+                                            <button
+                                                onClick={() => toggleSort(column)}
+                                                className={cn(
+                                                    "flex items-center gap-0.5 hover:text-gray-900 dark:hover:text-white transition-colors rounded px-0.5",
+                                                    sortColumn === column
+                                                        ? "text-blue-600 dark:text-blue-400 font-semibold"
+                                                        : "text-gray-500 dark:text-gray-400"
+                                                )}
+                                                title={`Ordenar por ${column}`}
+                                            >
+                                                <span className="uppercase tracking-wider">
+                                                    {column.replace('Proveedor_', 'Prov. ')}
+                                                </span>
+                                                <SortIcon
                                                     column={column}
-                                                    toggleColumn={toggleColumn}
-                                                    showColumnMenu={showColumnMenu}
-                                                    visibleColumns={visibleColumns}
+                                                    sortColumn={sortColumn}
+                                                    sortDirection={sortDirection}
                                                 />
-                                            </div>
-                                        </th>
-                                    )
+                                            </button>
+
+                                            {/* Toggle visibilidad */}
+                                            <ViewTR
+                                                setShowColumnMenu={setShowColumnMenu}
+                                                column={column}
+                                                toggleColumn={toggleColumn}
+                                                showColumnMenu={showColumnMenu}
+                                                visibleColumns={visibleColumns}
+                                            />
+                                        </div>
+                                    </th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-zinc-600">
+
+                        <tbody className="divide-y divide-gray-100 dark:divide-zinc-700">
                             <AnimatePresence>
-                                {filteredAndSortedData.map((item: any, index: number) => {
+                                {filteredAndSortedData.map((item, index) => {
                                     const rowId = getRowId(item);
                                     const isSelected = isRowSelected(rowId);
                                     return (
                                         <motion.tr
-                                            key={rowId}
+                                            key={index}
                                             data-row-index={index}
                                             tabIndex={0}
                                             role="row"
                                             aria-selected={isSelected}
                                             className={cn(
+                                                "transition-colors",
                                                 onRowClick && "cursor-pointer",
-                                                "hover:bg-zinc-50 dark:hover:bg-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset",
+                                                "hover:bg-zinc-50 dark:hover:bg-zinc-700/40",
+                                                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset",
                                                 isSelected && "bg-blue-50 dark:bg-blue-900/20"
                                             )}
-                                            onClick={() => {
-                                                if (onRowClick) onRowClick(item);
-                                            }}
-                                            onDoubleClick={() => {
-                                                if (onRowClick) onRowClick(item);
-                                            }}
-                                            onKeyDown={(e) => handleRowKeyDown(e, item, index)}
+                                            onClick={() => onRowClick?.(item)}
+                                            onKeyDown={e => handleRowKeyDown(e, item, index)}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
-                                            transition={{ duration: 0.2 }}
+                                            transition={{ duration: 0.12 }}
                                         >
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-4 py-2.5">
                                                 <input
                                                     type="checkbox"
-                                                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                                    className="rounded border-gray-300 text-blue-600"
                                                     checked={isSelected}
                                                     onChange={() => toggleRowSelection(rowId, item)}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    aria-label={`Seleccionar fila ${index + 1}`}
+                                                    onClick={e => e.stopPropagation()}
                                                 />
                                             </td>
-                                            {columns.map((column: string) => (
-                                                visibleColumns[column] && (
-                                                    <td
-                                                        key={`${rowId}-${column}`}
-                                                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white"
-                                                    >
-                                                        {formatCellValue(column, item[column])}
-                                                    </td>
-                                                )
+
+                                            {columns.map(column => visibleColumns[column] && (
+                                                <td
+                                                    key={`${column}`}
+                                                    className={cn(
+                                                        "px-4 py-2.5 whitespace-nowrap text-sm text-gray-900 dark:text-white",
+                                                        // Resaltar la columna actualmente ordenada
+                                                        sortColumn === column &&
+                                                        "bg-blue-50/40 dark:bg-blue-900/10"
+                                                    )}
+                                                >
+                                                    {formatCellValue(column, item[column])}
+                                                </td>
                                             ))}
                                         </motion.tr>
                                     );
@@ -785,63 +561,49 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                 </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-                <div className="text-sm text-gray-700 dark:text-gray-200">
-                    {selectedRows.size} fila(s) seleccionada(s) en total
-                </div>
+            {/* Pie */}
+            <div className="text-xs text-gray-400 dark:text-gray-500 px-1">
+                {selectedRows.size > 0
+                    ? <span className="text-blue-600 dark:text-blue-400 font-medium">{selectedRows.size} fila(s) seleccionada(s)</span>
+                    : `${filteredAndSortedData.length} registro(s)`}
             </div>
         </div>
     );
 };
 
-// Componente Skeleton (sin cambios)
-const TableSkeleton = () => {
-    const skeletonRows = 5;
-    const skeletonColumns = 4;
+// ── Skeleton ──────────────────────────────────────────────────────────────────
 
-    return (
-        <div className="w-full space-y-8 animate-pulse">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-600">
-                <div className="h-7 w-48 bg-gray-300 dark:bg-zinc-700 rounded"></div>
-                <div className="h-8 w-8 bg-gray-300 dark:bg-zinc-700 rounded"></div>
-            </div>
-            <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-600 shadow-md rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-zinc-100 dark:bg-zinc-900">
-                            <tr>
-                                <th className="px-6 py-3">
-                                    <div className="h-4 w-4 bg-gray-300 dark:bg-zinc-700 rounded mx-auto"></div>
-                                </th>
-                                {Array.from({ length: skeletonColumns }).map((_, index) => (
-                                    <th key={index} className="px-6 py-3">
-                                        <div className="h-4 w-24 bg-gray-300 dark:bg-zinc-700 rounded"></div>
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-zinc-600">
-                            {Array.from({ length: skeletonRows }).map((_, rowIndex) => (
-                                <tr key={rowIndex}>
-                                    <td className="px-6 py-4">
-                                        <div className="h-4 w-4 bg-gray-300 dark:bg-zinc-700 rounded mx-auto"></div>
-                                    </td>
-                                    {Array.from({ length: skeletonColumns }).map((_, colIndex) => (
-                                        <td key={colIndex} className="px-6 py-4">
-                                            <div className="h-4 w-full bg-gray-300 dark:bg-zinc-700 rounded"></div>
-                                        </td>
-                                    ))}
-                                </tr>
+const TableSkeleton = () => (
+    <div className="w-full space-y-3 animate-pulse">
+        <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-zinc-600">
+            <div className="h-6 w-36 bg-gray-200 dark:bg-zinc-700 rounded" />
+            <div className="h-6 w-6 bg-gray-200 dark:bg-zinc-700 rounded" />
+        </div>
+        <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm rounded-lg overflow-hidden">
+            <table className="w-full">
+                <thead className="bg-zinc-50 dark:bg-zinc-900">
+                    <tr>
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <th key={i} className="px-4 py-3">
+                                <div className="h-3 w-20 bg-gray-300 dark:bg-zinc-700 rounded" />
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-zinc-700">
+                    {Array.from({ length: 5 }).map((_, r) => (
+                        <tr key={r}>
+                            {Array.from({ length: 5 }).map((_, c) => (
+                                <td key={c} className="px-4 py-3"> 
+                                    <div className="h-3 w-full bg-gray-200 dark:bg-zinc-700 rounded" />
+                                </td>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-                <div className="h-4 w-48 bg-gray-300 dark:bg-zinc-700 rounded"></div>
-            </div>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
-    );
-};
+    </div>
+);
 
 export default DynamicTable;

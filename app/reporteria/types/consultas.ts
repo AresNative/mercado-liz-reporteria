@@ -11,6 +11,7 @@ export interface StatsData {
   totalCosto?: number;
   totalArticulos?: number;
   totalCompras?: number;
+  totalMermas?: number;
   diferencia?: number;
   totalClientes?: number;
   totalProveedores?: number;

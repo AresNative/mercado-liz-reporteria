@@ -1,9 +1,6 @@
 // global.ts
 import { useRef, useEffect } from "react";
-import {
-  useGetMasivoWithFiltersMutation,
-  useGetWithFiltersGeneralInIntelisisMutation,
-} from "@/hooks/api/api_int";
+import { useGetWithFiltersGeneralInIntelisisMutation } from "@/hooks/api/api_int";
 import { safeCall } from "@/hooks/use-debounce";
 import { v4 as uuidv4 } from "uuid";
 import { ApiResponse } from "@/utils/types/consultas";
@@ -13,17 +10,9 @@ export interface RequestPayload {
   filtros: {
     selects?: Array<{ Key: string; Alias?: string }>;
     agregaciones?: Array<{ Key: string; Alias: string; Operation: string }>;
-    Filtros?: Array<{
-      Filtros: Array<{ Key: string; Operator: string; Value: any }>;
-      OperadorLogico: "AND" | "OR";
-    }>;
     FiltrosAnd?: Array<{
-      Filtros: Array<{ Key: string; Operator: string; Value: any }>;
-      OperadorLogico: "AND" | "OR";
-    }>;
-    FiltrosOr?: Array<{
-      Filtros: Array<{ Key: string; Operator: string; Value: any }>;
-      OperadorLogico: "AND" | "OR";
+      Filtros?: Array<{ Key: string; Operator: string; Value?: any }>;
+      OperadorLogico?: "AND" | "OR";
     }>;
     Order?: Array<{ Key: string; Direction: string }>;
   };
@@ -102,7 +91,7 @@ export class ManagmentRead {
 }
 
 export function useManagmentRead(): ManagmentRead {
-  const [getData] = useGetMasivoWithFiltersMutation();
+  const [getData] = useGetWithFiltersGeneralInIntelisisMutation();
   const managerRef = useRef<ManagmentRead | null>(null);
 
   if (!managerRef.current) {
