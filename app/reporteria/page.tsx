@@ -719,9 +719,10 @@ export default function Report() {
 
     const handleSuggestionSelect = async (suggestion: string) => {
         setShowSuggestions(false);
-
+        console.log(searchColumn.prefix + suggestion);
+        
         // Actualizar estados locales
-        setSearchTerm(searchColumn.prefix + suggestion);
+        setSearchTerm(suggestion);
         setSearchApplied(true);
         setLastSearch({ term: suggestion, columnKey: searchColumn.key });
 

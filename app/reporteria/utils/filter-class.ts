@@ -50,7 +50,7 @@ export class FilterBuilder {
         searchApplied
       ) {
         basicFilters.push({
-          Key: searchColumn.tableField,
+          Key: searchColumn.prefix + searchColumn.tableField,
           Operator: "LIKE",
           Value: searchTerm,
         });
