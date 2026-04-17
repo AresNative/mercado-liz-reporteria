@@ -21,6 +21,7 @@ import {
     GitCompare,
     Eye,
     EyeOff,
+    Package,
 } from "lucide-react";
 import Header from "@/template/header";
 import Footer from "@/template/footer";
@@ -133,7 +134,17 @@ export default function Report() {
     const [almacenFilter, setAlmacenFilter] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
 
-    const [searchColumn, setSearchColumn] = useState<SearchColumn>(SEARCH_COLUMNS_CONFIG.ventas[0]);
+    const [searchColumn, setSearchColumn] = useState<SearchColumn>(
+        SEARCH_COLUMNS_CONFIG.ventas[0]
+        || {
+        key: "articulo",
+        label: "Artículo",
+        icon: Package,
+        color: "text-blue-500",
+        tableField: "Descripcion1",
+        prefix: "ART.",
+        table: "ART",
+    });
     const [showSearchColumnDropdown, setShowSearchColumnDropdown] = useState(false);
 
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -378,9 +389,9 @@ export default function Report() {
             const payload: RequestPayload = {
                 table: `${searchColumn.table} WHERE ${searchColumn.tableField} LIKE '%${searchTerm}%'`,
                 filtros: {
-                    selects: [{ Key: searchColumn.tableField, Alias: "Suggestion" }],
-                    FiltrosAnd: [],
-                    Order: [{ Key: searchColumn.tableField, Direction: "ASC" }],
+                    agregaciones: [{ Key:  searchColumn.tableField, Alias: "Suggestion", Operation: "DISTINCT" }],
+                   /*  Filtros:[{ Key: searchColumn.tableField, Operator: "LIKE", Value: `` }], */
+                    //Order: [{ Key: searchColumn.tableField, Direction: "ASC" }],
                 },
                 page: nextPage,
                 pageSize: 10,
@@ -658,7 +669,7 @@ export default function Report() {
         return () => {
             manager.cancelAll();
         };
-    }, [reportType, almacenFilter, dateRange, searchApplied, searchColumn, showStats, currentPage, pageSize, comparisonTab]);
+    }, [reportType, almacenFilter, dateRange, /* searchApplied, searchColumn, */ showStats, currentPage, pageSize, comparisonTab]);
 
     // Handlers para aplicar filtros
     const applyAllFilters = () => {
@@ -710,7 +721,7 @@ export default function Report() {
         setShowSuggestions(false);
 
         // Actualizar estados locales
-        setSearchTerm(suggestion);
+        setSearchTerm(searchColumn.prefix + suggestion);
         setSearchApplied(true);
         setLastSearch({ term: suggestion, columnKey: searchColumn.key });
 
@@ -1917,7 +1928,7 @@ export default function Report() {
                                                             className="w-full p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                                                         >
                                                             <searchColumn.icon className={`size-4 ${searchColumn.color}`} />
-                                                            <span className="text-xs whitespace-normal break-words flex-1 text-left">
+                                                            <span className="text-xs whitespace-normal wrap-break-words flex-1 text-left">
                                                                 {suggestion.Suggestion}
                                                             </span>
                                                         </button>

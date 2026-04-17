@@ -14,6 +14,7 @@ export interface RequestPayload {
       Filtros?: Array<{ Key: string; Operator: string; Value?: any }>;
       OperadorLogico?: "AND" | "OR";
     }>;
+    Filtros?: Array<{ Key: string; Operator: string; Value?: any }>;
     Order?: Array<{ Key: string; Direction: string }>;
   };
   page?: number;
