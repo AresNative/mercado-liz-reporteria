@@ -364,7 +364,7 @@ export default function Report() {
 
     // Cargar sugerencias de búsqueda (basadas en borrador, no en applied)
     const fetchSuggestions = useCallback(async (reset = false) => {
-        if (!searchTerm || searchTerm.length < 2 || !searchColumn.tableField) {
+        if (!searchTerm || searchTerm.length < 2 || !searchColumn.tableField || !searchColumn.table) {
             setSuggestionsAll([]);
             setShowSuggestions(false);
             return;
@@ -719,7 +719,6 @@ export default function Report() {
 
     const handleSuggestionSelect = async (suggestion: string) => {
         setShowSuggestions(false);
-        console.log(searchColumn.prefix + suggestion);
         
         // Actualizar estados locales
         setSearchTerm(suggestion);
@@ -807,6 +806,7 @@ export default function Report() {
     const handleSearchSubmit = () => {
         setSearchApplied(true);
         applyAllFilters();
+        fetchCurrentReportData();
     };
 
     const handleClearFilters = () => {

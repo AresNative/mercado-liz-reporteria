@@ -61,7 +61,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-yellow-500",
       tableField: "Codigo",
       prefix: "ventad.",
-      table: "ventad",
+      table: "cb",
     },
   ],
   compras: [
@@ -99,7 +99,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-yellow-500",
       tableField: "Codigo",
       prefix: "comprad.",
-      table: "comprad",
+      table: "cb",
     },
   ],
   mermas: [
@@ -137,7 +137,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-yellow-500",
       tableField: "Codigo",
       prefix: "invd.",
-      table: "invd",
+      table: "cb",
     },
   ],
   inventario: [
@@ -195,7 +195,7 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       color: "text-yellow-500",
       tableField: "Codigo",
       prefix: "ventad.",
-      table: "ventad",
+      table: "cb",
     },
   ],
 };
