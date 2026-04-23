@@ -12,6 +12,7 @@ import { useAppDispatch } from '@/hooks/selector';
 import { Modal } from '@/components/modal';
 import { useRouter } from "next/navigation";
 import { SwitchToggle } from '@/components/switch-mode';
+import Badge from "@/components/badge";
 
 const USER_DATA_KEY = "userData";
 interface MenuProps {
@@ -125,16 +126,19 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                 <header className="bg-gradient-to-r from-green-600 to-green-800 text-white p-4 flex flex-row-reverse gap-2 w-full">
                     <button
                         onClick={() => setMenuOpen(false)}
-                        className="cursor-pointer size-4 text-white hover:bg-white/20 rounded-full"
+                        className="cursor-pointer hidden size-4 text-white hover:bg-white/20 rounded-full"
                         aria-label="Cerrar menú"
                     >
                         <X className='size-4' />
                     </button>
                     {userData && userData.token ? (
-                        <section className="flex flex-col gap-2 w-full">
+                        <section className="relative flex flex-col gap-2 w-full">
                             <span className='text-xs'>
                                 {userCredentials.email}
                             </span>
+                            <section className="absolute -bottom-7 -right-2">
+                                <Badge color={userData.rol === "admin" ? "blue" : "pink"} text={userData.rol || ""} />
+                            </section>
                             <button
                                 onClick={handleLogout}
                                 className="text-center cursor-pointer flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"

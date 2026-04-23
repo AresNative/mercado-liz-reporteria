@@ -137,14 +137,14 @@ export default function Report() {
     const [searchColumn, setSearchColumn] = useState<SearchColumn>(
         SEARCH_COLUMNS_CONFIG.ventas[0]
         || {
-        key: "articulo",
-        label: "Artículo",
-        icon: Package,
-        color: "text-blue-500",
-        tableField: "Descripcion1",
-        prefix: "ART.",
-        table: "ART",
-    });
+            key: "articulo",
+            label: "Artículo",
+            icon: Package,
+            color: "text-blue-500",
+            tableField: "Descripcion1",
+            prefix: "ART.",
+            table: "ART",
+        });
     const [showSearchColumnDropdown, setShowSearchColumnDropdown] = useState(false);
 
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -295,7 +295,7 @@ export default function Report() {
             const tabCfg = COMPARISON_QUERY_CONFIGS[comparisonTab];
             const validAliases = COMPARISON_VALID_ALIASES[comparisonTab];
             console.log(tabCfg, validAliases);
-            
+
             // Selects del QUERY_CONFIGS base pero mapeados al tab activo
             const tabQueryConfig = {
                 ventas: QUERY_CONFIGS.ventas,
@@ -389,8 +389,8 @@ export default function Report() {
             const payload: RequestPayload = {
                 table: `${searchColumn.table} WHERE ${searchColumn.tableField} LIKE '%${searchTerm}%'`,
                 filtros: {
-                    agregaciones: [{ Key:  searchColumn.tableField, Alias: "Suggestion", Operation: "DISTINCT" }],
-                   /*  Filtros:[{ Key: searchColumn.tableField, Operator: "LIKE", Value: `` }], */
+                    agregaciones: [{ Key: searchColumn.tableField, Alias: "Suggestion", Operation: "DISTINCT" }],
+                    /*  Filtros:[{ Key: searchColumn.tableField, Operator: "LIKE", Value: `` }], */
                     //Order: [{ Key: searchColumn.tableField, Direction: "ASC" }],
                 },
                 page: nextPage,
@@ -719,7 +719,7 @@ export default function Report() {
 
     const handleSuggestionSelect = async (suggestion: string) => {
         setShowSuggestions(false);
-        
+
         // Actualizar estados locales
         setSearchTerm(suggestion);
         setSearchApplied(true);
@@ -1081,6 +1081,11 @@ export default function Report() {
     const removeSortRule = (index: number) => {
         if (sortRules.length > 1) setSortRules(sortRules.filter((_, i) => i !== index));
     };
+
+    const applyAdvancedFilters = () => {
+        applyAllFilters();
+    };
+
     const getActiveFiltersSummary = () => {
         const summary: string[] = [];
         const { almacenFilter, searchApplied, searchTerm, searchColumn, dateRange, filterGroups, quickMode } = appliedFilters;
@@ -1180,7 +1185,7 @@ export default function Report() {
                             </div>
                         </div>
                     </li>
-                    
+
                     <li className="flex gap-2">
                         {(reportType === "ventas" || reportType === "comparacion") && (
                             <>
@@ -1454,7 +1459,7 @@ export default function Report() {
                         </div>
                     </div>
                 )}
-                
+
                 {/* Tabla */}
                 {reportType && (
                     <article className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
@@ -1503,7 +1508,7 @@ export default function Report() {
                                                         + Nuevo Grupo
                                                     </button>
                                                     <button
-                                                        onClick={applyAllFilters}
+                                                        onClick={applyAdvancedFilters}
                                                         className="text-sm px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 dark:bg-green-900/50 dark:text-green-300"
                                                     >
                                                         Aplicar Filtros
@@ -1733,7 +1738,7 @@ export default function Report() {
                                                 </button>
                                                 <div className="flex gap-2">
                                                     <button
-                                                        onClick={applyAllFilters}
+                                                        onClick={applyAdvancedFilters}
                                                         className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                                                     >
                                                         Aplicar Filtros

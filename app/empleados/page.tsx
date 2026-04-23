@@ -3,7 +3,6 @@
 import {
     Filter,
     MessageCircle,
-    Search,
     Plus,
     RefreshCw
 } from "lucide-react"
@@ -15,8 +14,6 @@ import { useGetWithFiltersGeneralMutation } from "@/hooks/api/api"
 
 import { LoadingSection } from "@/template/loading-screen"
 
-import { useForm } from "react-hook-form"
-
 import Pagination from "@/components/pagination"
 import DynamicTable from "@/components/table"
 import { Modal } from "@/components/modal"
@@ -24,6 +21,7 @@ import { BentoGrid, BentoItem } from "@/components/bento-grid"
 import { ModalDetallesEmpleado } from "./components/detalles-empleado"
 import Footer from "@/template/footer"
 import Header from "@/template/header"
+import MainForm from "@/components/form/main-form"
 
 // Definir interfaces para tipado fuerte basado en los datos reales
 interface Empleado {
@@ -84,122 +82,6 @@ interface EstadisticasEmpleados {
     empleadosInactivos: number;
     topDepartamentos: [string, number][];
 }
-
-// Componente para el formulario de filtros
-const FiltrosEmpleados = ({ onSubmit, register }: {
-    onSubmit: () => void;
-    register: any;
-}) => {
-    return (
-        <form onSubmit={onSubmit} className="w-full">
-            {/* Layout para pantallas grandes */}
-            <div className="hidden md:flex flex-wrap items-center gap-3">
-                <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        {...register("search")}
-                        placeholder="Buscar por nombre, email..."
-                        className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    />
-                </div>
-
-                <select
-                    {...register("departamento")}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 min-w-[180px]"
-                >
-                    <option value="">Todos los departamentos</option>
-                    <option value="MAYOREO CAJAS">Mayoreo Cajas</option>
-                    <option value="ADMINISTRACION">Administración</option>
-                    <option value="VENTAS">Ventas</option>
-                    <option value="LOGISTICA">Logística</option>
-                    <option value="RECURSOS HUMANOS">Recursos Humanos</option>
-                </select>
-
-                <select
-                    {...register("puesto")}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 min-w-[150px]"
-                >
-                    <option value="">Todos los puestos</option>
-                    <option value="CAJERA">Cajera</option>
-                    <option value="GERENTE">Gerente</option>
-                    <option value="ASESOR">Asesor</option>
-                    <option value="AUXILIAR">Auxiliar</option>
-                    <option value="SUPERVISOR">Supervisor</option>
-                </select>
-
-                <select
-                    {...register("estado")}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 min-w-[140px]"
-                >
-                    <option value="">Todos los estados</option>
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
-                </select>
-
-                <button type="submit" className="flex items-center rounded-md px-3 py-2 text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors whitespace-nowrap">
-                    <Filter className="mr-1 h-4 w-4" />
-                    Filtrar
-                </button>
-            </div>
-
-            {/* Layout para pantallas móviles */}
-            <div className="md:hidden space-y-3">
-                <div className="relative">
-                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        {...register("search")}
-                        placeholder="Buscar por nombre, email..."
-                        className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <select
-                        {...register("departamento")}
-                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    >
-                        <option value="">Todos deptos.</option>
-                        <option value="MAYOREO CAJAS">Mayoreo Cajas</option>
-                        <option value="ADMINISTRACION">Administración</option>
-                        <option value="VENTAS">Ventas</option>
-                        <option value="LOGISTICA">Logística</option>
-                        <option value="RECURSOS HUMANOS">RH</option>
-                    </select>
-
-                    <select
-                        {...register("puesto")}
-                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    >
-                        <option value="">Todos puestos</option>
-                        <option value="CAJERA">Cajera</option>
-                        <option value="GERENTE">Gerente</option>
-                        <option value="ASESOR">Asesor</option>
-                        <option value="AUXILIAR">Auxiliar</option>
-                        <option value="SUPERVISOR">Supervisor</option>
-                    </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <select
-                        {...register("estado")}
-                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    >
-                        <option value="">Todos estados</option>
-                        <option value="Activo">Activo</option>
-                        <option value="Inactivo">Inactivo</option>
-                    </select>
-
-                    <button type="submit" className="flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors">
-                        <Filter className="mr-1 h-4 w-4" />
-                        Filtrar
-                    </button>
-                </div>
-            </div>
-        </form>
-    );
-};
 // Hook personalizado para la gestión de empleados
 const useEmpleados = () => {
     const [empleados, setEmpleados] = useState<Empleado[]>([]);
@@ -221,14 +103,15 @@ const useEmpleados = () => {
     const fetchEmpleados = useCallback(async () => {
         setIsLoading(true);
         setError(null);
-
+        console.log(activeFilters);
+        
         try {
             const response = await getWithFilter({
                 table: "empleados",
                 pageSize: "10",
                 page: currentPage,
                 filtros: {
-                    Filtros: activeFilters.Filtros,
+                    FiltrosAnd: activeFilters.Filtros,
                     Selects: activeFilters.Selects,
                     Order: activeFilters.OrderBy ? [activeFilters.OrderBy] : []
                 }
@@ -385,36 +268,6 @@ const EstadisticasEmpleados = ({ estadisticas }: { estadisticas: EstadisticasEmp
     );
 };
 
-// Configuración de columnas para la tabla
-const empleadosTableColumns = [
-    { key: "num_empleado", header: "N° Empleado" },
-    {
-        key: "nombre",
-        header: "Nombre",
-        transform: (value: string, row: Empleado) => `${row.nombre} ${row.apellido}`
-    },
-    { key: "puesto", header: "Puesto" },
-    { key: "departamento", header: "Departamento" },
-    { key: "email", header: "Email" },
-    {
-        key: "estado",
-        header: "Estado",
-        transform: (value: string) => (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${value === "Activo"
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
-                }`}>
-                {value}
-            </span>
-        )
-    },
-    {
-        key: "fecha_ingreso",
-        header: "Fecha Ingreso",
-        transform: (value: string) => new Date(value).toLocaleDateString('es-MX')
-    },
-];
-
 export default function Empleados() {
     const dispatch = useAppDispatch();
     const {
@@ -438,17 +291,17 @@ export default function Empleados() {
 
     const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null);
 
-    const { handleSubmit, register, reset } = useForm<FiltrosForm>();
-
     const onSubmit = (data: FiltrosForm) => {
-        const nuevosFiltros: Filtro[] = [];
+        const nuevosFiltros: any[] = [];
 
         if (data.search) {
-            nuevosFiltros.push(
-                { Key: "nombre", Value: data.search, Operator: "like" },
-                { Key: "apellido", Value: data.search, Operator: "like" },
-                { Key: "email", Value: data.search, Operator: "like" }
-            );
+            nuevosFiltros.push({
+                Filtros: [
+                    { Key: "nombre", Value: data.search, Operator: "like" },
+                    { Key: "apellido", Value: data.search, Operator: "like" },
+                    { Key: "email", Value: data.search, Operator: "like" }
+                ], OperadorLogico: "OR"
+            } as any);
         }
 
         if (data.departamento) {
@@ -462,7 +315,8 @@ export default function Empleados() {
         if (data.estado) {
             nuevosFiltros.push({ Key: "estado", Value: data.estado, Operator: "=" });
         }
-
+        console.log(nuevosFiltros, data);
+        
         setActiveFilters(prev => ({
             ...prev,
             Filtros: nuevosFiltros
@@ -471,7 +325,6 @@ export default function Empleados() {
     };
 
     const limpiarFiltros = () => {
-        reset();
         setActiveFilters(prev => ({ ...prev, Filtros: [] }));
         setCurrentPage(1);
     };
@@ -522,52 +375,108 @@ export default function Empleados() {
 
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
                     <article className="p-4">
-                        <header className="mb-6 flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                        <header className="mb-6 flex flex-col gap-2 space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                             <div className="mr-4">
                                 <h2 className="text-lg font-semibold">Gestión de Empleados</h2>
                                 <p className="text-sm text-gray-500">
                                     Mostrando {empleados.length} de {totalRecords} empleados
                                 </p>
                             </div>
+                            <MainForm
+                                message_button={"Filtrar"}
+                                onSuccess={onSubmit}
+                                iconButton={<Filter className="mr-1 h-4 w-4" />}
+                                actionType={"search"}
+                                dataForm={[
+                                    {
+                                        name: "search",
+                                        type: "SEARCH",
+                                        label: "",
+                                        icon: <></>,
+                                        placeholder: "Busar por nombre, email...",
+                                        require: true,
+                                    },
+                                    {
+                                        type: "Flex",
+                                        require: false,
+                                        elements: [
+                                            {
+                                                name: "departamento",
+                                                type: "SELECT",
+                                                label: "",
+                                                icon: <></>,
+                                                options: [
+                                                    { label: "Todos los departamentos", value: "" },
+                                                    { label: "Mayoreo Cajas", value: "MAYOREO CAJAS" },
+                                                    { label: "Administración", value: "ADMINISTRACION" },
+                                                    { label: "Ventas", value: "VENTAS" },
+                                                    { label: "Logística", value: "LOGISTICA" },
+                                                    { label: "Recursos Humanos", value: "RECURSOS HUMANOS" },
+                                                ],
+                                                placeholder: "Todos los departamentos",
+                                                require: false,
+                                            }, {
+                                                name: "puesto",
+                                                type: "SELECT",
+                                                label: "",
+                                                icon: <></>,
+                                                options: [
+                                                    { label: "Todos los puestos", value: "" },
+                                                    { label: "Cajera", value: "CAJERA" },
+                                                    { label: "Gerente", value: "GERENTE" },
+                                                    { label: "Asesor", value: "ASESOR" },
+                                                    { label: "Auxiliar", value: "AUXILIAR" },
+                                                    { label: "Supervisor", value: "SUPERVISOR" },
+                                                ],
+                                                placeholder: "Todos los puestos",
+                                                require: false,
+                                            }, {
+                                                name: "estado",
+                                                type: "SELECT",
+                                                label: "",
+                                                icon: <></>,
+                                                options: [
+                                                    { label: "Todos los estados", value: "" },
+                                                    { label: "Activo", value: "Activo" },
+                                                    { label: "Inactivo", value: "Inactivo" },
+                                                ],
+                                                placeholder: "Todos los estados",
+                                                require: false,
+                                            },
+                                        ],
+                                    },
+                                ]} />
+                            <div className="flex flex-col items-center gap-4">
+                                <button
+                                    onClick={limpiarFiltros}
+                                    className="text-sm text-gray-600 hover:text-gray-800 underline"
+                                >
+                                    Limpiar
+                                </button>
 
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                <FiltrosEmpleados
-                                    onSubmit={handleSubmit(onSubmit)}
-                                    register={register}
-                                />
+                                <button
+                                    onClick={handleRefetchAll}
+                                    className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-100"
+                                    title="Actualizar"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                </button>
 
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={limpiarFiltros}
-                                        className="text-sm text-gray-600 hover:text-gray-800 underline"
-                                    >
-                                        Limpiar
-                                    </button>
+                                <button
+                                    onClick={() => handleOpenModal('chat-general')}
+                                    className="flex items-center bg-purple-500 text-white text-sm px-3 py-2 rounded-md cursor-pointer hover:bg-purple-600 transition-colors"
+                                    title="Chat general"
+                                >
+                                    <MessageCircle className="h-4 w-4" />
+                                </button>
 
-                                    <button
-                                        onClick={handleRefetchAll}
-                                        className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-100"
-                                        title="Actualizar"
-                                    >
-                                        <RefreshCw className="h-4 w-4" />
-                                    </button>
-
-                                    <button
-                                        onClick={() => handleOpenModal('nuevo-empleado')}
-                                        className="flex items-center gap-1 bg-green-600 text-white text-sm px-4 py-2 rounded-md cursor-pointer hover:bg-green-700 transition-colors"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        Nuevo
-                                    </button>
-
-                                    <button
-                                        onClick={() => handleOpenModal('chat-general')}
-                                        className="flex items-center bg-purple-500 text-white text-sm px-3 py-2 rounded-md cursor-pointer hover:bg-purple-600 transition-colors"
-                                        title="Chat general"
-                                    >
-                                        <MessageCircle className="h-4 w-4" />
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={() => handleOpenModal('nuevo-empleado')}
+                                    className="flex items-center gap-1 bg-green-600 text-white text-sm px-4 py-2 rounded-md cursor-pointer hover:bg-green-700 transition-colors"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Nuevo
+                                </button>
                             </div>
                         </header>
 

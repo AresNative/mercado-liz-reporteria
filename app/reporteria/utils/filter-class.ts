@@ -131,8 +131,8 @@ export class FilterBuilder {
         const ventasFilters: any[] = [
           {
             Key: "venta.Estatus",
-            Operator: "=",
-            Value: CONFIG.STATUS.CONCLUIDO,
+            Operator: "IN",
+            Value: "CONCLUIDO,PENDIENTE,PROCESAR",
           },
           {
             Key: "venta.Mov",

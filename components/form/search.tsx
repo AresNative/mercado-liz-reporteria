@@ -119,7 +119,9 @@ export function SearchComponent(props: SearchableSelectProps) {
     return (
         <div className="flex flex-col relative dark:text-white" ref={skillsRef}>
             <label className="leading-loose flex items-center gap-2 dark:text-white">
-                <Star className="w-4 h-4" />
+                <span className="w-4 h-4 flex items-center justify-center">
+                    {cuestion.icon ? cuestion.icon : <Star className="w-4 h-4" />}
+                </span>
                 {cuestion.label}
             </label>
             <div className="relative flex-1">
@@ -128,7 +130,7 @@ export function SearchComponent(props: SearchableSelectProps) {
                     type="text"
                     placeholder={cuestion.placeholder}
                     value={searchTerm}
-                    className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 py-2 pl-10 w-full rounded-md focus:outline-none border shadow-md focus:border-green-500 focus:ring-green-500"
+                    className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 py-2 pl-10 w-full rounded-md focus:outline-none border focus:border-green-500 focus:ring-green-500"
                     onClick={() => setShowSkillsDropdown(true)}
                     onChange={(e) => {
                         if (cuestion.options) dispatch(searchData(e.target.value));

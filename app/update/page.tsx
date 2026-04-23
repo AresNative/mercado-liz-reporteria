@@ -168,7 +168,7 @@ const Page = () => {
         setIsLoading(true);
         try {
             const { api_int } = EnvConfig();
-            const url = `${api_int}v1/consultar/${encodeURIComponent(consultaIdValue)}?table=${encodeURIComponent(consultaIdTable)}&column=${encodeURIComponent(consultaIdColumn)}`;
+            const url = `${api_int}/v1/consultar/${encodeURIComponent(consultaIdValue)}?table=${encodeURIComponent(consultaIdTable)}&column=${encodeURIComponent(consultaIdColumn)}`;
             const data = await apiRequest(url, "GET");
             setConsultaIdResult(data);
             showNotification("Consulta exitosa", "success");
@@ -195,7 +195,7 @@ const Page = () => {
                 Filtros: advFilters.filter((f) => f.Key && f.Value),
             };
             const { api_int } = EnvConfig();
-            const url = `${api_int}v1/consultar?fromClause=${encodeURIComponent(advFromClause)}`;
+            const url = `${api_int}/v1/consultar?fromClause=${encodeURIComponent(advFromClause)}`;
             const data = await apiRequest(url, "POST", body);
             setAdvResult(data);
             showNotification("Consulta avanzada exitosa", "success");

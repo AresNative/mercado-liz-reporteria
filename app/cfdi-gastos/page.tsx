@@ -7,7 +7,7 @@ import {
     closeModalReducer,
     openAlertReducer
 } from "@/hooks/reducers/drop-down";
-import { useGetMasivoWithFiltersMutation } from "@/hooks/api/api_int";
+import { useGetWithFiltersGeneralInIntelisisMutation } from "@/hooks/api/api_int";
 import Header from "@/template/header";
 import Footer from "@/template/footer";
 import { ChartBar, Form, RefreshCw, Share, MessageCircle } from "lucide-react";
@@ -41,30 +41,7 @@ const OPERATORS = [
 const DEFAULT_PAGE_SIZE = 10;
 
 // Tabla optimizada con la nueva consulta
-const DEFAULT_TABLE = `
-    gasto G
-    INNER JOIN (
-        SELECT 
-            GD.ID AS GastoID,
-            MAX(GD.Concepto) AS Concepto,
-            SUM(GD.Precio * GD.Cantidad) AS TotalPrecio,
-            SUM(GD.Cantidad) AS TotalCantidad,
-            SUM(GD.Importe) AS TotalImporte,
-            SUM(GD.Impuestos) AS TotalImpuestos
-        FROM gastod GD
-        GROUP BY GD.ID
-    ) GD_Concepto ON G.ID = GD_Concepto.GastoID
-    LEFT JOIN Prov P ON P.Proveedor = G.Acreedor
-    LEFT JOIN (
-        SELECT 
-            CFDL.ModuloID,
-            MIN(CFDL.UUID) AS MinUUID
-        FROM CFDValidoMovLista CFDL
-        WHERE CFDL.ModuloD = 'GAS'
-        GROUP BY CFDL.ModuloID
-    ) CFDL ON G.ID = CFDL.ModuloID
-    LEFT JOIN CFDEgreso E ON E.UUID = CFDL.MinUUID
-`;
+const DEFAULT_TABLE = ` gasto G INNER JOIN ( SELECT  GD.ID AS GastoID, MAX(GD.Concepto) AS Concepto, SUM(GD.Precio * GD.Cantidad) AS TotalPrecio, SUM(GD.Cantidad) AS TotalCantidad, SUM(GD.Importe) AS TotalImporte, SUM(GD.Impuestos) AS TotalImpuestos FROM gastod GD GROUP BY GD.ID ) GD_Concepto ON G.ID = GD_Concepto.GastoID LEFT JOIN Prov P ON P.Proveedor = G.Acreedor LEFT JOIN ( SELECT  CFDL.ModuloID, MIN(CFDL.UUID) AS MinUUID FROM CFDValidoMovLista CFDL WHERE CFDL.ModuloD = 'GAS' GROUP BY CFDL.ModuloID ) CFDL ON G.ID = CFDL.ModuloID LEFT JOIN CFDEgreso E ON E.UUID = CFDL.MinUUID`;
 
 const DEFAULT_BODY: BodyRequest = {
     selects: [
@@ -164,7 +141,7 @@ const getGastoDetailsBody = (id: number): BodyRequest => ({
 
 export default function ReportingPage() {
     const dispatch = useAppDispatch();
-    const [getData] = useGetMasivoWithFiltersMutation();
+    const [getData] = useGetWithFiltersGeneralInIntelisisMutation();
     const abortControllerRef = useRef<AbortController | null>(null);
     const detailsAbortControllerRef = useRef<AbortController | null>(null);
 
@@ -402,15 +379,15 @@ export default function ReportingPage() {
             const totalGeneral = totalImporte + totalImpuestos;
 
             const summary = `
-📊 *Reporte: ${reportName}*
+                    📊 *Reporte: ${reportName}*
 
-📈 *Resumen del Reporte:*
-• Total de gastos: ${reportData.length}
-• Importe total: $${totalImporte.toFixed(2)}
-• Impuestos totales: $${totalImpuestos.toFixed(2)}
-• Total general: $${totalGeneral.toFixed(2)}
-• Fecha generación: ${new Date().toLocaleDateString()}
-• Hora: ${new Date().toLocaleTimeString()}`;
+                    📈 *Resumen del Reporte:*
+                    • Total de gastos: ${reportData.length}
+                    • Importe total: $${totalImporte.toFixed(2)}
+                    • Impuestos totales: $${totalImpuestos.toFixed(2)}
+                    • Total general: $${totalGeneral.toFixed(2)}
+                    • Fecha generación: ${new Date().toLocaleDateString()}
+                    • Hora: ${new Date().toLocaleTimeString()}`;
 
             fullMessage = summary + '\n\n' + fullMessage;
         }
