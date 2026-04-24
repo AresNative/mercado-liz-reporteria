@@ -86,11 +86,11 @@ export default function Pagination({
         }
     }, [isLastPage, loading, setCurrentPage, totalPages]);
 
-    const handlePageSizeChange = useCallback((newSize: number) => {
+    const handlePageSizeChange =(newSize: number) => {
         if (onPageSizeChange && !loading) {
             onPageSizeChange(newSize);
         }
-    }, [onPageSizeChange, loading]);
+    };
 
     return (
         <section className="bg-white dark:bg-black border relative border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-lg shadow-sm p-4">
