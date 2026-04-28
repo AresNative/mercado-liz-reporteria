@@ -32,7 +32,7 @@ export function ViewTR({
     }, []);
 
     return (
-        <div className="absolute flex items-center space-x-1 right-0 Z-100">
+        <div className="relative flex items-center space-x-1 right-0 Z-100">
             <button
                 onClick={() => setShowColumnMenu(showColumnMenu === column ? null : column)}
                 className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-full"
@@ -47,7 +47,7 @@ export function ViewTR({
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className={`absolute ${allColumns ? 'right-0' : '-right-10'} -bottom-12 mt-2 w-56 bg-white dark:bg-zinc-800 rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 dark:ring-zinc-600`}
+                        className={`absolute ${allColumns ? 'left-0' : 'left-10'} top-8 -bottom-12 mt-2 w-56 h-20 bg-white dark:bg-zinc-800 rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 dark:ring-zinc-600`}
                     >
                         <div className="py-1" ref={skillsRef}>
 

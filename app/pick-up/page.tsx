@@ -230,8 +230,7 @@ export default function GestionPedidos() {
             }
 
             const response = await getWithFilter({
-                table: `listas
-                left join clientes on listas.id_cliente = clientes.id`,
+                table: `listas left join clientes on listas.id_cliente = clientes.id`,
                 pageSize: 10,
                 page: currentPage,
                 tag: 'Pedidos',
@@ -391,16 +390,13 @@ export default function GestionPedidos() {
                         "estado": nuevoEstado,
                         "fecha_actualizacion": new Date().toISOString()
                     },
-                    Filtros: {
-                        "Filtros": [
+                    Filtros: [
                             {
                                 "Key": "ID",
                                 "Value": pedidoId,
                                 "Operator": "="
                             }
-                        ],
-
-                    }
+                        ]
                 }
             }).unwrap();
 

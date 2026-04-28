@@ -466,16 +466,7 @@ export default function GestionProductosConImagenes() {
             }
 
             const response = await getWithFilter({
-                table: `articulos 
-                        LEFT JOIN imagenes 
-                            ON articulos.id = imagenes.id_ref 
-                            AND imagenes.tabla = 'articulos'
-                            AND imagenes.id = (
-                                SELECT MAX(i2.id) 
-                                FROM imagenes i2 
-                                WHERE i2.id_ref = articulos.id 
-                                AND i2.tabla = 'articulos'
-                            )`,
+                table: `articulos  LEFT JOIN imagenes  ON articulos.id = imagenes.id_ref  AND imagenes.tabla = 'articulos' AND imagenes.id = ( SELECT MAX(i2.id)  FROM imagenes i2  WHERE i2.id_ref = articulos.id  AND i2.tabla = 'articulos' )`,
                 pageSize: 10,
                 page: currentPage,
                 tag: 'Productos',
@@ -620,16 +611,13 @@ export default function GestionProductosConImagenes() {
                         precio: parseFloat(data.precio),
                         articulo: data.articulo
                     },
-                    Filtros: {
-                        "Filtros": [
+                    Filtros:  [
                             {
                                 "Key": "ID",
                                 "Value": productoParaEditar.id,
                                 "Operator": "="
                             }
                         ],
-
-                    }
                 },
             }).unwrap();
 
@@ -664,16 +652,13 @@ export default function GestionProductosConImagenes() {
                             precio: data.precio ? parseFloat(data.precio) : undefined,
                             descripcion: data.descripcion || undefined
                         },
-                        Filtros: {
-                            "Filtros": [
+                        Filtros: [
                                 {
                                     "Key": "ID",
                                     "Value": id,
                                     "Operator": "="
                                 }
                             ],
-
-                        }
                     },
                 })
             );

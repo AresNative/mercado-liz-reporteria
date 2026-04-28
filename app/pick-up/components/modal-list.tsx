@@ -460,16 +460,13 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                         "estado": nuevoEstado,
                         "fecha_actualizacion": new Date().toISOString()
                     },
-                    Filtros: {
-                        "Filtros": [
+                    Filtros: [
                             {
                                 "Key": "ID",
                                 "Value": pedidoId,
                                 "Operator": "="
                             }
                         ],
-
-                    }
                 }
             }).unwrap();
 
@@ -520,16 +517,13 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                         array_lista: arrayListaActualizado,
                         fecha_actualizacion: new Date().toISOString()
                     },
-                    Filtros: {
-                        "Filtros": [
+                    Filtros:  [
                             {
                                 "Key": "ID",
                                 "Value": listaId,
                                 "Operator": "="
                             }
                         ],
-
-                    }
                 },
             }).unwrap();
 
@@ -578,16 +572,13 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                         array_lista: arrayListaActualizado,
                         fecha_actualizacion: new Date().toISOString()
                     },
-                    Filtros: {
-                        "Filtros": [
+                    Filtros:  [
                             {
                                 "Key": "ID",
                                 "Value": listaId,
                                 "Operator": "="
                             }
                         ],
-
-                    }
                 },
             }).unwrap();
 

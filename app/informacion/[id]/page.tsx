@@ -39,6 +39,7 @@ export default function PageID() {
                         <a
                             href={app.fileUrl}
                             download
+                            type="button"
                             className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 text-lg font-semibold"
                         >
                             <Download className="w-5 h-5" />

@@ -109,7 +109,7 @@ export const api = createApi({
         params: {
           page,
           pageSize,
-          table
+          table,
         },
         body: filtros,
         signal,
@@ -122,14 +122,12 @@ export const api = createApi({
     }),
     getWithFiltersGeneral: builder.mutation({
       query: ({ table, tag, page, pageSize, filtros, signal }) => ({
-        url: `/v1/consultar/filtros`,
+        url: `/v1/consultar`,
         method: "POST",
         params: {
-          page,
-          table, // tabla a consultar
-          pageSize,
+          fromClause: table, // tabla a consultar
         },
-        body: filtros,
+        body: { ...filtros, page, pageSize },
         providesTags: [tag],
         signal,
       }),

@@ -63,6 +63,7 @@ interface Filtro {
 
 interface ActiveFilters {
     Filtros: Filtro[];
+    FiltrosAnd: Filtro[];
     Selects: any[];
     OrderBy: any | null;
     sum: boolean;
@@ -94,6 +95,7 @@ const useEmpleados = () => {
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [],
+        FiltrosAnd: [],
         Selects: [],
         OrderBy: null,
         sum: false,
@@ -111,7 +113,8 @@ const useEmpleados = () => {
                 pageSize: "10",
                 page: currentPage,
                 filtros: {
-                    FiltrosAnd: activeFilters.Filtros,
+                    Filtros: activeFilters.Filtros,
+                    FiltrosAnd: activeFilters.FiltrosAnd,
                     Selects: activeFilters.Selects,
                     Order: activeFilters.OrderBy ? [activeFilters.OrderBy] : []
                 }
@@ -293,9 +296,10 @@ export default function Empleados() {
 
     const onSubmit = (data: FiltrosForm) => {
         const nuevosFiltros: any[] = [];
+        const nuevosFiltrosAnd: any[] = [];
 
         if (data.search) {
-            nuevosFiltros.push({
+            nuevosFiltrosAnd.push({
                 Filtros: [
                     { Key: "nombre", Value: data.search, Operator: "like" },
                     { Key: "apellido", Value: data.search, Operator: "like" },
@@ -319,6 +323,7 @@ export default function Empleados() {
         
         setActiveFilters(prev => ({
             ...prev,
+            FiltrosAnd: nuevosFiltrosAnd,
             Filtros: nuevosFiltros
         }));
         setCurrentPage(1);
