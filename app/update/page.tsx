@@ -235,7 +235,7 @@ const Page = () => {
 
     try {
         const { api_int } = EnvConfig();
-        const url = `${api_int}v1/register?table=${encodeURIComponent(regTable)}`;
+        const url = `${api_int}/v1/register?table=${encodeURIComponent(regTable)}`;
 
         // 👉 Caso 1: Array = múltiples inserts
         if (Array.isArray(jsonData)) {
