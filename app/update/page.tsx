@@ -39,7 +39,6 @@ const [activeTab, setActiveTab] = useState<"registrar" | "actualizarMasivo">("re
 const [notifications, setNotifications] = useState<Notification[]>([]);
 const [isLoading, setIsLoading] = useState(false);
 
-
 // ── REGISTRAR (NUEVO) ─────────────────────────────────────
 const [regTable, setRegTable] = useState("ArtUnidad");
 const [regItems, setRegItems] = useState<any[]>([
