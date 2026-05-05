@@ -23,17 +23,19 @@ export const useSignalR = (url: string) => {
 
     connectionRef.current = newConnection;
     setConnection(newConnection);
-
-    newConnection
-      .start()
-      .then(() => {
-        //console.log("SignalR Connected");
-        setIsConnected(true);
-      })
-      .catch((error) => {
-        //console.error("SignalR Connection Error:", error);
-        setIsConnected(false);
-      });
+     
+    if (newConnection.state === "Disconnected") {
+      newConnection
+        .start()
+        .then(() => {
+          //console.log("SignalR Connected");
+          setIsConnected(true);
+        })
+        .catch((error) => {
+          //console.error("SignalR Connection Error:", error);
+          setIsConnected(false);
+        });
+    }
 
     newConnection.onclose(() => {
       //console.log("SignalR Disconnected");

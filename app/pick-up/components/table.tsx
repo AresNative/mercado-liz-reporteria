@@ -48,6 +48,7 @@ interface Pedido {
     cliente?: Cliente; // Información del cliente desde JOIN
     nombre?: string;
     cliente_telefono?: string;
+    telefono?: string;
     cliente_email?: string;
     total: number;
     urgencia?: 'alta' | 'media' | 'baja'; // Nueva propiedad para urgencia
@@ -107,8 +108,7 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
     const dispatch = useAppDispatch();
 
     const handleOpenChat = (pedido: Pedido) => {
-        const telefonoCliente = pedido.cliente_telefono || 'general';
-        dispatch(openModalReducer({ modalName: `chat_${telefonoCliente}` }));
+        dispatch(openModalReducer({ modalName: `chat_${pedido.cliente_telefono}_${pedido.id}` }));
     };
 
     const getEstadoIcon = (estado: string) => {
@@ -175,47 +175,6 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
             return 'Fecha inválida';
         }
     };
-
-    const getNextEstado = (currentEstado: string): string | null => {
-        const workflow: { [key: string]: string } = {
-            'nuevo': 'proceso',
-            'proceso': 'listo',
-            'listo': 'entregado'
-        };
-        // No permitir cambiar estado si está incompleto, cancelado o entregado
-        if (currentEstado === 'incompleto' || currentEstado === 'cancelado' || currentEstado === 'entregado') {
-            return null;
-        }
-        return workflow[currentEstado] || null;
-    };
-
-    const getActionIcon = (nextEstado: string) => {
-        switch (nextEstado) {
-            case 'proceso': return <Clock className="h-4 w-4" />;
-            case 'listo': return <CheckCircle className="h-4 w-4" />;
-            case 'entregado': return <Truck className="h-4 w-4" />;
-            default: return <CheckCircle className="h-4 w-4" />;
-        }
-    };
-
-    const getActionTitle = (nextEstado: string) => {
-        switch (nextEstado) {
-            case 'proceso': return 'Marcar como En Proceso';
-            case 'listo': return 'Marcar como Listo';
-            case 'entregado': return 'Marcar como Entregado';
-            default: return 'Actualizar estado';
-        }
-    };
-
-    const getActionColor = (nextEstado: string) => {
-        switch (nextEstado) {
-            case 'proceso': return 'text-blue-600 hover:text-blue-900';
-            case 'listo': return 'text-green-600 hover:text-green-900';
-            case 'entregado': return 'text-purple-600 hover:text-purple-900';
-            default: return 'text-gray-600 hover:text-gray-900';
-        }
-    };
-
     // Función para determinar si mostrar el contador
     const debeMostrarContador = (pedido: Pedido): boolean => {
         // Solo mostrar contador para pedidos activos que tengan fecha de entrega
@@ -231,17 +190,13 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
     };
 
     return (
-        <div className="overflow-x-auto">
-            {/* Modal de chat para cada cliente específico */}
-            {data.map((pedido) => {
-                const telefonoCliente = pedido.cliente_telefono || 'general';
-                return (
-                    <ModalChat
-                        key={`chat-${pedido.id}`}
-                        telefonoClient={telefonoCliente}
-                    />
-                );
-            })}
+        <section className="overflow-x-auto">
+
+            {data.map((pedido) => <ModalChat
+                key={`chat_${pedido.cliente_telefono}_${pedido.id}`}
+                telefonoClient={pedido.cliente_telefono || `general`} // Aseguramos un nombre único para cada pedido
+                pedido={pedido}
+            />)}
 
             <table className="w-full">
                 <thead className="bg-gray-50">
@@ -259,10 +214,8 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                     {data.map((pedido) => {
-                        const nextEstado = getNextEstado(pedido.estado);
                         const itemsCount = pedido.items?.length || 0;
                         const mostrarContador = debeMostrarContador(pedido);
-
                         return (
                             <tr key={pedido.id} className="hover:bg-gray-50">
                                 {/* Columna de Prioridad */}
@@ -343,17 +296,18 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                                             <MessageCircle className="h-4 w-4" />
                                         </button>
 
-                                        {nextEstado && pedido.estado !== 'cancelado' && (
-                                            <button
-                                                onClick={() => onUpdateStatus(pedido.id, nextEstado)}
-                                                className={`transition-colors ${getActionColor(nextEstado)}`}
-                                                title={getActionTitle(nextEstado)}
-                                            >
-                                                {getActionIcon(nextEstado)}
-                                            </button>
-                                        )}
-
-                                        {pedido.estado !== 'cancelado' && (
+                                        {/*
+                                            {nextEstado && pedido.estado !== 'cancelado' && (
+                                                <button
+                                                    onClick={() => onUpdateStatus(pedido.id, nextEstado)}
+                                                    className={`transition-colors ${getActionColor(nextEstado)}`}
+                                                    title={getActionTitle(nextEstado)}
+                                                >
+                                                    {getActionIcon(nextEstado)}
+                                                </button>
+                                            )}
+                                        */}
+                                        {(pedido.estado !== 'cancelado' && pedido.estado !== 'entregado') && (
                                             <button
                                                 onClick={() => onUpdateStatus(pedido.id, 'cancelado')}
                                                 className="text-red-600 hover:text-red-900 transition-colors"
@@ -369,6 +323,6 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                     })}
                 </tbody>
             </table>
-        </div>
+        </section>
     );
 };

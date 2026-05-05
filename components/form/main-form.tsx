@@ -267,7 +267,6 @@ export const MainForm = React.forwardRef(({
           console.log('Error processing action:', error);
         }
       }
-      reset();
     } catch (error: any) {
       console.log("Error en el envío del formulario:", error)
       dispatch(openAlertReducer(error.data?.message ?
@@ -308,7 +307,11 @@ export const MainForm = React.forwardRef(({
   return (
     <form
       ref={ref}
-      onSubmit={handleSubmit(onSubmit)} className="relative w-full space-y-2 my-2 m-auto">
+      onSubmit={(e) => {
+        e.preventDefault(); // doble seguridad
+        handleSubmit(onSubmit)(e);
+      }}
+      className="relative w-full space-y-2 my-2 m-auto">
       {pages[page].map((field: any, key: any) => (
         <SwitchTypeInputRender
           key={key}
@@ -326,10 +329,10 @@ export const MainForm = React.forwardRef(({
 
       {showButton && (<div className="flex justify-between mt-4">
         {page > 0 && (
-          <Button color="success" type="button" label="Anterior" onClick={() => handlePageChange(page - 1)} />
+          <Button color="success" type="button" size="small" label="Anterior" onClick={() => handlePageChange(page - 1)} />
         )}
         {page < pages.length - 1 ? (
-          <Button color="success" aling="ml-auto" type="button" label="Siguiente" onClick={() => handlePageChange(page + 1)} />
+          <Button color="success" aling="ml-auto" size="small" type="button" label="Siguiente" onClick={() => handlePageChange(page + 1)} />
         ) : (
           <button
             className="float-right ml-auto cursor-pointer flex gap-2 items-center rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"

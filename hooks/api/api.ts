@@ -103,15 +103,12 @@ export const api = createApi({
     }),
     getWithFilters: builder.mutation({
       query: ({ table, page, pageSize, filtros, signal }) => ({
-        url: `v1/consultar/filtros`,
+        url: `v1/consultar`,
         method: "POST",
-
         params: {
-          page,
-          pageSize,
-          table,
+          fromClause: table, // tabla a consultar
         },
-        body: filtros,
+        body: { ...filtros, page, pageSize },
         signal,
       }),
       transformErrorResponse: (response: any) => ({

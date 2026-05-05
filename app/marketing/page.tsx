@@ -2,7 +2,7 @@
 import { Button } from "@/components/button";
 import DynamicTable from "@/components/table";
 import { RequestPayload } from "@/hooks/classes/api";
-import { useManagmentWeb } from "@/hooks/classes/api copy";
+import { useManagmentWeb } from "@/hooks/classes/api-liz";
 import Footer from "@/template/footer";
 import Header from "@/template/header";
 import { useEffect, useState } from "react";

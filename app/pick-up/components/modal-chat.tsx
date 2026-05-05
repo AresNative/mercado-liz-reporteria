@@ -1,11 +1,11 @@
 "use client";
-import { Modal } from "@/components/modal"
+import { Modal } from "@/components/modal";
 import { useEffect, useRef, useState } from "react";
-import { listenRealTimeData, updateUserStatus, sendMessage } from "../utils/use-db-firebase";
+import { FirestoreService } from "@/hooks/use-firebase"; // Ruta al archivo donde definiste la clase
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 import { Send, UserCircle } from "lucide-react";
 
-// Tipos para nuestro chat
+// Tipos (se mantienen igual)
 export type Message = {
     id: string;
     text: string;
@@ -23,20 +23,24 @@ export type User = {
 
 interface ModalChatProps {
     telefonoClient: string | null;
-    pedido?: any; // Agregar esta prop opcional para información del pedido
+    pedido?: any;
 }
 
 export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
+    const modalName = pedido ? `chat_${pedido?.cliente_telefono}_${pedido?.id}` : `chat_${telefonoClient}`;
+    if (!modalName) return null;
+
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [users, setUsers] = useState<Record<string, User>>({});
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const userId = getLocalStorageItem('user-id');
+    const userId = 'unknown';
 
-    // Generar el nombre del modal consistentemente
-    const modalName = telefonoClient ? `chat_${telefonoClient}` : 'chat_general';
+    // Servicios
+    const usersService = new FirestoreService<User>('users');
+    // El servicio de mensajes se creará dinámicamente cuando tengamos telefonoClient
+    const [messagesService, setMessagesService] = useState<FirestoreService<Message> | null>(null);
 
-    // Título del modal con información del cliente/pedido
     const getModalTitle = () => {
         if (pedido?.nombre) {
             return `Chat con ${pedido.nombre} - ${telefonoClient || 'Sin teléfono'}`;
@@ -44,61 +48,87 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
         return telefonoClient ? `Chat - ${telefonoClient}` : 'Chat General';
     };
 
-    // Cargar mensajes en tiempo real
+    // Suscripción a usuarios (colección raíz)
     useEffect(() => {
-        if (!telefonoClient) return;
+        if (!userId) return;
 
-        const unsubscribeMessages = listenRealTimeData(
-            `chats/${telefonoClient}/messages`,
-            (messagesData) => {
-                if (!messagesData) {
-                    setMessages([]);
-                    return;
-                }
-
-                const messagesArray = Object.entries(messagesData)
-                    .map(([id, message]: any) => ({
-                        id,
-                        ...message
-                    }))
-                    .sort((a, b) => a.timestamp - b.timestamp);
-
-                setMessages(messagesArray);
-            }
+        const unsubscribeUsers = usersService.subscribe(
+            [], // sin filtros por ahora
+            (usersArray: User[]) => {
+                // Convertir array a objeto con id como clave para facilitar búsqueda
+                const usersMap = usersArray.reduce((acc, user) => {
+                    acc[user.id] = user;
+                    return acc;
+                }, {} as Record<string, User>);
+                setUsers(usersMap);
+            },
+            (error: any) => console.error("Error en suscripción de usuarios:", error)
         );
 
-        const unsubscribeUsers = listenRealTimeData('users', (usersData) => {
-            if (usersData) setUsers(usersData);
-        });
+        // Actualizar estado del usuario actual (soporte)
+        const updateCurrentUser = async () => {
+            try {
+                await usersService.update(userId, {
+                    nombre: "Soporte",
+                    telefono: '000-000-0000',
+                    lastSeen: Date.now()
+                });
+            } catch (error) {
+                console.error("Error actualizando usuario:", error);
+            }
+        };
+        updateCurrentUser();
 
-        // Actualizar estado del usuario como soporte
-        if (userId) {
-            updateUserStatus(userId, "Soporte", '000-000-0000');
+        return () => {
+            unsubscribeUsers();
+            // Al salir, marcar como desconectado o simplemente no hacer nada
+            // Se podría volver a actualizar el usuario, pero no es obligatorio
+        };
+    }, [userId]);
+
+    // Suscripción a mensajes (subcolección dinámica)
+    useEffect(() => {
+        if (!telefonoClient) {
+            setMessagesService(null);
+            setMessages([]);
+            return;
         }
+
+        // Crear servicio para la subcolección messages del chat específico
+        const path = pedido ? `chats/${pedido.cliente_telefono}/${pedido?.id}/` : `chats/${telefonoClient}/messages/`;
+        const msgService = new FirestoreService<Message>(path);
+        setMessagesService(msgService);
+
+        const unsubscribeMessages = msgService.subscribe(
+            [],
+            (messagesArray:any) => {
+                // Ordenar por timestamp ascendente (más antiguo primero)
+                const sorted = [...messagesArray].sort((a, b) => a.timestamp - b.timestamp);
+                setMessages(sorted);
+            },
+            (error: any) => console.error("Error en suscripción de mensajes:", error)
+        );
 
         return () => {
             unsubscribeMessages();
-            unsubscribeUsers();
-            if (userId) {
-                updateUserStatus(userId, "Soporte", '000-000-0000');
-            }
         };
-    }, [telefonoClient, userId]);
+    }, [telefonoClient]);
 
-    // Scroll automático al final
+    // Scroll automático
     useEffect(() => {
-        scrollToBottom();
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
-
     const handleSendMessage = async () => {
-        if (!newMessage.trim() || !telefonoClient) return;
+        if (!newMessage.trim() || !telefonoClient || !messagesService) return;
 
         try {
-            await sendMessage(telefonoClient, userId, "Soporte", newMessage.trim());
+            await messagesService.create({
+                text: newMessage.trim(),
+                userId: 'unknown',
+                userName:  'Soporte',
+                timestamp: Date.now()
+            });
             setNewMessage('');
         } catch (error) {
             console.error('Error al enviar mensaje:', error);
@@ -110,14 +140,11 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
         return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Si no hay teléfono cliente, no renderizar el modal
-    if (!telefonoClient) {
-        return null;
-    }
+    if (!telefonoClient) return null;
 
     return (
         <Modal modalName={modalName} title={getModalTitle()} maxWidth="md">
-            <div className="flex flex-col min-h-[500px]  relative">
+            <div className="flex flex-col relative">
                 <div className="flex-1 h-full overflow-y-auto p-4 pb-20">
                     {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center py-12 px-4">
@@ -174,7 +201,6 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                     )}
                 </div>
 
-                {/* Área de entrada de mensajes */}
                 <div className="relative bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3">
                     <div className="flex items-center gap-2">
                         <input
@@ -198,5 +224,5 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                 </div>
             </div>
         </Modal>
-    )
-}
+    );
+};

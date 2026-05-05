@@ -134,11 +134,11 @@ const useEmpleados = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, activeFilters, getWithFilter]);
+    }, [currentPage, activeFilters, setActiveFilters]);
 
     useEffect(() => {
         fetchEmpleados();
-    }, [fetchEmpleados]);
+    }, []);
 
     return {
         empleados,
@@ -151,124 +151,6 @@ const useEmpleados = () => {
         setActiveFilters,
         refetch: fetchEmpleados
     };
-};
-
-// Hook personalizado para obtener estadísticas de todos los empleados
-const useEstadisticasEmpleados = () => {
-    const [estadisticas, setEstadisticas] = useState<EstadisticasEmpleados | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [getWithFilter] = useGetWithFiltersGeneralMutation();
-
-    const fetchEstadisticas = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            // Consulta para obtener todos los empleados (sin paginación)
-            const response = await getWithFilter({
-                table: "empleados",
-                pageSize: "10000", // Número alto para obtener todos los registros
-                page: 1,
-                filtros: {
-                    Filtros: [],
-                    Selects: [],
-                    Order: []
-                }
-            });
-
-            if ('data' in response) {
-                const empleadosData = response.data as EmpleadosResponse;
-                const todosEmpleados = empleadosData.data;
-
-                // Calcular estadísticas
-                const empleadosActivos = todosEmpleados.filter(e => e.estado === "Activo").length;
-                const empleadosInactivos = todosEmpleados.filter(e => e.estado === "Inactivo").length;
-
-                const porDepartamento = todosEmpleados.reduce((acc, emp) => {
-                    acc[emp.departamento] = (acc[emp.departamento] || 0) + 1;
-                    return acc;
-                }, {} as Record<string, number>);
-
-                // Obtener los 3 departamentos más grandes
-                const topDepartamentos = Object.entries(porDepartamento)
-                    .filter((rows: any) => rows.estado !== "Inactivo")
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 4);
-
-                setEstadisticas({
-                    totalRecords: empleadosData.totalRecords,
-                    empleadosActivos,
-                    empleadosInactivos,
-                    topDepartamentos
-                });
-            } else if ('error' in response) {
-                throw new Error('Error en la respuesta del servidor');
-            }
-        } catch (err) {
-            console.error("Error fetching estadísticas:", err);
-            setError("No se pudieron cargar las estadísticas.");
-        } finally {
-            setIsLoading(false);
-        }
-    }, [getWithFilter]);
-
-    useEffect(() => {
-        fetchEstadisticas();
-    }, [fetchEstadisticas]);
-
-    return {
-        estadisticas,
-        isLoading,
-        error,
-        refetch: fetchEstadisticas
-    };
-};
-
-// Componente para estadísticas de empleados
-const EstadisticasEmpleados = ({ estadisticas }: { estadisticas: EstadisticasEmpleados }) => {
-    return (
-        <BentoGrid cols={4} className="mb-6">
-            <BentoItem
-                title="Total de Empleados"
-                description="Empleados en el sistema"
-                className="bg-blue-50 border-blue-200"
-            >
-                <div className="text-3xl font-bold text-blue-600">{estadisticas.totalRecords}</div>
-            </BentoItem>
-
-            <BentoItem
-                title="Empleados Activos"
-                description="Actualmente trabajando"
-                className="bg-green-50 border-green-200"
-            >
-                <div className="text-3xl font-bold text-green-600">{estadisticas.empleadosActivos}</div>
-            </BentoItem>
-
-            <BentoItem
-                title="Empleados Inactivos"
-                description="No activos en el sistema"
-                className="bg-red-50 border-red-200"
-            >
-                <div className="text-3xl font-bold text-red-600">{estadisticas.empleadosInactivos}</div>
-            </BentoItem>
-
-            <BentoItem
-                title="Top Departamentos"
-                description="Con más empleados"
-                className="bg-purple-50 border-purple-200"
-            >
-                <div className="space-y-1">
-                    {estadisticas.topDepartamentos.map(([depto, count]) => (
-                        <div key={depto} className="flex justify-between text-sm">
-                            <span className="capitalize">{depto.toLowerCase()}:</span>
-                            <span className="font-medium">{count}</span>
-                        </div>
-                    ))}
-                </div>
-            </BentoItem>
-        </BentoGrid>
-    );
 };
 
 export default function Empleados() {
@@ -285,16 +167,16 @@ export default function Empleados() {
         refetch
     } = useEmpleados();
 
-    const {
+/*     const {
         estadisticas,
         isLoading: isLoadingEstadisticas,
         error: errorEstadisticas,
         refetch: refetchEstadisticas
-    } = useEstadisticasEmpleados();
+    } = useEstadisticasEmpleados(); */
 
     const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null);
 
-    const onSubmit = (data: FiltrosForm) => {
+    const loadEmpleados = (data: FiltrosForm) => {
         const nuevosFiltros: any[] = [];
         const nuevosFiltrosAnd: any[] = [];
 
@@ -325,8 +207,7 @@ export default function Empleados() {
             ...prev,
             FiltrosAnd: nuevosFiltrosAnd,
             Filtros: nuevosFiltros
-        }));
-        setCurrentPage(1);
+        })); setCurrentPage(1);
     };
 
     const limpiarFiltros = () => {
@@ -343,7 +224,7 @@ export default function Empleados() {
 
     const handleRefetchAll = () => {
         refetch();
-        refetchEstadisticas();
+       /*  refetchEstadisticas(); */
     };
 
     return (
@@ -359,25 +240,6 @@ export default function Empleados() {
                     </p>
                 </header>
 
-                {/* Estadísticas - ahora con datos completos */}
-                {isLoadingEstadisticas ? (
-                    <div className="mb-6">
-                        <LoadingSection message="Cargando estadísticas..." />
-                    </div>
-                ) : errorEstadisticas ? (
-                    <div className="mb-6 p-4 bg-red-50 rounded-lg text-center">
-                        <p className="text-red-500 mb-2">{errorEstadisticas}</p>
-                        <button
-                            onClick={refetchEstadisticas}
-                            className="text-green-600 hover:text-green-800 underline"
-                        >
-                            Reintentar
-                        </button>
-                    </div>
-                ) : estadisticas ? (
-                    <EstadisticasEmpleados estadisticas={estadisticas} />
-                ) : null}
-
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
                     <article className="p-4">
                         <header className="mb-6 flex flex-col gap-2 space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
@@ -389,7 +251,7 @@ export default function Empleados() {
                             </div>
                             <MainForm
                                 message_button={"Filtrar"}
-                                onSuccess={onSubmit}
+                                onSuccess={loadEmpleados}
                                 iconButton={<Filter className="mr-1 h-4 w-4" />}
                                 actionType={"search"}
                                 dataForm={[

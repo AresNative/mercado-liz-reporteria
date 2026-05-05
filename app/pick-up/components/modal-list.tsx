@@ -1,19 +1,21 @@
 import { Modal } from "@/components/modal";
 import { useGetWithFiltersGeneralMutation, usePutGeneralMutation } from "@/hooks/api/api"
 import jsPDF from "jspdf";
+import autoTable from 'jspdf-autotable';
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Trash, Printer, NotepadText, Radio, Tag } from "lucide-react";
+import { Signature, NotepadText, Radio, Tag, CheckCircle2, XCircle, Package, AlertTriangle, Zap } from "lucide-react";
 import { usePedidosSignalR } from "../utils/singalr-pedidos";
 import { SerialPrinter, Ticket, TicketItem } from "../utils/render-tiket";
 import { formatValue } from "@/utils/constants/format-values";
+import { Button } from "@/components/button";
 
 interface ListaItem {
     id: string;
     articulo: string;
     categoria: string;
     nombre: string;
-    precio: number; // Precio original
-    descuento?: number; // Precio con descuento (nuevo precio)
+    precio: number;
+    descuento?: number;
     unidad: string;
     cantidad: number;
     factor: number;
@@ -64,6 +66,7 @@ interface Pedido {
     servicioFee: number;
     urgencia?: 'alta' | 'media' | 'baja';
     tiempo_restante?: number;
+    firma?: string; // ← nuevo campo para la firma
 }
 
 interface ModalListProps {
@@ -72,784 +75,660 @@ interface ModalListProps {
     onItemActualizado?: (pedidoId: number, itemId: string, tipo: string, valor: boolean) => void;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Devuelve el estado que debería tener el pedido según el avance de recolección */
+const calcularEstadoAutomatico = (
+    items: ListaItem[],
+    estadoActual: string
+): string | null => {
+    // No tocar pedidos ya entregados, cancelados o que nunca iniciaron recolección
+    if (['entregado', 'cancelado', 'nuevo'].includes(estadoActual)) return null;
+
+    const productosReales = items.filter(i => !i.esServicio && i.codigo !== "SPICKUP");
+    if (productosReales.length === 0) return null;
+
+    const hayNoEncontrado = productosReales.some(i => i.noEncontrado);
+    const todosRecolectados = productosReales.every(i => i.recolectado);
+    const algunoRecolectado = productosReales.some(i => i.recolectado);
+
+    if (hayNoEncontrado && !todosRecolectados) return 'incompleto';
+    if (todosRecolectados) return 'listo';
+    if (algunoRecolectado) return 'proceso';
+    return null;
+};
+
+const ESTADO_META: Record<string, { label: string; color: string; bg: string; ring: string }> = {
+    nuevo: { label: 'Nuevo', color: 'text-amber-700', bg: 'bg-amber-50', ring: 'ring-amber-300' },
+    proceso: { label: 'En Proceso', color: 'text-blue-700', bg: 'bg-blue-50', ring: 'ring-blue-300' },
+    listo: { label: 'Listo', color: 'text-green-700', bg: 'bg-green-50', ring: 'ring-green-300' },
+    entregado: { label: 'Entregado', color: 'text-indigo-700', bg: 'bg-indigo-50', ring: 'ring-indigo-300' },
+    cancelado: { label: 'Cancelado', color: 'text-red-700', bg: 'bg-red-50', ring: 'ring-red-300' },
+    incompleto: { label: 'Incompleto', color: 'text-orange-700', bg: 'bg-orange-50', ring: 'ring-orange-300' },
+};
+
+// ─── Componente ───────────────────────────────────────────────────────────────
+
 export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: ModalListProps) => {
     const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
+    const [autoEstadoMsg, setAutoEstadoMsg] = useState<string | null>(null);
     const [putGeneral] = usePutGeneralMutation();
     const [getWithFiltersGeneral] = useGetWithFiltersGeneralMutation();
 
-    // ✅ CALLBACKS CORRECTOS PARA SIGNALR EN EL MODAL
+    // ── Firma ──────────────────────────────────────────────────────────────────
+    const [showSignaturePad, setShowSignaturePad] = useState(false);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const canvasCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+    const [isDrawing, setIsDrawing] = useState(false);
+
+    // ── SignalR ────────────────────────────────────────────────────────────────
     const handlePedidoActualizado = useCallback((pedidoActualizado: any) => {
-        console.log('🔄 Pedido actualizado en modal:', pedidoActualizado);
         if (pedidoActualizado.id === pedidoId) {
-            const pedidoProcesado = parseListaData(pedidoActualizado);
-            setPedidoSeleccionado(pedidoProcesado);
+            setPedidoSeleccionado(parseListaData(pedidoActualizado));
         }
     }, [pedidoId]);
 
-    const handleNuevoPedido = useCallback(() => {
-        // No necesario para el modal
-    }, []);
+    const handleNuevoPedido = useCallback(() => { }, []);
 
-    const handlePedidoEliminado = useCallback((pedidoIdEliminado: number) => {
-        if (pedidoIdEliminado === pedidoId) {
-            console.log('🗑️ Pedido eliminado, cerrando modal');
-            setPedidoSeleccionado(null);
-        }
+    const handlePedidoEliminado = useCallback((id: number) => {
+        if (id === pedidoId) setPedidoSeleccionado(null);
     }, [pedidoId]);
 
     const handleRefrescarDatos = useCallback(() => {
-        console.log('🔄 Refrescando datos del modal...');
-        if (pedidoId) {
-            fetchPedidoDetalle();
-        }
+        if (pedidoId) fetchPedidoDetalle();
     }, [pedidoId]);
 
-    // ✅ CONEXIÓN SIGNALR ESPECÍFICA PARA EL MODAL
-    const {
-        connection,
-        isConnected,
-        unirseAPedido,
-        salirDePedido,
-        notificarCambioLista
-    } = usePedidosSignalR(
-        handlePedidoActualizado,
-        handleNuevoPedido,
-        handlePedidoEliminado,
-        handleRefrescarDatos
-    );
+    const { connection, isConnected, unirseAPedido, salirDePedido, notificarCambioLista } =
+        usePedidosSignalR(handlePedidoActualizado, handleNuevoPedido, handlePedidoEliminado, handleRefrescarDatos);
 
-    // ✅ UNIRSE Y SALIR DEL GRUPO DEL PEDIDO
     useEffect(() => {
-        if (pedidoId && isConnected) {
-            console.log(`🔗 Uniendo modal al pedido ${pedidoId}`);
-            unirseAPedido(pedidoId);
-        }
+        if (pedidoId && isConnected) unirseAPedido(pedidoId);
+        return () => { if (pedidoId && isConnected) salirDePedido(pedidoId); };
+    }, [pedidoId, isConnected]);
 
-        return () => {
-            if (pedidoId && isConnected) {
-                console.log(`🔓 Saliendo del pedido ${pedidoId}`);
-                salirDePedido(pedidoId);
+    useEffect(() => {
+        if (!connection || !isConnected) return;
+        connection.on("ReceiveProductoRecogidaUpdate", (pid: number, productoId: string, recolectado: boolean) => {
+            if (pid === pedidoId) {
+                setPedidoSeleccionado(prev => prev ? {
+                    ...prev,
+                    items: prev.items.map(i => i.id === productoId ? { ...i, recolectado } : i)
+                } : null);
             }
+        });
+        connection.on("ReceiveProductoNoEncontradoUpdate", (pid: number, productoId: string, noEncontrado: boolean) => {
+            if (pid === pedidoId) {
+                setPedidoSeleccionado(prev => prev ? {
+                    ...prev,
+                    items: prev.items.map(i => i.id === productoId ? { ...i, noEncontrado } : i)
+                } : null);
+            }
+        });
+        return () => {
+            connection.off("ReceiveProductoRecogidaUpdate");
+            connection.off("ReceiveProductoNoEncontradoUpdate");
         };
-    }, [pedidoId, isConnected, unirseAPedido, salirDePedido]);
-
-    // ✅ ESCUCHAR ACTUALIZACIONES ESPECÍFICAS DE PRODUCTOS
-    useEffect(() => {
-        if (connection && isConnected) {
-            // Escuchar actualizaciones específicas de recolección
-            connection.on("ReceiveProductoRecogidaUpdate", (pedidoIdActualizado: number, productoId: string, recolectado: boolean) => {
-                if (pedidoIdActualizado === pedidoId) {
-                    console.log(`📦 Actualización de recogida: producto ${productoId} -> ${recolectado}`);
-                    setPedidoSeleccionado(prev => prev ? {
-                        ...prev,
-                        items: prev.items.map(item =>
-                            item.id === productoId
-                                ? { ...item, recolectado }
-                                : item
-                        )
-                    } : null);
-                }
-            });
-
-            // Escuchar actualizaciones de no encontrado
-            connection.on("ReceiveProductoNoEncontradoUpdate", (pedidoIdActualizado: number, productoId: string, noEncontrado: boolean) => {
-                if (pedidoIdActualizado === pedidoId) {
-                    console.log(`⚠️ Actualización de no encontrado: producto ${productoId} -> ${noEncontrado}`);
-                    setPedidoSeleccionado(prev => prev ? {
-                        ...prev,
-                        items: prev.items.map(item =>
-                            item.id === productoId
-                                ? { ...item, noEncontrado }
-                                : item
-                        )
-                    } : null);
-                }
-            });
-
-            return () => {
-                connection.off("ReceiveProductoRecogidaUpdate");
-                connection.off("ReceiveProductoNoEncontradoUpdate");
-            };
-        }
     }, [connection, isConnected, pedidoId]);
 
-    // Función para parsear array_lista y calcular totales
+    // ── Parseo ─────────────────────────────────────────────────────────────────
     const parseListaData = (lista: any): Pedido => {
         let items: ListaItem[] = [];
-        let subtotal = 0;
-        let descuentoTotal = 0;
-        let servicioFee = 0;
+        let subtotal = 0, descuentoTotal = 0, servicioFee = 0;
 
         try {
             if (lista.array_lista) {
                 items = JSON.parse(lista.array_lista);
-
-                // Calcular totales basados en la estructura real de datos
                 items.forEach(item => {
                     const precioOriginal = item.precio || 0;
-                    const precioConDescuento = item.descuento || precioOriginal;
+                    const precioFinal = item.descuento || precioOriginal;
                     const cantidad = item.quantity || 1;
-
-                    // Calcular monto de descuento por item
-                    const montoDescuentoItem = precioOriginal - precioConDescuento;
-
-                    // Acumular descuentos totales
-                    descuentoTotal += montoDescuentoItem * cantidad;
-
-                    // Identificar servicio pick-up
+                    descuentoTotal += (precioOriginal - precioFinal) * cantidad;
                     if (item.esServicio || item.codigo === "SPICKUP") {
-                        servicioFee += precioConDescuento * cantidad;
-                        subtotal += precioConDescuento * cantidad;
+                        servicioFee += precioFinal * cantidad;
+                        subtotal += precioFinal * cantidad;
                     } else {
-                        // Para productos, usar el precio con descuento (si existe) o el precio original
-                        subtotal += precioConDescuento * cantidad;
+                        subtotal += precioFinal * cantidad;
                     }
                 });
             }
-        } catch (error) {
-            console.error('Error parsing array_lista:', error);
-            items = [];
-        }
+        } catch (e) { items = []; }
 
         return {
-            id: lista.id,
-            id_lista: lista.id,
-            id_cliente: lista.id_cliente,
-            usuario_id: lista.usuario_id,
-            sucursal_id: lista.sucursal_id,
-            nombre_lista: lista.nombre_lista,
-            tipo_lista: lista.tipo_lista,
-            servicio: lista.servicio,
-            array_lista: lista.array_lista,
-            fecha_creacion: lista.fecha_creacion,
-            fecha_actualizacion: lista.fecha_actualizacion,
-            estado: lista.estado,
-            es_publica: lista.es_publica,
-            items: items,
-            cliente: lista.nombre ? {
-                id: lista.id_cliente,
-                nombre: lista.nombre,
-                telefono: lista.telefono,
-                email: lista.email,
-                direccion: lista.direccion,
-                ciudad: lista.ciudad,
-                estado: lista.estado
-            } : undefined,
+            id: lista.id, id_lista: lista.id, id_cliente: lista.id_cliente,
+            usuario_id: lista.usuario_id, sucursal_id: lista.sucursal_id,
+            nombre_lista: lista.nombre_lista, tipo_lista: lista.tipo_lista,
+            servicio: lista.servicio, array_lista: lista.array_lista,
+            fecha_creacion: lista.fecha_creacion, fecha_actualizacion: lista.fecha_actualizacion,
+            estado: lista.estado, es_publica: lista.es_publica, items,
+            cliente: lista.nombre ? { id: lista.id_cliente, nombre: lista.nombre, telefono: lista.telefono, email: lista.email, direccion: lista.direccion, ciudad: lista.ciudad, estado: lista.estado } : undefined,
             nombre: lista.nombre || `Cliente ${lista.id_cliente}`,
-            cliente_telefono: lista.telefono || 'N/A',
-            cliente_email: lista.email || 'N/A',
-            total: subtotal,
-            subtotal: subtotal,
-            descuentoTotal: descuentoTotal,
-            servicioFee: servicioFee,
-            urgencia: 'baja',
-            tiempo_restante: 0
+            cliente_telefono: lista.telefono || 'N/A', cliente_email: lista.email || 'N/A',
+            total: subtotal, subtotal, descuentoTotal, servicioFee,
+            urgencia: 'baja', tiempo_restante: 0,
+            firma: lista.firma // ← incluimos la firma si existe
         };
-    }
+    };
 
-    // Función para cargar los datos de la lista específica
+    // ── Fetch ──────────────────────────────────────────────────────────────────
     const fetchPedidoDetalle = useCallback(async () => {
         if (!pedidoId) return;
         try {
-            const filtros = {
-                Selects: [
-                    { key: "listas.id" },
-                    { key: "listas.id_cliente" },
-                    { key: "listas.nombre_lista" },
-                    { key: "listas.tipo_lista" },
-                    { key: "listas.servicio" },
-                    { key: "listas.array_lista" },
-                    { key: "listas.fecha_creacion" },
-                    { key: "listas.fecha_actualizacion" },
-                    { key: "listas.estado" },
-                    { key: "clientes.nombre" },
-                    { key: "clientes.telefono" },
-                    { key: "clientes.email" },
-                    { key: "clientes.direccion" },
-                ],
-                Filtros: [
-                    { Key: "listas.id", Value: pedidoId, Operator: "=" }
-                ],
-                Order: [
-                    { Key: "listas.id", Direction: "ASC" }
-                ]
-            };
-
             const response = await getWithFiltersGeneral({
                 table: "listas left join clientes on listas.id_cliente = clientes.id",
-                pageSize: 1,
-                page: 1,
-                tag: 'PedidoDetalle',
-                filtros: filtros
+                pageSize: 1, page: 1, tag: 'PedidoDetalle',
+                filtros: {
+                    Selects: [
+                        { key: "listas.id" }, { key: "listas.id_cliente" }, { key: "listas.nombre_lista" },
+                        { key: "listas.tipo_lista" }, { key: "listas.servicio" }, { key: "listas.array_lista" },
+                        { key: "listas.fecha_creacion" }, { key: "listas.fecha_actualizacion" },
+                        { key: "listas.estado" }, { key: "clientes.nombre" }, { key: "clientes.telefono" },
+                        { key: "clientes.email" }, { key: "clientes.direccion" },
+                    ],
+                    Filtros: [{ Key: "listas.id", Value: pedidoId, Operator: "=" }],
+                    Order: [{ Key: "listas.id", Direction: "ASC" }]
+                }
             }).unwrap();
-
-            if (response && response.data && response.data.length > 0) {
-                const pedidoProcesado = parseListaData(response.data[0]);
-                setPedidoSeleccionado(pedidoProcesado);
-            }
-        } catch (error) {
-            console.error("Error fetching pedido detalle:", error);
-        }
+            if (response?.data?.length > 0) setPedidoSeleccionado(parseListaData(response.data[0]));
+        } catch (e) { console.error("Error fetching pedido detalle:", e); }
     }, [getWithFiltersGeneral, pedidoId]);
 
-    // Cargar datos cuando cambia el pedidoId
-    useEffect(() => {
-        if (pedidoId) {
+    useEffect(() => { if (pedidoId) fetchPedidoDetalle(); }, [pedidoId, fetchPedidoDetalle]);
+
+    // ── Actualizar estado en BD ────────────────────────────────────────────────
+    const actualizarEstadoDB = useCallback(async (nuevoEstado: string, silencioso = false) => {
+        if (!pedidoSeleccionado) return;
+        try {
+            await putGeneral({
+                table: "listas",
+                data: {
+                    Data: { estado: nuevoEstado, fecha_actualizacion: new Date().toISOString() },
+                    Filtros: [{ Key: "ID", Value: pedidoSeleccionado.id, Operator: "=" }]
+                }
+            }).unwrap();
+
+            setPedidoSeleccionado(prev => prev ? { ...prev, estado: nuevoEstado as any, fecha_actualizacion: new Date().toISOString() } : null);
+
+            if (isConnected) {
+                await notificarCambioLista('EstadoActualizado', {
+                    pedidoId: pedidoSeleccionado.id, nuevoEstado, timestamp: new Date().toISOString()
+                });
+            }
+            onEstadoActualizado?.(pedidoSeleccionado.id, nuevoEstado);
+
+            if (!silencioso) {
+                setAutoEstadoMsg(`Estado cambiado automáticamente a "${ESTADO_META[nuevoEstado]?.label}"`);
+                setTimeout(() => setAutoEstadoMsg(null), 3500);
+            }
+        } catch (e) {
+            console.error("Error actualizando estado:", e);
             fetchPedidoDetalle();
         }
-    }, [pedidoId, fetchPedidoDetalle]);
+    }, [pedidoSeleccionado, isConnected, notificarCambioLista, onEstadoActualizado, fetchPedidoDetalle]);
 
-    const getEstadoBadgeClass = (estado: string) => {
-        switch (estado) {
-            case 'entregado':
-                return 'bg-green-100 text-green-800';
-            case 'cancelado':
-                return 'bg-red-100 text-red-800';
-            case 'nuevo':
-                return 'bg-yellow-100 text-yellow-800';
-            case 'proceso':
-                return 'bg-blue-100 text-blue-800';
-            case 'listo':
-                return 'bg-indigo-100 text-indigo-800';
-            default:
-                return 'bg-gray-100 text-gray-800';
+    // ── Guardar items y evaluar estado automático ──────────────────────────────
+    const guardarItemsYEvaluarEstado = useCallback(async (itemsActualizados: ListaItem[]) => {
+        if (!pedidoSeleccionado) return;
+
+        const arrayListaActualizado = JSON.stringify(itemsActualizados);
+        await putGeneral({
+            table: "listas",
+            data: {
+                Data: { array_lista: arrayListaActualizado, fecha_actualizacion: new Date().toISOString() },
+                Filtros: [{ Key: "ID", Value: pedidoSeleccionado.id, Operator: "=" }]
+            }
+        }).unwrap();
+
+        setPedidoSeleccionado(prev => prev ? { ...prev, items: itemsActualizados, fecha_actualizacion: new Date().toISOString() } : null);
+
+        // Evaluar cambio de estado automático
+        const estadoSugerido = calcularEstadoAutomatico(itemsActualizados, pedidoSeleccionado.estado);
+        if (estadoSugerido && estadoSugerido !== pedidoSeleccionado.estado) {
+            // Pequeño delay para que el UI refleje el cambio antes del toast
+            setTimeout(() => actualizarEstadoDB(estadoSugerido), 300);
         }
+    }, [pedidoSeleccionado, putGeneral, actualizarEstadoDB]);
+
+    // ── Toggle recolectado ─────────────────────────────────────────────────────
+    const handleToggleRecolectado = async (listaId: number, itemId: string, recolectado: boolean) => {
+        if (!pedidoSeleccionado) return;
+        try {
+            const itemsActualizados = pedidoSeleccionado.items.map(i =>
+                i.id === itemId ? { ...i, recolectado, noEncontrado: recolectado ? false : i.noEncontrado } : i
+            );
+
+            // Si pasamos a "proceso" al recolectar el primero
+            if (recolectado && pedidoSeleccionado.estado === 'nuevo') {
+                await actualizarEstadoDB('proceso', true);
+            }
+
+            await guardarItemsYEvaluarEstado(itemsActualizados);
+
+            if (isConnected) {
+                await notificarCambioLista('ProductoRecogidaActualizada', { pedidoId: listaId, productoId: itemId, recolectado, timestamp: new Date().toISOString() });
+            }
+            onItemActualizado?.(listaId, itemId, 'recolectado', recolectado);
+        } catch (e) { console.error('Error toggle recolectado:', e); }
+    };
+
+    // ── Toggle no encontrado ───────────────────────────────────────────────────
+    const handleToggleNoEncontrado = async (listaId: number, itemId: string, noEncontrado: boolean) => {
+        if (!pedidoSeleccionado) return;
+        try {
+            const itemsActualizados = pedidoSeleccionado.items.map(i =>
+                i.id === itemId ? { ...i, noEncontrado, recolectado: noEncontrado ? false : i.recolectado } : i
+            );
+
+            // Si es el primer item marcado y el pedido está en nuevo → proceso
+            if (noEncontrado && pedidoSeleccionado.estado === 'nuevo') {
+                await actualizarEstadoDB('proceso', true);
+            }
+
+            await guardarItemsYEvaluarEstado(itemsActualizados);
+
+            if (isConnected) {
+                await notificarCambioLista('ProductoNoEncontradoActualizado', { pedidoId: listaId, productoId: itemId, noEncontrado, timestamp: new Date().toISOString() });
+            }
+            onItemActualizado?.(listaId, itemId, 'noEncontrado', noEncontrado);
+        } catch (e) { console.error('Error toggle noEncontrado:', e); }
+    };
+
+    // ── Cambio manual de estado ────────────────────────────────────────────────
+    const handleActualizarEstado = (nuevoEstado: string) => actualizarEstadoDB(nuevoEstado, true);
+
+    // ── Firma ──────────────────────────────────────────────────────────────────
+    const getCanvasContext = (): CanvasRenderingContext2D | null => {
+        if (!canvasRef.current) return null;
+        if (!canvasCtxRef.current) {
+            canvasCtxRef.current = canvasRef.current.getContext('2d');
+            if (canvasCtxRef.current) {
+                canvasCtxRef.current.lineWidth = 2;
+                canvasCtxRef.current.lineCap = 'round';
+                canvasCtxRef.current.strokeStyle = '#000';
+            }
+        }
+        return canvasCtxRef.current;
+    };
+
+    const startDrawing = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsDrawing(true);
+        const ctx = getCanvasContext();
+        if (!ctx || !canvasRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const scaleX = canvasRef.current.width / rect.width;
+        const scaleY = canvasRef.current.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    };
+
+    const draw = (e: React.MouseEvent) => {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const ctx = getCanvasContext();
+        if (!ctx || !canvasRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const scaleX = canvasRef.current.width / rect.width;
+        const scaleY = canvasRef.current.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    };
+
+    const stopDrawing = () => setIsDrawing(false);
+
+    const startDrawingTouch = (e: React.TouchEvent) => {
+        e.preventDefault();
+        setIsDrawing(true);
+        const ctx = getCanvasContext();
+        if (!ctx || !canvasRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const scaleX = canvasRef.current.width / rect.width;
+        const scaleY = canvasRef.current.height / rect.height;
+        const touch = e.touches[0];
+        const x = (touch.clientX - rect.left) * scaleX;
+        const y = (touch.clientY - rect.top) * scaleY;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    };
+
+    const drawTouch = (e: React.TouchEvent) => {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const ctx = getCanvasContext();
+        if (!ctx || !canvasRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const scaleX = canvasRef.current.width / rect.width;
+        const scaleY = canvasRef.current.height / rect.height;
+        const touch = e.touches[0];
+        const x = (touch.clientX - rect.left) * scaleX;
+        const y = (touch.clientY - rect.top) * scaleY;
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    };
+
+    const clearSignature = () => {
+        const ctx = canvasCtxRef.current;
+        if (ctx && canvasRef.current) {
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        }
+    };
+
+    const confirmSignature = async () => {
+        if (!canvasRef.current || !pedidoSeleccionado) return;
+        const dataURL = canvasRef.current.toDataURL('image/png');
+        try {
+            // Guardar firma en la BD
+            await putGeneral({
+                table: "listas",
+                data: {
+                    Data: {
+                        firma: dataURL,
+                        fecha_actualizacion: new Date().toISOString()
+                    },
+                    Filtros: [{ Key: "ID", Value: pedidoSeleccionado.id, Operator: "=" }]
+                }
+            }).unwrap();
+
+            // Actualizar estado a entregado
+            await actualizarEstadoDB('entregado', true);
+
+            setShowSignaturePad(false);
+            // Opcional: imprimir ticket después de la firma
+            // handlePrintTicket();
+        } catch (e) {
+            console.error('Error al guardar la firma:', e);
+        }
+    };
+
+    const handleOpenSignaturePad = () => {
+        // Solo permite abrir si el pedido está en listo/proceso
+        if (!pedidoSeleccionado || !['listo', 'proceso'].includes(pedidoSeleccionado.estado)) return;
+        setShowSignaturePad(true);
+    };
+
+    // ── Utilidades de presentación ─────────────────────────────────────────────
+    const getEstadoBadgeClass = (estado: string) => {
+        const m = ESTADO_META[estado];
+        return m ? `${m.bg} ${m.color} ring-1 ${m.ring}` : 'bg-gray-100 text-gray-800';
     };
 
     const formatDate = (dateString: string) => {
         try {
-            const date = new Date(dateString);
-            return date.toLocaleString('es-MX', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        } catch (error) {
-            return dateString;
-        }
+            return new Date(dateString).toLocaleString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        } catch { return dateString; }
     };
 
-    const generarPDF = (pedido: Pedido) => {
-        const doc = new jsPDF();
-
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 10;
-        let yPosition = margin;
-
-        doc.setFontSize(20);
-        doc.setTextColor(40, 40, 40);
-        doc.text('LISTA DE PEDIDO', pageWidth / 2, yPosition, { align: 'center' });
-        yPosition += 15;
-
-        doc.setFontSize(12);
-        doc.setTextColor(80, 80, 80);
-
-        doc.text(`ID Pedido: ${pedido.id}`, margin, yPosition);
-        yPosition += 8;
-        doc.text(`Cliente: ${pedido.nombre || 'N/A'}`, margin, yPosition);
-        yPosition += 8;
-        doc.text(`Fecha: ${formatDate(pedido.fecha_creacion)}`, margin, yPosition);
-        yPosition += 8;
-        doc.text(`Servicio: ${pedido.servicio}`, margin, yPosition);
-        yPosition += 8;
-        doc.text(`Estado: ${pedido.estado}`, margin, yPosition);
-        yPosition += 15;
-
-        // Resumen financiero
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Subtotal: $${pedido.subtotal.toFixed(2)}`, margin, yPosition);
-        yPosition += 6;
-        if (pedido.descuentoTotal > 0) {
-            doc.setTextColor(220, 38, 38);
-            doc.text(`Descuento: -$${pedido.descuentoTotal.toFixed(2)}`, margin, yPosition);
-            yPosition += 6;
-            doc.setTextColor(100, 100, 100);
-        }
-        if (pedido.servicioFee > 0) {
-            doc.text(`Servicio: $${pedido.servicioFee.toFixed(2)}`, margin, yPosition);
-            yPosition += 6;
-        }
-        doc.setFontSize(12);
-        doc.setTextColor(40, 40, 40);
-        doc.text(`TOTAL: $${pedido.total.toFixed(2)}`, margin, yPosition);
-        yPosition += 15;
-
-        const tableColumn = ["Producto", "Cantidad", "Precio Unit.", "Descuento", "Subtotal"];
-        const tableRows = [];
-
-        for (const item of pedido.items) {
-            const tieneDescuento = item.descuento && item.descuento > 0;
-            const precioFinal = item.descuento ? item.descuento : item.precio;
-            const precioOriginal = item.precio;
-            const montoDescuento = tieneDescuento ? precioOriginal - precioFinal : 0;
-
-            const productData = [
-                item.nombre || item.descripcion || 'Producto sin nombre',
-                `${item.quantity || 0} ${item.unidad || 'unidad'}`,
-                `$${precioOriginal.toFixed(2)}`,
-                tieneDescuento ? `-$${montoDescuento.toFixed(2)}` : '-',
-                `$${(precioFinal * (item.quantity || 0)).toFixed(2)}`
-            ];
-            tableRows.push(productData);
-        }
-
-        tableRows.push([
-            'TOTAL',
-            '',
-            '',
-            pedido.descuentoTotal > 0 ? `-$${pedido.descuentoTotal.toFixed(2)}` : '-',
-            `$${pedido.total.toFixed(2)}`
-        ]);
-
-        (doc as any).autoTable({
-            startY: yPosition,
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'grid',
-            styles: {
-                fontSize: 8,
-                cellPadding: 2,
-            },
-            headStyles: {
-                fillColor: [79, 70, 229],
-                textColor: 255,
-                fontStyle: 'bold'
-            },
-            alternateRowStyles: {
-                fillColor: [245, 245, 245]
-            },
-            margin: { left: margin, right: margin },
-            didDrawPage: (data: any) => {
-                const pageHeight = doc.internal.pageSize.getHeight();
-                doc.setFontSize(8);
-                doc.setTextColor(150, 150, 150);
-                doc.text(
-                    `Generado el ${new Date().toLocaleDateString()} - Página ${data.pageNumber}`,
-                    pageWidth / 2,
-                    pageHeight - 10,
-                    { align: 'center' }
-                );
-            }
-        });
-
-        doc.save(`pedido-${pedido.id}-${new Date().toISOString().split('T')[0]}.pdf`);
-    };
-
-    const getEstadoDisplay = (estado: string) => {
-        const estados: { [key: string]: string } = {
-            'nuevo': 'Nuevo',
-            'proceso': 'En Proceso',
-            'listo': 'Listo',
-            'entregado': 'Entregado',
-            'cancelado': 'Cancelado'
-        };
-        return estados[estado] || estado;
-    };
-
-    const handleActualizarEstado = async (pedidoId: number, nuevoEstado: string) => {
-        if (!pedidoSeleccionado) return;
-
-        try {
-            await putGeneral({
-                table: "listas",
-                data: {
-                    Data: {
-                        "estado": nuevoEstado,
-                        "fecha_actualizacion": new Date().toISOString()
-                    },
-                    Filtros: [
-                            {
-                                "Key": "ID",
-                                "Value": pedidoId,
-                                "Operator": "="
-                            }
-                        ],
-                }
-            }).unwrap();
-
-            // Actualizar localmente
-            setPedidoSeleccionado(prev => prev ? {
-                ...prev,
-                estado: nuevoEstado as any,
-                fecha_actualizacion: new Date().toISOString()
-            } : null);
-
-            // ✅ NOTIFICAR CAMBIO A TRAVÉS DE SIGNALR
-            if (isConnected) {
-                await notificarCambioLista('EstadoActualizado', {
-                    pedidoId: pedidoId,
-                    nuevoEstado: nuevoEstado,
-                    timestamp: new Date().toISOString()
-                });
-            }
-
-            // Notificar al componente padre
-            if (onEstadoActualizado) {
-                onEstadoActualizado(pedidoId, nuevoEstado);
-            }
-
-        } catch (error) {
-            console.error("Error actualizando estado:", error);
-            await fetchPedidoDetalle();
-        }
-    };
-
-    // ✅ FUNCIÓN MEJORADA CON SIGNALR PARA RECOLECCIÓN
-    const handleToggleRecolectado = async (listaId: number, itemId: string, recolectado: boolean) => {
-        if (!pedidoSeleccionado) return;
-
-        try {
-            const itemsActualizados = pedidoSeleccionado.items.map((item: any) =>
-                item.id === itemId
-                    ? { ...item, recolectado }
-                    : item
-            );
-
-            const arrayListaActualizado = JSON.stringify(itemsActualizados);
-
-            await putGeneral({
-                table: "listas",
-                data: {
-                    Data: {
-                        array_lista: arrayListaActualizado,
-                        fecha_actualizacion: new Date().toISOString()
-                    },
-                    Filtros:  [
-                            {
-                                "Key": "ID",
-                                "Value": listaId,
-                                "Operator": "="
-                            }
-                        ],
-                },
-            }).unwrap();
-
-            setPedidoSeleccionado(prev => prev ? {
-                ...prev,
-                items: itemsActualizados,
-                fecha_actualizacion: new Date().toISOString()
-            } : null);
-
-            // ✅ NOTIFICAR CAMBIO A TRAVÉS DE SIGNALR
-            if (isConnected) {
-                await notificarCambioLista('ProductoRecogidaActualizada', {
-                    pedidoId: listaId,
-                    productoId: itemId,
-                    recolectado: recolectado,
-                    timestamp: new Date().toISOString()
-                });
-            }
-
-            // Notificar al componente padre
-            if (onItemActualizado) {
-                onItemActualizado(listaId, itemId, 'recolectado', recolectado);
-            }
-        } catch (error) {
-            console.error('Error al actualizar estado de recolección:', error);
-        }
-    };
-
-    // ✅ FUNCIÓN MEJORADA CON SIGNALR PARA NO ENCONTRADO
-    const handleToggleNoEncontrado = async (listaId: number, itemId: string, noEncontrado: boolean) => {
-        if (!pedidoSeleccionado) return;
-
-        try {
-            const itemsActualizados = pedidoSeleccionado.items.map((item: any) =>
-                item.id === itemId
-                    ? { ...item, noEncontrado }
-                    : item
-            );
-
-            const arrayListaActualizado = JSON.stringify(itemsActualizados);
-
-            await putGeneral({
-                table: "listas",
-                data: {
-                    Data: {
-                        array_lista: arrayListaActualizado,
-                        fecha_actualizacion: new Date().toISOString()
-                    },
-                    Filtros:  [
-                            {
-                                "Key": "ID",
-                                "Value": listaId,
-                                "Operator": "="
-                            }
-                        ],
-                },
-            }).unwrap();
-
-            setPedidoSeleccionado(prev => prev ? {
-                ...prev,
-                items: itemsActualizados,
-                fecha_actualizacion: new Date().toISOString()
-            } : null);
-
-            // ✅ NOTIFICAR CAMBIO A TRAVÉS DE SIGNALR
-            if (isConnected) {
-                await notificarCambioLista('ProductoNoEncontradoActualizado', {
-                    pedidoId: listaId,
-                    productoId: itemId,
-                    noEncontrado: noEncontrado,
-                    timestamp: new Date().toISOString()
-                });
-            }
-
-            // Notificar al componente padre
-            if (onItemActualizado) {
-                onItemActualizado(listaId, itemId, 'noEncontrado', noEncontrado);
-            }
-
-        } catch (error) {
-            console.error('Error al actualizar estado de producto no encontrado:', error);
-        }
-    };
-
-    const portRef = useRef<any>(null);
-    const printer = new SerialPrinter();
-
-    const handleConnectPrinter = async () => {
-        const result = await printer.connectPrinter(portRef);
-        console.log("connect:", result);
-    };
-
-    const handlePrintTicket = async () => {
-        if (!pedidoSeleccionado) return;
-
-        const ticket: Ticket = {
-            id: pedidoSeleccionado.id,
-            items: pedidoSeleccionado.items.map(item => ({
-                name: item.nombre || item.descripcion || 'Producto',
-                price: item.descuento || item.precio, // Usar precio con descuento si existe
-                quantity: item.quantity,
-                barcode: item.id,
-                discount: item.descuento ? item.precio - item.descuento : 0 // Calcular monto de descuento
-            }))
-        };
-        const result = await printer.printToSerial(ticket, portRef);
-        console.log("print:", result);
-    };
-
-    // Función para renderizar precio con descuento - CORREGIDA
     const renderPrecio = (item: ListaItem) => {
         const tieneDescuento = item.descuento && item.descuento > 0;
-        const precioFinal = item.descuento ? item.descuento : item.precio;
-        const precioOriginal = item.precio;
-        const porcentajeDescuento = tieneDescuento ?
-            Math.round(((precioOriginal - precioFinal) / precioOriginal) * 100) : 0;
-
+        const precioFinal = item.descuento || item.precio;
+        const porcentaje = tieneDescuento ? Math.round(((item.precio - precioFinal) / item.precio) * 100) : 0;
         if (tieneDescuento) {
             return (
                 <div className="flex flex-col items-end">
                     <div className="flex items-center gap-2">
-                        <span className="text-base font-semibold text-purple-600 leading-none">
-                            {formatValue(precioFinal, "currency")}
-                        </span>
-                        <span className="text-[11px] text-gray-500 line-through leading-none">
-                            {formatValue(precioOriginal, "currency")}
-                        </span>
+                        <span className="text-base font-semibold text-purple-600">{formatValue(precioFinal, "currency")}</span>
+                        <span className="text-[11px] text-gray-400 line-through">{formatValue(item.precio, "currency")}</span>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-green-600">
-                        <Tag className="w-3 h-3" />
-                        <span>{porcentajeDescuento}% OFF</span>
+                    <div className="flex items-center gap-1 text-xs text-emerald-600">
+                        <Tag className="w-3 h-3" /><span>{porcentaje}% OFF</span>
                     </div>
                 </div>
             );
         }
-
-        return (
-            <span className="font-medium">{formatValue(precioFinal, "currency")}</span>
-        );
+        return <span className="font-medium">{formatValue(precioFinal, "currency")}</span>;
     };
 
-    // Función para calcular subtotal por item
-    const calcularSubtotalItem = (item: ListaItem) => {
-        const precioFinal = item.descuento || item.precio;
-        return precioFinal * (item.quantity || 0);
-    };
+    const calcularSubtotalItem = (item: ListaItem) => (item.descuento || item.precio) * (item.quantity || 0);
 
+    // ── PDF / Impresora ────────────────────────────────────────────────────────
+    const generarPDF = (pedido: Pedido) => {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 10;
+        let y = margin;
+
+        doc.setFontSize(20); doc.setTextColor(40, 40, 40);
+        doc.text('LISTA DE PEDIDO', pageWidth / 2, y, { align: 'center' }); y += 15;
+        doc.setFontSize(12); doc.setTextColor(80, 80, 80);
+        doc.text(`ID Pedido: ${pedido.id}`, margin, y); y += 8;
+        doc.text(`Cliente: ${pedido.nombre || 'N/A'}`, margin, y); y += 8;
+        doc.text(`Fecha: ${formatDate(pedido.fecha_creacion)}`, margin, y); y += 8;
+        doc.text(`Servicio: ${pedido.servicio}`, margin, y); y += 15;
+
+        const rows = pedido.items.map(item => {
+            const precioFinal = item.descuento || item.precio;
+            return [item.nombre || 'Producto', `${item.quantity} ${item.unidad}`, `$${item.precio.toFixed(2)}`,
+            item.descuento ? `-$${(item.precio - precioFinal).toFixed(2)}` : '-',
+            `$${(precioFinal * item.quantity).toFixed(2)}`];
+        });
+        rows.push(['TOTAL', '', '', pedido.descuentoTotal > 0 ? `-$${pedido.descuentoTotal.toFixed(2)}` : '-', `$${pedido.total.toFixed(2)}`]);
+
+        autoTable(doc, {
+            startY: y, head: [["Producto", "Cantidad", "Precio Unit.", "Descuento", "Subtotal"]], body: rows,
+            theme: 'grid', styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 245, 245] }, margin: { left: margin, right: margin }
+        });
+
+        doc.save(`pedido-${pedido.id}-${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+    // ── Progreso ───────────────────────────────────────────────────────────────
+    const productosReales = pedidoSeleccionado?.items.filter(i => !i.esServicio && i.codigo !== "SPICKUP") ?? [];
+    const recolectados = productosReales.filter(i => i.recolectado).length;
+    const noEncontrados = productosReales.filter(i => i.noEncontrado).length;
+    const pendientes = productosReales.length - recolectados - noEncontrados;
+    const pct = productosReales.length > 0 ? Math.round(((recolectados + noEncontrados) / productosReales.length) * 100) : 0;
+
+    // ── Render ─────────────────────────────────────────────────────────────────
     return (
         <Modal
             modalName="detalle_pedido"
-            title={`Detalles de la Lista - ${pedidoSeleccionado?.nombre_lista || 'Cargando...'}`}
+            title={`Detalles de la Lista — ${pedidoSeleccionado?.nombre_lista || 'Cargando...'}`}
             maxWidth="4xl"
         >
             {pedidoSeleccionado ? (
-                <div className="p-4 space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="space-y-3">
-                            <h3 className="font-semibold text-lg border-gray-300 border-b pb-2">Información General</h3>
-                            <div><strong>ID Lista:</strong> {pedidoSeleccionado.id}</div>
-                            <div><strong>Cliente ID:</strong> {pedidoSeleccionado.id_cliente}</div>
-                            <div><strong>Nombre:</strong> {pedidoSeleccionado.nombre_lista}</div>
-                            <div><strong>Tipo:</strong> {pedidoSeleccionado.tipo_lista}</div>
+                <div className="p-4 space-y-5">
+
+                    {/* ── Toast automático ── */}
+                    {autoEstadoMsg && (
+                        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-2.5 rounded-lg animate-pulse">
+                            <Zap className="size-4 shrink-0" />
+                            <span>{autoEstadoMsg}</span>
+                        </div>
+                    )}
+
+                    {/* ── Header: info + resumen ── */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <div className="space-y-2 text-sm">
+                            <h3 className="font-semibold text-base border-b border-gray-200 pb-1.5">Información General</h3>
+                            <p><span className="text-gray-500">ID Lista:</span> <strong>{pedidoSeleccionado.id}</strong></p>
+                            <p><span className="text-gray-500">Cliente:</span> <strong>{pedidoSeleccionado.nombre}</strong></p>
+                            <p><span className="text-gray-500">Tipo:</span> {pedidoSeleccionado.tipo_lista}</p>
+                            <p><span className="text-gray-500">Creado:</span> {formatDate(pedidoSeleccionado.fecha_creacion)}</p>
                         </div>
 
-                        <div className="space-y-3">
-                            <h3 className="font-semibold text-lg border-gray-300 border-b pb-2">Estado y Servicio</h3>
-                            <div className="flex items-center">
-                                <strong>Servicio:</strong>
-                                <span className={`ml-2 px-2 py-1 rounded text-xs ${pedidoSeleccionado.servicio === 'Pickup'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-blue-100 text-blue-800'
-                                    }`}>
+                        <div className="space-y-2 text-sm">
+                            <h3 className="font-semibold text-base border-b border-gray-200 pb-1.5">Estado y Servicio</h3>
+                            <div className="flex items-center gap-2">
+                                <span className="text-gray-500">Servicio:</span>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${pedidoSeleccionado.servicio === 'Pickup' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
                                     {pedidoSeleccionado.servicio}
                                 </span>
                             </div>
-                            <div className="flex items-center">
-                                <strong>Estado:</strong>
-                                <span className={`ml-2 px-2 py-1 rounded text-xs ${getEstadoBadgeClass(pedidoSeleccionado.estado)}`}>
-                                    {pedidoSeleccionado.estado}
+                            <div className="flex items-center gap-2">
+                                <span className="text-gray-500">Estado:</span>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getEstadoBadgeClass(pedidoSeleccionado.estado)}`}>
+                                    {ESTADO_META[pedidoSeleccionado.estado]?.label ?? pedidoSeleccionado.estado}
                                 </span>
                             </div>
-                            <div><strong>Total:</strong> {formatValue(pedidoSeleccionado.total, "currency")}</div>
-                            <div><strong>Creado:</strong> {formatDate(pedidoSeleccionado.fecha_creacion)}</div>
+                            {pedidoSeleccionado.firma && (
+                                <div className="mt-2">
+                                    <span className="text-xs text-gray-400">Firma registrada</span>
+                                    <img src={pedidoSeleccionado.firma} alt="Firma" className="max-h-20 border rounded" />
+                                </div>
+                            )}
                         </div>
 
-                        <div className="space-y-3">
-                            <h3 className="font-semibold text-lg border-gray-300 border-b pb-2">Resumen Financiero</h3>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span>Subtotal:</span>
-                                    <span>{formatValue(pedidoSeleccionado.subtotal, "currency")}</span>
-                                </div>
-                                {pedidoSeleccionado.descuentoTotal > 0 && (
-                                    <div className="flex justify-between text-red-600">
-                                        <span>Descuento:</span>
-                                        <span>-{formatValue(pedidoSeleccionado.descuentoTotal, "currency")}</span>
-                                    </div>
-                                )}
-                                <div className="flex justify-between font-bold border-t pt-2">
-                                    <span>Total:</span>
-                                    <span>{formatValue(pedidoSeleccionado.total, "currency")}</span>
-                                </div>
-                            </div>
+                        <div className="space-y-2 text-sm">
+                            <h3 className="font-semibold text-base border-b border-gray-200 pb-1.5">Resumen Financiero</h3>
+                            <div className="flex justify-between"><span className="text-gray-500">Subtotal:</span><span>{formatValue(pedidoSeleccionado.subtotal, "currency")}</span></div>
+                            {pedidoSeleccionado.descuentoTotal > 0 && (
+                                <div className="flex justify-between text-red-600"><span>Descuento:</span><span>-{formatValue(pedidoSeleccionado.descuentoTotal, "currency")}</span></div>
+                            )}
+                            <div className="flex justify-between font-bold border-t pt-2 mt-1"><span>Total:</span><span>{formatValue(pedidoSeleccionado.total, "currency")}</span></div>
                         </div>
                     </div>
 
-                    <div>
-                        <div className="flex justify-between items-center mb-3">
-                            <h3 className="font-semibold text-lg">Productos en la Lista</h3>
-                            <div className="flex gap-4 text-sm text-gray-500">
-                                <div>
-                                    {pedidoSeleccionado.items.filter((item: any) => item.recolectado).length} de {pedidoSeleccionado.items.length} recolectados
+                    {/* ── Barra de progreso de recolección ── */}
+                    {productosReales.length > 0 && (
+                        <div className="bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-100">
+                            <div className="flex items-center justify-between text-sm font-medium">
+                                <span className="text-gray-700">Progreso de recolección</span>
+                                <span className="text-gray-500">{pct}%</span>
+                            </div>
+
+                            {/* Barra segmentada */}
+                            <div className="h-3 rounded-full bg-gray-200 overflow-hidden flex gap-0.5">
+                                {recolectados > 0 && (
+                                    <div
+                                        className="h-full bg-emerald-500 transition-all duration-500 rounded-l-full"
+                                        style={{ width: `${(recolectados / productosReales.length) * 100}%` }}
+                                    />
+                                )}
+                                {noEncontrados > 0 && (
+                                    <div
+                                        className="h-full bg-red-400 transition-all duration-500"
+                                        style={{ width: `${(noEncontrados / productosReales.length) * 100}%` }}
+                                    />
+                                )}
+                                {pendientes > 0 && (
+                                    <div
+                                        className="h-full bg-gray-200 flex-1 rounded-r-full"
+                                    />
+                                )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-4 text-xs">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="size-2.5 rounded-full bg-emerald-500 inline-block" />
+                                    <span className="text-gray-600">Recolectados: <strong className="text-emerald-700">{recolectados}</strong></span>
                                 </div>
-                                <div className="text-red-500">
-                                    {pedidoSeleccionado.items.filter((item: any) => item.noEncontrado).length} no encontrados
+                                <div className="flex items-center gap-1.5">
+                                    <span className="size-2.5 rounded-full bg-red-400 inline-block" />
+                                    <span className="text-gray-600">No encontrados: <strong className="text-red-600">{noEncontrados}</strong></span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="size-2.5 rounded-full bg-gray-300 inline-block" />
+                                    <span className="text-gray-600">Pendientes: <strong>{pendientes}</strong></span>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="border-gray-300 border rounded-lg overflow-hidden">
+                            {/* Mensaje contextual */}
+                            {pct === 100 && noEncontrados === 0 && (
+                                <p className="text-xs text-emerald-700 flex items-center gap-1 font-medium">
+                                    <CheckCircle2 className="size-3.5" /> ¡Todos los productos recolectados! El pedido se marcó como <strong>Listo</strong>.
+                                </p>
+                            )}
+                            {noEncontrados > 0 && pendientes === 0 && (
+                                <p className="text-xs text-orange-600 flex items-center gap-1 font-medium">
+                                    <AlertTriangle className="size-3.5" /> Hay productos no encontrados. El pedido se marcó como <strong>Incompleto</strong>.
+                                </p>
+                            )}
+                            {noEncontrados > 0 && pendientes > 0 && (
+                                <p className="text-xs text-amber-600 flex items-center gap-1 font-medium">
+                                    <AlertTriangle className="size-3.5" /> Atención: {noEncontrados} producto(s) marcado(s) como no encontrado. El estado cambiará al terminar.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ── Tabla de productos ── */}
+                    <div className="overflow-x-auto">
+                        <h3 className="font-semibold text-base mb-3">Productos en la Lista <span className="text-sm font-normal text-gray-400">({pedidoSeleccionado.items.length} items)</span></h3>
+                        <div className="border border-gray-200 rounded-xl overflow-auto">
                             <table className="w-full text-sm">
-                                <thead className="bg-gray-50">
+                                <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
                                     <tr>
-                                        <th className="px-4 py-3 text-left font-semibold w-10">✓</th>
-                                        <th className="px-4 py-3 text-left font-semibold w-10">⚠️</th>
-                                        <th className="px-4 py-3 text-left font-semibold">Producto</th>
-                                        <th className="px-4 py-3 text-left font-semibold">Categoría</th>
-                                        <th className="px-4 py-3 text-center font-semibold">Cantidad</th>
-                                        <th className="px-4 py-3 text-right font-semibold">Precio Unitario</th>
-                                        <th className="px-4 py-3 text-right font-semibold">Subtotal</th>
+                                        <th className="px-3 py-2.5 text-center w-10">✓</th>
+                                        <th className="px-3 py-2.5 text-center w-10">⚠️</th>
+                                        <th className="px-4 py-2.5 text-left">Producto</th>
+                                        <th className="px-4 py-2.5 text-left">Categoría</th>
+                                        <th className="px-4 py-2.5 text-center">Cant.</th>
+                                        <th className="px-4 py-2.5 text-right">Precio</th>
+                                        <th className="px-4 py-2.5 text-right">Subtotal</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {pedidoSeleccionado.items.map((item: any, index) => {
-                                        const isNoEncontrado = item.noEncontrado;
-                                        const isRecolectado = item.recolectado;
-                                        const tieneDescuento = item.descuento && item.descuento > 0;
+                                        const isNo = item.noEncontrado;
+                                        const isRec = item.recolectado;
                                         const esServicio = item.esServicio || item.codigo === "SPICKUP";
-                                        const precioFinal = tieneDescuento ? item.descuento : item.precio;
-                                        const subtotalItem = calcularSubtotalItem(item);
+
+                                        let rowClass = 'border-t border-gray-100 transition-colors ';
+                                        if (isNo) rowClass += 'bg-red-50 hover:bg-red-100/70';
+                                        else if (isRec) rowClass += 'bg-emerald-50 hover:bg-emerald-100/70';
+                                        else if (esServicio) rowClass += 'bg-blue-50 hover:bg-blue-100/70';
+                                        else rowClass += 'hover:bg-gray-50';
 
                                         return (
-                                            <tr
-                                                key={index}
-                                                className={`border-gray-300 border-t transition-colors ${isNoEncontrado
-                                                    ? 'bg-red-50 hover:bg-red-100'
-                                                    : isRecolectado
-                                                        ? 'bg-green-50 hover:bg-green-100'
-                                                        : esServicio
-                                                            ? 'bg-blue-50 hover:bg-blue-100'
-                                                            : 'hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                <td className="px-4 py-3">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isRecolectado || false}
-                                                        onChange={(e) => handleToggleRecolectado(
-                                                            pedidoSeleccionado.id,
-                                                            item.id,
-                                                            e.target.checked
-                                                        )}
-                                                        disabled={isNoEncontrado}
-                                                        className={`h-4 w-4 rounded border-gray-300 focus:ring-green-500 ${isNoEncontrado
-                                                            ? 'text-gray-400 cursor-not-allowed'
-                                                            : 'text-green-600'
-                                                            }`}
-                                                    />
+                                            <tr key={index} className={rowClass}>
+                                                {/* Checkbox Recolectado */}
+                                                <td className="px-3 py-3 text-center">
+                                                    <button
+                                                        onClick={() => !isNo && handleToggleRecolectado(pedidoSeleccionado.id, item.id, !isRec)}
+                                                        disabled={isNo}
+                                                        title={isNo ? "Marcado como no encontrado" : isRec ? "Quitar recolección" : "Marcar como recolectado"}
+                                                        className={`size-6 rounded-full border-2 flex items-center justify-center mx-auto transition-all
+                                                            ${isNo ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-40'
+                                                                : isRec ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600'
+                                                                    : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50'}`}
+                                                    >
+                                                        {isRec && <CheckCircle2 className="size-3.5" />}
+                                                    </button>
                                                 </td>
 
-                                                <td className="px-4 py-3">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isNoEncontrado || false}
-                                                        onChange={(e) => handleToggleNoEncontrado(
-                                                            pedidoSeleccionado.id,
-                                                            item.id,
-                                                            e.target.checked
-                                                        )}
-                                                        disabled={isRecolectado}
-                                                        className={`h-4 w-4 rounded border-gray-300 focus:ring-red-500 ${isRecolectado
-                                                            ? 'text-gray-400 cursor-not-allowed'
-                                                            : 'text-red-600'
-                                                            }`}
-                                                    />
+                                                {/* Checkbox No encontrado */}
+                                                <td className="px-3 py-3 text-center">
+                                                    <button
+                                                        onClick={() => !isRec && handleToggleNoEncontrado(pedidoSeleccionado.id, item.id, !isNo)}
+                                                        disabled={isRec}
+                                                        title={isRec ? "Ya recolectado" : isNo ? "Quitar no encontrado" : "Marcar como no encontrado"}
+                                                        className={`size-6 rounded-full border-2 flex items-center justify-center mx-auto transition-all
+                                                            ${isRec ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-40'
+                                                                : isNo ? 'border-red-500 bg-red-500 text-white hover:bg-red-600'
+                                                                    : 'border-gray-300 hover:border-red-400 hover:bg-red-50'}`}
+                                                    >
+                                                        {isNo && <XCircle className="size-3.5" />}
+                                                    </button>
                                                 </td>
+
+                                                {/* Producto */}
                                                 <td className="px-4 py-3">
-                                                    <div className={`font-medium flex flex-col ${isNoEncontrado ? 'line-through text-red-600' : ''
-                                                        }`}>
-                                                        <div className="flex items-center gap-2">
-                                                            {item.nombre || item.descripcion}
-                                                            {esServicio && (
-                                                                <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                                                                    Servicio
-                                                                </span>
-                                                            )}
+                                                    <div className={`font-medium flex flex-col ${isNo ? 'line-through text-red-500' : ''}`}>
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span>{item.nombre || item.descripcion}</span>
+                                                            {esServicio && <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-700 rounded">Servicio</span>}
+                                                            {isRec && <span className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 rounded font-medium">✓ Recolectado</span>}
+                                                            {isNo && <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-700 rounded font-medium">⚠ No encontrado</span>}
                                                         </div>
-                                                        <span className="text-xs text-gray-500 mt-1">
-                                                            <strong>CB: </strong>{item.id}
-                                                            {item.codigo && item.codigo !== "SPICKUP" && ` | Código: ${item.codigo}`}
-                                                        </span>
+                                                        <span className="text-xs text-gray-400 mt-0.5">CB: {item.id}{item.codigo && item.codigo !== "SPICKUP" ? ` · ${item.codigo}` : ''}</span>
                                                     </div>
-                                                    {item.articulo && item.articulo !== "1" && (
-                                                        <div className="text-xs text-gray-500">Artículo: {item.articulo}</div>
-                                                    )}
-                                                    {isNoEncontrado && (
-                                                        <div className="text-xs text-red-500 font-medium mt-1">
-                                                            ⚠️ Producto no encontrado
-                                                        </div>
-                                                    )}
                                                 </td>
-                                                <td className="px-4 py-3">{item.categoria || 'Servicio'}</td>
+
+                                                <td className="px-4 py-3 text-gray-500 text-xs">{item.categoria || 'Servicio'}</td>
+
                                                 <td className="px-4 py-3 text-center">
-                                                    <span className={`font-medium ${isNoEncontrado ? 'line-through' : ''
-                                                        }`}>
-                                                        {item.quantity}
-                                                    </span>
-                                                    <span className="text-xs text-gray-500 ml-1">{item.unidad}</span>
+                                                    <span className={`font-medium ${isNo ? 'line-through text-gray-400' : ''}`}>{item.quantity}</span>
+                                                    <span className="text-xs text-gray-400 ml-1">{item.unidad}</span>
                                                 </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    {renderPrecio(item)}
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-medium">
-                                                    <span className={isNoEncontrado ? 'line-through text-red-600' : ''}>
-                                                        {formatValue(subtotalItem, "currency")}
-                                                    </span>
+
+                                                <td className="px-4 py-3 text-right">{renderPrecio(item)}</td>
+
+                                                <td className={`px-4 py-3 text-right font-medium ${isNo ? 'line-through text-red-400' : ''}`}>
+                                                    {formatValue(calcularSubtotalItem(item), "currency")}
                                                 </td>
                                             </tr>
                                         );
@@ -859,72 +738,105 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                         </div>
                     </div>
 
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                        <h3 className="font-semibold text-lg mb-3">Control del Pedido</h3>
-                        <div className="flex flex-wrap gap-3 items-center justify-between">
-                            <div className="flex flex-wrap gap-2">
-                                <span className="text-sm text-gray-600">Cambiar estado:</span>
-                                {['nuevo', 'proceso', 'listo', 'entregado', 'cancelado'].map((estado) => (
+                    {/* ── Panel de control ── */}
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <div className="flex flex-wrap gap-4 items-start justify-between">
+
+                            {/* Cambio manual de estado */}
+                            {pedidoSeleccionado.estado !== 'entregado' && (
+                                <div className="flex gap-2 flex-wrap">
                                     <button
-                                        key={estado}
-                                        onClick={() => handleActualizarEstado(pedidoSeleccionado.id, estado)}
-                                        disabled={pedidoSeleccionado.estado === estado}
-                                        className={`px-3 py-1 text-xs rounded transition-colors ${pedidoSeleccionado.estado === estado
-                                            ? 'bg-green-600 text-white cursor-default'
-                                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                        onClick={() => handleActualizarEstado('cancelado')}
+                                        className={`px-3 py-1.5 text-xs rounded-full font-medium transition-all ${pedidoSeleccionado.estado === 'cancelado'
+                                            ? `bg-red-50 text-red-600 ring-1 ring-red-300 cursor-default`
+                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
                                             }`}
                                     >
-                                        {getEstadoDisplay(estado)}
+                                        Cancelar
                                     </button>
-                                ))}
-                            </div>
+                                </div>
+                            )}
 
-                            <div className="flex items-center gap-2 text-sm">
-                                {pedidoSeleccionado.items.some((item: any) => item.noEncontrado) ? (
-                                    <div className="flex items-center text-red-600">
-                                        <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                        <span>Productos marcados como no encontrados</span>
-                                    </div>
-                                ) : pedidoSeleccionado.items.every((item: any) => item.recolectado) ? (
-                                    <div className="flex items-center text-green-600">
-                                        <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                        <span>Todos los productos recolectados</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center text-yellow-600">
-                                        <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>
-                                        <span>Productos pendientes por recolectar</span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => generarPDF(pedidoSeleccionado)}
-                                    className="px-4 py-2 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors flex items-center gap-2"
-                                >
-                                    <NotepadText className="size-4" /> Generar PDF
+                            {/* Acciones */}
+                            <div className="flex gap-2 flex-wrap">
+                                <button onClick={() => { generarPDF(pedidoSeleccionado); handleActualizarEstado('proceso') }}
+                                    className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1.5">
+                                    <NotepadText className="size-3.5" /> PDF
                                 </button>
                                 <button
-                                    disabled={pedidoSeleccionado.estado !== 'listo' && pedidoSeleccionado.estado !== 'entregado'}
-                                    onClick={handleConnectPrinter}
-                                    className="px-4 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                    onClick={handleOpenSignaturePad}
+                                    disabled={!['listo', 'proceso'].includes(pedidoSeleccionado.estado)}
+                                    className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40"
                                 >
-                                    <Radio className="size-4" /> Conectar Impresora
-                                </button>
-                                <button
-                                    disabled={pedidoSeleccionado.estado !== 'listo' && pedidoSeleccionado.estado !== 'entregado'}
-                                    onClick={handlePrintTicket}
-                                    className="px-4 py-2 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-                                >
-                                    <Printer className="size-4" /> Imprimir Ticket
+                                    <Signature className="size-3.5" /> Entregar
                                 </button>
                             </div>
                         </div>
+
+                        {/* Nota automática */}
+                        <p className="text-[11px] text-gray-400 mt-3 flex items-center gap-1">
+                            <Zap className="size-3 text-amber-400" />
+                            El estado cambia <strong className="text-gray-500">automáticamente</strong> al marcar productos como recolectados o no encontrados.
+                        </p>
                     </div>
+
+                    {/* ── Panel de firma (modal sobre modal) ── */}
+                    {showSignaturePad && (
+                        <section className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-4">
+                                
+                                <ul className="flex flex-col relative">
+                                    <li>
+                                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                                        <Signature className="size-5" /> Firma de entrega
+                                        </h3>
+                                    </li>
+                                    <li className="flex items-center gap-2 text-sm text-gray-600">
+                                        <CheckCircle2 className="size-3 text-emerald-500" />
+                                        <span>Productos recolectados: {recolectados}</span>
+                                    </li>
+                                    <li className="flex items-center gap-2 text-sm text-gray-600">
+                                        <XCircle className="size-3 text-red-400" />
+                                        <span>Productos no encontrados: {noEncontrados}</span>
+                                    </li>
+                                    <li className="absolute right-0">
+                                        <Button onClick={() => setShowSignaturePad(false)} color="completed" size="small">
+                                            cerrar
+                                        </Button>
+                                    </li>
+                                </ul>
+                                <div className="border-2 border-dashed border-gray-300 rounded-lg overflow-hidden">
+                                    <canvas
+                                        ref={canvasRef}
+                                        width={400}
+                                        height={200}
+                                        className="w-full touch-none bg-white"
+                                        onMouseDown={startDrawing}
+                                        onMouseMove={draw}
+                                        onMouseUp={stopDrawing}
+                                        onMouseLeave={stopDrawing}
+                                        onTouchStart={startDrawingTouch}
+                                        onTouchMove={drawTouch}
+                                        onTouchEnd={stopDrawing}
+                                    />
+                                </div>
+                                <div className="flex justify-between">
+                                    <Button onClick={clearSignature} color="second" size="small">
+                                        Limpiar
+                                    </Button>
+
+                                    <Button onClick={confirmSignature} color="completed" size="small">
+                                        Confirmar entrega
+                                    </Button>
+                                </div>
+                            </div>
+                        </section>
+                    )}
                 </div>
             ) : (
-                <div className="p-8 text-center">
-                    <p className="text-gray-500">No se pudo cargar la información del pedido.</p>
+                <div className="p-12 text-center">
+                    <Package className="size-14 text-gray-200 mx-auto mb-3" />
+                    <p className="text-gray-400 text-sm">No se pudo cargar la información del pedido.</p>
                 </div>
             )}
         </Modal>

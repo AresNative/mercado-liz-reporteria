@@ -109,7 +109,11 @@ export default function GestionPedidos() {
     const [estadoFiltro, setEstadoFiltro] = useState<string>('todos');
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-        Filtros: [],
+        Filtros: [{	
+            Key:"listas.estado",
+            Operator:"<>",
+            Value:"cancelado"
+        }],
         Selects: [],
         OrderBy: null,
         sum: false,
@@ -143,7 +147,7 @@ export default function GestionPedidos() {
                 total = items.reduce((sum, item) => sum + (item.precio * item.quantity), 0);
             }
         } catch (error) {
-            console.error('Error parsing array_lista:', error);
+            //console.error('Error parsing array_lista:', error);
             items = [];
         }
 
@@ -208,6 +212,7 @@ export default function GestionPedidos() {
                 Selects: [
                     { key: "listas.id" },
                     { key: "listas.id_cliente" },
+                    { key: "listas.usuario_id" },
                     { key: "listas.nombre_lista" },
                     { key: "listas.tipo_lista" },
                     { key: "listas.servicio" },
@@ -221,7 +226,7 @@ export default function GestionPedidos() {
                     { key: "clientes.direccion" },
                 ],
                 Order: [
-                    { Key: "listas.fecha_creacion", Direction: "Desc" }
+                    { Key: "fecha_creacion", Direction: "Desc" }
                 ]
             };
 
@@ -238,10 +243,10 @@ export default function GestionPedidos() {
             }).unwrap();
 
             if (response && response.data) {
-                setTotalPages(response.TotalPages || 1);
+                setTotalPages(response.totalPages);
 
                 const pedidosProcesados: Pedido[] = response.data.map(parseListaData);
-
+                
                 const pedidosOrdenados = pedidosProcesados.sort((a, b) => {
                     const prioridadEstado = { 'nuevo': 3, 'proceso': 2, 'listo': 1, 'entregado': 0, 'cancelado': 0, 'incompleto': 0 };
                     const prioridadEstadoA = prioridadEstado[a.estado] || 0;
@@ -421,7 +426,12 @@ export default function GestionPedidos() {
         reset();
         setTipoFiltro('todos');
         setEstadoFiltro('todos');
-        setActiveFilters(prev => ({ ...prev, Filtros: [] }));
+        setActiveFilters(prev => ({
+            ...prev, Filtros: [{
+                Key: "listas.estado",
+                Operator: "<>",
+                Value: "cancelado"
+            }] }));
         setCurrentPage(1);
     }
 
@@ -446,7 +456,7 @@ export default function GestionPedidos() {
 
         if (estadoFiltro !== 'todos') {
             nuevosFiltros.push({
-                Key: "estado",
+                Key: "listas.estado",
                 Value: estadoFiltro,
                 Operator: "="
             });

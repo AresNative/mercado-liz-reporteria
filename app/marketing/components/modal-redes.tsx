@@ -18,6 +18,12 @@ const ModalRedes = () => {
                         type: "INPUT",
                         label: "Icono",
                         name: "icon"
+                    },
+                    {
+                        require: false,
+                        type: "INPUT",
+                        label: "red social",
+                        name: "red_social"
                     }
 
                 ]}

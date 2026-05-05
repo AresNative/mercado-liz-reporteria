@@ -87,6 +87,12 @@ export const buttonClasses = {
     text: "text-indigo-50",
     ring: "ring-indigo-500/10",
   },
+  second: {
+    bg: "bg-gray-200 border border-gray-200 rounded-md",
+    hover: "hover:bg-gray-100 hover:text-gray-800 hover:border-gray-300",
+    text: "text-gray-600",
+    ring: "ring-gray-500/10",
+  },
 };
 export const alertClasses = {
   success: {
@@ -124,6 +130,12 @@ export const alertClasses = {
     hover: "hover:bg-indigo-500 hover:text-indigo-800",
     text: "text-indigo-600",
     ring: "ring-indigo-500/10",
+  },
+  second: {
+    bg: "bg-gray-50",
+    hover: "hover:bg-gray-200 hover:text-gray-800",
+    text: "text-gray-600",
+    ring: "ring-gray-500/10",
   },
 }; // Añadido para evitar modificaciones si usas TypeScript
 
