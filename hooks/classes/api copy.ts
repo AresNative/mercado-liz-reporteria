@@ -75,8 +75,8 @@ export class ManagmentWeb {
 }
 
 export function useManagmentWeb(): ManagmentWeb {
-  const [getData] = useGetWithFiltersMutation();
-  const managerRef = useRef<ManagmentWeb | null>(null);
+  const [getData] = useGetWithFiltersMutation ();
+  const managerRef = useRef<ManagmentWeb | null> (null);
 
   if (!managerRef.current) {
     managerRef.current = new ManagmentWeb(getData);

@@ -3,23 +3,30 @@ import { Modal } from "@/components/modal";
 
 const ModalRedes = () => {
     return (
-        <Modal title="Crear Red Social" modalName="modalMarketingRedes">
+        <Modal title="Crear Red Social" modalName="modalMarketingRedes" >
             <MainForm
                 table="redes_sociales"
                 dataForm={[
+                    {
+                        require: false,
+                        type: "SELECT",
+                        label: "Red Social",
+                        name: "red_social",
+                        options:
+                            [
+                                { label: "Facebook", value: "facebook" },
+                                { label: "Instagram", value: "instagram" },
+                                { label: "X", value: "x" },
+                                { label: "TikTok", value: "tiktok" },
+                                { label: "LinkedIn", value: "linkedin" }
+                            ]
+                    },
                     {
                         require: false,
                         type: "INPUT",
                         label: "URL",
                         name: "url"
                     },
-                    {
-                        require: false,
-                        type: "INPUT",
-                        label: "Icono",
-                        name: "icon"
-                    }
-
                 ]}
                 aditionalData={{ fecha: new Date() }}
                 actionType="post-general"
