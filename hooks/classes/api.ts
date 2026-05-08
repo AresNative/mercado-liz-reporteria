@@ -32,7 +32,7 @@ export class ManagmentRead {
   private readonly getData: GetDataFunction;
   private activeControllers: Map<string, AbortController> = new Map();
 
-  constructor(getDataFunction: GetDataFunction) {
+  constructor(getDataFunction: GetDataFunction ) {
     this.getData = getDataFunction;
   }
 
