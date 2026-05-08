@@ -43,7 +43,7 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
 
     const getModalTitle = () => {
         if (pedido?.nombre) {
-            return `Chat con ${pedido.nombre} - ${telefonoClient || 'Sin teléfono'}`;
+            return `Chat con ${pedido.nombre} - #${pedido.id} - ${telefonoClient || 'Sin teléfono'}`;
         }
         return telefonoClient ? `Chat - ${telefonoClient}` : 'Chat General';
     };
