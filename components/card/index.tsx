@@ -23,7 +23,7 @@ export default function Card(props: Resumen) {
                                 <dt className="text-xs font-medium text-gray-500 dark:text-gray-200 truncate">{props.title}</dt>
                                 <dd className="flex items-baseline">
                                     <div className="text-xl text-pretty font-semibold text-gray-900 dark:text-white">{props.value}</div>
-                                    <div className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
+                                    <div className="ml-2 flex items-baseline text-xs font-semibold text-green-600">
                                         <span>{props.subText}</span>
                                     </div>
                                 </dd>

@@ -1,13 +1,15 @@
 import { Modal } from "@/components/modal";
-import { useGetWithFiltersGeneralMutation, usePutGeneralMutation } from "@/hooks/api/api"
+import { useGetWithFiltersGeneralMutation, usePostImgMutation, usePutGeneralMutation } from "@/hooks/api/api"
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Signature, NotepadText, Radio, Tag, CheckCircle2, XCircle, Package, AlertTriangle, Zap } from "lucide-react";
+import { Signature, NotepadText, Radio, Tag, CheckCircle2, XCircle, Package, AlertTriangle, Zap, MessageCircle } from "lucide-react";
 import { usePedidosSignalR } from "../utils/singalr-pedidos";
 import { SerialPrinter, Ticket, TicketItem } from "../utils/render-tiket";
 import { formatValue } from "@/utils/constants/format-values";
 import { Button } from "@/components/button";
+import { openModalReducer } from "@/hooks/reducers/drop-down";
+import { useAppDispatch } from "@/hooks/selector";
 
 interface ListaItem {
     id: string;
@@ -521,8 +523,32 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
     const noEncontrados = productosReales.filter(i => i.noEncontrado).length;
     const pendientes = productosReales.length - recolectados - noEncontrados;
     const pct = productosReales.length > 0 ? Math.round(((recolectados + noEncontrados) / productosReales.length) * 100) : 0;
-
+    // ── Open Chat ─────────────────────────────────────────────────
+    const dispatch = useAppDispatch();
+    const handleOpenChat = (pedido: Pedido) => {
+            dispatch(openModalReducer({ modalName: `chat_${pedido.cliente_telefono}_${pedido.id}` }));
+    };
     // ── Render ─────────────────────────────────────────────────────────────────
+    const [postImg] = usePostImgMutation(); // Hook para subir imágenes
+    async function uploadImage(file: File) {
+
+        // Crear el FormData con los nombres exactos que el backend espera
+        const formData = new FormData();
+        formData.append("IdRef", String(pedidoId || '')); // 👈 mayúscula exacta
+        formData.append("Tabla", "listas");
+        formData.append("Descripcion", "firma de cliente");
+        formData.append("File", file); // 👈 campo binario
+
+        // Usar la mutación, enviando el FormData en el cuerpo
+        return await postImg({
+            idRef:pedidoId,
+            tabla: "listas",
+            descripcion: "firma de cliente",
+            file: formData, // Aquí va el FormData completo
+            signal: new AbortController().signal,
+        }).unwrap();
+    }
+
     return (
         <Modal
             modalName="detalle_pedido"
@@ -760,15 +786,23 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                             {/* Acciones */}
                             <div className="flex gap-2 flex-wrap">
                                 <button onClick={() => { generarPDF(pedidoSeleccionado); handleActualizarEstado('proceso') }}
-                                    className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1.5">
+                                    className="cursor-pointer px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1.5">
                                     <NotepadText className="size-3.5" /> PDF
                                 </button>
                                 <button
                                     onClick={handleOpenSignaturePad}
                                     disabled={!['listo', 'proceso'].includes(pedidoSeleccionado.estado)}
-                                    className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40"
+                                    className="cursor-pointer px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40"
                                 >
                                     <Signature className="size-3.5" /> Entregar
+                                </button>
+
+                                <button
+                                    onClick={() => handleOpenChat(pedidoSeleccionado)}
+                                    className="cursor-pointer px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white transition-colors rounded-lg"
+                                    title={`Abrir chat con ${pedidoSeleccionado.nombre || 'cliente'}`}
+                                >
+                                    <MessageCircle className="h-4 w-4" />
                                 </button>
                             </div>
                         </div>

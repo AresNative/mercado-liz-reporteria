@@ -32,6 +32,7 @@ interface DynamicTableProps {
     data: Record<string, any>[];
     loading?: boolean;
     onRowClick?: (rowData: any) => void;
+    onRightClick?: (rowData: any) => void;
     /**
      * Si se pasa, el componente llama este callback cada vez que el usuario
      * cambia la columna de orden, para que el padre pueda re-fetchear desde
@@ -86,6 +87,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     data,
     loading = false,
     onRowClick,
+    onRightClick,
     onSortChange,
 }) => {
     const tableRef = useRef<HTMLDivElement>(null);

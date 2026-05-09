@@ -38,6 +38,7 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
 
     // Servicios
     const usersService = new FirestoreService<User>('users');
+    if (!usersService) return null;
     // El servicio de mensajes se creará dinámicamente cuando tengamos telefonoClient
     const [messagesService, setMessagesService] = useState<FirestoreService<Message> | null>(null);
 

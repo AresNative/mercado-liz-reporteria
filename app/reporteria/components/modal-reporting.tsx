@@ -34,6 +34,7 @@ import {
     ChevronRight,
 } from "lucide-react";
 import TreemapChart from "@/components/term-grafic";
+import { formatValue } from "@/utils/constants/format-values";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -283,11 +284,13 @@ const DailyTrends = ({ data, year, onYearChange, branch, onBranchChange, loading
     loading: boolean; onRefresh: () => void;
 }) => {
     const totals = data.reduce(
-        (acc, d) => ({ totalVentas: acc.totalVentas + d.totalVentas, totalTikets: acc.totalTikets + d.totalTikets, totalClientes: acc.totalClientes + d.totalClientes }),
-        { totalVentas: 0, totalTikets: 0, totalClientes: 0 }
+        (acc, d) => ({ totalVentas: acc.totalVentas + d.totalVentas, totalTikets: acc.totalTikets + d.totalTikets, Costos: acc.Costos + d.Costos }),
+        { totalVentas: 0, totalTikets: 0, Costos: 0 }
     );
+    console.log(data);
+    
     const promedioTicket = totals.totalTikets > 0 ? totals.totalVentas / totals.totalTikets : 0;
-    const promedioClientes = data.length > 0 ? totals.totalClientes / data.length : 0;
+    const promedioClientes = data.length > 0 ? totals.Costos / data.length : 0;
     const currentYear = new Date().getFullYear();
     const yearOptions = Array.from({ length: currentYear - 2019 + 2 }, (_, i) => 2020 + i);
     const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -334,9 +337,9 @@ const DailyTrends = ({ data, year, onYearChange, branch, onBranchChange, loading
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card title="Ventas Anuales" value={`$${fmt(totals.totalVentas)}`} icon={<DollarSign className="h-6 w-6 text-white" />} />
                 <Card title="Total Tickets" value={totals.totalTikets.toLocaleString()} icon={<Receipt className="h-6 w-6 text-white" />} />
-                <Card title="Clientes Únicos" value={totals.totalClientes.toLocaleString()} icon={<ShoppingCart className="h-6 w-6 text-white" />} />
+                <Card title="Costos" value={`$${fmt(totals.Costos)}`} icon={<ShoppingCart className="h-6 w-6 text-white" />} />
                 <Card title="Ticket Promedio" value={`$${fmt(promedioTicket)}`}
-                    subText={`${promedioClientes.toFixed(1)} clientes/día`}
+                    subText={`${formatValue(promedioClientes, "number")} clientes/día`}
                     icon={<TrendingUp className="h-6 w-6 text-white" />} />
             </div>
 
@@ -590,23 +593,39 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
     const fetchDailyData = useCallback(async (year: number, branchCode: string) => {
         if (!QUERY_CONFIGS[reportType] || reportType !== "ventas") return;
         dailyAbortRef.current?.abort();
-        setDailyError(null); setDailyLoading(true);
+        setDailyError(null);
+        setDailyLoading(true);
         const controller = new AbortController();
         dailyAbortRef.current = controller;
         try {
             const queryConfig = QUERY_CONFIGS[reportType];
             const days: Date[] = [];
-            for (let d = new Date(year, 0, 1); d <= new Date(year, 11, 31); d.setDate(d.getDate() + 1))
-                days.push(new Date(d));
+            // Generar lista de días del año (sin horas)
+            const startDate = new Date(year, 0, 1);
+            const endDate = new Date(year, 11, 31);
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                days.push(new Date(d.getFullYear(), d.getMonth(), d.getDate())); // solo fecha, sin hora
+            }
 
             const promises = days.map(async day => {
-                const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
-                const dayEnd = new Date(day); dayEnd.setHours(23, 59, 59, 999);
+                // Periodo fijo del día: desde las 00:00:00.000 hasta las 23:59:59.999
+                const dayStart = new Date(day);
+                dayStart.setUTCHours(0, 0, 0, 0); // Establece las 00:00 en tiempo universal
+  // 00:00:00.000
+
+                const dayEnd = new Date(day);
+                dayEnd.setUTCHours(23, 59, 59, 999); // 23:59:59.999   
+
                 const builder = new FilterBuilder({
-                    quickMode: true, filterGroups: [], searchTerm: "", searchColumn: dummySearchColumn,
+                    quickMode: true,
+                    filterGroups: [],
+                    searchTerm: "",
+                    searchColumn: dummySearchColumn,
                     almacenFilter: branchCode === "all" ? "" : branchCode,
                     dateRange: { from: dayStart, to: dayEnd },
-                    reportType, searchApplied: false, includeSearchTerm: false,
+                    reportType,
+                    searchApplied: false,
+                    includeSearchTerm: false,
                 });
                 const { filtrosAnd, filtrosOr } = builder.build();
                 const payload: RequestPayload = {
@@ -616,7 +635,7 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
                             { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
                             { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
                             { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
-                            { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT" },
+                            { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "Costos", Operation: "SUM" },
                         ],
                         FiltrosAnd: filtrosAnd,
                         ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
@@ -631,8 +650,10 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
                 const totalTikets = d2.totalTikets || 0;
                 return {
                     fecha: dateToInput(day),
-                    totalVentas, totalCosto: d2.totalCosto || 0,
-                    totalTikets, totalClientes: d2.totalClientes || 0,
+                    totalVentas,    
+                    totalCosto: d2.totalCosto || 0,
+                    totalTikets,
+                    Costos: d2.Costos || 0,
                     utilidad: totalVentas - (d2.totalCosto || 0),
                     ticketPromedio: totalTikets ? totalVentas / totalTikets : 0,
                 };
@@ -640,8 +661,9 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
             const resultados = await Promise.all(promises);
             setDailyData(resultados.filter(Boolean));
         } catch (err: any) {
-            if (err?.name !== "AbortError" && !err?.message?.includes("aborted"))
+            if (err?.name !== "AbortError" && !err?.message?.includes("aborted")) {
                 setDailyError(err?.message || "Error al cargar datos diarios");
+            }
         } finally {
             if (!controller.signal.aborted) setDailyLoading(false);
         }

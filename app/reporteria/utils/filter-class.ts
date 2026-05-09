@@ -93,7 +93,7 @@ export class FilterBuilder {
           {
             Key: "venta.Estatus",
             Operator: "IN",
-            Value: "CONCLUIDO,PENDIENTE,PROCESAR",
+            Value: "CONCLUIDO,PROCESAR",
           },
           {
             Key: "venta.Mov",
@@ -132,7 +132,7 @@ export class FilterBuilder {
           {
             Key: "venta.Estatus",
             Operator: "IN",
-            Value: "CONCLUIDO,PENDIENTE,PROCESAR",
+            Value: "CONCLUIDO,PROCESAR",
           },
           {
             Key: "venta.Mov",

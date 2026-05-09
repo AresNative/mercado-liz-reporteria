@@ -268,7 +268,7 @@ export default function GestionPedidos() {
 
                 // Calcular estadísticas
                 const stats: EstadisticasPedidos = {
-                    total_pedidos: response.TotalRecords || pedidosOrdenados.length,
+                    total_pedidos: response.totalRecords,
                     pedidos_nuevos: pedidosOrdenados.filter(p => p.estado === 'nuevo').length,
                     pedidos_proceso: pedidosOrdenados.filter(p => p.estado === 'proceso').length,
                     pedidos_listos: pedidosOrdenados.filter(p => p.estado === 'listo').length,
@@ -470,7 +470,7 @@ export default function GestionPedidos() {
     }
 
     const EstadisticasPedidosComponent = ({ stats }: { stats: EstadisticasPedidos }) => (
-        <BentoGrid cols={5} className="mb-6">
+        <BentoGrid cols={3} className="mb-6">
             <BentoItem
                 title="Total Listas"
                 description="Todas las listas"
@@ -480,7 +480,7 @@ export default function GestionPedidos() {
                 <div className="text-2xl font-bold text-blue-600">{stats.total_pedidos}</div>
             </BentoItem>
 
-            <BentoItem
+           {/* <BentoItem
                 title="Pick-Up"
                 description="Para recoger"
                 className="bg-green-50 border-green-200"
@@ -488,15 +488,15 @@ export default function GestionPedidos() {
             >
                 <div className="text-2xl font-bold text-green-600">{stats.total_pickup}</div>
             </BentoItem>
-
-            <BentoItem
+ */}
+            {/* <BentoItem
                 title="Domicilio"
                 description="Para entregar"
                 className="bg-purple-50 border-purple-200"
                 icon={<Home className="h-6 w-6 text-purple-600" />}
             >
                 <div className="text-2xl font-bold text-purple-600">{stats.total_domicilio}</div>
-            </BentoItem>
+            </BentoItem> */}
 
             <BentoItem
                 title="Urgentes"
@@ -603,13 +603,13 @@ export default function GestionPedidos() {
                                     </button>
                                 </form>
 
-                                <button
+                               {/*  <button
                                     onClick={() => dispatch(openModalReducer({ modalName: 'chat_general' }))}
                                     className="flex items-center bg-purple-500 text-white text-sm px-3 py-2 rounded-md cursor-pointer hover:bg-purple-600 transition-colors"
                                     title="Chat general"
                                 >
                                     <MessageCircle className="h-4 w-4" />
-                                </button>
+                                </button> */}
                             </div>
                         </header>
 
@@ -648,7 +648,7 @@ export default function GestionPedidos() {
                     </article>
                 </div>
 
-                <ModalChat telefonoClient={'general'} />
+                {/* <ModalChat telefonoClient={'general'} /> */}
 
                 {pedidoSeleccionadoId && (
                     <ModalList

@@ -105,12 +105,6 @@ interface TablaPedidosProps {
 }
 
 export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedidosProps) => {
-    const dispatch = useAppDispatch();
-
-    const handleOpenChat = (pedido: Pedido) => {
-        dispatch(openModalReducer({ modalName: `chat_${pedido.cliente_telefono}_${pedido.id}` }));
-    };
-
     const getEstadoIcon = (estado: string) => {
         switch (estado) {
             case 'entregado': return <CheckCircle className="h-4 w-4 text-green-500" />;
@@ -286,27 +280,7 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                                         >
                                             <Eye className="h-4 w-4" />
                                         </button>
-
-                                        {/* Botón de Chat */}
-                                        <button
-                                            onClick={() => handleOpenChat(pedido)}
-                                            className="text-purple-600 hover:text-purple-900 transition-colors"
-                                            title={`Abrir chat con ${pedido.nombre || 'cliente'}`}
-                                        >
-                                            <MessageCircle className="h-4 w-4" />
-                                        </button>
-
-                                        {/*
-                                            {nextEstado && pedido.estado !== 'cancelado' && (
-                                                <button
-                                                    onClick={() => onUpdateStatus(pedido.id, nextEstado)}
-                                                    className={`transition-colors ${getActionColor(nextEstado)}`}
-                                                    title={getActionTitle(nextEstado)}
-                                                >
-                                                    {getActionIcon(nextEstado)}
-                                                </button>
-                                            )}
-                                        */}
+                                        
                                         {(pedido.estado !== 'cancelado' && pedido.estado !== 'entregado') && (
                                             <button
                                                 onClick={() => onUpdateStatus(pedido.id, 'cancelado')}
