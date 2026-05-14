@@ -2,13 +2,10 @@
 import 'jspdf-autotable';
 import {
     Filter,
-    MessageCircle,
     Search,
     Truck,
     Package,
     Clock,
-    Home,
-    Store,
     RefreshCw,
     AlertCircle
 } from "lucide-react"
@@ -18,7 +15,6 @@ import { useGetWithFiltersGeneralMutation, usePutGeneralMutation } from "@/hooks
 import { useEffect, useState, useCallback } from "react"
 import { TablaPedidos } from "./components/table"
 import { LoadingSection } from "@/template/loading-screen"
-import { ModalChat } from "./components/modal-chat"
 import { useForm } from "react-hook-form"
 import Pagination from "@/components/pagination"
 import { BentoGrid, BentoItem } from "@/components/bento-grid"
@@ -26,6 +22,7 @@ import { usePedidosSignalR } from './utils/singalr-pedidos';
 import { ModalList } from './components/modal-list';
 import Header from '@/template/header';
 import Footer from '@/template/footer';
+import { ModalChat } from './components/modal-chat';
 
 type Filtro = { Key: string; Value: any; Operator: string };
 type ActiveFilters = {
@@ -101,6 +98,7 @@ interface EstadisticasPedidos {
 export default function GestionPedidos() {
     const [pedidos, setPedidos] = useState<Pedido[]>([])
     const [pedidoSeleccionadoId, setPedidoSeleccionadoId] = useState<number | null>(null)
+    const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null)
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
@@ -379,6 +377,7 @@ export default function GestionPedidos() {
 
     const handleOpenModal = (pedido: Pedido) => {
         setPedidoSeleccionadoId(pedido.id);
+        setPedidoSeleccionado(pedido);
         dispatch(openModalReducer({ modalName: "detalle_pedido" }));
     }
 
@@ -479,24 +478,6 @@ export default function GestionPedidos() {
             >
                 <div className="text-2xl font-bold text-blue-600">{stats.total_pedidos}</div>
             </BentoItem>
-
-           {/* <BentoItem
-                title="Pick-Up"
-                description="Para recoger"
-                className="bg-green-50 border-green-200"
-                icon={<Store className="h-6 w-6 text-green-600" />}
-            >
-                <div className="text-2xl font-bold text-green-600">{stats.total_pickup}</div>
-            </BentoItem>
- */}
-            {/* <BentoItem
-                title="Domicilio"
-                description="Para entregar"
-                className="bg-purple-50 border-purple-200"
-                icon={<Home className="h-6 w-6 text-purple-600" />}
-            >
-                <div className="text-2xl font-bold text-purple-600">{stats.total_domicilio}</div>
-            </BentoItem> */}
 
             <BentoItem
                 title="Urgentes"
@@ -648,12 +629,16 @@ export default function GestionPedidos() {
                     </article>
                 </div>
 
-                {/* <ModalChat telefonoClient={'general'} /> */}
-
                 {pedidoSeleccionadoId && (
                     <ModalList
                         pedidoId={pedidoSeleccionadoId}
                         onEstadoActualizado={handleEstadoActualizadoDesdeModal}
+                    />
+                )}
+                {pedidoSeleccionado && (
+                    <ModalChat
+                        telefonoClient={pedidoSeleccionado.cliente_telefono || `general`}
+                        pedido={pedidoSeleccionado}
                     />
                 )}
             </main>

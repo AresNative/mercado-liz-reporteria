@@ -54,9 +54,9 @@ export const dropDow = createSlice({
       // Solo maneja modales, no afecta alertas
       const { modalName } = action.payload;
       // Cierra otros modales antes de abrir uno nuevo
-      Object.keys(state.modals).forEach((key) => {
+      /* Object.keys(state.modals).forEach((key) => {
         state.modals[key] = false;
-      });
+      }); */
       state.modals[modalName] = true;
     },
     closeModalReducer: (
@@ -64,6 +64,7 @@ export const dropDow = createSlice({
       action: PayloadAction<{ modalName: string }>
     ) => {
       const { modalName } = action.payload;
+      console.log(modalName);
       state.modals[modalName] = false;
     },
     toggleModalReducer: (

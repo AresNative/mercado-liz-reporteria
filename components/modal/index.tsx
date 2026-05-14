@@ -67,7 +67,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
             id={modalName}
             ref={dialogRef}
             open={isOpen}
-            className={cn("inset-0 z-50 bg-transparent max-h-screen w-full")}
+            className={cn("inset-0 z-40 bg-transparent max-h-screen w-full")}
             aria-modal="true"
             aria-labelledby={`modal-${modalName}`}
         >
@@ -88,7 +88,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
                         )}
                     >
                         {/* Botón de cierre y título */}
-                        <form method="dialog" className="sticky top-0 z-50 backdrop-blur-2xl bg-white/80 flex items-center justify-between gap-2 m-2 border-b py-2 border-gray-200">
+                        <form method="dialog" className="sticky top-0 z-40 backdrop-blur-2xl bg-white/80 flex items-center justify-between gap-2 m-2 border-b py-2 border-gray-200">
                             <h3
                                 id="modal-title"
                                 className="absolute left-0 right-0 text-center text-gray-900 dark:text-white pointer-events-none"

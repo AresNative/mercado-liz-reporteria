@@ -1,10 +1,6 @@
 "use client"
 
-import { openModalReducer } from "@/hooks/reducers/drop-down";
-import { useAppDispatch } from "@/hooks/selector";
 import { Eye, Truck, Clock, CheckCircle, XCircle, Store, Home, MessageCircle } from "lucide-react"
-import { useState } from "react";
-import { ModalChat } from "./modal-chat";
 import { CountdownTimer } from "@/components/counter-down";
 import { formatValue } from "@/utils/constants/format-values";
 
@@ -185,12 +181,6 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
 
     return (
         <section className="overflow-x-auto">
-
-            {data.map((pedido) => <ModalChat
-                key={`chat_${pedido.cliente_telefono}_${pedido.id}`}
-                telefonoClient={pedido.cliente_telefono || `general`} // Aseguramos un nombre único para cada pedido
-                pedido={pedido}
-            />)}
 
             <table className="w-full">
                 <thead className="bg-gray-50">

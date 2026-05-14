@@ -3,13 +3,14 @@ import { useGetWithFiltersGeneralMutation, usePostImgMutation, usePutGeneralMuta
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Signature, NotepadText, Radio, Tag, CheckCircle2, XCircle, Package, AlertTriangle, Zap, MessageCircle } from "lucide-react";
+import { Signature, NotepadText, Tag, CheckCircle2, XCircle, Package, AlertTriangle, Zap, MessageCircle } from "lucide-react";
 import { usePedidosSignalR } from "../utils/singalr-pedidos";
-import { SerialPrinter, Ticket, TicketItem } from "../utils/render-tiket";
 import { formatValue } from "@/utils/constants/format-values";
 import { Button } from "@/components/button";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
 import { useAppDispatch } from "@/hooks/selector";
+import { FirestoreService } from "@/hooks/use-firebase";
+import { Message } from "./modal-chat";
 
 interface ListaItem {
     id: string;
@@ -68,7 +69,7 @@ interface Pedido {
     servicioFee: number;
     urgencia?: 'alta' | 'media' | 'baja';
     tiempo_restante?: number;
-    firma?: string; // ← nuevo campo para la firma
+    firma?: string;
 }
 
 interface ModalListProps {
@@ -76,29 +77,6 @@ interface ModalListProps {
     onEstadoActualizado?: (pedidoId: number, nuevoEstado: string) => void;
     onItemActualizado?: (pedidoId: number, itemId: string, tipo: string, valor: boolean) => void;
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Devuelve el estado que debería tener el pedido según el avance de recolección */
-const calcularEstadoAutomatico = (
-    items: ListaItem[],
-    estadoActual: string
-): string | null => {
-    // No tocar pedidos ya entregados, cancelados o que nunca iniciaron recolección
-    if (['entregado', 'cancelado', 'nuevo'].includes(estadoActual)) return null;
-
-    const productosReales = items.filter(i => !i.esServicio && i.codigo !== "SPICKUP");
-    if (productosReales.length === 0) return null;
-
-    const hayNoEncontrado = productosReales.some(i => i.noEncontrado);
-    const todosRecolectados = productosReales.every(i => i.recolectado);
-    const algunoRecolectado = productosReales.some(i => i.recolectado);
-
-    if (hayNoEncontrado && !todosRecolectados) return 'incompleto';
-    if (todosRecolectados) return 'listo';
-    if (algunoRecolectado) return 'proceso';
-    return null;
-};
 
 const ESTADO_META: Record<string, { label: string; color: string; bg: string; ring: string }> = {
     nuevo: { label: 'Nuevo', color: 'text-amber-700', bg: 'bg-amber-50', ring: 'ring-amber-300' },
@@ -109,13 +87,26 @@ const ESTADO_META: Record<string, { label: string; color: string; bg: string; ri
     incompleto: { label: 'Incompleto', color: 'text-orange-700', bg: 'bg-orange-50', ring: 'ring-orange-300' },
 };
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+const calcularEstadoAutomatico = (items: ListaItem[], estadoActual: string): string | null => {
+    if (['entregado', 'cancelado', 'nuevo'].includes(estadoActual)) return null;
+    const productosReales = items.filter(i => !i.esServicio && i.codigo !== "SPICKUP");
+    if (productosReales.length === 0) return null;
+    const hayNoEncontrado = productosReales.some(i => i.noEncontrado);
+    const todosRecolectados = productosReales.every(i => i.recolectado);
+    const algunoRecolectado = productosReales.some(i => i.recolectado);
+    if (hayNoEncontrado && !todosRecolectados) return 'incompleto';
+    if (todosRecolectados) return 'listo';
+    if (algunoRecolectado) return 'proceso';
+    return null;
+};
 
 export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: ModalListProps) => {
     const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
     const [autoEstadoMsg, setAutoEstadoMsg] = useState<string | null>(null);
     const [putGeneral] = usePutGeneralMutation();
     const [getWithFiltersGeneral] = useGetWithFiltersGeneralMutation();
+    const [postImg] = usePostImgMutation();
+    const dispatch = useAppDispatch();
 
     // ── Firma ──────────────────────────────────────────────────────────────────
     const [showSignaturePad, setShowSignaturePad] = useState(false);
@@ -131,11 +122,9 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
     }, [pedidoId]);
 
     const handleNuevoPedido = useCallback(() => { }, []);
-
     const handlePedidoEliminado = useCallback((id: number) => {
         if (id === pedidoId) setPedidoSeleccionado(null);
     }, [pedidoId]);
-
     const handleRefrescarDatos = useCallback(() => {
         if (pedidoId) fetchPedidoDetalle();
     }, [pedidoId]);
@@ -176,7 +165,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
     const parseListaData = (lista: any): Pedido => {
         let items: ListaItem[] = [];
         let subtotal = 0, descuentoTotal = 0, servicioFee = 0;
-
         try {
             if (lista.array_lista) {
                 items = JSON.parse(lista.array_lista);
@@ -194,7 +182,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                 });
             }
         } catch (e) { items = []; }
-
         return {
             id: lista.id, id_lista: lista.id, id_cliente: lista.id_cliente,
             usuario_id: lista.usuario_id, sucursal_id: lista.sucursal_id,
@@ -207,7 +194,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             cliente_telefono: lista.telefono || 'N/A', cliente_email: lista.email || 'N/A',
             total: subtotal, subtotal, descuentoTotal, servicioFee,
             urgencia: 'baja', tiempo_restante: 0,
-            firma: lista.firma // ← incluimos la firma si existe
+            firma: lista.firma
         };
     };
 
@@ -282,23 +269,85 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
 
         setPedidoSeleccionado(prev => prev ? { ...prev, items: itemsActualizados, fecha_actualizacion: new Date().toISOString() } : null);
 
-        // Evaluar cambio de estado automático
         const estadoSugerido = calcularEstadoAutomatico(itemsActualizados, pedidoSeleccionado.estado);
         if (estadoSugerido && estadoSugerido !== pedidoSeleccionado.estado) {
-            // Pequeño delay para que el UI refleje el cambio antes del toast
             setTimeout(() => actualizarEstadoDB(estadoSugerido), 300);
         }
     }, [pedidoSeleccionado, putGeneral, actualizarEstadoDB]);
 
+    // ── Enviar notificación al chat del cliente (Firestore) ────────────────────
+    const enviarNotificacionNoEncontrado = useCallback(async (item: ListaItem) => {
+        if (!pedidoSeleccionado) return;
+        const telefono = pedidoSeleccionado.cliente_telefono;
+        if (!telefono || telefono === 'N/A') return;
+
+        const path = `chats/${telefono}/${pedidoSeleccionado.id}/messages/`;
+        const chatService = new FirestoreService<Message>(path);
+
+        const mensaje: Omit<Message, 'id'> = {
+            text: `⚠️ El producto "${item.nombre}" no se encuentra disponible en nuestro inventario. ¿Deseas reemplazarlo por otro similar o eliminarlo de tu pedido?`,
+            userId: 'system',
+            userName: 'Sistema',
+            timestamp: Date.now(),
+            type: 'system',
+            actions: [
+                {
+                    label: 'Reemplazar',
+                    action: 'replace',
+                    productId: item.id,
+                    productName: item.nombre
+                },
+                {
+                    label: 'Eliminar',
+                    action: 'remove',
+                    productId: item.id,
+                    productName: item.nombre
+                }
+            ]
+        };
+        try {
+            await chatService.create(mensaje);
+            // Abrir automáticamente el chat para que el operador vea la interacción
+            dispatch(openModalReducer({ modalName: `chat_${telefono}_${pedidoSeleccionado.id}` }));
+        } catch (error) {
+            console.error("Error enviando notificación a Firestore:", error);
+        }
+    }, [pedidoSeleccionado, dispatch]);
+
+    // ── Toggle no encontrado (con notificación) ────────────────────────────────
+    const handleToggleNoEncontrado = useCallback(async (listaId: number, itemId: string, noEncontrado: boolean) => {
+        if (!pedidoSeleccionado) return;
+        try {
+            const itemsActualizados = pedidoSeleccionado.items.map(i =>
+                i.id === itemId ? { ...i, noEncontrado, recolectado: noEncontrado ? false : i.recolectado } : i
+            );
+
+            if (noEncontrado && pedidoSeleccionado.estado === 'nuevo') {
+                await actualizarEstadoDB('proceso', true);
+            }
+
+            await guardarItemsYEvaluarEstado(itemsActualizados);
+
+            const itemModificado = pedidoSeleccionado.items.find(i => i.id === itemId);
+            if (noEncontrado && itemModificado) {
+                await enviarNotificacionNoEncontrado(itemModificado);
+            }
+
+            if (isConnected) {
+                await notificarCambioLista('ProductoNoEncontradoActualizado', { pedidoId: listaId, productoId: itemId, noEncontrado, timestamp: new Date().toISOString() });
+            }
+            onItemActualizado?.(listaId, itemId, 'noEncontrado', noEncontrado);
+        } catch (e) { console.error('Error toggle noEncontrado:', e); }
+    }, [pedidoSeleccionado, actualizarEstadoDB, guardarItemsYEvaluarEstado, enviarNotificacionNoEncontrado, isConnected, notificarCambioLista, onItemActualizado]);
+
     // ── Toggle recolectado ─────────────────────────────────────────────────────
-    const handleToggleRecolectado = async (listaId: number, itemId: string, recolectado: boolean) => {
+    const handleToggleRecolectado = useCallback(async (listaId: number, itemId: string, recolectado: boolean) => {
         if (!pedidoSeleccionado) return;
         try {
             const itemsActualizados = pedidoSeleccionado.items.map(i =>
                 i.id === itemId ? { ...i, recolectado, noEncontrado: recolectado ? false : i.noEncontrado } : i
             );
 
-            // Si pasamos a "proceso" al recolectar el primero
             if (recolectado && pedidoSeleccionado.estado === 'nuevo') {
                 await actualizarEstadoDB('proceso', true);
             }
@@ -310,29 +359,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             }
             onItemActualizado?.(listaId, itemId, 'recolectado', recolectado);
         } catch (e) { console.error('Error toggle recolectado:', e); }
-    };
-
-    // ── Toggle no encontrado ───────────────────────────────────────────────────
-    const handleToggleNoEncontrado = async (listaId: number, itemId: string, noEncontrado: boolean) => {
-        if (!pedidoSeleccionado) return;
-        try {
-            const itemsActualizados = pedidoSeleccionado.items.map(i =>
-                i.id === itemId ? { ...i, noEncontrado, recolectado: noEncontrado ? false : i.recolectado } : i
-            );
-
-            // Si es el primer item marcado y el pedido está en nuevo → proceso
-            if (noEncontrado && pedidoSeleccionado.estado === 'nuevo') {
-                await actualizarEstadoDB('proceso', true);
-            }
-
-            await guardarItemsYEvaluarEstado(itemsActualizados);
-
-            if (isConnected) {
-                await notificarCambioLista('ProductoNoEncontradoActualizado', { pedidoId: listaId, productoId: itemId, noEncontrado, timestamp: new Date().toISOString() });
-            }
-            onItemActualizado?.(listaId, itemId, 'noEncontrado', noEncontrado);
-        } catch (e) { console.error('Error toggle noEncontrado:', e); }
-    };
+    }, [pedidoSeleccionado, actualizarEstadoDB, guardarItemsYEvaluarEstado, isConnected, notificarCambioLista, onItemActualizado]);
 
     // ── Cambio manual de estado ────────────────────────────────────────────────
     const handleActualizarEstado = (nuevoEstado: string) => actualizarEstadoDB(nuevoEstado, true);
@@ -422,7 +449,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
         if (!canvasRef.current || !pedidoSeleccionado) return;
         const dataURL = canvasRef.current.toDataURL('image/png');
         try {
-            // Guardar firma en la BD
             await putGeneral({
                 table: "listas",
                 data: {
@@ -434,19 +460,14 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                 }
             }).unwrap();
 
-            // Actualizar estado a entregado
             await actualizarEstadoDB('entregado', true);
-
             setShowSignaturePad(false);
-            // Opcional: imprimir ticket después de la firma
-            // handlePrintTicket();
         } catch (e) {
             console.error('Error al guardar la firma:', e);
         }
     };
 
     const handleOpenSignaturePad = () => {
-        // Solo permite abrir si el pedido está en listo/proceso
         if (!pedidoSeleccionado || !['listo', 'proceso'].includes(pedidoSeleccionado.estado)) return;
         setShowSignaturePad(true);
     };
@@ -485,7 +506,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
 
     const calcularSubtotalItem = (item: ListaItem) => (item.descuento || item.precio) * (item.quantity || 0);
 
-    // ── PDF / Impresora ────────────────────────────────────────────────────────
     const generarPDF = (pedido: Pedido) => {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -514,41 +534,21 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
             alternateRowStyles: { fillColor: [245, 245, 245] }, margin: { left: margin, right: margin }
         });
-
         doc.save(`pedido-${pedido.id}-${new Date().toISOString().split('T')[0]}.pdf`);
     };
+
     // ── Progreso ───────────────────────────────────────────────────────────────
     const productosReales = pedidoSeleccionado?.items.filter(i => !i.esServicio && i.codigo !== "SPICKUP") ?? [];
     const recolectados = productosReales.filter(i => i.recolectado).length;
     const noEncontrados = productosReales.filter(i => i.noEncontrado).length;
     const pendientes = productosReales.length - recolectados - noEncontrados;
     const pct = productosReales.length > 0 ? Math.round(((recolectados + noEncontrados) / productosReales.length) * 100) : 0;
-    // ── Open Chat ─────────────────────────────────────────────────
-    const dispatch = useAppDispatch();
+
     const handleOpenChat = (pedido: Pedido) => {
-            dispatch(openModalReducer({ modalName: `chat_${pedido.cliente_telefono}_${pedido.id}` }));
+        dispatch(openModalReducer({ modalName: `chat_${pedido.cliente_telefono}_${pedido.id}` }));
     };
+
     // ── Render ─────────────────────────────────────────────────────────────────
-    const [postImg] = usePostImgMutation(); // Hook para subir imágenes
-    async function uploadImage(file: File) {
-
-        // Crear el FormData con los nombres exactos que el backend espera
-        const formData = new FormData();
-        formData.append("IdRef", String(pedidoId || '')); // 👈 mayúscula exacta
-        formData.append("Tabla", "listas");
-        formData.append("Descripcion", "firma de cliente");
-        formData.append("File", file); // 👈 campo binario
-
-        // Usar la mutación, enviando el FormData en el cuerpo
-        return await postImg({
-            idRef:pedidoId,
-            tabla: "listas",
-            descripcion: "firma de cliente",
-            file: formData, // Aquí va el FormData completo
-            signal: new AbortController().signal,
-        }).unwrap();
-    }
-
     return (
         <Modal
             modalName="detalle_pedido"
@@ -557,8 +557,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
         >
             {pedidoSeleccionado ? (
                 <div className="p-4 space-y-5">
-
-                    {/* ── Toast automático ── */}
                     {autoEstadoMsg && (
                         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-2.5 rounded-lg animate-pulse">
                             <Zap className="size-4 shrink-0" />
@@ -566,7 +564,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                         </div>
                     )}
 
-                    {/* ── Header: info + resumen ── */}
+                    {/* Header */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div className="space-y-2 text-sm">
                             <h3 className="font-semibold text-base border-b border-gray-200 pb-1.5">Información General</h3>
@@ -575,7 +573,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                             <p><span className="text-gray-500">Tipo:</span> {pedidoSeleccionado.tipo_lista}</p>
                             <p><span className="text-gray-500">Creado:</span> {formatDate(pedidoSeleccionado.fecha_creacion)}</p>
                         </div>
-
                         <div className="space-y-2 text-sm">
                             <h3 className="font-semibold text-base border-b border-gray-200 pb-1.5">Estado y Servicio</h3>
                             <div className="flex items-center gap-2">
@@ -597,7 +594,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                 </div>
                             )}
                         </div>
-
                         <div className="space-y-2 text-sm">
                             <h3 className="font-semibold text-base border-b border-gray-200 pb-1.5">Resumen Financiero</h3>
                             <div className="flex justify-between"><span className="text-gray-500">Subtotal:</span><span>{formatValue(pedidoSeleccionado.subtotal, "currency")}</span></div>
@@ -608,70 +604,30 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                         </div>
                     </div>
 
-                    {/* ── Barra de progreso de recolección ── */}
+                    {/* Barra de progreso */}
                     {productosReales.length > 0 && (
                         <div className="bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-100">
                             <div className="flex items-center justify-between text-sm font-medium">
                                 <span className="text-gray-700">Progreso de recolección</span>
                                 <span className="text-gray-500">{pct}%</span>
                             </div>
-
-                            {/* Barra segmentada */}
                             <div className="h-3 rounded-full bg-gray-200 overflow-hidden flex gap-0.5">
-                                {recolectados > 0 && (
-                                    <div
-                                        className="h-full bg-emerald-500 transition-all duration-500 rounded-l-full"
-                                        style={{ width: `${(recolectados / productosReales.length) * 100}%` }}
-                                    />
-                                )}
-                                {noEncontrados > 0 && (
-                                    <div
-                                        className="h-full bg-red-400 transition-all duration-500"
-                                        style={{ width: `${(noEncontrados / productosReales.length) * 100}%` }}
-                                    />
-                                )}
-                                {pendientes > 0 && (
-                                    <div
-                                        className="h-full bg-gray-200 flex-1 rounded-r-full"
-                                    />
-                                )}
+                                {recolectados > 0 && <div className="h-full bg-emerald-500 transition-all duration-500 rounded-l-full" style={{ width: `${(recolectados / productosReales.length) * 100}%` }} />}
+                                {noEncontrados > 0 && <div className="h-full bg-red-400 transition-all duration-500" style={{ width: `${(noEncontrados / productosReales.length) * 100}%` }} />}
+                                {pendientes > 0 && <div className="h-full bg-gray-200 flex-1 rounded-r-full" />}
                             </div>
-
                             <div className="flex flex-wrap gap-4 text-xs">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="size-2.5 rounded-full bg-emerald-500 inline-block" />
-                                    <span className="text-gray-600">Recolectados: <strong className="text-emerald-700">{recolectados}</strong></span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="size-2.5 rounded-full bg-red-400 inline-block" />
-                                    <span className="text-gray-600">No encontrados: <strong className="text-red-600">{noEncontrados}</strong></span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="size-2.5 rounded-full bg-gray-300 inline-block" />
-                                    <span className="text-gray-600">Pendientes: <strong>{pendientes}</strong></span>
-                                </div>
+                                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-emerald-500 inline-block" /><span className="text-gray-600">Recolectados: <strong className="text-emerald-700">{recolectados}</strong></span></div>
+                                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-red-400 inline-block" /><span className="text-gray-600">No encontrados: <strong className="text-red-600">{noEncontrados}</strong></span></div>
+                                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-gray-300 inline-block" /><span className="text-gray-600">Pendientes: <strong>{pendientes}</strong></span></div>
                             </div>
-
-                            {/* Mensaje contextual */}
-                            {pct === 100 && noEncontrados === 0 && (
-                                <p className="text-xs text-emerald-700 flex items-center gap-1 font-medium">
-                                    <CheckCircle2 className="size-3.5" /> ¡Todos los productos recolectados! El pedido se marcó como <strong>Listo</strong>.
-                                </p>
-                            )}
-                            {noEncontrados > 0 && pendientes === 0 && (
-                                <p className="text-xs text-orange-600 flex items-center gap-1 font-medium">
-                                    <AlertTriangle className="size-3.5" /> Hay productos no encontrados. El pedido se marcó como <strong>Incompleto</strong>.
-                                </p>
-                            )}
-                            {noEncontrados > 0 && pendientes > 0 && (
-                                <p className="text-xs text-amber-600 flex items-center gap-1 font-medium">
-                                    <AlertTriangle className="size-3.5" /> Atención: {noEncontrados} producto(s) marcado(s) como no encontrado. El estado cambiará al terminar.
-                                </p>
-                            )}
+                            {pct === 100 && noEncontrados === 0 && <p className="text-xs text-emerald-700 flex items-center gap-1 font-medium"><CheckCircle2 className="size-3.5" /> ¡Todos los productos recolectados! El pedido se marcó como <strong>Listo</strong>.</p>}
+                            {noEncontrados > 0 && pendientes === 0 && <p className="text-xs text-orange-600 flex items-center gap-1 font-medium"><AlertTriangle className="size-3.5" /> Hay productos no encontrados. El pedido se marcó como <strong>Incompleto</strong>.</p>}
+                            {noEncontrados > 0 && pendientes > 0 && <p className="text-xs text-amber-600 flex items-center gap-1 font-medium"><AlertTriangle className="size-3.5" /> Atención: {noEncontrados} producto(s) marcado(s) como no encontrado. El estado cambiará al terminar.</p>}
                         </div>
                     )}
 
-                    {/* ── Tabla de productos ── */}
+                    {/* Tabla de productos */}
                     <div className="overflow-x-auto">
                         <h3 className="font-semibold text-base mb-3">Productos en la Lista <span className="text-sm font-normal text-gray-400">({pedidoSeleccionado.items.length} items)</span></h3>
                         <div className="border border-gray-200 rounded-xl overflow-auto">
@@ -692,46 +648,31 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                         const isNo = item.noEncontrado;
                                         const isRec = item.recolectado;
                                         const esServicio = item.esServicio || item.codigo === "SPICKUP";
-
                                         let rowClass = 'border-t border-gray-100 transition-colors ';
                                         if (isNo) rowClass += 'bg-red-50 hover:bg-red-100/70';
                                         else if (isRec) rowClass += 'bg-emerald-50 hover:bg-emerald-100/70';
                                         else if (esServicio) rowClass += 'bg-blue-50 hover:bg-blue-100/70';
                                         else rowClass += 'hover:bg-gray-50';
-
                                         return (
                                             <tr key={index} className={rowClass}>
-                                                {/* Checkbox Recolectado */}
                                                 <td className="px-3 py-3 text-center">
                                                     <button
                                                         onClick={() => !isNo && handleToggleRecolectado(pedidoSeleccionado.id, item.id, !isRec)}
                                                         disabled={isNo}
-                                                        title={isNo ? "Marcado como no encontrado" : isRec ? "Quitar recolección" : "Marcar como recolectado"}
-                                                        className={`size-6 rounded-full border-2 flex items-center justify-center mx-auto transition-all
-                                                            ${isNo ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-40'
-                                                                : isRec ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600'
-                                                                    : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50'}`}
+                                                        className={`size-6 rounded-full border-2 flex items-center justify-center mx-auto transition-all ${isNo ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-40' : isRec ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600' : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50'}`}
                                                     >
                                                         {isRec && <CheckCircle2 className="size-3.5" />}
                                                     </button>
                                                 </td>
-
-                                                {/* Checkbox No encontrado */}
                                                 <td className="px-3 py-3 text-center">
                                                     <button
                                                         onClick={() => !isRec && handleToggleNoEncontrado(pedidoSeleccionado.id, item.id, !isNo)}
                                                         disabled={isRec}
-                                                        title={isRec ? "Ya recolectado" : isNo ? "Quitar no encontrado" : "Marcar como no encontrado"}
-                                                        className={`size-6 rounded-full border-2 flex items-center justify-center mx-auto transition-all
-                                                            ${isRec ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-40'
-                                                                : isNo ? 'border-red-500 bg-red-500 text-white hover:bg-red-600'
-                                                                    : 'border-gray-300 hover:border-red-400 hover:bg-red-50'}`}
+                                                        className={`size-6 rounded-full border-2 flex items-center justify-center mx-auto transition-all ${isRec ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-40' : isNo ? 'border-red-500 bg-red-500 text-white hover:bg-red-600' : 'border-gray-300 hover:border-red-400 hover:bg-red-50'}`}
                                                     >
                                                         {isNo && <XCircle className="size-3.5" />}
                                                     </button>
                                                 </td>
-
-                                                {/* Producto */}
                                                 <td className="px-4 py-3">
                                                     <div className={`font-medium flex flex-col ${isNo ? 'line-through text-red-500' : ''}`}>
                                                         <div className="flex items-center gap-2 flex-wrap">
@@ -743,19 +684,10 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                                         <span className="text-xs text-gray-400 mt-0.5">CB: {item.id}{item.codigo && item.codigo !== "SPICKUP" ? ` · ${item.codigo}` : ''}</span>
                                                     </div>
                                                 </td>
-
                                                 <td className="px-4 py-3 text-gray-500 text-xs">{item.categoria || 'Servicio'}</td>
-
-                                                <td className="px-4 py-3 text-center">
-                                                    <span className={`font-medium ${isNo ? 'line-through text-gray-400' : ''}`}>{item.quantity}</span>
-                                                    <span className="text-xs text-gray-400 ml-1">{item.unidad}</span>
-                                                </td>
-
+                                                <td className="px-4 py-3 text-center"><span className={`font-medium ${isNo ? 'line-through text-gray-400' : ''}`}>{item.quantity}</span><span className="text-xs text-gray-400 ml-1">{item.unidad}</span></td>
                                                 <td className="px-4 py-3 text-right">{renderPrecio(item)}</td>
-
-                                                <td className={`px-4 py-3 text-right font-medium ${isNo ? 'line-through text-red-400' : ''}`}>
-                                                    {formatValue(calcularSubtotalItem(item), "currency")}
-                                                </td>
+                                                <td className={`px-4 py-3 text-right font-medium ${isNo ? 'line-through text-red-400' : ''}`}>{formatValue(calcularSubtotalItem(item), "currency")}</td>
                                             </tr>
                                         );
                                     })}
@@ -764,107 +696,42 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                         </div>
                     </div>
 
-                    {/* ── Panel de control ── */}
+                    {/* Panel de control */}
                     <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                         <div className="flex flex-wrap gap-4 items-start justify-between">
-
-                            {/* Cambio manual de estado */}
                             {pedidoSeleccionado.estado !== 'entregado' && (
                                 <div className="flex gap-2 flex-wrap">
-                                    <button
-                                        onClick={() => handleActualizarEstado('cancelado')}
-                                        className={`px-3 py-1.5 text-xs rounded-full font-medium transition-all ${pedidoSeleccionado.estado === 'cancelado'
-                                            ? `bg-red-50 text-red-600 ring-1 ring-red-300 cursor-default`
-                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
-                                            }`}
-                                    >
-                                        Cancelar
-                                    </button>
+                                    <button onClick={() => handleActualizarEstado('cancelado')} className={`px-3 py-1.5 text-xs rounded-full font-medium transition-all ${pedidoSeleccionado.estado === 'cancelado' ? 'bg-red-50 text-red-600 ring-1 ring-red-300 cursor-default' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'}`}>Cancelar</button>
                                 </div>
                             )}
-
-                            {/* Acciones */}
                             <div className="flex gap-2 flex-wrap">
-                                <button onClick={() => { generarPDF(pedidoSeleccionado); handleActualizarEstado('proceso') }}
-                                    className="cursor-pointer px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1.5">
-                                    <NotepadText className="size-3.5" /> PDF
-                                </button>
-                                <button
-                                    onClick={handleOpenSignaturePad}
-                                    disabled={!['listo', 'proceso'].includes(pedidoSeleccionado.estado)}
-                                    className="cursor-pointer px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40"
-                                >
-                                    <Signature className="size-3.5" /> Entregar
-                                </button>
-
-                                <button
-                                    onClick={() => handleOpenChat(pedidoSeleccionado)}
-                                    className="cursor-pointer px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white transition-colors rounded-lg"
-                                    title={`Abrir chat con ${pedidoSeleccionado.nombre || 'cliente'}`}
-                                >
-                                    <MessageCircle className="h-4 w-4" />
-                                </button>
+                                <button onClick={() => { generarPDF(pedidoSeleccionado); handleActualizarEstado('proceso') }} className="cursor-pointer px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1.5"><NotepadText className="size-3.5" /> PDF</button>
+                                <button onClick={handleOpenSignaturePad} disabled={!['listo', 'proceso'].includes(pedidoSeleccionado.estado)} className="cursor-pointer px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40"><Signature className="size-3.5" /> Entregar</button>
+                                <button onClick={() => handleOpenChat(pedidoSeleccionado)} className="cursor-pointer px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white transition-colors rounded-lg" title={`Abrir chat con ${pedidoSeleccionado.nombre || 'cliente'}`}><MessageCircle className="h-4 w-4" /></button>
                             </div>
                         </div>
-
-                        {/* Nota automática */}
-                        <p className="text-[11px] text-gray-400 mt-3 flex items-center gap-1">
-                            <Zap className="size-3 text-amber-400" />
-                            El estado cambia <strong className="text-gray-500">automáticamente</strong> al marcar productos como recolectados o no encontrados.
-                        </p>
+                        <p className="text-[11px] text-gray-400 mt-3 flex items-center gap-1"><Zap className="size-3 text-amber-400" /> El estado cambia <strong className="text-gray-500">automáticamente</strong> al marcar productos como recolectados o no encontrados.</p>
                     </div>
 
-                    {/* ── Panel de firma (modal sobre modal) ── */}
+                    {/* Modal de firma */}
                     {showSignaturePad && (
-                        <section className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-4">
-                                
                                 <ul className="flex flex-col relative">
-                                    <li>
-                                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                                        <Signature className="size-5" /> Firma de entrega
-                                        </h3>
-                                    </li>
-                                    <li className="flex items-center gap-2 text-sm text-gray-600">
-                                        <CheckCircle2 className="size-3 text-emerald-500" />
-                                        <span>Productos recolectados: {recolectados}</span>
-                                    </li>
-                                    <li className="flex items-center gap-2 text-sm text-gray-600">
-                                        <XCircle className="size-3 text-red-400" />
-                                        <span>Productos no encontrados: {noEncontrados}</span>
-                                    </li>
-                                    <li className="absolute right-0">
-                                        <Button onClick={() => setShowSignaturePad(false)} color="completed" size="small">
-                                            cerrar
-                                        </Button>
-                                    </li>
+                                    <li><h3 className="text-lg font-semibold flex items-center gap-2"><Signature className="size-5" /> Firma de entrega</h3></li>
+                                    <li className="flex items-center gap-2 text-sm text-gray-600"><CheckCircle2 className="size-3 text-emerald-500" /> Productos recolectados: {recolectados}</li>
+                                    <li className="flex items-center gap-2 text-sm text-gray-600"><XCircle className="size-3 text-red-400" /> Productos no encontrados: {noEncontrados}</li>
+                                    <li className="absolute right-0"><Button onClick={() => setShowSignaturePad(false)} color="completed" size="small">cerrar</Button></li>
                                 </ul>
                                 <div className="border-2 border-dashed border-gray-300 rounded-lg overflow-hidden">
-                                    <canvas
-                                        ref={canvasRef}
-                                        width={400}
-                                        height={200}
-                                        className="w-full touch-none bg-white"
-                                        onMouseDown={startDrawing}
-                                        onMouseMove={draw}
-                                        onMouseUp={stopDrawing}
-                                        onMouseLeave={stopDrawing}
-                                        onTouchStart={startDrawingTouch}
-                                        onTouchMove={drawTouch}
-                                        onTouchEnd={stopDrawing}
-                                    />
+                                    <canvas ref={canvasRef} width={400} height={200} className="w-full touch-none bg-white" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawingTouch} onTouchMove={drawTouch} onTouchEnd={stopDrawing} />
                                 </div>
                                 <div className="flex justify-between">
-                                    <Button onClick={clearSignature} color="second" size="small">
-                                        Limpiar
-                                    </Button>
-
-                                    <Button onClick={confirmSignature} color="completed" size="small">
-                                        Confirmar entrega
-                                    </Button>
+                                    <Button onClick={clearSignature} color="second" size="small">Limpiar</Button>
+                                    <Button onClick={confirmSignature} color="completed" size="small">Confirmar entrega</Button>
                                 </div>
                             </div>
-                        </section>
+                        </div>
                     )}
                 </div>
             ) : (
