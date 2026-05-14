@@ -1338,7 +1338,6 @@ export default function Report() {
                 {/* ── Panel de comparativa detallada ───────────────────────────────── */}
                 {reportType === "comparacion" && showStats && (
                     <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
-                        {/* Cabecera */}
                         <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
                             <GitCompare className="h-4 w-4 text-indigo-500" />
                             <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm">
