@@ -281,13 +281,13 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
         const telefono = pedidoSeleccionado.cliente_telefono;
         if (!telefono || telefono === 'N/A') return;
 
-        const path = `chats/${telefono}/${pedidoSeleccionado.id}/messages/`;
+        const path = `chats/${telefono}/${pedidoSeleccionado.id}/`;
         const chatService = new FirestoreService<Message>(path);
 
         const mensaje: Omit<Message, 'id'> = {
             text: `⚠️ El producto "${item.nombre}" no se encuentra disponible en nuestro inventario. ¿Deseas reemplazarlo por otro similar o eliminarlo de tu pedido?`,
-            userId: 'system',
-            userName: 'Sistema',
+            userId: 'unknown',
+            userName: 'Soporte',
             timestamp: Date.now(),
             type: 'system',
             actions: [
@@ -305,6 +305,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                 }
             ]
         };
+        
         try {
             await chatService.create(mensaje);
             // Abrir automáticamente el chat para que el operador vea la interacción
