@@ -7,7 +7,7 @@ import {
     closeModalReducer,
     openAlertReducer
 } from "@/hooks/reducers/drop-down";
-import { useGetWithFiltersGeneralInIntelisisMutation } from "@/hooks/api/api_int";
+import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
 import Header from "@/template/header";
 import Footer from "@/template/footer";
 import { ChartBar, Form, RefreshCw, Share, MessageCircle } from "lucide-react";
@@ -141,7 +141,7 @@ const getGastoDetailsBody = (id: number): BodyRequest => ({
 
 export default function ReportingPage() {
     const dispatch = useAppDispatch();
-    const [getData] = useGetWithFiltersGeneralInIntelisisMutation();
+    const [getData] = useGetWithFiltersIntelisisMutation();
     const abortControllerRef = useRef<AbortController | null>(null);
     const detailsAbortControllerRef = useRef<AbortController | null>(null);
 

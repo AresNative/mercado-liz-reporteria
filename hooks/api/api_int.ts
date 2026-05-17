@@ -86,7 +86,7 @@ export const api_int = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
-    getWithFiltersGeneralInIntelisis: builder.mutation({
+    getWithFiltersIntelisis: builder.mutation({
       query: ({ table, page, pageSize, filtros, signal }) => ({
         url: `/v1/consultar`,
         method: "POST",
@@ -102,25 +102,6 @@ export const api_int = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
-    getMasivoWithFilters: builder.mutation({
-      query: ({ table, tag, page, pageSize, filtros, signal }) => ({
-        url: `/v2/masivo/consultar`,
-        method: "POST",
-        params: {
-          page,
-          table, // tabla a consultar
-          pageSize,
-        },
-        body: filtros,
-        providesTags: [tag],
-        signal,
-      }),
-      transformErrorResponse: (response: any) => ({
-        status: response.status,
-        message: response.data?.message || "Error fetching data",
-      }),
-      extraOptions: { maxRetries: 2 },
-    }),
   }),
 });
 
@@ -128,6 +109,5 @@ export const {
   useGetMutation,
   usePostIntelisisMutation,
   useGetArticulosQuery,
-  useGetWithFiltersGeneralInIntelisisMutation,
-  useGetMasivoWithFiltersMutation,
+  useGetWithFiltersIntelisisMutation,
 } = api_int;

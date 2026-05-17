@@ -1,12 +1,12 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import {
+  useGetWithFiltersMutation,
+  usePutGeneralMutation,
+  useDeleteGeneralMutation,
+} from "@/hooks/api/api";
+import { useCallback, useEffect, useState } from "react";
 
-export type TaskEstado =
-  | "backlog"
-  | "pruebas"
-  | "todo"
-  | "in-progress"
-  | "done";
+export type TaskEstado = "backlog" | "todo" | "in-progress" | "done";
 export type TaskPrioridad = "low" | "medium" | "high";
 
 export interface Task {
@@ -16,50 +16,66 @@ export interface Task {
   estado: TaskEstado;
   assignee: string;
   storyPoints: number;
-  createdAt: Date;
-  updatedAt: Date;
-  prioridad?: TaskPrioridad;
+  createdAt: string;
+  updatedAt: string;
+  prioridad: TaskPrioridad;
   tags?: string;
+  order: number;
 }
 
-export interface TimeEntry {
-  id: string;
-  taskId: string;
-  date: Date;
-  hours: number;
-  description: string;
-}
-
-// Custom hook para manejar el estado de las tareas
 export function useTaskService(sprintId: number) {
-  const { data: scrumTasks, refetch } = {
-    data: [],
-    refetch: () => Promise.resolve(),
-  }; // Placeholder for tasks fetching logic
-  const [putStatusTask]: any = [[]]; // Placeholder for status update mutation
-  const [putTaskOrder]: any = [[]];
-  const [tasks, setTasks] = useState<Task[]>([]);
+  // Obtener tareas del sprint
+  const [getData, { data: tasksData = [] }] = useGetWithFiltersMutation();
+
   useEffect(() => {
-    if (scrumTasks) {
-      // Mapear los datos de la API al formato Task
-      const mappedTasks = scrumTasks.map((apiTask: any) => ({
+    if (!sprintId) return;
+
+    getData({
+      table: "tareas",
+      tag: `sprint_${sprintId}`,
+      page: 1,
+      pageSize: 100,
+      filtros: {
+        Filtros: [
+          { key: "sprint_id", operator: "=", value: sprintId },
+        ],
+        order: [{ key: "orden", direction: "asc" }],
+      },
+      signal: undefined,
+    })
+      .unwrap()
+      .catch((error) => {
+        console.error("Error al obtener tareas:", error);
+      });
+  }, [getData, sprintId]);
+
+  // Mutaciones
+  const [putTaskEstado] = usePutGeneralMutation();
+  const [putTaskOrder] = usePutGeneralMutation();
+  const [deleteTaskMutation] = useDeleteGeneralMutation();
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  // Mapear datos de la API al formato Task
+  useEffect(() => {
+    if (tasksData.data && Array.isArray(tasksData.data)) {
+      const mapped = tasksData.data.map((apiTask: any) => ({
         id: String(apiTask.id),
         title: apiTask.nombre,
         description: apiTask.descripcion || "",
         estado: apiTask.estado,
         assignee: apiTask.asignado_a || "Sin asignar",
-        storyPoints: 1, // Valor por defecto
-        createdAt: apiTask.fecha_inicio,
-        updatedAt: apiTask.fecha_inicio,
+        storyPoints: apiTask.puntos_historia || 1,
+        createdAt: apiTask.fecha_creacion,
+        updatedAt: apiTask.fecha_actualizacion,
         prioridad: mapPriority(apiTask.prioridad),
         tags: apiTask.tags,
-        order: apiTask.order,
+        order: apiTask.orden ?? 0,
       }));
-     // setTasks(mappedTasks);
+      setTasks(mapped);
     }
-  }, [scrumTasks]);
+  }, [tasksData]);
 
-  // Función para mapear prioridades
   const mapPriority = (priority: string): TaskPrioridad => {
     switch (priority?.toLowerCase()) {
       case "alta":
@@ -73,103 +89,72 @@ export function useTaskService(sprintId: number) {
     }
   };
 
-  // Cached data fetching functions
+  // Obtener tareas (cache local)
   const getTasks = useCallback(() => tasks, [tasks]);
 
-  const getTasksByEstado = useCallback(
-    (estado: TaskEstado) => {
-      return tasks.filter((task) => task.estado === estado);
-    },
-    [tasks],
-  );
-
-  const getTask = useCallback(
-    (id: string) => {
-      return tasks.find((task) => task.id === id);
-    },
-    [tasks],
-  );
-
-  // Data mutation functions
-  const updateTask = useCallback(
-    (
-      id: string,
-      updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>,
-    ) => {
-      setTasks((prev) =>
-        prev.map((task) => {
-          if (task.id === id) {
-            return {
-              ...task,
-              ...updates,
-              updatedAt: new Date(),
-            };
-          }
-          return task;
-        }),
-      );
-      refetch();
-      return tasks.find((task) => task.id === id);
-    },
-    [tasks],
-  );
-
-  const deleteTask = useCallback((id: string) => {
-    setTasks((prev) => prev.filter((task) => task.id !== id));
-    putStatusTask({
-      taskId: id,
-      estado: "archivado",
-    });
-    refetch();
-    return true;
-  }, []);
-
+  // Actualizar estado de una tarea
   const updateTaskEstado = useCallback(
-    (id: string, estado: TaskEstado) => {
-      putStatusTask({
-        taskId: id,
-        estado: estado,
-      });
-      refetch();
-      return updateTask(id, { estado });
-    },
-    [updateTask],
-  );
-  // 5. Función para actualizar el orden
-  const updateTaskOrder = useCallback(
-    async (taskId: string, newOrder: number) => {
+    async (taskId: string, estado: TaskEstado) => {
       try {
-        // Optimistic update
-        setTasks((prevTasks) =>
-          prevTasks.map((task) =>
-            task.id === taskId ? { ...task, order: newOrder } : task,
-          ),
-        );
-
-        // Enviar actualización al servidor
-        await putTaskOrder({
-          taskId,
-          order: newOrder,
+        await putTaskEstado({
+          table: "tareas", // o "tareas" según tu BD
+          data: {
+            Data: { estado: estado, fecha_actualizacion: new Date().toISOString() },
+            Filtros: [{ Key: "id", Value: taskId, Operator: "=" }]
+          },
         }).unwrap();
-        // Refetch tasks to ensure data consistency
-        refetch();
+        // Actualización optimista (opcional, ya se hará con el refetch)
       } catch (error) {
-        console.error("Error updating task order:", error);
-        // Revertir cambios en caso de error
-        refetch();
+        console.error("Error al actualizar estado:", error);
+        throw error;
       }
     },
-    [putTaskOrder, refetch],
+    [putTaskEstado],
+  );
+
+  // Actualizar orden de una tarea
+  const updateTaskOrder = useCallback(
+    async (taskId: string, order: number) => {
+      try {
+        await putTaskOrder({
+          table: "tareas",
+          data: {
+            Data: {
+              orden: order,
+              fecha_actualizacion: new Date().toISOString(),
+            },
+            Filtros: [{ Key: "id", Value: taskId, Operator: "=" }],
+          },
+        }).unwrap();
+      } catch (error) {
+        console.error("Error al actualizar orden:", error);
+        throw error;
+      }
+    },
+    [putTaskOrder],
+  );
+
+  // Eliminar tarea
+  const deleteTask = useCallback(
+    async (taskId: string) => {
+      try {
+        await deleteTaskMutation({
+          table: "tareas",
+          id: taskId,
+        }).unwrap();
+      } catch (error) {
+        console.error("Error al eliminar tarea:", error);
+        throw error;
+      }
+    },
+    [deleteTaskMutation],
   );
 
   return {
     tasks,
     getTasks,
-    getTasksByEstado,
-    getTask,
-    updateTask,
-    deleteTask,
     updateTaskEstado,
     updateTaskOrder,
+    deleteTask,
   };
 }

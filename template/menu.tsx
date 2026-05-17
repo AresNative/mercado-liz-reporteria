@@ -199,7 +199,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                 />
             )}
 
-            <Modal title="Formulario de Tarea" modalName={"login-modal"} maxWidth='sm'>
+            <Modal title="Iniciar Sesión" modalName={"login-modal"} maxWidth='sm'>
                 <MainForm
                     actionType="post-login"
                     dataForm={LogInField()}

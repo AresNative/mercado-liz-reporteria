@@ -1,5 +1,5 @@
 import { Modal } from "@/components/modal";
-import { useGetWithFiltersGeneralMutation, usePostImgMutation, usePutGeneralMutation } from "@/hooks/api/api"
+import { useGetWithFiltersMutation, usePostImgMutation, usePutGeneralMutation } from "@/hooks/api/api"
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -104,7 +104,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
     const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
     const [autoEstadoMsg, setAutoEstadoMsg] = useState<string | null>(null);
     const [putGeneral] = usePutGeneralMutation();
-    const [getWithFiltersGeneral] = useGetWithFiltersGeneralMutation();
+    const [getWithFiltersGeneral] = useGetWithFiltersMutation();
     const [postImg] = usePostImgMutation();
     const dispatch = useAppDispatch();
 

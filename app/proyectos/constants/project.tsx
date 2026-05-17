@@ -17,7 +17,7 @@ export function ProjectField(data?: any): Field[] {
                     icon: <Ampersand className="text-green-500" />,
                     valueDefined: data?.title || "",
                 },
-                {
+                /* {
                     name: "State",
                     type: "SELECT",
                     label: "Prioridad de la tarea",
@@ -26,7 +26,7 @@ export function ProjectField(data?: any): Field[] {
                     options: ["alta", "media", "baja"],
                     icon: <ChartNoAxesGantt className="text-orange-500" />,
                     valueDefined: data?.prioridad || "",
-                },
+                }, */
             ],
         },
 

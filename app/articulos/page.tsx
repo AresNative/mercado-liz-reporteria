@@ -19,7 +19,7 @@ import { useForm } from "react-hook-form";
 import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer, openModalReducer } from "@/hooks/reducers/drop-down";
 import {
-    useGetWithFiltersGeneralMutation,
+    useGetWithFiltersMutation,
     usePutGeneralMutation
 } from "@/hooks/api/api";
 import { LoadingSection } from "@/template/loading-screen";
@@ -439,7 +439,7 @@ export default function GestionProductosConImagenes() {
     const [productoDetalle, setProductoDetalle] = useState<Producto | null>(null);
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ Filtros: [] });
 
-    const [getWithFilter] = useGetWithFiltersGeneralMutation();
+    const [getWithFilter] = useGetWithFiltersMutation();
     const [putGeneral] = usePutGeneralMutation();
 
     const { handleSubmit, register, reset } = useForm();

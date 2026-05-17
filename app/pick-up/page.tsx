@@ -11,7 +11,7 @@ import {
 } from "lucide-react"
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
-import { useGetWithFiltersGeneralMutation, usePutGeneralMutation } from "@/hooks/api/api"
+import { useGetWithFiltersMutation, usePutGeneralMutation } from "@/hooks/api/api"
 import { useEffect, useState, useCallback } from "react"
 import { TablaPedidos } from "./components/table"
 import { LoadingSection } from "@/template/loading-screen"
@@ -102,7 +102,7 @@ export default function GestionPedidos() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
-    const [getWithFilter] = useGetWithFiltersGeneralMutation();
+    const [getWithFilter] = useGetWithFiltersMutation();
     const [tipoFiltro, setTipoFiltro] = useState<'todos' | 'pickup' | 'domicilio'>('todos');
     const [estadoFiltro, setEstadoFiltro] = useState<string>('todos');
 

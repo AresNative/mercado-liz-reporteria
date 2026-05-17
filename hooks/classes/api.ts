@@ -1,6 +1,6 @@
 // global.ts
 import { useRef, useEffect } from "react";
-import { useGetWithFiltersGeneralInIntelisisMutation } from "@/hooks/api/api_int";
+import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
 import { safeCall } from "@/hooks/use-debounce";
 import { v4 as uuidv4 } from "uuid";
 import { ApiResponse } from "@/utils/types/consultas";
@@ -92,7 +92,7 @@ export class ManagmentRead {
 }
 
 export function useManagmentRead(): ManagmentRead {
-  const [getData] = useGetWithFiltersGeneralInIntelisisMutation();
+  const [getData] = useGetWithFiltersIntelisisMutation();
   const managerRef = useRef<ManagmentRead | null>(null);
 
   if (!managerRef.current) {
@@ -109,7 +109,7 @@ export function useManagmentRead(): ManagmentRead {
   return managerRef.current;
 }
 export function useManagmentSearch(): ManagmentRead {
-  const [getData] = useGetWithFiltersGeneralInIntelisisMutation();
+  const [getData] = useGetWithFiltersIntelisisMutation();
   const managerRef = useRef<ManagmentRead | null>(null);
 
   if (!managerRef.current) {

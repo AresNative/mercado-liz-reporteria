@@ -64,31 +64,6 @@ export const api = createApi({
     },
   }),
   endpoints: (builder) => ({
-    get: builder.query({
-      query: ({ url, signal }) => ({
-        url: `${url}/consultar`,
-        method: "GET",
-        signal,
-      }),
-      transformErrorResponse: (response: any) => ({
-        status: response.status,
-        message: response.data?.message || "Error fetching data",
-      }),
-      extraOptions: { maxRetries: 2 },
-    }),
-    getGeneral: builder.query({
-      query: ({ param, signal }) => ({
-        url: `/consultar`,
-        method: "GET",
-        params: { param },
-        signal,
-      }),
-      transformErrorResponse: (response: any) => ({
-        status: response.status,
-        message: response.data?.message || "Error fetching data",
-      }),
-      extraOptions: { maxRetries: 2 },
-    }),
     getPerIds: builder.query({
       query: ({ url, id, signal }) => ({
         url: `${url}/consultar/${id}`,
@@ -101,25 +76,10 @@ export const api = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
+    
     getWithFilters: builder.mutation({
-      query: ({ table, page, pageSize, filtros, signal }) => ({
-        url: `v1/consultar`,
-        method: "POST",
-        params: {
-          fromClause: table, // tabla a consultar
-        },
-        body: { ...filtros, page, pageSize },
-        signal,
-      }),
-      transformErrorResponse: (response: any) => ({
-        status: response.status,
-        message: response.data?.message || "Error fetching data",
-      }),
-      extraOptions: { maxRetries: 2 },
-    }),
-    getWithFiltersGeneral: builder.mutation({
       query: ({ table, tag, page, pageSize, filtros, signal }) => ({
-        url: `/v1/consultar`,
+        url: `v1/consultar`,
         method: "POST",
         params: {
           fromClause: table, // tabla a consultar
@@ -134,6 +94,7 @@ export const api = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
+
     postGeneral: builder.mutation({
       query: ({ table, data, signal }) => ({
         url: `v1/register`,
@@ -151,28 +112,11 @@ export const api = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
-    put: builder.mutation({
-      query: ({ url, id, data, signal }) => ({
-        url: `${url}/update/${id}`,
-        method: "PUT",
-        body: JSON.stringify(data),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal,
-      }),
-      transformErrorResponse: (response: any) => ({
-        status: response.status,
-        message: response.data?.message || "Error fetching data",
-      }),
-      extraOptions: { maxRetries: 2 },
-    }),
 
     putGeneral: builder.mutation({
-      query: ({ table, id, data, signal }) => ({
+      query: ({ table, data, signal }) => ({
         url: `v1/update/${table}`,
         method: "PUT",
-        params: { id },
         body: JSON.stringify(data),
         headers: {
           "Content-Type": "application/json",
@@ -243,6 +187,7 @@ export const api = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
+
     deleteArchivos: builder.mutation({
       query: ({ id, signal }) => ({
         url: `v1/recursos/archivos/delete/${id}`,
@@ -259,13 +204,9 @@ export const api = createApi({
 });
 
 export const {
-  useGetQuery,
-  useGetGeneralQuery,
   useGetPerIdsQuery,
   useGetWithFiltersMutation,
-  useGetWithFiltersGeneralMutation,
   usePostGeneralMutation,
-  usePutMutation,
   usePutGeneralMutation,
   usePostImgMutation,
   usePostArchviosMutation,

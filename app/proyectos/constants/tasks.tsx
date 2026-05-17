@@ -9,7 +9,7 @@ export function TasksField(data?: any): Field[] {
             require: false,
             elements: [
                 {
-                    name: "nombre",
+                    name: "titulo",
                     type: "INPUT",
                     require: true,
                     label: "Titulo",

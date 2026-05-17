@@ -1,8 +1,8 @@
-"use client"
+"use client";
 import { useEffect, useState, useCallback } from "react";
 import { ScrumBoard } from "./components/scrum-board";
 import { useTaskService, type Task } from "./services/taskService";
-import { ArrowLeft, ClipboardListIcon, Hash, SquareChevronRight } from "lucide-react";
+import { ArrowLeft, ClipboardListIcon, Copy, FileText, Hash, Share2, SquareChevronRight, Trash2 } from "lucide-react";
 
 import { useAppDispatch } from "@/hooks/selector";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
@@ -14,6 +14,8 @@ import { getLocalStorageItem, setLocalStorageItem } from "@/utils/functions/loca
 import { formatAPIDate } from "@/utils/constants/format-values";
 import Header from "@/template/header";
 import Footer from "@/template/footer";
+import { useGetWithFiltersMutation } from "@/hooks/api/api";
+import { ContextMenu, ContextMenuItem } from "@/components/context-menu";
 
 interface Project {
     id: number;
@@ -26,18 +28,118 @@ interface Sprint {
     id: number;
     nombre: string;
     fecha_inicio: string;
+    proyecto_id?: number;
 }
 
 export default function ProjectsPage() {
     const dispatch = useAppDispatch();
 
+    const menuItems: ContextMenuItem[] = [
+        {
+            label: 'Copiar',
+            icon: <Copy size={16} />,
+            onClick: () => console.log('Copiado'),
+        },
+        {
+            label: 'Ver detalles',
+            icon: <FileText size={16} />,
+            onClick: () => console.log('Mostrar detalles'),
+        },
+        {
+            label: 'Compartir',
+            icon: <Share2 size={16} />,
+            onClick: () => console.log('Abrir diálogo de compartir'),
+        },
+        {
+            label: 'Eliminar',
+            icon: <Trash2 size={16} />,
+            onClick: () => console.log('Elemento eliminado'),
+            danger: true,
+        },
+    ];
+
     const [projectId, setProjectId] = useState<number>(0);
     const [sprintId, setSprintId] = useState<number>(0);
 
+    // Estados para datos
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [sprints, setSprints] = useState<Sprint[]>([]);
+    const [tasks, setTasks] = useState<Task[]>([]);
+
+    // Mutations para consultas con filtros
+    const [getProjects, { isLoading: loadingProjects }] = useGetWithFiltersMutation();
+    const [getSprints, { isLoading: loadingSprints }] = useGetWithFiltersMutation();
+
+    // Servicio de tareas (se ajustará aparte para usar getWithFilters también)
+    const { getTasks } = useTaskService(sprintId);
+
+    // Cargar proyectos al inicio
+    useEffect(() => {
+        const fetchProjects = async () => {
+            try {
+                const result = await getProjects({
+                    table: "proyectos",        // nombre de la tabla en BD
+                    page: 1,
+                    pageSize: 100,
+                    filtros: {},               // sin filtros adicionales
+                }).unwrap();
+                // Asumiendo que result.data contiene el array de proyectos
+                setProjects(result.data || result || []);
+            } catch (error) {
+                console.error("Error al cargar proyectos:", error);
+            }
+        };
+        fetchProjects();
+    }, [getProjects]);
+
+    // Cargar sprints cuando cambia projectId
+    useEffect(() => {
+        if (projectId <= 0) {
+            setSprints([]);
+            return;
+        }
+        const fetchSprints = async () => {
+            try {
+                const result = await getSprints({
+                    table: "sprints",
+                    page: 1,
+                    pageSize: 100,
+                    filtros: {
+                        Filtros: [
+                            {
+                                Key: "proyecto_id",
+                                Value: projectId,
+                                Operator: "="
+                            }
+                        ],
+                    }, // filtro por proyecto
+                }).unwrap();
+                setSprints(result.data || result || []);
+            } catch (error) {
+                console.error("Error al cargar sprints:", error);
+            }
+        };
+        fetchSprints();
+    }, [projectId, getSprints]);
+
+    // Cargar tareas cuando cambia sprintId (usando el servicio)
+    useEffect(() => {
+        if (sprintId <= 0) return;
+        const fetchTasks = async () => {
+            try {
+                const tasksData = await getTasks();
+                setTasks(tasksData);
+            } catch (error) {
+                console.error("Error loading tasks:", error);
+            }
+        };
+        fetchTasks();
+    }, [sprintId]);
+
+    // Persistir IDs seleccionados en localStorage
     useEffect(() => {
         const savedProjectId = getLocalStorageItem('scrumProjectId');
         const savedSprintId = getLocalStorageItem('scrumSprintId');
-
         if (savedProjectId) setProjectId(parseInt(savedProjectId, 10));
         if (savedSprintId) setSprintId(parseInt(savedSprintId, 10));
     }, []);
@@ -50,37 +152,43 @@ export default function ProjectsPage() {
         setLocalStorageItem('scrumSprintId', sprintId.toString());
     }, [sprintId]);
 
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [sprints, setSprints] = useState<Sprint[]>([]);
-    const [tasks, setTasks] = useState<Task[]>([]);
+    // Refetch manual para recargar listas después de crear/editar
+    const refetchProjects = useCallback(async () => {
+        try {
+            const result = await getProjects({
+                table: "proyectos",
+                page: 1,
+                pageSize: 100,
+                filtros: {},
+            }).unwrap();
+            setProjects(result.data || result || []);
+        } catch (error) {
+            console.error("Error al recargar proyectos:", error);
+        }
+    }, [getProjects]);
 
-    const { getTasks } = useTaskService(projectId);
-    const { data: projectsData, refetch: refetchProjects } = { data: [], refetch: () => Promise.resolve() }; // Placeholder for projects fetching logic
-    const { data: sprintsData, refetch: refetchSprints } = { data: [], refetch: () => Promise.resolve() };
-    const { refetch: refetchDef } = { refetch: () => Promise.resolve() };
-
-    // Fetch tasks when sprintId changes
-    useEffect(() => {
-        const fetchTasks = async () => {
-            if (sprintId <= 0) return;
-
-            try {
-                const tasksData = await getTasks();
-                setTasks(tasksData);
-            } catch (error) {
-                console.error("Error loading tasks:", error);
-                // TODO: Add proper error handling (e.g., show toast notification)
-            }
-        };
-
-        fetchTasks();
-    }, [getTasks, sprintId]);
-
-    // Update projects and sprints when data changes
-    useEffect(() => {
-        if (projectsData) setProjects(projectsData);
-        if (sprintsData) setSprints(sprintsData);
-    }, []);
+    const refetchSprints = useCallback(async () => {
+        if (projectId <= 0) return;
+        try {
+            const result = await getSprints({
+                table: "sprints",
+                page: 1,
+                pageSize: 100,
+                filtros: { 
+                    Filtros: [
+                        {
+                            Key: "proyecto_id",
+                            Value: projectId,
+                            Operator: "="
+                        }
+                    ],
+                 },
+            }).unwrap();
+            setSprints(result.data || result || []);
+        } catch (error) {
+            console.error("Error al recargar sprints:", error);
+        }
+    }, [getSprints, projectId]);
 
     const handleGoBack = useCallback(() => {
         if (sprintId > 0) {
@@ -93,9 +201,13 @@ export default function ProjectsPage() {
 
     const showBackButton = projectId > 0 || sprintId > 0;
 
+    // Renderizado de proyectos
     const renderProjectsList = () => (
         <ul className="flex gap-2 flex-wrap mt-10">
-            {projects.length ? projects.map((project) => {
+            <ContextMenu items={menuItems}>
+            {loadingProjects ? (
+                <li className="text-gray-500">Cargando proyectos...</li>
+            ) : projects.length ? projects.map((project) => {
                 const formatted = formatAPIDate(project.fecha_inicio);
                 return (
                     <li
@@ -107,7 +219,6 @@ export default function ProjectsPage() {
                             <SquareChevronRight className="size-4 text-green-800 dark:text-green-200" />
                             {project.nombre}
                         </label>
-
                         <div className="flex justify-between items-center gap-2 mt-2">
                             <section className="flex text-ellipsis text-xs items-center gap-2 text-gray-800 dark:text-gray-200/60">
                                 <span>{project.descripcion}</span>
@@ -120,15 +231,19 @@ export default function ProjectsPage() {
                 );
             }) : (
                 <li className="flex items-center justify-center p-4">
-                    <span className="text-gray-500">No hay proyectos disponibles, añada uno en la seccion "Agregar Proyecto"</span>
+                    <span className="text-gray-500">No hay proyectos disponibles, añada uno en la sección "Agregar Proyecto"</span>
                 </li>
-            )}
+                )}
+            </ContextMenu>
         </ul>
     );
 
+    // Renderizado de sprints
     const renderSprintsList = () => (
         <ul className="flex flex-col gap-1 flex-wrap">
-            {sprints.length ? sprints.map((sprint) => {
+            {loadingSprints ? (
+                <li className="text-gray-500">Cargando sprints...</li>
+            ) : sprints.length ? sprints.map((sprint) => {
                 const formatted = formatAPIDate(sprint.fecha_inicio);
                 return (
                     <li
@@ -152,74 +267,82 @@ export default function ProjectsPage() {
                 );
             }) : (
                 <li className="flex items-center justify-center p-4">
-                    <span className="text-gray-500">No hay sprints disponibles, añada uno en la seccion "Agregar Sprint"</span>
+                    <span className="text-gray-500">No hay sprints disponibles, añada uno en la sección "Agregar Sprint"</span>
                 </li>
             )}
         </ul>
     );
 
     return (
-        <> 
-        <Header />
-        
+        <>
+            <Header />
             <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
-            <ul className="flex justify-between items-center">
-                <header className="mb-8 flex flex-col">
-                    <h1 className="flex items-center text-2xl font-bold md:text-3xl">Scrum</h1>
-                    <p className="mt-2 text-gray-600 dark:text-gray-100">Gestiona proyectos y actividades de mejor manera</p>
-                    {showBackButton && (
-                        <button
-                            onClick={handleGoBack}
-                            className="flex gap-1 z-30 cursor-pointer items-center text-green-700 hover:underline mb-4 focus:outline-none"
-                        >
-                            <ArrowLeft className="size-4" />
-                            <span>Regresar</span>
-                        </button>
-                    )}
-                </header>
+                <ul className="flex justify-between items-center">
+                    <header className="mb-8 flex flex-col">
+                        <h1 className="flex items-center text-2xl font-bold md:text-3xl">Scrum</h1>
+                        <p className="mt-2 text-gray-600 dark:text-gray-100">Gestiona proyectos y actividades de mejor manera</p>
+                        {showBackButton && (
+                            <button
+                                onClick={handleGoBack}
+                                className="flex gap-1 z-30 cursor-pointer items-center text-green-700 hover:underline mb-4 focus:outline-none"
+                            >
+                                <ArrowLeft className="size-4" />
+                                <span>Regresar</span>
+                            </button>
+                        )}
+                    </header>
 
-                <button
-                    className="flex gap-1 p-2 ml-auto min-w-[130px] cursor-pointer border bg-green-600 text-gray-100 text-xs rounded-4xl items-center mb-4 before:content-['+'] before:text-xs before:bg-white before:text-green-600 before:px-2 before:py-1 before:rounded-full hover:bg-green-700 transition-colors"
-                    onClick={() => {
-                        dispatch(openModalReducer({ modalName: projectId === 0 ? "create-proyect" : sprintId > 0 ? "create-task" : "create-sprint" }))
+                    <button
+                        className="flex gap-1 p-2 ml-auto min-w-[130px] cursor-pointer border bg-green-600 text-gray-100 text-xs rounded-4xl items-center mb-4 before:content-['+'] before:text-xs before:bg-white before:text-green-600 before:px-2 before:py-1 before:rounded-full hover:bg-green-700 transition-colors"
+                        onClick={() => {
+                            dispatch(openModalReducer({ modalName: projectId === 0 ? "create-proyect" : sprintId > 0 ? "create-task" : "create-sprint" }));
+                        }}
+                    >
+                        Agregar {projectId === 0 ? "Proyecto" : sprintId > 0 ? "Tarea" : "Sprint"}
+                    </button>
+                </ul>
+
+                {!projectId && !sprintId && renderProjectsList()}
+                {projectId > 0 && !sprintId && renderSprintsList()}
+                {sprintId > 0 && <ScrumBoard initialTasks={tasks} sprintId={sprintId} />}
+
+                <ModalForm
+                    modalName="Nuevo Proyecto"
+                    actionType="proyectos"
+                    formName="Project"
+                    formFunction={ProjectField}
+                    refetch={refetchProjects}
+                    messageButton="Crear Proyecto"
+                    nameModal="create-proyect"
+                />
+                <ModalForm
+                    modalName="Nuevo Sprint"
+                    actionType={`sprints`}
+                    formName="Sprint"
+                    formFunction={SprintField}
+                    refetch={refetchSprints}
+                    messageButton="Crear Sprint"
+                    nameModal="create-sprint"
+                    aditionalData={{ proyecto_id: projectId }}
+                />
+                
+                <ModalForm
+                    modalName="Nueva Tarea"
+                    actionType={`tareas`}
+                    formName="Task"
+                    formFunction={TasksField}
+                    refetch={() => {
+                        // Refetch tareas después de crear una nueva
+                        if (sprintId > 0) {
+                            getTasks()
+                        }
                     }}
-                >
-                    Agregar {projectId === 0 ? "Proyecto" : sprintId > 0 ? "Tarea" : "Sprint"}
-                </button>
-            </ul>
-
-            {!projectId && !sprintId && renderProjectsList()}
-            {projectId > 0 && !sprintId && renderSprintsList()}
-            {sprintId > 0 && <ScrumBoard initialTasks={tasks} sprintId={sprintId} />}
-
-            <ModalForm
-                actionType="v1/projects"
-                formName="Project"
-                formFunction={ProjectField}
-                refetch={refetchProjects}
-                messageButton="Crear Proyecto"
-                nameModal="create-proyect"
-            />
-            <ModalForm
-                actionType={`v1/projects/${projectId}/sprints`}
-                formName="Sprint"
-                formFunction={SprintField}
-                refetch={refetchSprints}
-                messageButton="Crear Sprint"
-                nameModal="create-sprint"
-                sprintId={projectId}
-            />
-            <ModalForm
-                actionType={`v1/sprints/tasks`}
-                formName="Task"
-                formFunction={TasksField}
-                refetch={refetchDef}
-                messageButton="Crear tarea"
-                nameModal="create-task"
-                sprintId={sprintId}
-            />
+                    messageButton="Crear tarea"
+                    nameModal="create-task"
+                    aditionalData={{ estado:"backlog", sprint_id: sprintId, fecha_creacion: new Date().toISOString(), fecha_actualizacion: new Date().toISOString() }}
+                />
             </main>
-            <Footer/>
+            <Footer />
         </>
     );
 }

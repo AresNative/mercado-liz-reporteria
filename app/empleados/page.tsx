@@ -10,7 +10,7 @@ import { useEffect, useState, useCallback } from "react"
 
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
-import { useGetWithFiltersGeneralMutation } from "@/hooks/api/api"
+import { useGetWithFiltersMutation } from "@/hooks/api/api"
 
 import { LoadingSection } from "@/template/loading-screen"
 
@@ -91,7 +91,7 @@ const useEmpleados = () => {
     const [totalRecords, setTotalRecords] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [getWithFilter] = useGetWithFiltersGeneralMutation();
+    const [getWithFilter] = useGetWithFiltersMutation();
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [],
