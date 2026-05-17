@@ -162,10 +162,10 @@ export const api = createApi({
     }),
     // Agregar este endpoint a tu api.ts
     deleteGeneral: builder.mutation({
-      query: ({ table, id, signal }) => ({
+      query: ({ table, column,id, signal }) => ({
         url: `v1/delete/${id}`,
         method: "DELETE",
-        params: { table },
+        params: { column, table },
         signal,
       }),
       transformErrorResponse: (response: any) => ({

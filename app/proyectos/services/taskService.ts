@@ -139,6 +139,11 @@ export function useTaskService(sprintId: number) {
     async (taskId: string) => {
       try {
         await deleteTaskMutation({
+          table: "comentarios",
+          column: "tarea_id",
+          id: taskId,
+        }).unwrap();
+        await deleteTaskMutation({
           table: "tareas",
           id: taskId,
         }).unwrap();
