@@ -32,7 +32,7 @@ import { TagInputComponent as TagInput } from "./tag-input"
 import { useLoginUserMutation } from "@/hooks/api/auth";
 import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer } from "@/hooks/reducers/drop-down";
-import { usePostGeneralMutation, usePostImgMutation } from "@/hooks/api/api";
+import { usePostGeneralMutation, usePostImgMutation, usePutGeneralMutation } from "@/hooks/api/api";
 import { setLocalStorageItem } from "@/utils/functions/local-storage";
 
 export const MainForm = React.forwardRef(({
@@ -116,6 +116,7 @@ export const MainForm = React.forwardRef(({
 
   const [postUserLogin] = useLoginUserMutation();
   const [postGeneral] = usePostGeneralMutation();
+  const [putProject] = usePutGeneralMutation();
   const [postImg] = usePostImgMutation(); // Hook para subir imágenes
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
@@ -128,6 +129,16 @@ export const MainForm = React.forwardRef(({
         return await postGeneral({
           table: table,
           data: data,
+          signal: new AbortController().signal,
+        }).unwrap();
+      case "put-general":
+        const { id, ...restData } = data;
+        return await putProject({
+          table: table,
+          data: {
+            Data: restData,
+            Filtros: [{ Key: "id", Value: aditionalData.id, Operator: "=" }]
+          },
           signal: new AbortController().signal,
         }).unwrap();
       default:

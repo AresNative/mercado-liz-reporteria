@@ -395,7 +395,7 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                                         key={task.id}
                                         id={`task-${task.id}`}
                                         className={cn(
-                                            `cursor-pointer visibility rounded-md bg-white/60 p-3 shadow-sm hover:shadow transition-all duration-250
+                                            `cursor-pointer visibility rounded-md bg-white p-3 shadow-sm hover:shadow transition-all duration-250
                                             ${draggedTask === task.id ? "opacity-50" : "opacity-100"} 
                                             ${dragOverTaskId === task.id
                                                 ? dragPosition === "above"
@@ -428,6 +428,16 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                                                 </span>
                                             </div>
                                         </section>
+                                        <h3
+                                            className="mt-1 text-xs text-gray-500 overflow-hidden text-ellipsis"
+                                            style={{
+                                                display: "-webkit-box",
+                                                WebkitLineClamp: 2,
+                                                WebkitBoxOrient: "vertical"
+                                            }}
+                                        >
+                                            {task.title}
+                                        </h3>
                                         <p
                                             className="mt-1 text-xs text-gray-500 overflow-hidden text-ellipsis"
                                             style={{

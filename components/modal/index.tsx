@@ -18,6 +18,7 @@ export interface ModalProps {
 export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalProps) {
     const dialogRef = React.useRef<HTMLDialogElement | null>(null);
     const dispatch = useAppDispatch();
+    const modals = useAppSelector((state: any) => state.dropDownReducer.modals);
     const isOpen = useAppSelector((state: any) => state.dropDownReducer.modals[modalName]);
 
     useEffect(() => {
@@ -54,7 +55,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
-            if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
+            if (dialogRef.current && !dialogRef.current.contains(e.target as Node) && modals.length > 1) {
                 handleBackdropClick();
             }
         };
@@ -67,12 +68,12 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
             id={modalName}
             ref={dialogRef}
             open={isOpen}
-            className={cn("inset-0 z-40 bg-transparent max-h-screen w-full")}
+            className={cn("inset-0 z-50 bg-transparent max-h-screen w-full")}
             aria-modal="true"
             aria-labelledby={`modal-${modalName}`}
         >
             {/* Fondo oscuro (sin animación para mantener la inmediatez) */}
-            <div className="fixed inset-0 bg-black/20 bg-opacity-85 backdrop-blur-xs transition-opacity" onClick={handleBackdropClick} />
+            <button className="fixed inset-0 bg-black/20 bg-opacity-85 backdrop-blur-xs transition-opacity" onClick={handleBackdropClick} disabled={modals.length > 1} />
 
             <AnimatePresence>
                 {isOpen && (

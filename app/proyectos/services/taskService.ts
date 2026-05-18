@@ -61,7 +61,7 @@ export function useTaskService(sprintId: number) {
     if (tasksData.data && Array.isArray(tasksData.data)) {
       const mapped = tasksData.data.map((apiTask: any) => ({
         id: String(apiTask.id),
-        title: apiTask.nombre,
+        title: apiTask.titulo,
         description: apiTask.descripcion || "",
         estado: apiTask.estado,
         assignee: apiTask.asignado_a || "Sin asignar",

@@ -174,7 +174,7 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
         } else if (action === 'replace') {
             // Enviar mensaje pidiendo especificar el reemplazo
             await messagesService.create({
-                text: `🔄 Por favor, escribe el nombre del producto que deseas en lugar de "${productName}".`,
+                text: `🔄 Por favor, escribe el nombre del producto que deseas en lugar de "${productName}" o por su defecto su codigo de barras.`,
                 userId: 'unknown',
                 userName: 'Soporte',
                 timestamp: Date.now(),

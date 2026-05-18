@@ -14,8 +14,7 @@ import { getLocalStorageItem, setLocalStorageItem } from "@/utils/functions/loca
 import { formatAPIDate } from "@/utils/constants/format-values";
 import Header from "@/template/header";
 import Footer from "@/template/footer";
-import { useGetWithFiltersMutation, usePutGeneralMutation, useDeleteGeneralMutation } from "@/hooks/api/api";
-import { ContextMenu, ContextMenuItem } from "@/components/context-menu";
+import { useGetWithFiltersMutation, useDeleteGeneralMutation } from "@/hooks/api/api";
 import { Modal } from "@/components/modal";
 import MainForm from "@/components/form/main-form";
 
@@ -35,26 +34,6 @@ interface Sprint {
 
 // Componentes modales para edición
 const EditProjectModal = ({ project, refetch, onClose }: { project: Project; refetch: () => void; onClose: () => void }) => {
-    const [putProject] = usePutGeneralMutation();
-    const handleSubmit = async (data: any) => {
-        try {
-            await putProject({
-                table: "proyectos",
-                data: {
-                    Data: {
-                        nombre: data.nombre,
-                        descripcion: data.descripcion,
-                        fecha_inicio: data.fecha_inicio,
-                    },
-                    Filtros: [{ Key: "id", Value: project.id, Operator: "=" }]
-                }
-            }).unwrap();
-            refetch();
-            onClose();
-        } catch (error) {
-            console.error("Error al editar proyecto:", error);
-        }
-    };
     return (
         <Modal title="Editar Proyecto" modalName="edit-project">
             <MainForm
@@ -62,6 +41,7 @@ const EditProjectModal = ({ project, refetch, onClose }: { project: Project; ref
                 table="proyectos"
                 modelName="Project"
                 dataForm={ProjectField(project)}
+                aditionalData={{ id: project.id }}
                 onSuccess={() => {
                     onClose();
                     refetch();
@@ -72,27 +52,7 @@ const EditProjectModal = ({ project, refetch, onClose }: { project: Project; ref
     );
 };
 
-const EditSprintModal = ({ sprint, projectId, refetch, onClose }: { sprint: Sprint; projectId: number; refetch: () => void; onClose: () => void }) => {
-    const [putSprint] = usePutGeneralMutation();
-    const handleSubmit = async (data: any) => {
-        try {
-            await putSprint({
-                table: "sprints",
-                data: {
-                    Data: {
-                        nombre: data.nombre,
-                        fecha_inicio: data.fecha_inicio,
-                        proyecto_id: projectId,
-                    },
-                    Filtros: [{ Key: "id", Value: sprint.id, Operator: "=" }]
-                }
-            }).unwrap();
-            refetch();
-            onClose();
-        } catch (error) {
-            console.error("Error al editar sprint:", error);
-        }
-    };
+const EditSprintModal = ({ sprint, refetch, onClose }: { sprint: Sprint; refetch: () => void; onClose: () => void }) => {
     return (
         <Modal title="Editar Sprint" modalName="edit-sprint" >
             <MainForm
@@ -100,6 +60,7 @@ const EditSprintModal = ({ sprint, projectId, refetch, onClose }: { sprint: Spri
                 table="sprints"
                 modelName="Sprint"
                 dataForm={SprintField(sprint)}
+                aditionalData={{ id: sprint.id }}
                 onSuccess={() => {
                     onClose();
                     refetch();
@@ -511,7 +472,6 @@ export default function ProjectsPage() {
                 {selectedSprint && (
                     <EditSprintModal
                         sprint={selectedSprint}
-                        projectId={projectId}
                         refetch={refetchSprints}
                         onClose={() => {
                             setSelectedSprint(null);

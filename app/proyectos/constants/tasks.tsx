@@ -36,7 +36,6 @@ export function TasksField(data?: any): Field[] {
             require: true,
             label: "Descripcion",
             placeholder: "Explica en breves palabras que es la tarea...",
-            maxLength: 450,
             icon: <Text className="text-blue-500" />,
             valueDefined: data?.description || "",
         },
