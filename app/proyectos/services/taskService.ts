@@ -39,7 +39,7 @@ export function useTaskService(sprintId: number) {
         Filtros: [
           { key: "sprint_id", operator: "=", value: sprintId },
         ],
-        order: [{ key: "orden", direction: "asc" }],
+        order: [{ key: "orden", direction: "desc" }],
       },
       signal: undefined,
     })
@@ -139,15 +139,18 @@ export function useTaskService(sprintId: number) {
     async (taskId: string) => {
       try {
         await deleteTaskMutation({
-          table: "comentarios",
-          column: "tarea_id",
-          id: taskId,
-        }).unwrap();
-        await deleteTaskMutation({
           table: "tareas",
           id: taskId,
         }).unwrap();
       } catch (error) {
+        
+        await deleteTaskMutation({
+          table: "comentarios",
+          column: "tarea_id",
+          id: taskId,
+        }).unwrap();
+        deleteTask;
+
         console.error("Error al eliminar tarea:", error);
         throw error;
       }

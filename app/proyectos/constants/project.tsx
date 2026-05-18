@@ -1,13 +1,9 @@
 import { Field } from "@/utils/types/interfaces";
-import { Ampersand, ChartNoAxesGantt, Text } from "lucide-react";
+import { Ampersand, Calendar, ChartNoAxesGantt, Text } from "lucide-react";
 
 export function ProjectField(data?: any): Field[] {
 
     return [
-        {
-            type: "Flex",
-            require: false,
-            elements: [
                 {
                     name: "Nombre",
                     type: "INPUT",
@@ -16,18 +12,31 @@ export function ProjectField(data?: any): Field[] {
                     placeholder: "Titulo de la tarea:",
                     icon: <Ampersand className="text-green-500" />,
                     valueDefined: data?.title || "",
-                },
-                /* {
-                    name: "State",
-                    type: "SELECT",
-                    label: "Prioridad de la tarea",
+        },
+        {
+            require: false,
+            type: "Flex",
+            elements: [
+                {
+
+                    name: "fecha_inicio",
+                    type: "DATE",
                     require: true,
-                    multi: false,
-                    options: ["alta", "media", "baja"],
-                    icon: <ChartNoAxesGantt className="text-orange-500" />,
-                    valueDefined: data?.prioridad || "",
-                }, */
-            ],
+                    label: "Fecha de inicio",
+                    placeholder: "Fecha de inicio del sprint:",
+                    icon: <Calendar className="text-green-500" />,
+                    valueDefined: data?.title || "",
+                }, {
+
+                    name: "fecha_fin",
+                    type: "DATE",
+                    require: true,
+                    label: "Fecha de fin",
+                    placeholder: "Fecha de fin del sprint:",
+                    icon: <Calendar className="text-green-500" />,
+                    valueDefined: data?.title || "",
+                }
+            ]
         },
 
         {

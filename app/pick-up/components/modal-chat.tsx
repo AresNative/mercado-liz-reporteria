@@ -12,7 +12,7 @@ export type Message = {
     userId: string;
     userName: string;
     timestamp: number;
-    type?: 'normal' | 'system';
+    type?: 'normal' | 'normal';
     actions?: {
         label: string;
         action: 'replace' | 'remove';
@@ -133,7 +133,7 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
         }
     };
 
-    // Manejar acciones del sistema (reemplazar / eliminar)
+    // Manejar acciones del Soporte (reemplazar / eliminar)
     const handleAction = async (action: string, productId: string, productName: string) => {
         if (!pedido || !messagesService) return;
 
@@ -153,10 +153,10 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                 // Enviar mensaje de confirmación
                 await messagesService.create({
                     text: `✅ Se ha eliminado "${productName}" de tu pedido.`,
-                    userId: 'system',
-                    userName: 'Sistema',
+                    userId: 'unknown',
+                    userName: 'Soporte',
                     timestamp: Date.now(),
-                    type: 'system'
+                    type: 'normal'
                 });
 
                 // Actualizar localmente el pedido (para que el chat refleje los cambios)
@@ -165,20 +165,20 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                 console.error("Error al eliminar producto:", error);
                 await messagesService.create({
                     text: `❌ Ocurrió un error al eliminar "${productName}". Por favor intenta más tarde.`,
-                    userId: 'system',
-                    userName: 'Sistema',
+                    userId: 'unknown',
+                    userName: 'Soporte',
                     timestamp: Date.now(),
-                    type: 'system'
+                    type: 'normal'
                 });
             }
         } else if (action === 'replace') {
             // Enviar mensaje pidiendo especificar el reemplazo
             await messagesService.create({
                 text: `🔄 Por favor, escribe el nombre del producto que deseas en lugar de "${productName}".`,
-                userId: 'system',
-                userName: 'Sistema',
+                userId: 'unknown',
+                userName: 'Soporte',
                 timestamp: Date.now(),
-                type: 'system'
+                type: 'normal'
             });
             // El operador verá la respuesta del cliente y podrá actualizar manualmente el pedido.
             // Para una experiencia más completa, se podría integrar un selector de productos.
@@ -208,24 +208,24 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                         <div className="space-y-3">
                             {messages.map((message) => {
                                 const isCurrentUser = message.userId === userId;
-                                const isSystem = message.type === 'system';
+                                const isNormal = message.type === 'normal';
                                 const user = users[message.userId] || { nombre: message.userName };
 
                                 return (
                                     <div key={message.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`max-w-[85%] flex ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
                                             <div className="mx-2 flex items-end">
-                                                <UserCircle className={`w-8 h-8 ${isCurrentUser ? 'text-purple-500' : isSystem ? 'text-gray-400' : 'text-gray-400'}`} />
+                                                <UserCircle className={`w-8 h-8 ${isCurrentUser ? 'text-purple-500' : isNormal ? 'text-gray-400' : 'text-gray-400'}`} />
                                             </div>
                                             <div>
-                                                {!isCurrentUser && !isSystem && (
+                                                {!isCurrentUser && !isNormal && (
                                                     <div className="text-xs font-medium text-gray-600 mb-1 ml-1">
                                                         {user.nombre}
                                                     </div>
                                                 )}
-                                                {isSystem && (
+                                                {isNormal && (
                                                     <div className="text-xs font-medium text-gray-500 mb-1 ml-1">
-                                                        Sistema
+                                                        Soporte
                                                     </div>
                                                 )}
                                                 <div className="flex flex-col">
@@ -233,7 +233,7 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                                                         rounded-2xl px-4 py-3
                                                         ${isCurrentUser
                                                             ? 'bg-purple-500 text-white rounded-br-none'
-                                                            : isSystem
+                                                            : isNormal
                                                                 ? 'bg-gray-100 text-gray-700 rounded-bl-none border border-gray-200'
                                                                 : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-200'}
                                                     `}>

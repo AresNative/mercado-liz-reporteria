@@ -40,7 +40,7 @@ export const formatValue = (
 
 export const formatAPIDate = (dateString: string) => {
   if (!dateString) return "";
-  return new Date(dateString).toISOString();
+  return new Date(dateString).toLocaleDateString("es-ES");
 };
 export function formatJSON(inputJSON: any) {
   // Si el input es un string, lo parsea, de lo contrario, lo toma directamente
