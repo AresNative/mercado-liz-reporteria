@@ -289,7 +289,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             userId: 'unknown',
             userName: 'Soporte',
             timestamp: Date.now(),
-            type: 'system',
             actions: [
                 {
                     label: 'Reemplazar',
