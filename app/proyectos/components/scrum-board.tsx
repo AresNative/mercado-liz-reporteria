@@ -428,16 +428,6 @@ export function ScrumBoard({ initialTasks, sprintId }: ScrumBoardProps) {
                                                 </span>
                                             </div>
                                         </section>
-                                        <h3
-                                            className="mt-1 text-xs text-gray-500 overflow-hidden text-ellipsis"
-                                            style={{
-                                                display: "-webkit-box",
-                                                WebkitLineClamp: 2,
-                                                WebkitBoxOrient: "vertical"
-                                            }}
-                                        >
-                                            {task.title}
-                                        </h3>
                                         <p
                                             className="mt-1 text-xs text-gray-500 overflow-hidden text-ellipsis"
                                             style={{

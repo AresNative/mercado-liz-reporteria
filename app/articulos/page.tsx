@@ -13,7 +13,11 @@ import {
     Save,
     CheckSquare,
     Square,
-    Eye
+    Eye,
+    Copy,
+    FileText,
+    Share2,
+    Trash2
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useAppDispatch } from "@/hooks/selector";
@@ -29,6 +33,7 @@ import Pagination from "@/components/pagination";
 import { EnvConfig } from '@/utils/constants/env.config';
 import Footer from '@/template/footer';
 import Header from '@/template/header';
+import { ContextMenu } from '@/components/context-menu';
 
 const { hubs: apiUrl } = EnvConfig();
 
@@ -111,7 +116,27 @@ const VistaProductosConImagenes = ({
                             />
                         </div>
                     </div>
-
+                    <ContextMenu items={[{
+                        label: 'Copiar',
+                        icon: <Copy size={16} />,
+                        onClick: () => console.log('Copiado'),
+                    },
+                        {
+                            label: 'Ver detalles',
+                            icon: <FileText size={16} />,
+                            onClick: () => console.log('Mostrar detalles'),
+                        },
+                        {
+                            label: 'Compartir',
+                            icon: <Share2 size={16} />,
+                            onClick: () => console.log('Abrir diálogo de compartir'),
+                        },
+                        {
+                            label: 'Eliminar',
+                            icon: <Trash2 size={16} />,
+                            onClick: () => console.log('Elemento eliminado'),
+                            danger: true,
+                        },]}>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Buscar por nombre
@@ -122,7 +147,8 @@ const VistaProductosConImagenes = ({
                             placeholder="Nombre del producto..."
                             className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
-                    </div>
+                        </div>
+                    </ContextMenu>
                 </div>
 
                 <div className="flex items-center gap-3">
