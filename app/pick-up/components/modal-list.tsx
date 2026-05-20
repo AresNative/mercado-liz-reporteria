@@ -308,7 +308,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
         try {
             await chatService.create(mensaje);
             // Abrir automáticamente el chat para que el operador vea la interacción
-            dispatch(openModalReducer({ modalName: `chat_${telefono}_${pedidoSeleccionado.id}` }));
+            //dispatch(openModalReducer({ modalName: `chat_${telefono}_${pedidoSeleccionado.id}` }));
         } catch (error) {
             console.error("Error enviando notificación a Firestore:", error);
         }
@@ -706,7 +706,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                             )}
                             <div className="flex gap-2 flex-wrap">
                                 <button onClick={() => { generarPDF(pedidoSeleccionado); handleActualizarEstado('proceso') }} className="cursor-pointer px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1.5"><NotepadText className="size-3.5" /> PDF</button>
-                                <button onClick={handleOpenSignaturePad} disabled={!['listo', 'proceso'].includes(pedidoSeleccionado.estado)} className="cursor-pointer px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40"><Signature className="size-3.5" /> Entregar</button>
+                                {pedidoSeleccionado.estado !== 'entregado' &&  <button onClick={handleOpenSignaturePad} disabled={!['listo', 'proceso'].includes(pedidoSeleccionado.estado)} className="cursor-pointer px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40"><Signature className="size-3.5" /> Entregar</button>}
                                 <button onClick={() => handleOpenChat(pedidoSeleccionado)} className="cursor-pointer px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white transition-colors rounded-lg" title={`Abrir chat con ${pedidoSeleccionado.nombre || 'cliente'}`}><MessageCircle className="h-4 w-4" /></button>
                             </div>
                         </div>
