@@ -13,11 +13,9 @@ export interface ContextMenuItem {
 interface ContextMenuProps {
     items: ContextMenuItem[];
     children: React.ReactNode;
-    // Opcional: ID del elemento contenedor para evitar cierres accidentales
-    containerId?: string;
 }
 
-export const ContextMenu: React.FC<ContextMenuProps> = ({ items, children, containerId }) => {
+export const ContextMenu: React.FC<ContextMenuProps> = ({ items, children }) => {
     const [visible, setVisible] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const menuRef = useRef<HTMLDivElement>(null);
