@@ -38,6 +38,7 @@ interface Pedido {
     array_lista: string;
     fecha_creacion: string;
     fecha_actualizacion: string;
+    fecha_entrega: string;
     estado: 'nuevo' | 'proceso' | 'listo' | 'entregado' | 'cancelado' | 'incompleto';
     es_publica: number;
     items: ListaItem[];
@@ -52,12 +53,12 @@ interface Pedido {
 }
 const getUrgenciaBadge = (
     urgencia: string,
-    fechaEntrega: any, // nombre_lista es la fecha de entrega
+    fechaEntrega: any, // fecha_entrega es la fecha de entrega
     pedidoId: number,
     estadoActual: string,
     onUpdateStatus: (pedidoId: number, nuevoEstado: string) => void
 ) => {
-    // Convertir la fecha de entrega (nombre_lista) a timestamp
+    // Convertir la fecha de entrega (fecha_entrega) a timestamp
     const fechaExpiracion = new Date(fechaEntrega);
 
     const handleTiempoExpirado = () => {
@@ -207,7 +208,7 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                                     {mostrarContador && pedido.urgencia && pedido.nombre_lista ? (
                                         getUrgenciaBadge(
                                             pedido.urgencia,
-                                            pedido.nombre_lista,
+                                            pedido.fecha_entrega,
                                             pedido.id,
                                             pedido.estado,
                                             onUpdateStatus
@@ -253,7 +254,7 @@ export const TablaPedidos = ({ data, onViewDetails, onUpdateStatus }: TablaPedid
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm text-gray-500">
-                                        {pedido.nombre_lista ? formatFecha(pedido.nombre_lista) : 'No asignada'}
+                                        {pedido.fecha_entrega ? formatFecha(pedido.fecha_entrega) : 'N/A'}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">

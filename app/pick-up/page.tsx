@@ -70,6 +70,7 @@ interface Pedido {
     array_lista: string;
     fecha_creacion: string;
     fecha_actualizacion: string;
+    fecha_entrega: string;
     estado: 'nuevo' | 'proceso' | 'listo' | 'entregado' | 'cancelado' | 'incompleto';
     es_publica: number;
     items: ListaItem[];
@@ -168,7 +169,7 @@ export default function GestionPedidos() {
             return { urgencia, tiempo_restante: minutosRestantes };
         };
 
-        const { urgencia, tiempo_restante } = calcularUrgencia(lista.nombre_lista, lista.estado);
+        const { urgencia, tiempo_restante } = calcularUrgencia(lista.fecha_entrega, lista.estado);
 
         return {
             id: lista.id,
@@ -182,6 +183,7 @@ export default function GestionPedidos() {
             array_lista: lista.array_lista,
             fecha_creacion: lista.fecha_creacion,
             fecha_actualizacion: lista.fecha_actualizacion,
+            fecha_entrega: lista.fecha_entrega,
             estado: lista.estado,
             es_publica: lista.es_publica,
             items: items,
@@ -217,6 +219,7 @@ export default function GestionPedidos() {
                     { key: "listas.array_lista" },
                     { key: "listas.fecha_creacion" },
                     { key: "listas.fecha_actualizacion" },
+                    { key: "listas.fecha_entrega" },
                     { key: "listas.estado" },
                     { key: "clientes.nombre" },
                     { key: "clientes.telefono" },
