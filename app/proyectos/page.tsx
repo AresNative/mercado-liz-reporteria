@@ -17,6 +17,7 @@ import Footer from "@/template/footer";
 import { useGetWithFiltersMutation, useDeleteGeneralMutation } from "@/hooks/api/api";
 import { Modal } from "@/components/modal";
 import MainForm from "@/components/form/main-form";
+import { BentoGrid, BentoItem } from "@/components/bento-grid";
 
 interface Project {
     id: number;
@@ -270,13 +271,13 @@ export default function ProjectsPage() {
 
     // Renderizado de proyectos con botones de acción
     const renderProjectsList = () => (
-        <ul className="flex gap-2 flex-wrap mt-10">
+        <BentoGrid cols={3}>
             {loadingProjects ? (
                 <li className="text-gray-500">Cargando proyectos...</li>
             ) : projects.length ? projects.map((project) => {
                 const formatted = formatAPIDate(project.fecha_inicio);
                 return (
-                    <li
+                    <BentoItem
                         key={project.id}
                         className="bg-white dark:bg-zinc-800 shadow border-l-2 border-l-green-500 rounded-2xl px-3 py-2 hover:shadow-md transition-all flex-1 min-w-[200px] relative group"
                     >
@@ -320,14 +321,14 @@ export default function ProjectsPage() {
                                 <Trash2 size={14} />
                             </button>
                         </div>
-                    </li>
+                    </BentoItem>
                 );
             }) : (
                 <li className="flex items-center justify-center p-4">
                     <span className="text-gray-500">No hay proyectos disponibles, añada uno en la sección "Agregar Proyecto"</span>
                 </li>
             )}
-        </ul>
+        </BentoGrid>
     );
 
     // Renderizado de sprints con botones de acción

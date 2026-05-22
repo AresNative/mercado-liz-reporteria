@@ -205,6 +205,34 @@ export default function GestionPedidos() {
         };
     }
 
+    const ordenarPedidos = (a: Pedido, b: Pedido) => {
+        const prioridadEstado = { 'nuevo': 5, 'proceso': 4, 'listo': 3, 'entregado': 2, 'cancelado': 1, 'incompleto': 1 };
+        const prioridadUrgencia = { 'alta': 3, 'media': 2, 'baja': 1 };
+
+        const pendienteA = a.estado === 'nuevo' || a.estado === 'proceso';
+        const pendienteB = b.estado === 'nuevo' || b.estado === 'proceso';
+
+        if (pendienteA && pendienteB) {
+            const urgA = prioridadUrgencia[a.urgencia || 'baja'];
+            const urgB = prioridadUrgencia[b.urgencia || 'baja'];
+            if (urgA !== urgB) return urgB - urgA;
+
+            const tiempoA = a.tiempo_restante ?? Number.MAX_SAFE_INTEGER;
+            const tiempoB = b.tiempo_restante ?? Number.MAX_SAFE_INTEGER;
+            if (tiempoA !== tiempoB) return tiempoA - tiempoB;
+        } else if (pendienteA !== pendienteB) {
+            return pendienteA ? -1 : 1;
+        }
+
+        if (prioridadEstado[a.estado] !== prioridadEstado[b.estado]) {
+            return prioridadEstado[b.estado] - prioridadEstado[a.estado];
+        }
+
+        const fechaA = a.fecha_entrega ? new Date(a.fecha_entrega).getTime() : new Date(a.fecha_creacion).getTime();
+        const fechaB = b.fecha_entrega ? new Date(b.fecha_entrega).getTime() : new Date(b.fecha_creacion).getTime();
+        return fechaA - fechaB;
+    };
+
     const fetchPedidos = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -225,9 +253,6 @@ export default function GestionPedidos() {
                     { key: "clientes.telefono" },
                     { key: "clientes.email" },
                     { key: "clientes.direccion" },
-                ],
-                Order: [
-                    { Key: "fecha_creacion", Direction: "Desc" }
                 ]
             };
 
@@ -248,22 +273,7 @@ export default function GestionPedidos() {
 
                 const pedidosProcesados: Pedido[] = response.data.map(parseListaData);
                 
-                const pedidosOrdenados = pedidosProcesados.sort((a, b) => {
-                    const prioridadEstado = { 'nuevo': 3, 'proceso': 2, 'listo': 1, 'entregado': 0, 'cancelado': 0, 'incompleto': 0 };
-                    const prioridadEstadoA = prioridadEstado[a.estado] || 0;
-                    const prioridadEstadoB = prioridadEstado[b.estado] || 0;
-
-                    if (prioridadEstadoA !== prioridadEstadoB) {
-                        return prioridadEstadoB - prioridadEstadoA;
-                    }
-
-                    if (a.estado === 'nuevo' || a.estado === 'proceso') {
-                        const prioridadUrgencia = { 'alta': 3, 'media': 2, 'baja': 1 };
-                        return (prioridadUrgencia[b.urgencia || 'baja'] - prioridadUrgencia[a.urgencia || 'baja']);
-                    }
-
-                    return new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime();
-                });
+                const pedidosOrdenados = pedidosProcesados.sort(ordenarPedidos);
 
                 setPedidos(pedidosOrdenados);
 
