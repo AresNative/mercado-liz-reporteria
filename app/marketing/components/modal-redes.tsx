@@ -28,7 +28,7 @@ const ModalRedes = () => {
                         name: "url"
                     },
 
-                    {
+                   /*  {
                         require: false,
                         type: "INPUT",
                         label: "Icono",
@@ -39,9 +39,7 @@ const ModalRedes = () => {
                         type: "INPUT",
                         label: "red social",
                         name: "red_social"
-                    }
-
-
+                    } */
                 ]}
                 aditionalData={{ fecha: new Date() }}
                 actionType="post-general"
