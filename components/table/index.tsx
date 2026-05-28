@@ -15,7 +15,7 @@ import {
     X,
     Printer
 } from "lucide-react";
-import { ViewTR } from "./toggle-view";
+import { ViewTR, type ArrayColumnDisplay } from "./toggle-view";
 import { cn } from "@/utils/functions/cn";
 import {
     formatValue as formatNumberValue,
@@ -100,6 +100,12 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [showColumnMenu, setShowColumnMenu] = useState<string | null>(null);
     const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({});
+    // Modo de visualización para columnas cuyo valor es un array (ej. ["PEPE", "00020"])
+    const [arrayDisplayModes, setArrayDisplayModes] = useState<Record<string, ArrayColumnDisplay>>({});
+
+    const handleArrayDisplayChange = useCallback((col: string, mode: ArrayColumnDisplay) => {
+        setArrayDisplayModes(prev => ({ ...prev, [col]: mode }));
+    }, []);
 
     // Cerrar menú de exportación al hacer clic fuera
     useEffect(() => {
@@ -239,6 +245,13 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
     const formatCellValueForExport = (key: string, value: any): string => {
         if (value == null) return '-';
+        // ── Array con modo de display configurable ────────────────────────────
+        if (Array.isArray(value)) {
+            const mode = arrayDisplayModes[key] ?? "both";
+            if (mode === "first") return String(value[0] ?? "");
+            if (mode === "second") return String(value[1] ?? "");
+            return value.map(String).join(" / ");
+        }
         if (typeof value === 'object' && 'puja' in value)
             return `Puja: ${formatNumberValue(value.puja, "currency", 2)} | Cant.: ${formatNumberValue(value.cantidad, "number", 2)}`;
         if (typeof value === 'boolean') return value ? 'Sí' : 'No';
@@ -255,6 +268,19 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
     const formatCellValue = (key: string, value: any): React.ReactNode => {
         if (value == null) return <span className="text-gray-300 dark:text-gray-600">—</span>;
+        // ── Array con modo de display configurable ────────────────────────────
+        if (Array.isArray(value)) {
+            const mode = arrayDisplayModes[key] ?? "both";
+            if (mode === "first") return <span>{String(value[0] ?? "—")}</span>;
+            if (mode === "second") return <span>{String(value[1] ?? "—")}</span>;
+            // "both"
+            return (
+                <div className="flex flex-col text-xs leading-tight">
+                    <span>{String(value[0] ?? "—")}</span>
+                    <span className="text-gray-400 dark:text-gray-500">{String(value[1] ?? "—")}</span>
+                </div>
+            );
+        }
         if (typeof value === 'object' && 'puja' in value)
             return (
                 <div className="flex flex-col text-xs leading-tight">
@@ -450,10 +476,10 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                         <thead className="bg-zinc-50 dark:bg-zinc-900">
                             <tr>
                                 {/* Checkbox global */}
-                                <th className="px-4 py-3 w-10">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">
                                     <input
                                         type="checkbox"
-                                        className="rounded border-gray-300 dark:border-zinc-600 text-blue-600"
+                                        className="border-gray-300 dark:border-zinc-600 text-blue-600"
                                         checked={allCurrentPageSelected}
                                         onChange={selectAllRows}
                                     />
@@ -462,7 +488,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                 {columns.map(column => visibleColumns[column] && (
                                     <th
                                         key={column}
-                                        className="relative px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider"
+                                        className="relative px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider"
                                     >
                                         <div className="flex items-center gap-1">
                                             {/*
@@ -481,7 +507,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                                 )}
                                                 title={`Ordenar por ${column}`}
                                             >
-                                                <span className="uppercase tracking-wider">
+                                                <span className="tracking-wider">
                                                     {column.replace('Proveedor_', 'Prov. ')}
                                                 </span>
                                                 <SortIcon
@@ -498,6 +524,9 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                                 toggleColumn={toggleColumn}
                                                 showColumnMenu={showColumnMenu}
                                                 visibleColumns={visibleColumns}
+                                                isArrayColumn={Array.isArray(displayData[0]?.[column])}
+                                                arrayDisplayMode={arrayDisplayModes[column] ?? "both"}
+                                                onArrayDisplayChange={handleArrayDisplayChange}
                                             />
                                         </div>
                                     </th>
@@ -531,7 +560,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                             exit={{ opacity: 0 }}
                                             transition={{ duration: 0.12 }}
                                         >
-                                            <td className="px-4 py-2.5">
+                                            <td className="px-4 py-3 w-40">
                                                 <input
                                                     type="checkbox"
                                                     className="rounded border-gray-300 text-blue-600"
@@ -545,7 +574,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                                 <td
                                                     key={`${column}`}
                                                     className={cn(
-                                                        "px-4 py-2.5 whitespace-nowrap text-sm text-gray-900 dark:text-white",
+                                                        "px-2 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white",
                                                         // Resaltar la columna actualmente ordenada
                                                         sortColumn === column &&
                                                         "bg-blue-50/40 dark:bg-blue-900/10"
@@ -596,7 +625,7 @@ const TableSkeleton = () => (
                     {Array.from({ length: 5 }).map((_, r) => (
                         <tr key={r}>
                             {Array.from({ length: 5 }).map((_, c) => (
-                                <td key={c} className="px-4 py-3"> 
+                                <td key={c} className="px-4 py-3">
                                     <div className="h-3 w-full bg-gray-200 dark:bg-zinc-700 rounded" />
                                 </td>
                             ))}
