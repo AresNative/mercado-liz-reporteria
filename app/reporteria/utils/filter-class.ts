@@ -56,7 +56,7 @@ export class FilterBuilder {
         });
       }
 
-      if (almacenFilter && reportType !== "comparacion") {
+      if (almacenFilter) {
         let almacenField = "venta.Almacen";
         if (reportType === "compras") almacenField = "comprad.Almacen";
         else if (reportType === "mermas" || reportType === "inventario")
@@ -68,7 +68,7 @@ export class FilterBuilder {
         });
       }
 
-      if (dateRange.from && dateRange.to && reportType !== "comparacion") {
+      if (dateRange.from && dateRange.to) {
         const fechaField = QUERY_CONFIGS[reportType]?.fechaField;
         if (fechaField) {
           basicFilters.push(

@@ -20,7 +20,6 @@ export const CONFIG: any = {
     VENTAS: "ventas",
     COMPRAS: "compras",
     MERMAS: "mermas",
-    COMPARACION: "comparacion",
   } as const,
 } as const;
 
