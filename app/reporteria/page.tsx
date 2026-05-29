@@ -266,8 +266,6 @@ export default function Report() {
         [quickMode, filterGroups, searchTerm, searchColumn, almacenFilter, dateRange, reportType, searchApplied]
     );
 
-    // Deriva los alias válidos directamente del string `table` de QUERY_CONFIGS,
-    // leyendo todos los "... AS alias" que aparecen. Así nunca se desincroniza con config-constants.
     const getValidAliasesFromTable = (tableStr: string): string[] => {
         const matches = tableStr.matchAll(/\bAS\s+(\w+)/gi);
         return Array.from(matches, m => m[1]);
@@ -290,7 +288,6 @@ export default function Report() {
         let cleanFiltrosAnd = filtrosAnd;
         let cleanFiltrosOr = filtrosOr;
 
-        if (appliedFilters.reportType === "comparacion") {
             // Usar el config de la sub-query correspondiente al tab activo
             const tabCfg = COMPARISON_QUERY_CONFIGS[comparisonTab];
             const validAliases = COMPARISON_VALID_ALIASES[comparisonTab];
@@ -323,14 +320,6 @@ export default function Report() {
                     return cleaned.length > 0 ? { ...group, Filtros: cleaned } : null;
                 })
                 .filter(Boolean);
-        } else {
-            const config = QUERY_CONFIGS[appliedFilters.reportType];
-            tableConfig = {
-                table: config.table,
-                selects: config.selects ?? [],
-                fechaField: config.fechaField,
-            };
-        }
 
         const orderRules = appliedFilters.quickMode
             ? [{ Key: tableConfig.fechaField, Direction: "desc" }]
@@ -390,8 +379,6 @@ export default function Report() {
                 table: `${searchColumn.table} WHERE ${searchColumn.tableField} LIKE '%${searchTerm}%'`,
                 filtros: {
                     agregaciones: [{ Key:  searchColumn.tableField, Alias: "Suggestion", Operation: "DISTINCT" }],
-                   /*  Filtros:[{ Key: searchColumn.tableField, Operator: "LIKE", Value: `` }], */
-                    //Order: [{ Key: searchColumn.tableField, Direction: "ASC" }],
                 },
                 page: nextPage,
                 pageSize: 10,
@@ -612,54 +599,13 @@ export default function Report() {
         [buildFiltros, manager, showStats]
     );
 
-    // Cargar estadísticas agregadas (usando appliedFilters)
-    const fetchStatsData = useCallback(
-        async (forceRefresh = false) => {
-            if (!showStats) return;
-            // En modo comparación, delegar a fetchComparisonStats
-            if (reportType === "comparacion") {
-                return fetchComparisonStats(forceRefresh);
-            }
-            setStatsError(null);
-            setStatsLoading(true);
-            if (forceRefresh) setRefreshingStats(true);
-
-            const config = QUERY_CONFIGS[reportType];
-            const { filtrosAnd, filtrosOr } = buildFiltros(true);
-
-            const payload: RequestPayload = {
-                table: config.table,
-                filtros: {
-                    agregaciones: config.agregaciones,
-                    ...(filtrosAnd.length > 0 && { FiltrosAnd: filtrosAnd }),
-                    ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
-                },
-                page: 1,
-                pageSize: pageSize,
-            };
-
-            const { promise } = manager.execute(payload);
-            const response = await promise;
-            setStatsLoading(false);
-            setRefreshingStats(false);
-            if (response.error) {
-                if (response.error.name === "AbortError") return;
-                setStatsError(response.error.message || "Error al cargar estadísticas");
-            } else {
-                const processed = processStatsData(response.data?.data);
-                setStats(processed);
-            }
-        },
-        [reportType, buildFiltros, manager, showStats, fetchComparisonStats]
-    );
-
     // Cargar todo (tabla + estadísticas)
     const fetchCurrentReportData = useCallback(
         async () => {
             fetchTableData();
-            fetchStatsData()
+            fetchComparisonStats()
         },
-        [fetchTableData, fetchStatsData, showStats]
+        [fetchTableData, fetchComparisonStats, showStats]
     );
 
     // Efecto principal: cuando cambian los filtros aplicados o la página, cargar datos
@@ -749,10 +695,7 @@ export default function Report() {
         setCurrentPage(1);
 
         try {
-            // En comparación usar el config del tab activo, no QUERY_CONFIGS.comparacion
-            const config = reportType === "comparacion"
-                ? QUERY_CONFIGS[comparisonTab]
-                : QUERY_CONFIGS[reportType];
+            const config = QUERY_CONFIGS[comparisonTab];
             const builder = new FilterBuilder({
                 quickMode,
                 filterGroups: newAppliedFilters.filterGroups,
@@ -854,7 +797,7 @@ export default function Report() {
             setLastSearch({ term: searchTerm, columnKey: searchColumn.key });
         }
         setReportType(type);
-        if (type === "comparacion") setComparisonTab("ventas");
+        setComparisonTab("ventas");
         setAppliedFilters((prev) => ({
             ...prev,
             reportType: type,
@@ -977,9 +920,7 @@ export default function Report() {
     const searchColumns = SEARCH_COLUMNS_CONFIG[reportType];
 
     const getAvailableColumns = () => {
-        const config = reportType === "comparacion"
-            ? QUERY_CONFIGS[comparisonTab]
-            : QUERY_CONFIGS[reportType];
+        const config = QUERY_CONFIGS[comparisonTab];
         if (!config?.selects) return [];
         return config.selects.map((select: any) => ({
             value: select.Key,
@@ -1123,112 +1064,76 @@ export default function Report() {
                     <li className="flex items-center justify-between">
                         <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200">Reportería</h1>
                     </li>
-                    <li className="mt-3">
-                        <select
-                            value={reportType}
-                            onChange={(e) => handleReportTypeChange(e.target.value as ReportType)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 dark:bg-gray-700 dark:border-gray-600 text-base"
-                        >
-                            <option value="ventas">Ventas</option>
-                            <option value="compras">Compras</option>
-                            <option value="mermas">Mermas</option>
-                            <option value="inventario">Inventario</option>
-                            <option value="comparacion">Comparación</option>
-                        </select>
-                    </li>
                 </ul>
 
                 {/* Header desktop */}
                 <ul className="hidden md:flex justify-between items-center mb-4">
-                    <li className="flex flex-col gap-2">
+                    <li className="flex items-center gap-2">
                         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                            Reportería - {reportType.charAt(0).toUpperCase() + reportType.slice(1)}
+                            Reportería
                         </h1>
-                        <div className="flex items-center gap-4">
-                            <section className="text-gray-800 dark:text-gray-200">
-                                <label className="mr-2 font-medium">Selecciona el tipo de reporte:</label>
-                                <select
-                                    value={reportType}
-                                    onChange={(e) => handleReportTypeChange(e.target.value as ReportType)}
-                                    className="border border-gray-300 rounded px-3 py-2 dark:bg-gray-700 dark:border-gray-600"
-                                >
-                                    <option value="ventas">Ventas</option>
-                                    <option value="compras">Compras</option>
-                                    <option value="mermas">Mermas</option>
-                                    <option value="inventario">Inventario</option>
-                                    <option value="comparacion">Comparación</option>
-                                </select>
-                            </section>
-                            <button
-                                onClick={() => setShowStats(!showStats)}
-                                className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300"
-                                title={showStats ? "Ocultar estadísticas" : "Mostrar estadísticas"}
-                            >
-                                {showStats ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                Stats
-                            </button>
-                        </div>
-                        <div className="sticky top-10 mt-2 p-2 bg-gray-50/70 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtros activos:</div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                                {getActiveFiltersSummary().map((f, i) => (
-                                    <div key={i} className="flex items-center">
-                                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
-                                        {f}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        <button
+                            onClick={() => setShowStats(!showStats)}
+                            className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300"
+                            title={showStats ? "Ocultar estadísticas" : "Mostrar estadísticas"}
+                        >
+                            {showStats ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            Stats
+                        </button>
                     </li>
                     
                     <li className="flex gap-2">
-                        {(reportType === "ventas" || reportType === "comparacion") && (
-                            <>
-                                <Button
-                                    label="Venta desglosada" color="success" size="small"
-                                    onClick={() => { setShowModal(true); dispatch(openModalReducer({ modalName: "reporting" })) }} />
-                                <Button
-                                    label="tarjeta de puntuación" color="success" size="small"
-                                    onClick={() => { setShowModal2(true); dispatch(openModalReducer({ modalName: "scorecard" })) }} />
-                            </>
-                        )}
-                        <button
-                            onClick={() => fetchStatsData(true)}
+                        <Button
+                            label="Venta desglosada" color="success" size="small"
+                            onClick={() => { setShowModal(true); dispatch(openModalReducer({ modalName: "reporting" })) }} />
+                        <Button
+                            label="Tarjeta de puntuación" color="success" size="small"
+                            onClick={() => { setShowModal2(true); dispatch(openModalReducer({ modalName: "scorecard" })) }} />
+                        <Button
+                            onClick={() => fetchComparisonStats(true)}
                             disabled={statsLoading || refreshingStats}
-                            className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
-                            title="Recargar solo estadísticas"
+                            color="second"
                         >
                             <RefreshCw className={`w-4 h-4 ${refreshingStats ? "animate-spin" : ""}`} />
                             Stats
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => {
                                 setRefreshingTable(true);
                                 fetchTableData().finally(() => setRefreshingTable(false));
                             }}
                             disabled={tableLoading || refreshingTable}
-                            className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
-                            title="Recargar solo tabla"
+                            color="second"
                         >
                             <RefreshCw className={`w-4 h-4 ${refreshingTable ? "animate-spin" : ""}`} />
                             Tabla
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => {
                                 setCurrentPage(1);
                                 fetchCurrentReportData();
                             }}
                             disabled={tableLoading || statsLoading || comparisonLoading}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
-                            title="Recargar todo"
+                            color="second"
                         >
                             <RefreshCw className={`w-4 h-4 ${tableLoading || statsLoading ? "animate-spin" : ""}`} />
-                            <span className="hidden md:inline">Recargar Todo</span>
-                            <span className="md:hidden">Todo</span>
-                        </button>
+                            <span >Todo</span>
+                        </Button>
                     </li>
                 </ul>
 
+
+                <ul className="w-fit my-2 top-10 mt-2 p-2 bg-gray-50/70 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtros activos:</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                        {getActiveFiltersSummary().map((f, i) => (
+                            <div key={i} className="flex items-center">
+                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
+                                {f}
+                            </div>
+                        ))}
+                    </div>
+                </ul>
                 {/* Mensajes de error */}
                 {statsError && !statsLoading && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
@@ -1238,7 +1143,7 @@ export default function Report() {
                                 <div className="font-medium mb-1">Error en estadísticas</div>
                                 <div className="text-sm">{statsError}</div>
                             </div>
-                            <button onClick={() => fetchStatsData(true)} className="text-sm font-medium underline hover:no-underline flex items-center gap-1">
+                            <button onClick={() => fetchComparisonStats(true)} className="text-sm font-medium underline hover:no-underline flex items-center gap-1">
                                 <RefreshCw className="h-3 w-3" />
                                 Reintentar
                             </button>
@@ -1273,7 +1178,7 @@ export default function Report() {
                         <div className="flex items-center gap-3">
                             <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
                             <div className="flex-1">
-                                <div className="font-medium text-blue-700 dark:text-blue-300">
+                                <span className="font-medium text-blue-700 dark:text-blue-300">
                                     {refreshingTable
                                         ? "Actualizando tabla..."
                                         : refreshingStats || comparisonLoading
@@ -1281,12 +1186,10 @@ export default function Report() {
                                             : tableLoading
                                                 ? "Cargando datos..."
                                                 : "Cargando estadísticas..."}
-                                </div>
-                                {appliedFilters.reportType === "comparacion" && (
-                                    <div className="text-sm text-blue-600/80 dark:text-blue-400/80 mt-1">
-                                        Ejecutando 3 consultas independientes (ventas → compras → mermas)...
-                                    </div>
-                                )}
+                                </span>
+                                <span className="text-sm text-blue-600/80 dark:text-blue-400/80 mt-1">
+                                    Ejecutando 3 consultas independientes (ventas → compras → mermas)...
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -1295,7 +1198,7 @@ export default function Report() {
                 {/* BentoGrid (estadísticas) - Solo se renderiza si showStats = true */}
                 {showStats && reportType && bentoMetrics.length > 0 && (
                     <div className="mb-2">
-                        <BentoGrid cols={bentoMetrics.length} loading={statsLoading || refreshingStats}>
+                        <BentoGrid className="p-0" cols={bentoMetrics.length} loading={statsLoading || refreshingStats}>
                             {bentoMetrics.map((item: any, index: number) => {
                                 const ItemIcon = item.icon;
                                 const styles = item.styles || {};
@@ -1325,19 +1228,12 @@ export default function Report() {
                                 );
                             })}
                         </BentoGrid>
-
-                        {reportType === "comparacion" && (
-                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                                <GitCompare className="h-3 w-3 inline mr-1" />
-                                Comparando ventas vs compras del mismo período
-                            </div>
-                        )}
                     </div>
                 )}
 
                 {/* ── Panel de comparativa detallada ───────────────────────────────── */}
-                {reportType === "comparacion" && showStats && (
-                    <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
+                { showStats && (
+                    <div className="mb-3 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
                         <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
                             <GitCompare className="h-4 w-4 text-indigo-500" />
                             <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm">
@@ -1458,34 +1354,31 @@ export default function Report() {
                 {reportType && (
                     <article className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
 
-                        {/* Tabs de sub-consulta para comparación */}
-                        {reportType === "comparacion" && (
-                            <div className="flex gap-1 mb-5 p-1 bg-gray-100 dark:bg-gray-900 rounded-lg w-fit">
-                                {(["ventas", "compras", "mermas"] as const).map((tab) => {
-                                    const labels = { ventas: "Ventas", compras: "Compras", mermas: "Mermas" };
-                                    const colors = {
-                                        ventas: "bg-white dark:bg-gray-700 text-green-700 dark:text-green-400 shadow-sm",
-                                        compras: "bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-400 shadow-sm",
-                                        mermas: "bg-white dark:bg-gray-700 text-orange-700 dark:text-orange-400 shadow-sm",
-                                    };
-                                    const dots = { ventas: "bg-green-500", compras: "bg-blue-500", mermas: "bg-orange-500" };
-                                    const isActive = comparisonTab === tab;
-                                    return (
-                                        <button
-                                            key={tab}
-                                            onClick={() => { setComparisonTab(tab); setCurrentPage(1); }}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${isActive
-                                                ? colors[tab]
-                                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                                                }`}
-                                        >
-                                            <span className={`w-2 h-2 rounded-full ${dots[tab]}`} />
-                                            {labels[tab]}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
+                        <div className="flex gap-1 mb-5 p-1 bg-gray-100 dark:bg-gray-900 rounded-lg w-fit">
+                            {(["ventas", "compras", "mermas"] as const).map((tab) => {
+                                const labels = { ventas: "Ventas", compras: "Compras", mermas: "Mermas" };
+                                const colors = {
+                                    ventas: "bg-white dark:bg-gray-700 text-green-700 dark:text-green-400 shadow-sm",
+                                    compras: "bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-400 shadow-sm",
+                                    mermas: "bg-white dark:bg-gray-700 text-orange-700 dark:text-orange-400 shadow-sm",
+                                };
+                                const dots = { ventas: "bg-green-500", compras: "bg-blue-500", mermas: "bg-orange-500" };
+                                const isActive = comparisonTab === tab;
+                                return (
+                                    <button
+                                        key={tab}
+                                        onClick={() => { setComparisonTab(tab); setCurrentPage(1); }}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${isActive
+                                            ? colors[tab]
+                                            : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                            }`}
+                                    >
+                                        <span className={`w-2 h-2 rounded-full ${dots[tab]}`} />
+                                        {labels[tab]}
+                                    </button>
+                                );
+                            })}
+                        </div>
 
                         {/* Filtros desktop */}
                         <div className="md:flex flex-col gap-3 mb-6">

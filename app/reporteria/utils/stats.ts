@@ -86,7 +86,7 @@ export const BENTO_METRICS_CONFIG: Record<string, any[]> = {
       display: formatValue(0, "number"),
       type: "number",
       icon: Package,
-      description: "promedio venta por tiket",
+      description: "promedio por tiket",
       styles: {
         icon: "text-indigo-600 dark:text-indigo-400",
       },

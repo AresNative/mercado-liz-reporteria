@@ -2,8 +2,7 @@ export type ReportType =
   | "ventas"
   | "compras"
   | "mermas"
-  | "inventario"
-  | "comparacion";
+  | "inventario";
 
 export interface StatsData {
   totalVentas?: number;

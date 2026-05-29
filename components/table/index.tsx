@@ -250,6 +250,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             const mode = arrayDisplayModes[key] ?? "both";
             if (mode === "first") return String(value[0] ?? "");
             if (mode === "second") return String(value[1] ?? "");
+            if (mode === "third") return String(value[2] ?? "");
             return value.map(String).join(" / ");
         }
         if (typeof value === 'object' && 'puja' in value)
@@ -273,6 +274,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             const mode = arrayDisplayModes[key] ?? "both";
             if (mode === "first") return <span>{String(value[0] ?? "—")}</span>;
             if (mode === "second") return <span>{String(value[1] ?? "—")}</span>;
+            if (mode === "third") return <span>{String(value[2] ?? "—")}</span>;
             // "both"
             return (
                 <div className="flex flex-col text-xs leading-tight">
@@ -380,11 +382,11 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
         );
 
     return (
-        <div className="w-full space-y-3 relative" ref={tableRef}>
+        <div className="w-full relative" ref={tableRef}>
 
             {/* ── Toolbar ──────────────────────────────────────────────────── */}
             <div className="flex items-center justify-between px-2 py-2 border-b border-gray-200 dark:border-zinc-700 flex-wrap gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
+                <ul className="flex items-center gap-2 flex-wrap">
                     <ViewTR
                         setShowColumnMenu={setShowColumnMenu}
                         column="toggle"
@@ -407,9 +409,9 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                             Deseleccionar todos <X size={12} className="text-red-500" />
                         </button>
                     )}
-                </div>
+                </ul>
 
-                <div className="flex items-center gap-2">
+                <ul className="flex items-center gap-2">
                     {/* Indicador de sort activo con botón para limpiar */}
                     {sortColumn && (
                         <span className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800">
@@ -427,7 +429,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
                     {/* Botón de exportar (solo cuando hay selección) */}
                     {selectedRows.size > 0 && (
-                        <div className="relative" ref={exportMenuRef}>
+                        <span className="relative" ref={exportMenuRef}>
                             <button
                                 onClick={() => setShowExportMenu(!showExportMenu)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium transition-colors"
@@ -464,15 +466,15 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                     </motion.div>
                                 )}
                             </AnimatePresence>
-                        </div>
+                        </span>
                     )}
-                </div>
+                </ul>
             </div>
 
             {/* ── Tabla ─────────────────────────────────────────────────────── */}
-            <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm rounded-lg overflow-hidden">
+            <section className="mt-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm rounded-lg">
                 <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full relative">
                         <thead className="bg-zinc-50 dark:bg-zinc-900">
                             <tr>
                                 {/* Checkbox global */}
@@ -488,26 +490,20 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                 {columns.map(column => visibleColumns[column] && (
                                     <th
                                         key={column}
-                                        className="relative px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider"
+                                        className="relative px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400"
                                     >
-                                        <div className="flex items-center gap-1">
-                                            {/*
-                                             * ── Sort directo en el encabezado ──────────────────────────
-                                             * Click en el nombre de columna → ordena ASC/DESC en el cliente.
-                                             * Si se pasa onSortChange, también notifica al padre para
-                                             * que re-fetchee desde el servidor con el nuevo ORDER BY.
-                                             */}
+                                        <div className="flex relative justify-between items-center gap-1">
                                             <button
                                                 onClick={() => toggleSort(column)}
                                                 className={cn(
-                                                    "flex items-center gap-0.5 hover:text-gray-900 dark:hover:text-white transition-colors rounded px-0.5",
+                                                    "flex items-center gap-0.5  min-w-25 hover:text-gray-900 dark:hover:text-white transition-colors rounded px-0.5",
                                                     sortColumn === column
                                                         ? "text-blue-600 dark:text-blue-400 font-semibold"
                                                         : "text-gray-500 dark:text-gray-400"
                                                 )}
                                                 title={`Ordenar por ${column}`}
                                             >
-                                                <span className="tracking-wider">
+                                                <span className="tracking-wider w-fit text-left">
                                                     {column.replace('Proveedor_', 'Prov. ')}
                                                 </span>
                                                 <SortIcon
@@ -517,7 +513,6 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                                 />
                                             </button>
 
-                                            {/* Toggle visibilidad */}
                                             <ViewTR
                                                 setShowColumnMenu={setShowColumnMenu}
                                                 column={column}
@@ -590,7 +585,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </section>
 
             {/* Pie */}
             <div className="text-xs text-gray-400 dark:text-gray-500 px-1">

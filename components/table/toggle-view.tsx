@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Eye, EyeOff, MoreVertical, Columns, SplitSquareHorizontal, AlignJustify } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useLayoutEffect } from "react";
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -10,7 +10,7 @@ import { useEffect, useRef } from "react";
  * - "second" → muestra solo el segundo elemento  (ej. "00020")
  * - "both"   → muestra ambos en dos líneas       (ej. "PEPE / 00020")
  */
-export type ArrayColumnDisplay = "first" | "second" | "both";
+export type ArrayColumnDisplay = "first" | "second" | "third" | "both";
 
 export interface ViewTRProps {
     setShowColumnMenu: (column: string | null) => void;
@@ -32,6 +32,7 @@ export interface ViewTRProps {
 const ARRAY_MODE_LABELS: Record<ArrayColumnDisplay, { label: string; icon: React.ReactNode }> = {
     first: { label: "Solo primero", icon: <AlignJustify className="h-3.5 w-3.5" /> },
     second: { label: "Solo segundo", icon: <AlignJustify className="h-3.5 w-3.5 opacity-50" /> },
+    third: { label: "Solo tercero", icon: <AlignJustify className="h-3.5 w-3.5 opacity-50" /> },
     both: { label: "Mostrar ambos", icon: <SplitSquareHorizontal className="h-3.5 w-3.5" /> },
 };
 
@@ -49,7 +50,11 @@ export function ViewTR({
     onArrayDisplayChange,
 }: ViewTRProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
 
+    // Cierra el menú al hacer clic fuera
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
@@ -60,20 +65,101 @@ export function ViewTR({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [setShowColumnMenu]);
 
-    // Columnas que están actualmente ocultas (solo para el botón global)
+    // Cierra el menú al redimensionar o hacer scroll (evita posiciones inválidas)
+    useEffect(() => {
+        if (showColumnMenu !== column) return;
+        const handleClose = () => setShowColumnMenu(null);
+        window.addEventListener("resize", handleClose);
+        window.addEventListener("scroll", handleClose);
+        return () => {
+            window.removeEventListener("resize", handleClose);
+            window.removeEventListener("scroll", handleClose);
+        };
+    }, [showColumnMenu, column, setShowColumnMenu]);
+
+    // Calcula la posición del menú cuando se abre
+    useLayoutEffect(() => {
+        if (showColumnMenu !== column) return;
+        if (!buttonRef.current || !wrapperRef.current) return;
+
+        // Esperar al siguiente frame para que el menú se haya renderizado y podamos medirlo
+        const frame = requestAnimationFrame(() => {
+            if (!menuRef.current) return;
+
+            const buttonRect = buttonRef.current!.getBoundingClientRect();
+            const wrapperRect = wrapperRef.current!.getBoundingClientRect();
+            const menuRect = menuRef.current!.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            // Posición relativa al wrapper
+            const relativeTop = buttonRect.top - wrapperRect.top;
+            const relativeBottom = wrapperRect.bottom - buttonRect.bottom;
+            const relativeLeft = buttonRect.left - wrapperRect.left;
+            const relativeRight = wrapperRect.right - buttonRect.right;
+
+            let top: number | undefined;
+            let bottom: number | undefined;
+            let left: number | undefined;
+            let right: number | undefined;
+
+            // ----- VERTICAL: decidir si abrir hacia arriba o hacia abajo -----
+            const spaceBelow = viewportHeight - buttonRect.bottom;
+            const spaceAbove = buttonRect.top;
+            const menuHeight = menuRect.height;
+
+            if (spaceBelow >= menuHeight + 8) {
+                // Abrir hacia abajo
+                top = relativeTop + buttonRect.height + 4;
+            } else if (spaceAbove >= menuHeight + 8) {
+                // Abrir hacia arriba
+                bottom = relativeBottom + buttonRect.height + 4;
+            } else {
+                // No cabe ni arriba ni abajo → forzar abajo (dejar que el usuario haga scroll)
+                top = relativeTop + buttonRect.height + 4;
+            }
+
+            // ----- HORIZONTAL: evitar que se salga por los bordes -----
+            const menuWidth = menuRect.width;
+            const wrapperLeftEdge = wrapperRect.left;
+            const wrapperRightEdge = wrapperRect.right;
+
+            if (allColumns) {
+                // Menú global: alineado a la izquierda por defecto
+                if (wrapperLeftEdge + menuWidth > viewportWidth) {
+                    // Sobresale por derecha → alinear a la derecha
+                    right = relativeRight;
+                } else {
+                    left = relativeLeft;
+                }
+            } else {
+                // Menú de columna: alineado a la derecha por defecto
+                if (wrapperRightEdge > viewportWidth) {
+                    // Sobresale por derecha → alinear a la izquierda
+                    left = relativeLeft;
+                } else {
+                    right = relativeRight;
+                }
+            }
+
+            setMenuStyle({ top, bottom, left, right });
+        });
+
+        return () => cancelAnimationFrame(frame);
+    }, [showColumnMenu, column, allColumns]);
+
+    // Columnas ocultas para el menú global
     const hiddenColumns = allColumns
         ? Object.entries(visibleColumns)
             .filter(([, visible]) => !visible)
             .map(([col]) => col)
         : [];
 
-    // Altura dinámica del menú global según cuántas columnas ocultas hay
-    const globalMenuHeight = 80 + hiddenColumns.length * 36;
-
     return (
-        <div ref={wrapperRef} className="relative flex items-center space-x-1 right-0">
+        <div ref={wrapperRef} className="right-2 top-2 flex items-center space-x-1">
             {/* Botón disparador */}
             <button
+                ref={buttonRef}
                 onClick={() => setShowColumnMenu(showColumnMenu === column ? null : column)}
                 className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-full transition-colors"
                 aria-label={allColumns ? "Gestionar columnas" : "Opciones de columna"}
@@ -86,16 +172,13 @@ export function ViewTR({
             <AnimatePresence>
                 {showColumnMenu === column && (
                     <motion.div
+                        ref={menuRef}
                         initial={{ opacity: 0, y: -8, scale: 0.97 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -8, scale: 0.97 }}
                         transition={{ duration: 0.15, ease: "easeOut" }}
-                        className={`absolute ${allColumns ? "left-0" : "right-0"} top-8 mt-1 bg-white dark:bg-zinc-800 rounded-lg shadow-xl z-50 ring-1 ring-black/10 dark:ring-zinc-600 overflow-hidden`}
-                        style={{
-                            minWidth: "14rem",
-                            // Ajuste dinámico solo para el menú global
-                            ...(allColumns ? { minHeight: `${globalMenuHeight}px` } : {}),
-                        }}
+                        className="absolute bg-white dark:bg-zinc-800 rounded-lg shadow-xl z-50 ring-1 ring-black/10 dark:ring-zinc-600 overflow-hidden overflow-y-auto"
+                        style={{ minWidth: "10rem", ...menuStyle }}
                     >
                         {/* ── Menú GLOBAL (allColumns) ────────────────────────── */}
                         {allColumns ? (
@@ -133,7 +216,7 @@ export function ViewTR({
 
                                 {/* ── Lista de columnas ocultas ──────────────── */}
                                 {hiddenColumns.length > 0 && (
-                                    <div className="py-1 right-0">
+                                    <div className="py-1">
                                         <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 select-none">
                                             Columnas ocultas ({hiddenColumns.length})
                                         </div>
