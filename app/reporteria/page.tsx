@@ -598,7 +598,41 @@ export default function Report() {
         },
         [buildFiltros, manager, showStats]
     );
+    const fetchStatsData = useCallback(
+        async (forceRefresh = false) => {
+            if (!showStats) return;
+            setStatsError(null);
+            setStatsLoading(true);
+            if (forceRefresh) setRefreshingStats(true);
 
+            const config = QUERY_CONFIGS[reportType];
+            const { filtrosAnd, filtrosOr } = buildFiltros(true);
+
+            const payload: RequestPayload = {
+                table: config.table,
+                filtros: {
+                    agregaciones: config.agregaciones,
+                    ...(filtrosAnd.length > 0 && { FiltrosAnd: filtrosAnd }),
+                    ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
+                },
+                page: 1,
+                pageSize: pageSize,
+            };
+
+            const { promise } = manager.execute(payload);
+            const response = await promise;
+            setStatsLoading(false);
+            setRefreshingStats(false);
+            if (response.error) {
+                if (response.error.name === "AbortError") return;
+                setStatsError(response.error.message || "Error al cargar estadísticas");
+            } else {
+                const processed = processStatsData(response.data?.data);
+                setStats(processed);
+            }
+        },
+        [reportType, buildFiltros, manager, showStats, fetchComparisonStats]
+    );
     // Cargar todo (tabla + estadísticas)
     const fetchCurrentReportData = useCallback(
         async () => {
@@ -611,6 +645,7 @@ export default function Report() {
     // Efecto principal: cuando cambian los filtros aplicados o la página, cargar datos
     useEffect(() => {
         setTableError(null);
+        fetchStatsData();
         fetchCurrentReportData();
         return () => {
             manager.cancelAll();

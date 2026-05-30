@@ -122,10 +122,6 @@ export class FilterBuilder {
           Value: CONFIG.STATUS.CONCLUIDO,
         });
       } else if (reportType === "comparacion") {
-        // Para comparación emitimos UN grupo por sub-tabla.
-        // El saneador de makePayload en page.tsx descarta los grupos cuyo alias
-        // no pertenece a la sub-query activa, de forma que cada consulta
-        // (ventas / compras / mermas) recibe solo sus propios filtros.
 
         // Grupo ventas
         const ventasFilters: any[] = [

@@ -273,7 +273,27 @@ export default function GestionPedidos() {
 
                 const pedidosProcesados: Pedido[] = response.data.map(parseListaData);
                 
-                const pedidosOrdenados = pedidosProcesados.sort(ordenarPedidos);
+                const pedidosOrdenados = pedidosProcesados.sort((a, b) => {
+                    const estadosActivos = ['nuevo', 'proceso', 'listo'];
+                    const esAActivo = estadosActivos.includes(a.estado);
+                    const esBActivo = estadosActivos.includes(b.estado);
+
+                    if (esAActivo && !esBActivo) return -1;
+                    if (!esAActivo && esBActivo) return 1;
+
+                    if (esAActivo && esBActivo) {
+                        const ordenUrgencia = { alta: 0, media: 1, baja: 2 };
+                        const urgenciaA = ordenUrgencia[a.urgencia || 'baja'];
+                        const urgenciaB = ordenUrgencia[b.urgencia || 'baja'];
+                        if (urgenciaA !== urgenciaB) return urgenciaA - urgenciaB;
+
+                        if (a.tiempo_restante !== b.tiempo_restante) {
+                            return (a.tiempo_restante || 9999) - (b.tiempo_restante || 9999);
+                        }
+                    }
+
+                    return new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime();
+                });
 
                 setPedidos(pedidosOrdenados);
 
