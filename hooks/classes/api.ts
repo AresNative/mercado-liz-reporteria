@@ -21,13 +21,8 @@ export interface RequestPayload {
   pageSize?: number;
   signal?: AbortSignal; // Se añade internamente
 }
+export type GetDataFunction = (args: any) => Promise<ApiResponse>;
 
- export type GetDataFunction = (args: any) => Promise<ApiResponse>;
-
-/**
- * Clase genérica para ejecutar cualquier tipo de consulta al endpoint getData.
- * Maneja automáticamente la cancelación de peticiones previas.
- */
 export class ManagmentRead {
   private readonly getData: GetDataFunction;
   private activeControllers: Map<string, AbortController> = new Map();
@@ -91,8 +86,8 @@ export class ManagmentRead {
   }
 }
 
-export function useManagmentRead(): ManagmentRead {
-  const [getData] = useGetWithFiltersIntelisisMutation();
+export function useManagmentRead(): [ManagmentRead, boolean] {
+  const [getData, { isLoading }] = useGetWithFiltersIntelisisMutation();
   const managerRef = useRef<ManagmentRead | null>(null);
 
   if (!managerRef.current) {
@@ -106,10 +101,10 @@ export function useManagmentRead(): ManagmentRead {
     };
   }, []);
 
-  return managerRef.current;
+  return [managerRef.current!, isLoading];
 }
-export function useManagmentSearch(): ManagmentRead {
-  const [getData] = useGetWithFiltersIntelisisMutation();
+export function useManagmentSearch(): [ManagmentRead, boolean] {
+  const [getData, { isLoading }] = useGetWithFiltersIntelisisMutation();
   const managerRef = useRef<ManagmentRead | null>(null);
 
   if (!managerRef.current) {
@@ -123,5 +118,5 @@ export function useManagmentSearch(): ManagmentRead {
     };
   }, []);
 
-  return managerRef.current;
+  return [managerRef.current!, isLoading];
 }

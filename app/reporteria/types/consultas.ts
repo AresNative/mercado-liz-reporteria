@@ -2,7 +2,8 @@ export type ReportType =
   | "ventas"
   | "compras"
   | "mermas"
-  | "inventario";
+  | "inventario"
+  | "comparacion";
 
 export interface StatsData {
   totalVentas?: number;
@@ -14,6 +15,7 @@ export interface StatsData {
   diferencia?: number;
   totalClientes?: number;
   totalProveedores?: number;
+  totalArticulosMerma?: number;
   utilidad?: number;
   margen?: number;
   promedio?: number;

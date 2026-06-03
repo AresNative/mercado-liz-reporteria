@@ -20,6 +20,7 @@ export const CONFIG: any = {
     VENTAS: "ventas",
     COMPRAS: "compras",
     MERMAS: "mermas",
+    COMPARACION: "comparacion",
   } as const,
 } as const;
 
@@ -158,7 +159,45 @@ export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
       prefix: "art.",
       table: "art",
     },
-  ]
+  ],
+  comparacion: [
+    {
+      key: "articulo",
+      label: "Artículo",
+      icon: Package,
+      color: "text-blue-500",
+      tableField: "Descripcion1",
+      prefix: "ART.",
+      table: "ART",
+    },
+    {
+      key: "categoria",
+      label: "Categoría",
+      icon: Filter,
+      color: "text-purple-500",
+      tableField: "Categoria",
+      prefix: "ART.",
+      table: "ART",
+    },
+    {
+      key: "fabricante",
+      label: "Fabricante",
+      icon: Building,
+      color: "text-red-500",
+      tableField: "Fabricante",
+      prefix: "ART.",
+      table: "ART",
+    },
+    {
+      key: "codigo",
+      label: "Código",
+      icon: DollarSign,
+      color: "text-yellow-500",
+      tableField: "Codigo",
+      prefix: "ventad.",
+      table: "cb",
+    },
+  ],
 };
 
 // Configuración de consultas por tipo de reporte
@@ -203,7 +242,7 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
       },
       { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
     ],
-    fechaField: "FechaEmision",
+    fechaField: "venta.FechaEmision",
     searchColumns: SEARCH_COLUMNS_CONFIG.ventas,
   },
   compras: {
@@ -244,11 +283,11 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
       { Key: "comprad.Costo", Alias: "minimoCosto", Operation: "MIN" },
       { Key: "comprad.Costo", Alias: "maximoCosto", Operation: "MAX" },
     ],
-    fechaField: "FechaEmision",
+    fechaField: "compra.FechaEmision",
     searchColumns: SEARCH_COLUMNS_CONFIG.compras,
   },
   mermas: {
-    table: `INV AS inv INNER JOIN INVD AS invd ON invd.ID = inv.ID AND inv.Mov = 'SALIDA DIVERSA' AND inv.Concepto = 'SALIDA POR MERMAS' INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
+    table: `INV AS inv INNER JOIN INVD AS invd ON invd.ID = inv.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
     selects: [
       { Key: "art.Articulo" },
       { Key: "art.Descripcion1", Alias: "Nombre" },
@@ -273,11 +312,11 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
       },
       { Key: "invd.Cantidad", Alias: "totalArticulos", Operation: "SUM" },
     ],
-    fechaField: "FechaEmision",
+    fechaField: "inv.FechaEmision",
     searchColumns: SEARCH_COLUMNS_CONFIG.mermas,
   },
   inventario: {
-    table: `INVD AS invd INNER JOIN inv AS inv ON inv.ID = invd.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
+    table: `INVD AS invd INNER JOIN inv AS inv ON inv.ID = invd.ID LEFT JOIN Art AS art ON art.Articulo = invd.Articulo`,
     selects: [
       { Key: "art.Articulo" },
       { Key: "art.Descripcion1", Alias: "Nombre" },
@@ -302,8 +341,53 @@ export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
       },
       { Key: "invd.Cantidad", Alias: "totalArticulos", Operation: "SUM" },
     ],
-    fechaField: "FechaEmision",
+    fechaField: "inv.FechaEmision",
     searchColumns: SEARCH_COLUMNS_CONFIG.inventario,
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // COMPARACION
+  // La tabla/selects sirven para la vista detallada (usa ventas como base).
+  // Las estadísticas se obtienen con COMPARISON_QUERY_CONFIGS (3 queries paralelas).
+  // ─────────────────────────────────────────────────────────────────────────────
+  comparacion: {
+    table: `VENTA AS venta INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID INNER JOIN ART AS ART ON ART.Articulo = ventad.Articulo LEFT JOIN Cte AS C ON venta.Cliente = C.Cliente`,
+    selects: [
+      { Key: "venta.FechaEmision" },
+      { Key: "ventad.Articulo" },
+      { Key: "ART.Descripcion1", Alias: "Nombre" },
+      { Key: "ART.Categoria" },
+      { Key: "ART.Grupo" },
+      { Key: "ART.Linea" },
+      { Key: "ART.Familia" },
+      { Key: "ART.Fabricante" },
+      { Key: "C.Nombre", Alias: "Cliente" },
+      { Key: "ventad.Almacen" },
+      { Key: "ventad.Cantidad" },
+      { Key: "ventad.Precio", Alias: "PrecioVenta" },
+      { Key: "ventad.Costo", Alias: "CostoVenta" },
+    ],
+    // Usadas solo como fallback; las stats reales vienen de COMPARISON_QUERY_CONFIGS
+    agregaciones: [
+      {
+        Key: "(ventad.Precio * ventad.Cantidad)",
+        Alias: "totalVentas",
+        Operation: "SUM",
+      },
+      {
+        Key: "(ventad.Costo * ventad.Cantidad)",
+        Alias: "totalCosto",
+        Operation: "SUM",
+      },
+      {
+        Key: "ventad.Articulo",
+        Alias: "totalArticulos",
+        Operation: "COUNT DISTINCT",
+      },
+      { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
+    ],
+    fechaField: "venta.FechaEmision",
+    searchColumns: SEARCH_COLUMNS_CONFIG.comparacion,
   },
 };
 
@@ -333,7 +417,7 @@ export const COMPARISON_QUERY_CONFIGS = {
         Operation: "COUNT DISTINCT",
       },
     ],
-    fechaField: "FechaEmision",
+    fechaField: "venta.FechaEmision",
   },
   compras: {
     table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON ART.Articulo = comprad.Articulo`,
@@ -354,10 +438,10 @@ export const COMPARISON_QUERY_CONFIGS = {
         Operation: "COUNT DISTINCT",
       },
     ],
-    fechaField: "FechaEmision",
+    fechaField: "compra.FechaEmision",
   },
   mermas: {
-    table: `INV AS inv INNER JOIN INVD AS invd ON invd.ID = inv.ID AND inv.Mov = 'SALIDA DIVERSA' AND inv.Concepto = 'SALIDA POR MERMAS' INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
+    table: `INV AS inv INNER JOIN INVD AS invd ON invd.ID = inv.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
     agregaciones: [
       {
         Key: "(invd.Costo * invd.Cantidad)",
@@ -370,7 +454,7 @@ export const COMPARISON_QUERY_CONFIGS = {
         Operation: "COUNT DISTINCT",
       },
     ],
-    fechaField: "FechaEmision",
+    fechaField: "inv.FechaEmision",
   },
 } as const;
 
