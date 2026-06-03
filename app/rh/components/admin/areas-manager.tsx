@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { useGetWithFiltersGeneralInIntelisisMutation } from "@/hooks/api/api_int";
+import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
 
 interface Area {
     Departamento: string;
@@ -18,7 +18,7 @@ const AreasManager = () => {
     const [hasMore, setHasMore] = useState(true);
 
     const [getWithFilter] =
-        useGetWithFiltersGeneralInIntelisisMutation();
+        useGetWithFiltersIntelisisMutation();
 
     const loadAreas = async () => {
         try {
