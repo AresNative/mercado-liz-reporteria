@@ -6,14 +6,18 @@ import {
     Pencil,
     Trash2,
     Plus,
+    Link,
+    Blocks,
+    Type,
 } from "lucide-react";
 import { useAppDispatch } from "@/hooks/selector";
+import { Modal } from "@/components/modal";
+import { MainForm } from "@/components/form/main-form";
+import { openModalReducer } from "@/hooks/reducers/drop-down";
 
 const PageVideos = () => {
     const dispatch = useAppDispatch();
-
     const [loading, setLoading] = useState(false);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const handleRefresh = async () => {
         try {
@@ -48,14 +52,18 @@ const PageVideos = () => {
                         <RefreshCw
                             className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
                         />
-
                         Recargar
                     </button>
                     <select className="px-4 py-2 rounded-lg border bg-white dark:bg-gray-800">
                         <option>Todas las áreas</option>
                     </select>
                     <button
-                        onClick={() => setIsDialogOpen(true)}
+                        onClick={() =>
+                            dispatch(
+                                openModalReducer({
+                                    modalName: "modalVideosCuestionarios",
+                                })
+                            )}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white"
                     >
                         <Plus className="w-4 h-4" />
@@ -65,23 +73,21 @@ const PageVideos = () => {
             </div>
 
             {/* CONTENIDO */}
-            <div className="rounded-2xl border bg-white dark:bg-gray-900 p-6 min-h-[400px]">
+            <div className="rounded-2xl border border-gray-300 bg-white dark:bg-gray-900 p-6 min-h-[400px]">
                 <div className="space-y-3">
                     {[1, 2, 3].map((item) => (
                         <div
                             key={item}
-                            className="flex items-center justify-between p-4 rounded-xl border bg-gray-50 dark:bg-gray-800"
+                            className="flex items-center justify-between p-4 rounded-xl border border-gray-300 bg-gray-50 dark:bg-gray-800"
                         >
                             <div className="flex items-center gap-3">
                                 <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-gray-700 flex items-center justify-center">
                                     <Video className="w-5 h-5" />
                                 </div>
-
                                 <div>
                                     <h3 className="font-semibold text-gray-800 dark:text-gray-200">
                                         Nombre del video
                                     </h3>
-
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
                                         Área asociada - Orden: 1
                                     </p>
@@ -91,7 +97,6 @@ const PageVideos = () => {
                                 <button className="p-2 rounded-lg border hover:bg-gray-100 dark:hover:bg-gray-700">
                                     <Pencil className="w-4 h-4" />
                                 </button>
-
                                 <button className="p-2 rounded-lg border text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
                                     <Trash2 className="w-4 h-4" />
                                 </button>
@@ -101,92 +106,65 @@ const PageVideos = () => {
                 </div>
             </div>
 
-            {/* MODAL */}
-            {isDialogOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
-                    <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-900 p-6">
-                        <div className="mb-6">
-                            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">
-                                Nuevo Video
-                            </h2>
 
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Agrega un nuevo video de capacitación
-                            </p>
-                        </div>
+            {/* En proceso de cambio de modal para componentes reutilizables con modal y mainForm */}
+            <Modal title="" modalName="modalVideosCuestionarios" maxWidth="xl">
+                <div className="px-4 py-2">
+                    <div className="mb-4">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                            Nuevo Video
+                        </h2>
+                        <p className="text-gray-500 dark:text-gray-400 mt-2">
+                            Agrega un nuevo video de capacitación
+                        </p>
+                    </div>
 
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-2">
-                                    Título
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="Título del video"
-                                    className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-800"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-2">
-                                    Descripción
-                                </label>
-                                <textarea
-                                    placeholder="Descripción del contenido"
-                                    rows={3}
-                                    className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-800"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-2">
-                                    URL del Video
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="https://youtube.com/embed/..."
-                                    className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-800"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Usa el formato embed de YouTube
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">
-                                        Área
-                                    </label>
-                                    <select className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-800">
-                                        <option>Selecciona un área</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">
-                                        Orden
-                                    </label>
-                                    <input
-                                        type="number"
-                                        placeholder="1"
-                                        className="w-full rounded-lg border px-3 py-2 bg-white dark:bg-gray-800"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-2 mt-6">
-                            <button
-                                onClick={() => setIsDialogOpen(false)}
-                                className="px-4 py-2 rounded-lg border"
-                            >
-                                Cancelar
-                            </button>
-                            <button className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white">
-                                Crear Video
-                            </button>
-                        </div>
+                    {/* FORMULARIO */}
+                    <div className="space-y-6">
+                        <MainForm
+                            table="videos"
+                            dataForm={[
+                                {
+                                    require: true,
+                                    type: "INPUT",
+                                    label: "Titulo",
+                                    name: "titulo",
+                                    icon: <Type className="w-4 h-4" />,
+                                    placeholder: "Ej: Introducción a la seguridad laboral"
+                                },
+                                {
+                                    require: false,
+                                    type: "INPUT",
+                                    label: "Descripción",
+                                    name: "descripcion",
+                                    icon: <Pencil className="w-4 h-4" />,
+                                    placeholder: "Ej: Este video cubre los conceptos básicos de seguridad laboral en el lugar de trabajo."
+                                },
+                                {
+                                    require: true,
+                                    type: "INPUT",
+                                    label: "URL del Video (YouTube Embed)",
+                                    name: "link",
+                                    icon: <Link className="w-4 h-4" />,
+                                    placeholder: "Ej: https://www.youtube.com/embed/VIDEO_ID"
+                                },
+                                //Selects para areas y departamentos 
+                                /*  {
+                                     require: true,
+                                     type: "INPUT",
+                                     label: "Area",
+                                     name: "area.id",
+                                     icon: <Blocks className="w-4 h-4" />,
+                                     placeholder: "Ej: Seguridad Laboral"
+                                 } */
+                            ]}
+                            aditionalData={{ fecha: new Date() }}
+                            actionType="post-general"
+                            message_button="Crear Video"
+                        />
                     </div>
                 </div>
-            )}
+            </Modal>
         </>
     );
 };

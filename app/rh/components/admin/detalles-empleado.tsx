@@ -1,8 +1,7 @@
 "use client";
 
-import {
-    User, Mail, Phone, MapPin, Calendar, Briefcase, Building,
-    DollarSign, FileText, BadgeCheck, Download, Hash,
+import {User, Mail, Phone, MapPin, Calendar, Briefcase, Building,
+    DollarSign, FileText, BadgeCheck, Download, Hash, 
 } from "lucide-react";
 import { useAppSelector } from "@/hooks/selector";
 import { closeModalReducer } from "@/hooks/reducers/drop-down";

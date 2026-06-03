@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Trash2, Shield, User, RefreshCw } from "lucide-react";
+import { Pencil, Trash2, Shield, User, RefreshCw, Eye } from "lucide-react";
 import { useAppDispatch } from "@/hooks/selector";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
-
 import { Modal } from "@/components/modal";
 import { ModalDetallesEmpleado } from "./detalles-empleado";
 import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
@@ -24,11 +23,19 @@ const EmployeesManager = () => {
 
     const [loading, setLoading] = useState(false);
     const [employees, setEmployees] = useState<Empleado[]>([]);
-    const [selectedEmpleado, setSelectedEmpleado] = useState<Empleado | null>(null);
+    const [selectedEmpleado, setSelectedEmpleado] =
+        useState<Empleado | null>(null);
 
+    // SUCURSAL
     const [sucursal, setSucursal] = useState("sucursales");
 
-    const [getWithFilter] = useGetWithFiltersIntelisisMutation();
+    // PAGINACIÓN
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [hasMore, setHasMore] = useState(true);
+
+    const [getWithFilter] =
+        useGetWithFiltersIntelisisMutation();
 
     const loadEmployees = async () => {
         try {
@@ -36,16 +43,27 @@ const EmployeesManager = () => {
 
             const response = await getWithFilter({
                 table: "personal",
-                pageSize: "1000",
-                page: 1,
+                page: currentPage,
+                pageSize: pageSize,
                 filtros: {
-                    Filtros: [{
-                        Key: "Estatus",
-                        Operator: '=',
-                        Value: "alta"
-                    }
+                    Filtros: [
+                        {
+                            Key: "Estatus",
+                            Operator: "=",
+                            Value: "alta",
+                        },
 
+                        ...(sucursal !== "sucursales"
+                            ? [
+                                {
+                                    Key: "SucursalTrabajo",
+                                    Operator: "=",
+                                    Value: sucursal,
+                                },
+                            ]
+                            : []),
                     ],
+
                     FiltrosAnd: [],
                     Selects: [],
                     Order: [],
@@ -53,7 +71,9 @@ const EmployeesManager = () => {
             });
 
             if ("data" in response) {
-                setEmployees(response.data.data || []);
+                const data = response.data.data || [];
+                setEmployees(data);
+                setHasMore(data.length === pageSize);
             }
         } catch (error) {
             console.error(error);
@@ -80,18 +100,12 @@ const EmployeesManager = () => {
         e: React.ChangeEvent<HTMLSelectElement>
     ) => {
         setSucursal(e.target.value);
+        setCurrentPage(1);
     };
-
-    const empleadosFiltrados =
-        sucursal === "sucursales"
-            ? employees
-            : employees.filter((employee) =>
-                employee.SucursalTrabajo?.toString() === sucursal
-            );
 
     useEffect(() => {
         loadEmployees();
-    }, []);
+    }, [pageSize, currentPage, sucursal]);
 
     return (
         <>
@@ -113,85 +127,115 @@ const EmployeesManager = () => {
                         disabled={loading}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-600"
                     >
-                        <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                        <RefreshCw
+                            className={`w-4 h-4 ${loading ? "animate-spin" : ""
+                                }`}
+                        />
                         Recargar
                     </button>
 
+                    {/* SUCURSAL */}
                     <select
                         value={sucursal}
                         onChange={handleSucursalChange}
-                        className="border border-gray-300 rounded-lg px-3 py-2.5 dark:bg-gray-700 dark:border-gray-600 text-base">
+                        className="border border-gray-300 rounded-lg px-3 py-2.5 dark:bg-gray-700 dark:border-gray-600 text-base"
+                    >
                         <option value="sucursales">Todas las Sucursales </option>
-                        <option value="0"> Administracion</option>
-                        <option value="1">Valle de guadalupe </option>
-                        <option value="3">Palmas</option>
+                        <option value="0">Administracion </option>
+                        <option value="1"> Valle de Guadalupe</option>
                         <option value="2">Testerazo</option>
-                        <option value="4">Mayoreo</option>
+                        <option value="3"> Palmas </option>
+                        <option value="4"> Mayoreo</option>
                     </select>
                 </div>
             </div>
 
             {/* LISTADO */}
-            <div className="rounded-2xl border bg-white dark:bg-gray-900 p-6">
+            <div className="rounded-2xl border border-gray-300 bg-white dark:bg-gray-900 p-6">
                 {loading ? (
                     <div className="py-10 text-center text-gray-500">
                         Cargando empleados...
                     </div>
-                ) : empleadosFiltrados.length === 0 ? (
+                ) : employees.length === 0 ? (
                     <div className="py-10 text-center text-gray-500">
                         No hay empleados registrados
                     </div>
                 ) : (
-                    <div className="space-y-3">
-                        {empleadosFiltrados.map((employee) => (
-                            <div
-                                key={employee.Personal}
-                                onClick={() =>
-                                    handleOpenEmployee(employee)
-                                }
-                                className="flex items-center justify-between p-4 rounded-xl border bg-gray-50 dark:bg-gray-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-yellow-100 dark:bg-gray-700 flex items-center justify-center">
-                                        {employee.Puesto?.toLowerCase().includes(
-                                            "admin"
-                                        ) ? (
-                                            <Shield className="w-5 h-5" />
-                                        ) : (
-                                            <User className="w-5 h-5" />
+                    <>
+                        <div className="space-y-3">
+                            {employees.map((employee) => (
+                                <div
+                                    key={employee.Personal}
+                                    onClick={() =>
+                                        handleOpenEmployee(employee)
+                                    }
+                                    className="flex items-center justify-between p-4 rounded-xl border border-gray-300 bg-gray-50 dark:bg-gray-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-full bg-yellow-100 dark:bg-gray-700 flex items-center justify-center">
+                                            {employee.Puesto?.toLowerCase().includes(
+                                                "admin"
+                                            ) ? (
+                                                <Shield className="w-5 h-5" />
+                                            ) : (
+                                                <User className="w-5 h-5" />
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+                                                {employee.Nombre}{" "}
+                                                {employee.ApellidoPaterno}
+                                            </h3>
+
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                #{employee.Personal} -{" "}
+                                                {employee.Departamento}{" "}
+                                                - {employee.Puesto} -{" "}
+                                                {employee.SucursalTrabajo}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <button className="p-2 rounded-lg  border border-gray-300 hover:bg-purple-200 dark:hover:bg-gray-100">
+                                            <Eye className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* PAGINACIÓN */}
+
+                        <div className="mt-4 flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+                            <span>Página {currentPage}</span>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() =>
+                                        setCurrentPage((p) =>
+                                            Math.max(p - 1, 1)
                                         )}
-                                    </div>
-
-                                    <div>
-                                        <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-                                            {employee.Nombre}{" "}
-                                            {employee.ApellidoPaterno}
-                                        </h3>
-
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            #{employee.Personal} -{" "}
-                                            {employee.Departamento} -{" "}
-                                            {employee.Puesto} -{" "}
-                                            {employee.SucursalTrabajo}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <button className="p-2 rounded-lg border hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <Pencil className="w-4 h-4" />
-                                    </button>
-
-                                    <button className="p-2 rounded-lg border text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Anterior
+                                </button>
+                                <button
+                                    onClick={() =>
+                                        setCurrentPage((p) => p + 1)
+                                    }
+                                    disabled={!hasMore}
+                                    className="px-3 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Siguiente
+                                </button>
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    </>
                 )}
             </div>
-
+            {/* MODAL */}
             <Modal
                 modalName="detalles-empleado"
                 title="Detalles del Empleado"

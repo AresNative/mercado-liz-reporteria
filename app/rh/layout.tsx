@@ -7,7 +7,7 @@ const USER_ROLE_KEY = "user-role";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
     // Función para obtener el rol del usuario
-    const getUserRole = () => {
+    const getUserRole = () => {  
         // 1. Intentar obtener de las cookies
         const roleFromCookie = getCookieinPage(USER_ROLE_KEY);
         if (roleFromCookie) {

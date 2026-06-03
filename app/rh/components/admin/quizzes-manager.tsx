@@ -49,12 +49,12 @@ const PageQuizzes = () => {
             </div>
 
             {/* CONTENIDO */}
-            <div className="rounded-2xl border bg-white dark:bg-gray-900 p-6 min-h-[400px]">
+            <div className="rounded-2xl border border-gray-300 bg-white dark:bg-gray-900 p-6 min-h-[400px]">
                 <div className="space-y-3">
                     {[1, 2, 3].map((item) => (
                         <div
                             key={item}
-                            className="flex items-center justify-between p-4 rounded-xl border bg-gray-50 dark:bg-gray-800"
+                            className="flex items-center justify-between p-4 rounded-xl border border-gray-300 bg-gray-50 dark:bg-gray-800"
                         >
                             <div className="flex items-center gap-3">
                                 <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-gray-700 flex items-center justify-center">
@@ -82,7 +82,7 @@ const PageQuizzes = () => {
                 </div>
             </div>
 
-            {/* MODAL QUIZ */}
+            {/* Cambiar al componente modal reutilizable */}
             {isDialogOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
                     <div className="w-full max-w-3xl rounded-2xl bg-white dark:bg-gray-900 p-6">
@@ -127,7 +127,7 @@ const PageQuizzes = () => {
                                 </select>
                             </div>
 
-                            {/* PREGUNTAS */}
+                            {/* Cambiar al componente modal reutilizable de preguntas abre dentro del otro modal */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-medium">
@@ -185,7 +185,7 @@ const PageQuizzes = () => {
                 </div>
             )}
 
-            {/* MODAL PREGUNTA */}
+            {/* Cambiar al componente modal reutilizable para preguntas */}
             {isQuestionDialogOpen && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
                     <div className="w-full max-w-xl rounded-2xl bg-white dark:bg-gray-900 p-6">
