@@ -25,7 +25,12 @@ const EmployeesManager = () => {
     const [employees, setEmployees] = useState<Empleado[]>([]);
     const [selectedEmpleado, setSelectedEmpleado] =
         useState<Empleado | null>(null);
-
+/* 
+! hay que cambiar el compoente de paginacion por  Pagination de 'components\pagination\index.tsx' se volio a crear un componente ya existente
+! la seccion de 'SUCURSAL' deberia de aplicarse desde un main-form 'components\form\main-form.tsx' para poder aplicar diversos filtros
+! no es necesario aplicar employees.map si utilizas el componente DynamicTable 'components\table\index.tsx' que ya tiene la estructura de tabla y paginacion integrada, solo hay que pasarle los datos y configuraciones necesarias
+! de no querer usar DynamicTable usa Card 'components\card\index.tsx' o BentoGrid 'components\bento-grid\index.tsx' para mostrar mejor estructurada la pantalla y la informacion
+*/
     // SUCURSAL
     const [sucursal, setSucursal] = useState("sucursales");
 
