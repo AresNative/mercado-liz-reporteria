@@ -9,7 +9,7 @@ import { TableData } from "../reporteria/page";
 import Pagination from "@/components/pagination";
 
 const pageRedes = () => {
-    const manager = useManagmentRead();
+    const [manager] = useManagmentRead();
 
     const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)

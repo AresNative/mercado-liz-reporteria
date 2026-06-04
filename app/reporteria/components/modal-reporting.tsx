@@ -449,7 +449,7 @@ const DateRangePicker = ({ value, onChange, onApply, loading }: {
 export const ModalReporting = ({ open, reportType }: { open: boolean; reportType: ReportType }) => {
     if (!open) return null;
 
-    const manager = useManagmentRead();
+    const [manager] = useManagmentRead();
 
     const [dateRange, setDateRange] = useState<DateRange>({
         from: new Date(new Date().setDate(new Date().getDate() - 30)),

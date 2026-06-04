@@ -200,7 +200,7 @@ const DateRangePicker = ({ value, onChange, onApply, loading, extraActions }: {
 const ScoreCard = ({ open }: { open: boolean }) => {
     if (!open) return null;
 
-    const manager = useManagmentRead();
+    const [manager] = useManagmentRead();
     const controllersRef = useRef<Map<string, AbortController>>(new Map());
 
     // Estado de comparación de períodos (usa strings YYYY-MM-DD directamente,
