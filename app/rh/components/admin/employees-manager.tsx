@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Trash2, Shield, User, RefreshCw, Eye } from "lucide-react";
+import { Shield, User, RefreshCw, Eye } from "lucide-react";
 import { useAppDispatch } from "@/hooks/selector";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
 import { Modal } from "@/components/modal";
 import { ModalDetallesEmpleado } from "./detalles-empleado";
 import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
+import Pagination from "@/components/pagination";
 
 interface Empleado {
     Nombre: string;
@@ -25,19 +26,20 @@ const EmployeesManager = () => {
     const [employees, setEmployees] = useState<Empleado[]>([]);
     const [selectedEmpleado, setSelectedEmpleado] =
         useState<Empleado | null>(null);
-/* 
-! hay que cambiar el compoente de paginacion por  Pagination de 'components\pagination\index.tsx' se volio a crear un componente ya existente
-! la seccion de 'SUCURSAL' deberia de aplicarse desde un main-form 'components\form\main-form.tsx' para poder aplicar diversos filtros
-! no es necesario aplicar employees.map si utilizas el componente DynamicTable 'components\table\index.tsx' que ya tiene la estructura de tabla y paginacion integrada, solo hay que pasarle los datos y configuraciones necesarias
-! de no querer usar DynamicTable usa Card 'components\card\index.tsx' o BentoGrid 'components\bento-grid\index.tsx' para mostrar mejor estructurada la pantalla y la informacion
-*/
+    /* 
+    ! hay que cambiar el compoente de paginacion por  Pagination de 'components\pagination\index.tsx' se volio a crear un componente ya existente
+    ! la seccion de 'SUCURSAL' deberia de aplicarse desde un main-form 'components\form\main-form.tsx' para poder aplicar diversos filtros
+    ! no es necesario aplicar employees.map si utilizas el componente DynamicTable 'components\table\index.tsx' que ya tiene la estructura de tabla y paginacion integrada, solo hay que pasarle los datos y configuraciones necesarias
+    ! de no querer usar DynamicTable usa Card 'components\card\index.tsx' o BentoGrid 'components\bento-grid\index.tsx' para mostrar mejor estructurada la pantalla y la informacion
+    */
     // SUCURSAL
     const [sucursal, setSucursal] = useState("sucursales");
 
     // PAGINACIÓN
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [hasMore, setHasMore] = useState(true);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
 
     const [getWithFilter] =
         useGetWithFiltersIntelisisMutation();
@@ -45,7 +47,6 @@ const EmployeesManager = () => {
     const loadEmployees = async () => {
         try {
             setLoading(true);
-
             const response = await getWithFilter({
                 table: "personal",
                 page: currentPage,
@@ -57,7 +58,6 @@ const EmployeesManager = () => {
                             Operator: "=",
                             Value: "alta",
                         },
-
                         ...(sucursal !== "sucursales"
                             ? [
                                 {
@@ -68,7 +68,6 @@ const EmployeesManager = () => {
                             ]
                             : []),
                     ],
-
                     FiltrosAnd: [],
                     Selects: [],
                     Order: [],
@@ -78,7 +77,8 @@ const EmployeesManager = () => {
             if ("data" in response) {
                 const data = response.data.data || [];
                 setEmployees(data);
-                setHasMore(data.length === pageSize);
+                setTotalPages(response.data.totalPages || 1);
+                setTotalItems(response.data.totalItems || 0);
             }
         } catch (error) {
             console.error(error);
@@ -213,29 +213,20 @@ const EmployeesManager = () => {
 
                         {/* PAGINACIÓN */}
 
-                        <div className="mt-4 flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-                            <span>Página {currentPage}</span>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() =>
-                                        setCurrentPage((p) =>
-                                            Math.max(p - 1, 1)
-                                        )}
-                                    disabled={currentPage === 1}
-                                    className="px-3 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Anterior
-                                </button>
-                                <button
-                                    onClick={() =>
-                                        setCurrentPage((p) => p + 1)
-                                    }
-                                    disabled={!hasMore}
-                                    className="px-3 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Siguiente
-                                </button>
-                            </div>
+                        <div className="mt-6">
+                            <Pagination
+                                currentPage={currentPage}
+                                loading={loading}
+                                setCurrentPage={setCurrentPage}
+                                totalPages={totalPages}
+                                totalItems={totalItems}
+                                itemsPerPage={pageSize}
+                                currentPageSize={pageSize}
+                                onPageSizeChange={(newPageSize) => {
+                                    setPageSize(newPageSize);
+                                    setCurrentPage(1);
+                                }}
+                            />
                         </div>
                     </>
                 )}

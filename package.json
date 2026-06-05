@@ -19,7 +19,7 @@
     "firebase": "^12.7.0",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
-    "libphonenumber-js": "^1.12.40",
+    "libphonenumber-js": "^1.13.5",
     "lucide-react": "^0.562.0",
     "motion": "^12.34.1",
     "next": "16.1.1",

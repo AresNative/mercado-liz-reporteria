@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
 import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
+import Pagination from "@/components/pagination";
 
 interface Area {
     Departamento: string;
@@ -15,7 +15,8 @@ const AreasManager = () => {
     // PAGINACIÓN
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [hasMore, setHasMore] = useState(true);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
 
     const [getWithFilter] =
         useGetWithFiltersIntelisisMutation();
@@ -48,11 +49,12 @@ const AreasManager = () => {
                         )
                     ).values()
                 );
-
                 setAreas(uniqueAreas);
-                setHasMore(
-                    (response.data.data || []).length ===
-                    pageSize
+                setTotalPages(
+                    response.data.totalPages || 1
+                );
+                setTotalItems(
+                    response.data.totalRecords || 0
                 );
             }
         } catch (error) {
@@ -75,7 +77,7 @@ const AreasManager = () => {
                     </h1>
 
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Solo estaran disponibles las areas
+                        Solo estarán disponibles las áreas
                         con cuestionarios activos
                     </p>
                 </div>
@@ -102,45 +104,48 @@ const AreasManager = () => {
                                                 Áreas con cuestionarios activos
                                             </p>
                                         </div>
-
-
                                     </div>
                                 ))}
 
                                 {/* PAGINACIÓN */}
-                                <div className="mt-4 flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-                                    <span>
-
-                                    </span>
-                                    <div className="flex gap-2">
-                                         <button
-                                            onClick={() =>
-                                                setCurrentPage(
-                                                    (p) => Math.max(p - 1, 1)
-                                                )}
-                                            disabled={currentPage === 1}
-                                            className="px-3 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Anterior
-                                        </button>
-                                        <span>
-                                            Página  {currentPage}
-                                        </span>
-                                        <button
-                                            onClick={() =>
-                                                setCurrentPage(
-                                                    (p) => p + 1
-                                                )}
-                                            disabled={!hasMore}
-                                            className="px-3 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Siguiente
-                                        </button>
-                                    </div>
+                                <div className="mt-6">
+                                    <Pagination
+                                        currentPage={
+                                            currentPage
+                                        }
+                                        loading={loading}
+                                        setCurrentPage={
+                                            setCurrentPage
+                                        }
+                                        totalPages={
+                                            totalPages
+                                        }
+                                        totalItems={
+                                            totalItems
+                                        }
+                                        itemsPerPage={
+                                            pageSize
+                                        }
+                                        currentPageSize={
+                                            pageSize
+                                        }
+                                        onPageSizeChange={(
+                                            newPageSize
+                                        ) => {
+                                            setPageSize(
+                                                newPageSize
+                                            );
+                                            setCurrentPage(
+                                                1
+                                            );
+                                        }}
+                                    />
                                 </div>
                             </>
                         ) : (
-                            <p>No hay áreas disponibles</p>
+                            <p>
+                                No hay áreas disponibles
+                            </p>
                         )}
                     </div>
                 </div>
