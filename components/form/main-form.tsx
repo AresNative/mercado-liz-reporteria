@@ -18,7 +18,7 @@ import { CheckboxComponent as Checkbox } from "./checkbox";
 import { CheckboxGroupComponent as CheckboxGroup } from "./checkbox-group";
 
 import { CalendarComponent as Calendar } from "./calendar";
-import { DateRangeComponent as DateRange } from "./date-range";
+import { DateRangeComponent as DateRange } from "./date";
 
 import { Rating } from "./rating";
 

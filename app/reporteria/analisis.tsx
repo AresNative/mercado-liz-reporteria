@@ -4,7 +4,6 @@ import Footer from "@/template/footer";
 import Header from "@/template/header";
 import { StatsData } from "./types/consultas";
 import { RequestPayload, useManagmentRead, useManagmentSearch } from "@/hooks/classes/api";
-import { useAppDispatch } from "@/hooks/selector";
 import {
     useCallback,
     useEffect,
@@ -12,9 +11,7 @@ import {
     useReducer,
     useRef,
     useState,
-    useTransition,
     useDeferredValue,
-    useId,
 } from "react";
 import { CONFIG } from "./utils/config-constants";
 import DynamicTable from "@/components/table";
@@ -22,7 +19,6 @@ import Pagination from "@/components/pagination";
 import { BentoGrid, BentoItem } from "@/components/bento-grid";
 import { formatDateDisplay, formatValue } from "@/utils/constants/format-values";
 import {
-    DollarSign,
     RefreshCw,
     Building,
     Loader2,
@@ -31,27 +27,20 @@ import {
     Zap,
     Calendar,
     ChevronDown,
-    AlertCircle,
-    GitCompare,
     Eye,
     EyeOff,
     Package,
-    TrendingUp,
-    Ticket,
-    ShoppingCart,
     Truck,
-    Landmark,
 } from "lucide-react";
 import { SearchColumn } from "./types/config";
 import { v4 as uuidv4 } from "uuid";
 import { FilterGroup, FilterRule } from "@/utils/types/consultas";
 import { AppliedFilters, DateRange } from "./types/filter";
-import { FilterBuilder } from "./utils/filter-class";
 import { DATE_PERIODS, OPERATORS } from "./utils/consultas-constants";
 import { Button } from "@/components/button";
-import { SortRule } from "./page";
 import { usePedidosSignalR } from "../pick-up/utils/singalr-pedidos";
 import { safeCall, useDebounce } from "@/hooks/use-debounce";
+import MainForm from "@/components/form/main-form";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type REPORT =
@@ -139,24 +128,25 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
         filtros: {
             selects: [
                 { Key: "ventad.Codigo" },
-                { Key: "ventad.Articulo" },
+                { Key: "ventad.Articulo", Alias: "Articulo" },
                 { Key: "ART.Descripcion1", Alias: "Nombre" },
+                { Key: "venta.FechaEmision" },
+                { Key: "ventad.Almacen" },
                 { Key: "ART.Categoria" },
                 { Key: "ART.Grupo" },
-                { Key: "ventad.Cantidad" },
-                { Key: "ventad.Unidad" },
-                { Key: "ventad.Factor" },
+                { Key: "ART.Familia" },
                 { Key: "ventad.Precio", Alias: "Precio unitario" },
                 { Key: "ventad.Costo", Alias: "Costo unitario" },
-                { Key: "ventad.Almacen" },
-                { Key: "venta.FechaEmision" },
+                { Key: "ventad.Unidad",Alias:"Unidad" },
+                { Key: "ventad.Factor",Alias:"Factor" },
             ],
             agregaciones: [
-                { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
-                { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
-                { Key: "(ventad.Cantidad * ART.Factor)", Alias: "ArticulosVendidos", Operation: "SUM" },
-                { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT DISTINCT" },
-                { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
+                { Key: "ventad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
+                { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Cantidad Total", Operation: "SUM" },
+                { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "Total Ventas", Operation: "SUM" },
+                { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
+                { Key: "venta.Cliente", Alias: "Total Clientes", Operation: "COUNT DISTINCT" },
+                { Key: "venta.ID", Alias: "Total Tikets", Operation: "COUNT DISTINCT" },
             ],
             Filtros: [
                 { Key: "venta.Estatus", Operator: "IN", Value: "CONCLUIDO,PROCESAR" },
@@ -171,25 +161,25 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "CB.Codigo" },
                 { Key: "P.Nombre", Alias: "Proveedor" },
                 { Key: "ART.Fabricante" },
-                { Key: "comprad.Articulo" },
+                { Key: "comprad.Articulo", Alias: "Articulo" },
                 { Key: "ART.Descripcion1", Alias: "Nombre" },
+                { Key: "compra.FechaEmision" },
+                { Key: "comprad.Almacen" },
                 { Key: "ART.Categoria" },
                 { Key: "ART.Grupo" },
-                { Key: "comprad.Cantidad" },
+                { Key: "ART.Familia" },
                 { Key: "comprad.Unidad" },
                 { Key: "comprad.Factor" },
-                { Key: "comprad.CantidadInventario" },
                 { Key: "comprad.DescuentoLinea", Alias: "Descuento" },
-                { Key: "comprad.Costo", Alias: "CostoUnitario" },
-                { Key: "comprad.Almacen" },
-                { Key: "compra.FechaEmision" },
+                { Key: "comprad.Costo", Alias: "Costo Unitario" },
             ],
             agregaciones: [
-                { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "totalCompras", Operation: "SUM" },
-                { Key: "comprad.CantidadInventario", Alias: "ArticulosComprados", Operation: "SUM" },
-                { Key: "compra.Proveedor", Alias: "totalProveedores", Operation: "COUNT DISTINCT" },
-                { Key: "comprad.Costo", Alias: "minimoCosto", Operation: "MIN" },
-                { Key: "comprad.Costo", Alias: "maximoCosto", Operation: "MAX" },
+                { Key: "comprad.Costo", Alias: "Minimo Costo", Operation: "MIN" },
+                { Key: "comprad.Costo", Alias: "Maximo Costo", Operation: "MAX" },
+                { Key: "comprad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
+                { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "Total Compras", Operation: "SUM" },
+                { Key: "comprad.CantidadInventario", Alias: "Articulos Comprados", Operation: "SUM" },
+                { Key: "compra.Proveedor", Alias: "Total Proveedores", Operation: "COUNT DISTINCT" },
             ],
             Filtros: [
                 { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
@@ -203,22 +193,19 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             selects: [
                 { Key: "art.Articulo" },
                 { Key: "art.Descripcion1", Alias: "Nombre" },
+                { Key: "inv.FechaEmision" },
+                { Key: "inv.Sucursal" },
                 { Key: "art.Categoria" },
                 { Key: "art.Grupo" },
                 { Key: "art.Linea" },
                 { Key: "art.Familia" },
-                { Key: "inv.Concepto" },
-                { Key: "invd.Cantidad" },
                 { Key: "invd.Costo" },
                 { Key: "invd.Unidad" },
-                { Key: "inv.Sucursal" },
-                { Key: "inv.movid" },
-                { Key: "inv.estatus" },
-                { Key: "inv.FechaEmision" },
             ],
             agregaciones: [
-                { Key: "(invd.Costo * invd.Cantidad)", Alias: "totalMermas", Operation: "SUM" },
-                { Key: "invd.Cantidad", Alias: "totalArticulosMerma", Operation: "SUM" },
+                { Key: "invd.Cantidad", Alias: "Cantidad", Operation: "SUM" },
+                { Key: "(invd.Costo * invd.Cantidad)", Alias: "Total Mermas", Operation: "SUM" },
+                { Key: "invd.Cantidad", Alias: "Total Articulos Mermados", Operation: "SUM" },
             ],
             Filtros: [
                 { Key: "inv.Mov", Operator: "=", Value: 'SALIDA DIVERSA' },
@@ -233,6 +220,8 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             selects: [
                 { Key: "art.Articulo" },
                 { Key: "art.Descripcion1", Alias: "Nombre" },
+                { Key: "inv.FechaEmision" },
+                { Key: "inv.Sucursal" },
                 { Key: "art.Categoria" },
                 { Key: "art.Grupo" },
                 { Key: "art.Linea" },
@@ -240,15 +229,11 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "inv.Concepto" },
                 { Key: "invd.Costo" },
                 { Key: "invd.Unidad" },
-                { Key: "invd.Cantidad" },
-                { Key: "inv.Sucursal" },
-                { Key: "inv.movid" },
-                { Key: "inv.estatus" },
-                { Key: "inv.FechaEmision" },
             ],
             agregaciones: [
-                { Key: "(invd.Costo * invd.Cantidad)", Alias: "totalCostoInventario", Operation: "SUM" },
-                { Key: "invd.Cantidad", Alias: "totalArticulosInventario", Operation: "SUM" },
+                { Key: "invd.Cantidad", Alias: "Cantidad", Operation: "SUM" },
+                { Key: "(invd.Costo * invd.Cantidad)", Alias: "Total Costo Inventario", Operation: "SUM" },
+                { Key: "invd.Cantidad", Alias: "Total Articulos Inventario", Operation: "SUM" },
             ],
             Filtros: [
                 { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
@@ -257,7 +242,17 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
         },
     },
     clientes: { table: "Cte", filtros: {} },
-    proveedores: { table: "ArtProv", filtros: {} },
+    proveedores: {
+        table: "Prov",
+        filtros: {
+            Filtros: [
+                {
+                    Key: "ProvCuenta",
+                    Operator: "IS NULL"
+                }
+            ],
+        }
+    },
     gastos: {
         table: `gasto G INNER JOIN ( SELECT GD.ID AS GastoID, MAX(GD.Concepto) AS Concepto, SUM(GD.Precio * GD.Cantidad) AS TotalPrecio, SUM(GD.Cantidad) AS TotalCantidad, SUM(GD.Importe) AS TotalImporte, SUM(GD.Impuestos) AS TotalImpuestos FROM gastod GD GROUP BY GD.ID ) GD_Concepto ON G.ID = GD_Concepto.GastoID LEFT JOIN Prov P ON P.Proveedor = G.Acreedor LEFT JOIN ( SELECT CFDL.ModuloID, MIN(CFDL.UUID) AS MinUUID FROM CFDValidoMovLista CFDL WHERE CFDL.ModuloD = 'GAS' GROUP BY CFDL.ModuloID ) CFDL ON G.ID = CFDL.ModuloID LEFT JOIN CFDEgreso E ON E.UUID = CFDL.MinUUID`,
         filtros: {
@@ -452,7 +447,6 @@ const injectDateFilter = (report: REPORT, filtrosOriginal: any): any => {
 export default function Analisis() {
     const [manager] = useManagmentRead();
     const [managerSearch] = useManagmentSearch();
-    const dispatch = useAppDispatch();
 
     // Estados de reportes (agregaciones)
     const [reports, dispatchReports] = useReducer(reportsReducer, undefined, makeInitialState);
@@ -478,10 +472,6 @@ export default function Analisis() {
         from: new Date(new Date().setDate(new Date().getDate() - 30)),
         to: new Date(),
     });
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([
-        { id: uuidv4(), filters: [{ column: "", operator: "=", value: "", groupId: "" }], logicalOperator: "AND", name: "Grupo 1" },
-    ]);
 
     // Búsqueda por columna
     const [searchColumn, setSearchColumn] = useState<SearchColumn>({
@@ -500,10 +490,6 @@ export default function Analisis() {
     const [suggestionsTotalPages, setSuggestionsTotalPages] = useState(1);
     const [suggestionsLoadingMore, setSuggestionsLoadingMore] = useState(false);
     const suggestionsAbortControllerRef = useRef<AbortController | null>(null);
-    const suggestionsContainerRef = useRef<HTMLDivElement>(null);
-    const searchInputRef = useRef<HTMLInputElement>(null);
-    const searchColumnDropdownRef = useRef<HTMLDivElement>(null);
-    const suggestionsRef = useRef<HTMLDivElement>(null);
 
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -564,7 +550,14 @@ export default function Analisis() {
         refreshAllData();
     }, []); // Solo al montar, pero refreshAllData ya incluye todo
 
+    const [tableVisibleColumns, setTableVisibleColumns] = useState<Record<string, boolean>>({});
+    const handleVisibleColumnsChange = useCallback((cols: Record<string, boolean>) => {
+        setTableVisibleColumns(cols);
+    }, []);
+
     const fetchTableData = useCallback(async () => {
+        console.log(tableVisibleColumns);
+        
         setTableError(null);
         setTableLoading(true);
         const config = REPORT_CONFIGS[selectedReport];
@@ -660,37 +653,7 @@ export default function Analisis() {
         setShowSuggestions(false);
         setCurrentPage(1);
     };
-
-    const handleClearFilters = () => {
-        setSearchTerm("");
-        setSearchApplied(false);
-        setAlmacenFilter("");
-        const defaultFrom = new Date(new Date().setDate(new Date().getDate() - 30));
-        setDateRange({ from: defaultFrom, to: new Date() });
-        setCurrentPage(1);
-    };
-
-    const applyDatePeriod = (period: (typeof DATE_PERIODS)[0]) => {
-        const today = new Date();
-        let from: Date | null = null;
-        let to: Date | null = today;
-        if (period.days) {
-            from = new Date(today);
-            from.setDate(today.getDate() - period.days);
-        } else if (period.label === "Este mes") {
-            from = new Date(today.getFullYear(), today.getMonth(), 1);
-            to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        } else if (period.label === "Mes anterior") {
-            from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-            to = new Date(today.getFullYear(), today.getMonth(), 0);
-        } else if (period.label === "Este año") {
-            from = new Date(today.getFullYear(), 0, 1);
-            to = new Date(today.getFullYear(), 11, 31);
-        }
-        setDateRange({ from, to });
-        setShowDatePicker(false);
-    };
-
+    
     const loadingState = useMemo(() => {
         const entries = REPORT_KEYS.map((k) => ({ key: k, status: deferredReports[k].status }));
         return {
@@ -702,11 +665,6 @@ export default function Analisis() {
     const loadProgress = Math.round((loadingState.resolvedCount / REPORT_KEYS.length) * 100);
 
     const totalPages = Math.ceil(totalRecords / pageSize);
-    const searchColumns = [
-        { key: "articulo", label: "Artículo", icon: Package, color: "text-blue-500", tableField: "Descripcion1", table: "ART" },
-        { key: "codigo", label: "Código", icon: Package, color: "text-green-500", tableField: "Codigo", table: "ART" },
-        { key: "proveedor", label: "Proveedor", icon: Truck, color: "text-purple-500", tableField: "Nombre", table: "PROV" },
-    ];
 
     return (
         <>
@@ -716,12 +674,12 @@ export default function Analisis() {
                     <div className="flex items-center gap-2">
                         <h1 className="text-2xl font-bold">Análisis</h1>
                         <button onClick={() => setShowStats(!showStats)} className="flex items-center gap-1 text-sm">
-                            {showStats ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} Stats
+                            {showStats ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} Estadisticas
                         </button>
                     </div>
                     <div className="flex gap-2">
                         <Button onClick={() => refreshAllData()} disabled={loadingState.isAnyLoading} color="second">
-                            <RefreshCw className={`w-4 h-4 ${loadingState.isAnyLoading ? "animate-spin" : ""}`} /> Stats
+                            <RefreshCw className={`w-4 h-4 ${loadingState.isAnyLoading ? "animate-spin" : ""}`} /> Estadisticas
                         </Button>
                         <Button onClick={() => { setRefreshingTable(true); fetchTableData().finally(() => setRefreshingTable(false)); }} disabled={tableLoading} color="second">
                             <RefreshCw className={`w-4 h-4 ${tableLoading ? "animate-spin" : ""}`} /> Tabla
@@ -744,93 +702,78 @@ export default function Analisis() {
                     {REPORT_KEYS.map(report => {
                         const status = deferredReports[report].status;
                         return (
-                            <button
+                            <Button
                                 key={report}
                                 disabled={status === "loading" || status === "idle" || status === "retrying"}
+                                color={status === "loading" && "second" || status === "idle" && "completed" || status === "retrying" && "warning" || selectedReport === report && "completed" || "success"}
+                                size="small"
                                 onClick={() => { setSelectedReport(report); setCurrentPage(1); }}
-                                className={`px-3 py-1 rounded-md text-sm font-medium transition-all cursor-pointer text-white
-                                    ${status === "success" ? "border-green-300 bg-green-800" : status === "error" ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50 animate-pulse"}
-                                    ${selectedReport === report ? "bg-blue-600!" : "bg-gray-100 hover:opacity-80"}`}
                             >
                                 {report.charAt(0).toUpperCase() + report.slice(1)}
-                            </button>
+                            </Button>
                         );
                     })}
                 </div>
 
-                {/* Filtros rápidos */}
-                <ul className="flex flex-wrap gap-3 items-center mb-6">
-                    <li className="relative">
-                        <button onClick={() => setShowDatePicker(!showDatePicker)} className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded bg-white">
-                            <Calendar className="h-4 w-4" />
-                            <span>{dateRange.from && dateRange.to ? `${formatDateDisplay(dateRange.from)} - ${formatDateDisplay(dateRange.to)}` : "Rango de fechas"}</span>
-                        </button>
-                        {showDatePicker && (
-                            <div className="absolute z-50 mt-1 p-3 bg-white border border-gray-300 rounded shadow-lg">
-                                <div><label>Desde:</label><input type="date" value={dateRange.from?.toISOString().split("T")[0]} onChange={e => setDateRange(prev => ({ ...prev, from: new Date(e.target.value) }))} className="w-full border border-gray-300 rounded p-1" /></div>
-                                <div><label>Hasta:</label><input type="date" value={dateRange.to?.toISOString().split("T")[0]} onChange={e => setDateRange(prev => ({ ...prev, to: new Date(e.target.value) }))} className="w-full border border-gray-300 rounded p-1" /></div>
-                                <div className="flex flex-wrap gap-1 mt-2">{DATE_PERIODS.map(p => <button key={p.label} onClick={() => applyDatePeriod(p)} className="text-xs px-2 py-1 bg-gray-100 rounded">{p.label}</button>)}</div>
-                                <div className="flex justify-end mt-2"><button onClick={() => setShowDatePicker(false)} className="px-3 py-1 bg-blue-600 text-white rounded">Aplicar</button></div>
-                            </div>
-                        )}
-                    </li>
-                    <li className="relative">
-                        <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <select value={almacenFilter} onChange={e => setAlmacenFilter(e.target.value)} className="pl-9 pr-8 py-2 border border-gray-300 rounded">
-                            <option value="">Todos los almacenes</option>
-                            {ALMACENES_OPCIONES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                        </select>
-                    </li>
-                    <li className="relative flex gap-2">
-                        <div className="relative" ref={searchColumnDropdownRef}>
-                            <button onClick={() => setShowSearchColumnDropdown(!showSearchColumnDropdown)} className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-l bg-gray-50">
-                                <searchColumn.icon className={`h-4 w-4 ${searchColumn.color}`} />
-                                <ChevronDown className="h-3 w-3" />
-                            </button>
-                            {showSearchColumnDropdown && (
-                                <div className="absolute z-20 mt-1 w-48 bg-white border border-gray-300 rounded shadow-lg">
-                                    {searchColumns.map(col => (
-                                        <button key={col.key} onClick={() => { setSearchColumn(col); setShowSearchColumnDropdown(false); }} className={`flex items-center gap-2 w-full p-2 hover:bg-gray-100 ${col.key === searchColumn.key ? "bg-blue-50" : ""}`}>
-                                            <col.icon className={`h-4 w-4 ${col.color}`} />
-                                            <span>{col.label}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <input ref={searchInputRef} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)} placeholder={`Buscar por ${searchColumn.label}...`} className="pl-9 pr-3 py-2 w-52 border border-gray-300 rounded-r" />
-                        </div>
-                        {showSuggestions && suggestionsAll.length > 0 && (
-                            <div ref={suggestionsContainerRef} className="absolute z-50 w-full mt-10 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                                {suggestionsAll.map((s, i) => (
-                                    <button key={i} onClick={() => handleSuggestionSelect(s.Suggestion)} className="w-full p-2 text-left hover:bg-gray-100 flex items-center gap-2">
-                                        <searchColumn.icon className={`h-4 w-4 ${searchColumn.color}`} />
-                                        <span>{s.Suggestion}</span>
-                                    </button>
-                                ))}
-                                {suggestionsLoadingMore && <div className="p-2 text-center"><Loader2 className="h-4 w-4 animate-spin inline" /> Cargando...</div>}
-                            </div>
-                        )}
-                        <button onClick={() => { setSearchApplied(true); fetchTableData(); }} className="px-3 py-2 bg-blue-600 text-white rounded">Buscar</button>
-                    </li>
-                    {(searchApplied || almacenFilter || dateRange.from) && (
-                        <button onClick={handleClearFilters} className="flex items-center gap-2 px-3 py-2 bg-gray-200 rounded"><X className="h-4 w-4" />Limpiar</button>
-                    )}
-                    <button onClick={() => setQuickMode(!quickMode)} className={`px-3 py-2 rounded flex items-center gap-2 ${quickMode ? "bg-blue-600 text-white" : "bg-gray-100"}`}>
-                        <Zap className="h-4 w-4" />{quickMode ? "Modo rápido" : "Modo normal"}
-                    </button>
-                </ul>
-
                 {/* Tabla */}
-                <dt className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-                    <DynamicTable data={dataTable} loading={tableLoading || refreshingTable} />
+                <dt className="flex flex-col rounded-xl border gap-2 border-gray-200 bg-white shadow-sm p-4">
+                    <dl>
+
+                        {/* Filtros rápidos */}
+                        <MainForm
+                            actionType=""
+                            dataForm={[
+                                {
+                                    require: false,
+                                    type: "Flex",
+                                    elements: [
+                                        {
+                                            require: false,
+                                            type: "DATE_RANGE",
+                                            name: "dateRange",
+                                            label: "Rango de fechas",
+                                            icon: <></>,
+                                            options: ALMACENES_OPCIONES,
+                                        },
+                                        {
+                                            require: false,
+                                            type: "SELECT",
+                                            name: "almacen",
+                                            label: "Almacén",
+                                            options: ALMACENES_OPCIONES,
+                                        },
+                                        {
+                                            require: false,
+                                            type: "SEARCH",
+                                            name: "search",
+                                            placeholder: "Artículo, código, proveedor, etc.",
+                                            label: "Búsqueda rápida",
+                                            options: ALMACENES_OPCIONES,
+                                        },/* 
+                                        {
+                                            require: false,
+                                            type: "SELECT",
+                                            name: "categoria",
+                                            label: "Categoría",
+                                            options: CATEGORIAS_OPCIONES,
+                                        }, */
+                                    ]
+                                },
+                            ]}
+                            message_button="Aplicar filtros"
+                            onSuccess={() => { setCurrentPage(1); fetchTableData(); }}
+                        />
+                    </dl>
+                    <dl className="flex flex-col gap-2">
+                        <DynamicTable
+                            data={dataTable}
+                            loading={tableLoading || refreshingTable}
+                            onVisibleColumnsChange={handleVisibleColumnsChange}
+                        />
                     {!tableLoading && (
-                        <div className="mt-4">
                             <Pagination currentPage={currentPage} totalPages={totalPages} loading={tableLoading} setCurrentPage={setCurrentPage} totalItems={totalRecords} itemsPerPage={pageSize} onPageSizeChange={setPageSize} pageSizeOptions={CONFIG.PAGE_SIZE_OPTIONS} currentPageSize={pageSize} />
-                        </div>
-                    )}
+                        )}
+                    </dl>
                 </dt>
             </section>
             <Footer />

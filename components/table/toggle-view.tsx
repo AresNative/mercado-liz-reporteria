@@ -3,13 +3,6 @@ import { Eye, EyeOff, MoreVertical, Columns, SplitSquareHorizontal, AlignJustify
 import { useEffect, useRef, useState, useLayoutEffect } from "react";
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
-
-/**
- * Configuración para columnas cuyo valor puede ser un array.
- * - "first"  → muestra solo el primer elemento  (ej. "PEPE")
- * - "second" → muestra solo el segundo elemento  (ej. "00020")
- * - "both"   → muestra ambos en dos líneas       (ej. "PEPE / 00020")
- */
 export type ArrayColumnDisplay = "first" | "second" | "third" | "both";
 
 export interface ViewTRProps {

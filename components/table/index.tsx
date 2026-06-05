@@ -39,6 +39,11 @@ interface DynamicTableProps {
      * el servidor con el nuevo ORDER BY.
      */
     onSortChange?: (column: string, direction: "asc" | "desc") => void;
+    /**
+     * Callback que se llama cuando cambia la visibilidad de las columnas.
+     * Útil para que el padre pueda ajustar las consultas dinámicamente.
+     */
+    onVisibleColumnsChange?: (columns: Record<string, boolean>) => void;
 }
 
 // ── Helpers de tipo de columna ─────────────────────────────────────────────────
@@ -89,6 +94,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     onRowClick,
     onRightClick,
     onSortChange,
+    onVisibleColumnsChange,
 }) => {
     const tableRef = useRef<HTMLDivElement>(null);
     const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -134,6 +140,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     }, [data, isGroupedData]);
 
     const columns = useMemo(() => [...baseColumns, ...providerColumns], [baseColumns, providerColumns]);
+    console.log("Columns loading -> ", columns);
 
     const displayData = useMemo(() => {
         if (!isGroupedData) return data;
@@ -156,6 +163,11 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             }, {} as Record<string, boolean>)
         );
     }, [columns]);
+
+    // Notificar cambios de visibilidad al padre
+    useEffect(() => {
+        onVisibleColumnsChange?.(visibleColumns);
+    }, [visibleColumns, onVisibleColumnsChange]);
 
     // Resetear sort cuando llegan datos nuevos desde el padre
     useEffect(() => {
@@ -238,7 +250,15 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
     const clearAllSelections = () => { setSelectedRows(new Set()); setSelectedRowsData(new Map()); };
     const getSelectedData = useCallback(() => Array.from(selectedRowsData.values()), [selectedRowsData]);
-    const toggleColumn = (col: string) => setVisibleColumns(p => ({ ...p, [col]: !p[col] }));
+
+    const toggleColumn = (col: string) => {
+        setVisibleColumns(p => {
+            const newState = { ...p, [col]: !p[col] };
+            onVisibleColumnsChange?.(newState);
+            return newState;
+        });
+    };
+
     const getVisibleColumnsForExport = () => columns.filter(c => visibleColumns[c]);
 
     // ── Formateo ───────────────────────────────────────────────────────────────
