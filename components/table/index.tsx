@@ -40,8 +40,14 @@ interface DynamicTableProps {
      */
     onSortChange?: (column: string, direction: "asc" | "desc") => void;
     /**
-     * Callback que se llama cuando cambia la visibilidad de las columnas.
-     * Útil para que el padre pueda ajustar las consultas dinámicamente.
+     * Visibilidad de columnas controlada externamente (controlled mode).
+     * Si se pasa junto con onVisibleColumnsChange, el componente actúa en modo
+     * controlado y no gestiona visibilidad internamente.
+     */
+    visibleColumns?: Record<string, boolean>;
+    /**
+     * Callback que se llama SOLO cuando el USUARIO cambia la visibilidad
+     * (toggle manual). NO se dispara al inicializar ni al llegar datos nuevos.
      */
     onVisibleColumnsChange?: (columns: Record<string, boolean>) => void;
 }
@@ -94,6 +100,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     onRowClick,
     onRightClick,
     onSortChange,
+    visibleColumns: controlledVisibleColumns,
     onVisibleColumnsChange,
 }) => {
     const tableRef = useRef<HTMLDivElement>(null);
@@ -105,7 +112,12 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     const [sortColumn, setSortColumn] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [showColumnMenu, setShowColumnMenu] = useState<string | null>(null);
-    const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({});
+    // Modo controlado: si el padre pasa visibleColumns, usamos ese valor directamente.
+    // Modo no controlado: gestionamos visibilidad internamente.
+    const isControlled = controlledVisibleColumns !== undefined;
+    const [internalVisibleColumns, setInternalVisibleColumns] = useState<Record<string, boolean>>({});
+    const visibleColumns = isControlled ? controlledVisibleColumns : internalVisibleColumns;
+
     // Modo de visualización para columnas cuyo valor es un array (ej. ["PEPE", "00020"])
     const [arrayDisplayModes, setArrayDisplayModes] = useState<Record<string, ArrayColumnDisplay>>({});
 
@@ -153,20 +165,22 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
         });
     }, [data, isGroupedData]);
 
-    // Inicializar / sincronizar columnas visibles
+    // Inicializar columnas internas cuando cambia la estructura de columnas
+    // Solo aplica en modo no controlado. En modo controlado, el padre gestiona esto.
     useEffect(() => {
-        setVisibleColumns(prev =>
-            columns.reduce((acc, col) => {
+        if (isControlled) return;
+        setInternalVisibleColumns(prev => {
+            const next = columns.reduce((acc, col) => {
                 acc[col] = col in prev ? prev[col] : true;
                 return acc;
-            }, {} as Record<string, boolean>)
-        );
-    }, [columns]);
-
-    // Notificar cambios de visibilidad al padre
-    useEffect(() => {
-        onVisibleColumnsChange?.(visibleColumns);
-    }, [visibleColumns, onVisibleColumnsChange]);
+            }, {} as Record<string, boolean>);
+            // Evitar re-render si no cambió nada
+            const hasChanged = columns.some(c => prev[c] !== next[c]) || Object.keys(prev).length !== columns.length;
+            return hasChanged ? next : prev;
+        });
+    }, [columns, isControlled]);
+    // NOTA: onVisibleColumnsChange NO se llama aquí para evitar loops de refetch.
+    // Solo se llama cuando el usuario hace un toggle manual (ver toggleColumn).
 
     // Resetear sort cuando llegan datos nuevos desde el padre
     useEffect(() => {
@@ -250,13 +264,20 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     const clearAllSelections = () => { setSelectedRows(new Set()); setSelectedRowsData(new Map()); };
     const getSelectedData = useCallback(() => Array.from(selectedRowsData.values()), [selectedRowsData]);
 
-    const toggleColumn = (col: string) => {
-        setVisibleColumns(p => {
-            const newState = { ...p, [col]: !p[col] };
+    const toggleColumn = useCallback((col: string) => {
+        if (isControlled) {
+            // Modo controlado: calcular nuevo estado y notificar al padre
+            const newState = { ...controlledVisibleColumns, [col]: !controlledVisibleColumns[col] };
             onVisibleColumnsChange?.(newState);
-            return newState;
-        });
-    };
+        } else {
+            // Modo no controlado: actualizar estado interno y notificar
+            setInternalVisibleColumns(p => {
+                const newState = { ...p, [col]: !p[col] };
+                onVisibleColumnsChange?.(newState);
+                return newState;
+            });
+        }
+    }, [isControlled, controlledVisibleColumns, onVisibleColumnsChange]);
 
     const getVisibleColumnsForExport = () => columns.filter(c => visibleColumns[c]);
 

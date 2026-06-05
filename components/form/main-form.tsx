@@ -34,10 +34,12 @@ import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer } from "@/hooks/reducers/drop-down";
 import { usePostGeneralMutation, usePostImgMutation, usePutGeneralMutation } from "@/hooks/api/api";
 import { setLocalStorageItem } from "@/utils/functions/local-storage";
+import { cn } from "@/utils/functions/cn";
 
 export const MainForm = React.forwardRef(({
   message_button,
   dataForm,
+  flexDirection = "flex-col",
   actionType,
   aditionalData,
   showButton = true,
@@ -322,23 +324,25 @@ export const MainForm = React.forwardRef(({
         e.preventDefault(); // doble seguridad
         handleSubmit(onSubmit)(e);
       }}
-      className="relative w-full space-y-2 my-2 m-auto">
-      {pages[page].map((field: any, key: any) => (
-        <SwitchTypeInputRender
-          key={key}
-          cuestion={field}
-          control={control}
-          register={register}
-          watch={watch}
-          clearErrors={clearErrors}
-          setError={setError}
-          errors={errors}
-          getValues={getValues}
-          setValue={setValue}
-        />
-      ))}
-
-      {showButton && (<div className="flex justify-between mt-4">
+      className={cn("relative flex w-full my-2 m-auto gap-2", flexDirection)}>
+      <div className="flex flex-col gap-4 w-full">
+        {pages[page].map((field: any, key: any) => (
+          <SwitchTypeInputRender
+            key={key}
+            cuestion={field}
+            control={control}
+            register={register}
+            watch={watch}
+            clearErrors={clearErrors}
+            setError={setError}
+            errors={errors}
+            getValues={getValues}
+            setValue={setValue}
+          />
+        ))}
+      </div>
+      {showButton && (
+        <div className="flex justify-between h-fit">
         {page > 0 && (
           <Button color="success" type="button" size="small" label="Anterior" onClick={() => handlePageChange(page - 1)} />
         )}

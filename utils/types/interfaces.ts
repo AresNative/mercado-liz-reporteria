@@ -52,6 +52,7 @@ export interface MainFormProps {
   message_button: React.ReactNode | string;
   actionType: string;
   dataForm: Field[];
+  flexDirection?: string;
   aditionalData?: any;
   valueAssign?: any;
   formName?: string;

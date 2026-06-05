@@ -159,7 +159,7 @@ export function SelectComponent(props: SearchableSelectProps) {
                                     type="text"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-zinc-800 dark:border-zinc-700"
                                     placeholder={`Buscar ${cuestion.name}...`}
-                                    value={searchTerm}
+                                    value={searchTerm ?? ""}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
