@@ -140,7 +140,6 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     }, [data, isGroupedData]);
 
     const columns = useMemo(() => [...baseColumns, ...providerColumns], [baseColumns, providerColumns]);
-    console.log("Columns loading -> ", columns);
 
     const displayData = useMemo(() => {
         if (!isGroupedData) return data;

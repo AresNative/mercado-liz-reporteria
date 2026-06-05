@@ -152,6 +152,9 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "venta.Estatus", Operator: "IN", Value: "CONCLUIDO,PROCESAR" },
                 { Key: "venta.Mov", Operator: "IN", Value: "Factura,Factura Credito,Nota" },
             ],
+            Order: [
+                { Key: "FechaEmision", Direction: "DESC" },
+            ]
         },
     },
     compra: {
@@ -185,6 +188,9 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
                 { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" },
             ],
+            Order: [
+                { Key: "FechaEmision", Direction: "DESC" },
+            ]
         },
     },
     merma: {
@@ -212,6 +218,9 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "inv.Concepto", Operator: "=", Value: 'SALIDA POR MERMAS' },
                 { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
             ],
+            Order: [
+                { Key: "FechaEmision", Direction: "DESC" },
+            ]
         },
     },
     inventario: {
@@ -239,6 +248,9 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
                 { Key: "inv.Mov", Operator: "<>", Value: 'SALIDA DIVERSA' },
             ],
+            Order: [
+                { Key: "FechaEmision", Direction: "DESC" },
+            ]
         },
     },
     clientes: { table: "Cte", filtros: {} },
@@ -278,6 +290,9 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             Filtros: [
                 { Key: "G.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
             ],
+            Order: [
+                { Key: "FechaEmision", Direction: "DESC" },
+            ]
         },
     },
 };
@@ -553,20 +568,37 @@ export default function Analisis() {
     const [tableVisibleColumns, setTableVisibleColumns] = useState<Record<string, boolean>>({});
     const handleVisibleColumnsChange = useCallback((cols: Record<string, boolean>) => {
         setTableVisibleColumns(cols);
+        buildVisibleColumns();
     }, []);
 
-    const fetchTableData = useCallback(async () => {
-        console.log(tableVisibleColumns);
+    const buildVisibleColumns = useCallback(() => {
+        const config = REPORT_CONFIGS[selectedReport];
+        if (!config) return
+        const allColumns = [
+            ...(config.filtros?.selects || []).map((s: any) => s.Alias || s.Key),
+            ...(config.filtros?.agregaciones || []).map((a: any) => a.Alias || a.Key),
+        ];
+        if (Object.keys(tableVisibleColumns).length === 0) {
+            const initialVisibility: Record<string, boolean> = {};
+            allColumns.forEach(col => initialVisibility[col] = true);
+            setTableVisibleColumns(initialVisibility);
+            return initialVisibility;
+        }
+        console.log("Columns loading ->  ", tableVisibleColumns);
         
+        return tableVisibleColumns;
+    }, [setTableVisibleColumns]);
+
+    const fetchTableData = useCallback(async () => {
         setTableError(null);
         setTableLoading(true);
         const config = REPORT_CONFIGS[selectedReport];
         if (!config) {
             setTableLoading(false);
             return;
-        }
+        }        
 
-        let finalFiltros:any = config.filtros ? { ...config.filtros } : { selects: [] };
+        let finalFiltros: any = config.filtros ? { ...config.filtros } : { selects: [] };
         finalFiltros = injectDateFilter(selectedReport, finalFiltros);
         if (almacenFilter && config.table.includes("Almacen")) {
             if (!finalFiltros.Filtros) finalFiltros.Filtros = [];
@@ -576,7 +608,6 @@ export default function Analisis() {
             if (!finalFiltros.Filtros) finalFiltros.Filtros = [];
             finalFiltros.Filtros.push({ Key: searchColumn.tableField, Operator: "LIKE", Value: `%${searchTerm}%` });
         }
-        
 
         const payload: RequestPayload = {
             table: config.table,
