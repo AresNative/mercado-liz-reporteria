@@ -10,6 +10,7 @@ import {
   UsersRound,
   ShoppingBasket,
   UserRoundPlus,
+  Vault,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -124,11 +125,6 @@ export const navigationAdmin = [
     icon: UsersRound,
   },
   {
-    name: "Update",
-    href: "/update",
-    icon: Info,
-  },
-  {
     name: "Articulos",
     href: "/articulos",
     icon: ShoppingBasket,
@@ -137,5 +133,15 @@ export const navigationAdmin = [
     name: "Pick Up",
     href: "/pick-up",
     icon: Truck,
+  },
+  {
+    name: "Boveda Movimientos",
+    href: "/boveda-movimientos",
+    icon: Vault,
+  },
+  {
+    name: "Update",
+    href: "/update",
+    icon: Info,
   },
 ];
