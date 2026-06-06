@@ -39,6 +39,7 @@ import {
     BarChart2,
     AlertTriangle,
     Warehouse,
+    Filter,
 } from "lucide-react";
 import { SearchColumn } from "./types/config";
 import { v4 as uuidv4 } from "uuid";
@@ -767,7 +768,9 @@ export default function Analisis() {
         setShowSuggestions(false);
         setCurrentPage(1);
     };
-
+    //DIENERO @TABLA
+    // MOV ESPEJO - PAGO
+    // POLIZA DE EGRESO - GASTO
     // ─── Stats derivadas de los reportes cargados ────────────────────────────
     const statsData = useMemo(() => deriveStatsFromReports(deferredReports), [deferredReports]);
 
@@ -966,9 +969,8 @@ export default function Analisis() {
                                         type: "DATE_RANGE",
                                         name: "dateRange",
                                         label: "Rango de fechas",
-                                        icon: <Calendar className="h-4 w-4" />,
+                                        icon: <Calendar className="size-4" />,
                                         valueDefined: dateRange,
-                                       /*  onChange: setDateRange, */
                                     },
                                     {
                                         require: false,
@@ -976,9 +978,8 @@ export default function Analisis() {
                                         name: "almacen",
                                         label: "Almacén",
                                         placeholder: "Selecciona un almacén",
+                                        icon: <Package className="size-4" />,
                                         options: ALMACENES_OPCIONES,
-                                        valueDefined: almacenFilter,
-                                        /* onChange: (val: string) => { setAlmacenFilter(val); setCurrentPage(1); }, */
                                     },
                                     {
                                         require: false,
@@ -986,18 +987,20 @@ export default function Analisis() {
                                         name: "search",
                                         placeholder: "Artículo, código, proveedor, etc.",
                                         label: "Búsqueda rápida",
+                                        icon: <Search className="size-4" />,
                                         options: [],
                                         valueDefined: searchTerm,
-                                       /*  onChange: (val: string) => {
-                                            setSearchTerm(val);
-                                            if (!val) { setSearchApplied(false); setCurrentPage(1); }
-                                        }, */
                                     },
                                 ],
                             },
                         ]}
-                        message_button="Aplicar filtros"
-                        onSuccess={() => { setSearchApplied(true); setCurrentPage(1); fetchTableData(); }}
+                        message_button={"Filtrar"}
+                        iconButton={<Filter className="mr-1 h-4 w-4" />}
+                        onSuccess={(rows: any) => {
+                            console.log(rows);
+                            
+                            setSearchApplied(true); setCurrentPage(1); fetchTableData();
+                        }}
                     />
 
                     {/* Error de tabla */}

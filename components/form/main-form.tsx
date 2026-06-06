@@ -324,7 +324,7 @@ export const MainForm = React.forwardRef(({
         e.preventDefault(); // doble seguridad
         handleSubmit(onSubmit)(e);
       }}
-      className={cn("relative flex w-full my-2 m-auto gap-2", flexDirection)}>
+      className={cn(`relative flex w-full my-2 m-auto gap-2 ${flexDirection}`, flexDirection === "flex-row" && "items-center ")}>
       <div className="flex flex-col gap-4 w-full">
         {pages[page].map((field: any, key: any) => (
           <SwitchTypeInputRender
@@ -342,7 +342,7 @@ export const MainForm = React.forwardRef(({
         ))}
       </div>
       {showButton && (
-        <div className="flex justify-between h-fit">
+        <div className={cn("flex justify-between h-fit", flexDirection === "flex-row" && " mt-8")}>
         {page > 0 && (
           <Button color="success" type="button" size="small" label="Anterior" onClick={() => handlePageChange(page - 1)} />
         )}

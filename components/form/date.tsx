@@ -55,7 +55,7 @@ export function DateRangeComponent(props: InputFormProps) {
             const data = formData;
             let value = '';
             if (data.from && data.to) {
-                value = `${data.from.toISOString().split("T")[0]} - ${data.to.toISOString().split("T")[0]}`;
+                value = `${data.from.toISOString().split("T")[0]} AND ${data.to.toISOString().split("T")[0]}`;
             } else if (data.from) {
                 value = data.from.toISOString().split("T")[0];
             } else if (data.to) {
@@ -80,7 +80,7 @@ export function DateRangeComponent(props: InputFormProps) {
     const inputValue =  (() => {
             const data = formData;
             if (data.from && data.to) {
-                return `${formatDateDisplay(data.from)} - ${formatDateDisplay(data.to)}`;
+                return `${formatDateDisplay(data.from)} AND ${formatDateDisplay(data.to)}`;
             } else if (data.from) {
                 return formatDateDisplay(data.from);
             } else if (data.to) {
@@ -99,7 +99,7 @@ export function DateRangeComponent(props: InputFormProps) {
                 <input
                     type="text"
                     name={cuestion.name}
-                    value={inputValue}
+                    value={inputValue.replace(/ AND /g, " - ")}
                     onClick={() => setShowInterviewDatePicker(true)}
                     readOnly
                     className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 py-2 px-4 w-full rounded-md focus:outline-none border focus:border-green-500 focus:ring-green-500"
