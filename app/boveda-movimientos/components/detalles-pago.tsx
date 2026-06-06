@@ -8,18 +8,19 @@ import {
 import { useAppSelector } from "@/hooks/selector";
 import { closeModalReducer } from "@/hooks/reducers/drop-down";
 import { useAppDispatch } from "@/hooks/selector";
+import { Button } from "@/components/button";
 
 export const DetallesPago = ({ selectedPago }: any) => {
     const dispatch = useAppDispatch();
-    const isOpen = useAppSelector((state: any) => state.dropDownReducer.modals['detalles-empleado']);
+    const isOpen = useAppSelector((state: any) => state.dropDownReducer.modals['detalles-pago']);
 
     const handleClose = () => {
-        dispatch(closeModalReducer({ modalName: 'detalles-empleado' }));
+        dispatch(closeModalReducer({ modalName: 'detalles-pago' }));
     };
 
     if (!isOpen || !selectedPago) return null;
 
-    const empleado:any = selectedPago;
+    const pago:any = selectedPago;
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -44,23 +45,6 @@ export const DetallesPago = ({ selectedPago }: any) => {
             : "bg-red-100 text-red-800";
     };
 
-    const InfoItem = ({ icon: Icon, label, value, className = "" }: {
-        icon: any;
-        label: string;
-        value: string | number | null;
-        className?: string;
-    }) => (
-        <div className={`flex items-start space-x-3 ${className}`}>
-            <Icon className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-500">{label}</p>
-                <p className="text-sm text-gray-900 mt-1 break-words">
-                    {value || "No especificado"}
-                </p>
-            </div>
-        </div>
-    );
-
     const SectionTitle = ({ title }: { title: string }) => (
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             {title}
@@ -77,143 +61,38 @@ export const DetallesPago = ({ selectedPago }: any) => {
                     </div>
                     <div className="flex-1">
                         <h2 className="text-xl font-bold text-gray-900">
-                            {empleado.nombre} {empleado.apellido}
+                            {pago.nombre} {pago.apellido}
                         </h2>
                         <div className="flex items-center space-x-4 mt-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(empleado.estado)}`}>
-                                {empleado.estado}
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pago.estado)}`}>
+                                {pago.estado}
                             </span>
-                            <span className="text-sm text-gray-500">#{empleado.num_empleado}</span>
+                            <span className="text-sm text-gray-500">#{pago.num_empleado}</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Información Personal */}
-                <div className="space-y-4">
-                    <SectionTitle title="Información Personal" />
-
-                    <InfoItem
-                        icon={Mail}
-                        label="Email"
-                        value={empleado.email}
-                    />
-
-                    <InfoItem
-                        icon={Phone}
-                        label="Teléfono"
-                        value={empleado.telefono}
-                    />
-
-                    <InfoItem
-                        icon={MapPin}
-                        label="Dirección"
-                        value={empleado.direccion}
-                    />
-
-                    <InfoItem
-                        icon={Calendar}
-                        label="Fecha de Nacimiento"
-                        value={formatDate(empleado.fecha_nacimiento)}
-                    />
-                </div>
-
-                {/* Información Laboral */}
-                <div className="space-y-4">
-                    <SectionTitle title="Información Laboral" />
-
-                    <InfoItem
-                        icon={Briefcase}
-                        label="Puesto"
-                        value={empleado.puesto}
-                    />
-
-                    <InfoItem
-                        icon={Building}
-                        label="Departamento"
-                        value={empleado.departamento}
-                    />
-
-                    <InfoItem
-                        icon={DollarSign}
-                        label="Salario"
-                        value={formatCurrency(empleado.salario)}
-                    />
-
-                    <InfoItem
-                        icon={Calendar}
-                        label="Fecha de Ingreso"
-                        value={formatDate(empleado.fecha_ingreso)}
-                    />
-                </div>
-            </div>
-
-            {/* Información Fiscal y Bancaria */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                <div className="space-y-4">
-                    <SectionTitle title="Información Fiscal" />
-
-                    <InfoItem
-                        icon={FileText}
-                        label="RFC"
-                        value={empleado.rfc}
-                    />
-
-                    <InfoItem
-                        icon={BadgeCheck}
-                        label="CURP"
-                        value={empleado.curp}
-                    />
-
-                    <InfoItem
-                        icon={Hash}
-                        label="NSS"
-                        value={empleado.nss}
-                    />
-                </div>
-
-                <div className="space-y-4">
-                    <SectionTitle title="Información Bancaria" />
-
-                    <InfoItem
-                        icon={Building}
-                        label="Banco"
-                        value={empleado.banco}
-                    />
-
-                    <InfoItem
-                        icon={Hash}
-                        label="Cuenta Bancaria"
-                        value={empleado.cuenta_bancaria}
-                    />
-
-                    <InfoItem
-                        icon={Hash}
-                        label="CLABE"
-                        value={empleado.clabe}
-                    />
-                </div>
-            </div>
-
             {/* Acciones */}
             <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-gray-200">
-                <button
+                <Button
                     onClick={handleClose}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                    color="second"
+                    size="small"
                 >
                     Cerrar
-                </button>
-                <button
+                </Button>
+                <Button
                     onClick={() => {
                         // Aquí puedes implementar la descarga de información
-                        console.log('Descargar información de', empleado.nombre);
+                        console.log('Descargar información de', pago.nombre);
                     }}
-                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors flex items-center"
+                    color="success"
+                    size="small"
                 >
                     <Download className="h-4 w-4 mr-2" />
                     Descargar Info
-                </button>
+                </Button>
             </div>
         </div>
     );

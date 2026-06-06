@@ -149,7 +149,7 @@ export default function Pago() {
         refetch
     } = usePago();
 
-    const [pagoeleccionado, setPagoeleccionado] = useState<any | null>(null);
+    const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
 
     const loadPago = (data: FiltrosForm) => {
         const nuevosFiltros: any[] = [];
@@ -190,9 +190,9 @@ export default function Pago() {
         setCurrentPage(1);
     };
 
-    const handleOpenModal = (modalName: string, empleado?: any) => {
-        if (modalName === 'detalles-empleado' && empleado) {
-            setPagoeleccionado(empleado);
+    const handleOpenModal = (modalName: string, pago?: any) => {
+        if (modalName === 'detalles-pago' && pago) {
+            setPagoseleccionado(pago);
         }
         dispatch(openModalReducer({ modalName }));
     };
@@ -362,8 +362,8 @@ export default function Pago() {
                     modalName="detalles-pago"
                     title="Detalles del Pago"
                     maxWidth="lg">
-                    {pagoeleccionado ? (
-                        <DetallesPago selectedPago={pagoeleccionado} />
+                    {pagoseleccionado ? (
+                        <DetallesPago selectedPago={pagoseleccionado} />
                     ) : (
                         <div className="p-4 text-center">
                             <p className="text-gray-500">No se ha seleccionado ningún pago.</p>
