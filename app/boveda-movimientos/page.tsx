@@ -1,10 +1,13 @@
 "use client"
 // diferencias entre XML y Movimientos
 import {
+    Building,
+    Clock,
     Filter,
     MessageCircle,
     Plus,
-    RefreshCw
+    RefreshCw,
+    Search
 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 
@@ -40,7 +43,6 @@ interface Filtro {
 
 interface ActiveFilters {
     Filtros: Filtro[];
-    FiltrosAnd: Filtro[];
     Selects: any[];
     OrderBy: any | null;
     sum: boolean;
@@ -53,8 +55,9 @@ interface FiltrosForm {
     estado: string;
     puesto: string;
 }
-// Hook personalizado para la gestión de pago
-const usePago = () => {
+
+export default function Pago() {
+    const dispatch = useAppDispatch();
     const [pago, setPago] = useState<any[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -64,8 +67,21 @@ const usePago = () => {
     const [getWithFilter] = useGetWithFiltersIntelisisMutation();
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-        Filtros: [],
-        FiltrosAnd: [],
+        Filtros: [
+            {
+                Key: "CXP.MOV",
+                Value: "Pago",
+                Operator: "="
+            }, {
+                Key: "CXP.Origen",
+                Value: "Entrada Compra",
+                Operator: "="
+            }, {
+                Key: "CXP.Estatus",
+                Value: "CONCLUIDO",
+                Operator: "="
+            },
+        ],
         Selects: [],
         OrderBy: null,
         sum: false,
@@ -75,11 +91,10 @@ const usePago = () => {
     const fetchPago = useCallback(async () => {
         setIsLoading(true);
         setError(null);
-        console.log(activeFilters);
 
         try {
             const response = await getWithFilter({
-                table: "CXPD INNER JOIN CXP ON CXPD.Aplica = 'Entrada Compra' AND CXP.ID = CXPD.ID",
+                table: "CXP INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor",// INNER JOIN CXPD ON CXPD.Aplica = 'Entrada Compra' AND CXP.ID = CXPD.ID AND CXP.Estatus = 'CONCLUIDO'
                 pageSize: "10",
                 page: currentPage,
                 filtros: {
@@ -88,23 +103,59 @@ const usePago = () => {
                             Key: "CXP.ID",
                         },
                         {
-                            Key: "CXPD.ID",
-                            Alias: "ID Relacion",
+                            Key: "CXP.Proveedor"
                         },
                         {
-                            Key: "CXPD.Importe"
+                            Key: "Prov.Nombre"
+                        },
+                        {
+                            Key: "CXP.Sucursal"
+                        },
+                        {
+                            Key: "CXP.Importe",
+                            Alias: "Importe"
+                        },
+                        {
+                            Key: "CXP.Saldo"
+                        },
+                        {
+                            Key: "CXP.Impuestos"
+                        },
+                        {
+                            Key: "CXP.Retencion"
+                        },
+                        {
+                            Key: "CXP.Retencion2"
+                        },
+                        {
+                            Key: "CXP.Retencion3"
+                        },
+                        {
+                            Key: "CXP.FechaEmision"
                         },
 
                     ],
                     Filtros: activeFilters.Filtros,
-                    FiltrosAnd: activeFilters.FiltrosAnd,
                     Order: activeFilters.OrderBy ? [activeFilters.OrderBy] : []
                 }
             });
 
             if ('data' in response) {
                 const pagoData = response.data as PagoResponse;
-                setPago(pagoData.data);
+                const formattedData = pagoData.data.map((item) => {
+                    console.log(item);
+                    
+                    return ({
+                        ID: item.ID,
+                        Sucursal: item.Sucursal,
+                        Proveedor: [item.Proveedor, item.Nombre],
+                        Importe: [item.Importe, item.Saldo ],
+                        Impuestos: item.Impuestos || 0,
+                        Retencion:[ item.Retencion, item.Retencion2, item.Retencion3],
+                        FechaEmision: item.FechaEmision || "N/A",
+                    })
+                });
+                setPago(formattedData);
                 setTotalPages(pagoData.totalPages);
                 setTotalRecords(pagoData.totalRecords);
             } else if ('error' in response) {
@@ -120,68 +171,20 @@ const usePago = () => {
 
     useEffect(() => {
         fetchPago();
-    }, []);
-
-    return {
-        pago,
-        currentPage,
-        totalPages,
-        totalRecords,
-        isLoading,
-        error,
-        setCurrentPage,
-        setActiveFilters,
-        refetch: fetchPago
-    };
-};
-
-export default function Pago() {
-    const dispatch = useAppDispatch();
-    const {
-        pago,
-        currentPage,
-        totalPages,
-        totalRecords,
-        isLoading,
-        error,
-        setCurrentPage,
-        setActiveFilters,
-        refetch
-    } = usePago();
+    }, [currentPage, activeFilters]);
 
     const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
 
     const loadPago = (data: FiltrosForm) => {
-        const nuevosFiltros: any[] = [];
         const nuevosFiltrosAnd: any[] = [];
 
         if (data.search) {
-            nuevosFiltrosAnd.push({
-                Filtros: [
-                    { Key: "nombre", Value: data.search, Operator: "like" },
-                    { Key: "apellido", Value: data.search, Operator: "like" },
-                    { Key: "email", Value: data.search, Operator: "like" }
-                ], OperadorLogico: "OR"
-            } as any);
+            nuevosFiltrosAnd.push({ Key: "email", Value: data.search, Operator: "like" });
         }
-
-        if (data.departamento) {
-            nuevosFiltros.push({ Key: "departamento", Value: data.departamento, Operator: "=" });
-        }
-
-        if (data.puesto) {
-            nuevosFiltros.push({ Key: "puesto", Value: data.puesto, Operator: "=" });
-        }
-
-        if (data.estado) {
-            nuevosFiltros.push({ Key: "estado", Value: data.estado, Operator: "=" });
-        }
-        console.log(nuevosFiltros, data);
 
         setActiveFilters(prev => ({
             ...prev,
-            FiltrosAnd: nuevosFiltrosAnd,
-            Filtros: nuevosFiltros
+            Filtros: nuevosFiltrosAnd
         })); setCurrentPage(1);
     };
 
@@ -198,8 +201,7 @@ export default function Pago() {
     };
 
     const handleRefetchAll = () => {
-        refetch();
-        /*  refetchEstadisticas(); */
+        fetchPago();
     };
 
     return (
@@ -223,77 +225,54 @@ export default function Pago() {
                                     Mostrando {pago.length} de {totalRecords} pagos
                                 </p>
                             </span>
-                        <dt className="mb-6 flex flex-col gap-2 space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                        <dt className="relative mb-6 flex flex-col gap-4">
                             <MainForm
                                 message_button={"Filtrar"}
                                 onSuccess={loadPago}
                                 iconButton={<Filter className="mr-1 h-4 w-4" />}
                                 actionType={"search"}
-                                flexDirection="flex-col"
+                                flexDirection="flex-row"
                                 dataForm={[
-                                    {
-                                        name: "search",
-                                        type: "SEARCH",
-                                        label: "",
-                                        icon: <></>,
-                                        placeholder: "Busar por nombre, email...",
-                                        require: true,
-                                    },
                                     {
                                         type: "Flex",
                                         require: false,
                                         elements: [
                                             {
-                                                name: "departamento",
+                                                name: "search",
+                                                type: "SEARCH",
+                                                label: "Busqueda rapida",
+                                                icon: <Search className="size-4" />,
+                                                placeholder: "Busar por proveedor, importe, saldo...",
+                                                require: true,
+                                            },
+                                            {
+                                                name: "sucursal",
                                                 type: "SELECT",
-                                                label: "",
-                                                icon: <></>,
+                                                label: "Selecciona la sucursal",
+                                                icon: <Building className="size-4" />,
                                                 options: [
-                                                    { label: "Todos los departamentos", value: "" },
-                                                    { label: "Mayoreo Cajas", value: "MAYOREO CAJAS" },
-                                                    { label: "Administración", value: "ADMINISTRACION" },
-                                                    { label: "Ventas", value: "VENTAS" },
-                                                    { label: "Logística", value: "LOGISTICA" },
-                                                    { label: "Recursos Humanos", value: "RECURSOS HUMANOS" },
+                                                    { label: "Mayoreo", value: "" },
+                                                    { label: "Guadalupe", value: "" },
+                                                    { label: "Testerazo", value: "" },
+                                                    { label: "Palmas", value: "" },
                                                 ],
-                                                placeholder: "Todos los departamentos",
+                                                placeholder: "Todas las sucursales",
                                                 require: false,
-                                            }, {
-                                                name: "puesto",
-                                                type: "SELECT",
-                                                label: "",
-                                                icon: <></>,
-                                                options: [
-                                                    { label: "Todos los puestos", value: "" },
-                                                    { label: "Cajera", value: "CAJERA" },
-                                                    { label: "Gerente", value: "GERENTE" },
-                                                    { label: "Asesor", value: "ASESOR" },
-                                                    { label: "Auxiliar", value: "AUXILIAR" },
-                                                    { label: "Supervisor", value: "SUPERVISOR" },
-                                                ],
-                                                placeholder: "Todos los puestos",
-                                                require: false,
-                                            }, {
-                                                name: "estado",
-                                                type: "SELECT",
-                                                label: "",
-                                                icon: <></>,
-                                                options: [
-                                                    { label: "Todos los estados", value: "" },
-                                                    { label: "Activo", value: "Activo" },
-                                                    { label: "Inactivo", value: "Inactivo" },
-                                                ],
-                                                placeholder: "Todos los estados",
+                                            },
+                                            {
+                                                name: "date",
+                                                type: "DATE_RANGE",
+                                                label: "Fecha de Puesto",
+                                                icon: <Clock className="size-4" />,
                                                 require: false,
                                             },
                                         ],
                                     },
                                 ]} />
-                            <dl className="flex flex-col items-center gap-4">
+                            <dl className="flex gap-2 ml-auto">
                                 <Button
                                     onClick={limpiarFiltros}
                                     color="success"
-                                    size="small"
                                 >
                                     Limpiar
                                 </Button>
@@ -301,7 +280,6 @@ export default function Pago() {
                                 <Button
                                     onClick={handleRefetchAll}
                                     color="success"
-                                    size="small"
                                 >
                                     Actualizar <RefreshCw className="h-4 w-4" />
                                 </Button>
@@ -309,7 +287,6 @@ export default function Pago() {
                                 <Button
                                     onClick={() => handleOpenModal('chat-general')}
                                     color="info"
-                                    size="small"
                                 >
                                     Chat <MessageCircle className="size-4" />
                                 </Button>
@@ -323,7 +300,7 @@ export default function Pago() {
                                 <div className="p-4 text-center">
                                     <p className="text-red-500 mb-2">{error}</p>
                                     <button
-                                        onClick={refetch}
+                                        onClick={fetchPago}
                                         className="text-green-600 hover:text-green-800 underline"
                                     >
                                         Reintentar
@@ -333,7 +310,7 @@ export default function Pago() {
                                 <dt className="flex flex-col gap-2">
                                     <DynamicTable
                                         data={pago}
-                                        onRowClick={(pago) => handleOpenModal('detalles-pago', pago)}
+                                        onRowClick={(pago) => handleOpenModal('detalles-pago', pago.ID)}
                                     />
                                     <Pagination
                                         currentPage={currentPage}
@@ -361,7 +338,7 @@ export default function Pago() {
                 <Modal
                     modalName="detalles-pago"
                     title="Detalles del Pago"
-                    maxWidth="lg">
+                    maxWidth="5xl">
                     {pagoseleccionado ? (
                         <DetallesPago selectedPago={pagoseleccionado} />
                     ) : (

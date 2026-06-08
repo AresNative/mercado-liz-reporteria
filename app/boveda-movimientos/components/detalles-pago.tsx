@@ -5,95 +5,151 @@ import {
     Building, DollarSign, FileText, BadgeCheck,
     Download, Clock, Hash, X
 } from "lucide-react";
-import { useAppSelector } from "@/hooks/selector";
-import { closeModalReducer } from "@/hooks/reducers/drop-down";
-import { useAppDispatch } from "@/hooks/selector";
 import { Button } from "@/components/button";
+import { useCallback, useEffect, useState } from "react";
+import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
+import DynamicTable from "@/components/table";
+import Pagination from "@/components/pagination";
+
+interface PagoResponse {
+    totalRecords: number;
+    totalPages: number;
+    pageSize: number;
+    page: number;
+    data: any[];
+}
 
 export const DetallesPago = ({ selectedPago }: any) => {
-    const dispatch = useAppDispatch();
-    const isOpen = useAppSelector((state: any) => state.dropDownReducer.modals['detalles-pago']);
+    const [pago, setPago] = useState<any>([]);
+    const [pagoDetails, setPagoDetails] = useState<any>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [getWithFilter] = useGetWithFiltersIntelisisMutation();
 
-    const handleClose = () => {
-        dispatch(closeModalReducer({ modalName: 'detalles-pago' }));
-    };
+    if (!selectedPago) return null;
 
-    if (!isOpen || !selectedPago) return null;
+    
+    const fetchPago = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
 
-    const pago:any = selectedPago;
+        try {
+            const response = await getWithFilter({
+                table: `CXP INNER JOIN CXPD ON CXP.MOV = 'Pago' AND CXPD.ID = ${selectedPago} AND CXPD.Aplica = 'Entrada Compra' AND CXPD.ID = CXP.ID INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor LEFT JOIN COMPRA ON CXPD.AplicaID = COMPRA.MovID LEFT JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo `,
+                pageSize: "10",
+                page: currentPage,
+                filtros: {
+                    Selects: [
+                        { Key: "CXP.ID", },
+                        {
+                            Key: "CXP.Proveedor"
+                        },
+                        {
+                            Key: "Prov.Nombre",
+                            Alias: "Nombre Proveedor"
+                        },
+                        { Key: "CXPD.Importe" },
+                        { Key: "art.Articulo" },
+                        { Key: "art.Descripcion1", Alias: "Nombre" },
+                        { Key: "comprad.Costo", Alias: "Costo Unitario" },
+                        { Key: "comprad.Unidad" },
+                        { Key: "comprad.Factor" },
+                    ],
+                    agregaciones: [
+                        { Key: "comprad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
+                        { Key: "comprad.CantidadInventario", Alias: "Articulos Totales", Operation: "SUM" },
+                        { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "Total Compras", Operation: "SUM" },
+                    ],
+                    /* Filtros: activeFilters.Filtros, */
+                }
+            });
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('es-MX', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    };
+            if ('data' in response) {
+                const pagoData = response.data as PagoResponse;
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-MX', {
-            style: 'currency',
-            currency: 'MXN',
-            minimumFractionDigits: 2
-        }).format(amount);
-    };
 
+                const formattedDetailsData = pagoData.data.map((item) => {
+                    //const { Codigo, Articulo, Nombre, Categoria, Grupo, Familia, Unidad, Factor, ...rest } = item;
+                    return ({
+                        nombre: item.Proveedor,
+                        apellido: item["Nombre Proveedor"],
+                        "Costo Unitario": item["Costo Unitario"] || 0,
+                        Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
+                        Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`${item["Articulos Totales"]}`] : [])],
+                        ["Total Compras"]: item["Total Compras"] || 0,
+                    })
+                });
+                setPagoDetails(formattedDetailsData);
+
+                const formattedData = pagoData.data.map((item) => {
+                    //const { Codigo, Articulo, Nombre, Categoria, Grupo, Familia, Unidad, Factor, ...rest } = item;
+                    return ({
+                        Articulo: [item.Nombre, item.Articulo ],
+                        "Costo Unitario": item["Costo Unitario"] || 0,
+                        Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
+                        Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`${item["Articulos Totales"]}`] : []) ],
+                        ["Total Compras"]: item["Total Compras"] || 0,
+                    })
+                });
+                setPago(formattedData);
+                setTotalPages(pagoData.totalPages);
+                setTotalRecords(pagoData.totalRecords);
+            } else if ('error' in response) {
+                throw new Error('Error en la respuesta del servidor');
+            }
+        } catch (err) {
+            console.error("Error fetching pago:", err);
+            setError("No se pudieron cargar los pago. Intente nuevamente.");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [currentPage,/*  activeFilters, setActiveFilters */]);
+    
+    useEffect(() => {
+        fetchPago();
+    }, [currentPage]);
+    
     const getStatusColor = (estado: string) => {
         return estado === "Activo"
             ? "bg-green-100 text-green-800"
             : "bg-red-100 text-red-800";
     };
 
-    const SectionTitle = ({ title }: { title: string }) => (
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            {title}
-        </h3>
-    );
-
     return (
-        <div className="p-4">
+        <main className="p-4">
             {/* Header con información básica */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+            <header className="bg-gray-50 rounded-lg p-4 mb-6">
+                <ul className="flex items-center space-x-4">
+                    <li className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
                         <User className="h-8 w-8 text-green-600" />
-                    </div>
-                    <div className="flex-1">
+                    </li>
+                    <li className="flex-1">
                         <h2 className="text-xl font-bold text-gray-900">
-                            {pago.nombre} {pago.apellido}
+                            {pagoDetails.nombre} {pagoDetails.apellido}
                         </h2>
-                        <div className="flex items-center space-x-4 mt-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pago.estado)}`}>
-                                {pago.estado}
+                        <article className="flex items-center space-x-4 mt-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pagoDetails.estado)}`}>
+                                {pagoDetails.estado}
                             </span>
-                            <span className="text-sm text-gray-500">#{pago.num_empleado}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Acciones */}
-            <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-gray-200">
-                <Button
-                    onClick={handleClose}
-                    color="second"
-                    size="small"
-                >
-                    Cerrar
-                </Button>
-                <Button
-                    onClick={() => {
-                        // Aquí puedes implementar la descarga de información
-                        console.log('Descargar información de', pago.nombre);
-                    }}
-                    color="success"
-                    size="small"
-                >
-                    <Download className="h-4 w-4 mr-2" />
-                    Descargar Info
-                </Button>
-            </div>
-        </div>
+                            <span className="text-sm text-gray-500">#{pagoDetails.num_empleado}</span>
+                        </article>
+                    </li>
+                </ul>
+            </header>
+            <dt className="flex flex-col gap-2">
+                <DynamicTable
+                    data={pago}
+                />
+                <Pagination
+                    currentPage={currentPage}
+                    loading={isLoading}
+                    setCurrentPage={setCurrentPage}
+                    totalPages={totalPages}
+                />
+            </dt>
+        </main>
     );
 };

@@ -38,7 +38,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
     }, [isOpen])
 
     const handleBackdropClick = () => {
-        dispatch(closeModalReducer({ modalName }));
+        modalName && dispatch(closeModalReducer({ modalName }));
     };
 
     const maxWidthClasses = {

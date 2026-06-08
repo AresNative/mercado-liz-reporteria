@@ -321,10 +321,16 @@ export const MainForm = React.forwardRef(({
     <form
       ref={ref}
       onSubmit={(e) => {
-        e.preventDefault(); // doble seguridad
+        e.preventDefault();
         handleSubmit(onSubmit)(e);
       }}
-      className={cn(`relative flex w-full my-2 m-auto gap-2 ${flexDirection}`, flexDirection === "flex-row" && "items-center ")}>
+      className={cn(
+        "relative flex w-full my-2 m-auto gap-2",
+        flexDirection,
+        // En row, necesitamos items-end para que el div del botón se alinee abajo
+        flexDirection === "flex-row" && "items-end"
+      )}
+    >
       <div className="flex flex-col gap-4 w-full">
         {pages[page].map((field: any, key: any) => (
           <SwitchTypeInputRender
@@ -341,22 +347,47 @@ export const MainForm = React.forwardRef(({
           />
         ))}
       </div>
+
       {showButton && (
-        <div className={cn("flex justify-between h-fit", flexDirection === "flex-row" && " mt-8")}>
-        {page > 0 && (
-          <Button color="success" type="button" size="small" label="Anterior" onClick={() => handlePageChange(page - 1)} />
-        )}
-        {page < pages.length - 1 ? (
-          <Button color="success" aling="ml-auto" size="small" type="button" label="Siguiente" onClick={() => handlePageChange(page + 1)} />
-        ) : (
-          <button
-            className="float-right ml-auto cursor-pointer flex gap-2 items-center rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
-            type="submit"
-            slot="end"
-            disabled={loading}
-          >{iconButton ? iconButton : <CircleCheckBig className="size-4" />}{loading ? "Loading..." : message_button}</button>
-        )}
-      </div>)}
+        <div
+          className={cn(
+            "flex gap-2",
+            flexDirection === "flex-row"
+              // row: columna de botones pegada al borde inferior derecho, sin crecer
+              ? "flex-col justify-end items-end shrink-0 self-end"
+              // col: fila con prev/next separados
+              : "flex-row justify-between w-full"
+          )}
+        >
+          {page > 0 && (
+            <Button
+              color="success"
+              type="button"
+              size="small"
+              label="Anterior"
+              onClick={() => handlePageChange(page - 1)}
+            />
+          )}
+          {page < pages.length - 1 ? (
+            <Button
+              color="success"
+              size="small"
+              type="button"
+              label="Siguiente"
+              onClick={() => handlePageChange(page + 1)}
+            />
+          ) : (
+            <button
+              className="cursor-pointer flex gap-2 items-center rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-60"
+              type="submit"
+              disabled={loading}
+            >
+              {iconButton ? iconButton : <CircleCheckBig className="size-4" />}
+              {loading ? "Loading..." : message_button}
+            </button>
+          )}
+        </div>
+      )}
     </form>
   );
 });

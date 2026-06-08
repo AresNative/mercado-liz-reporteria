@@ -312,14 +312,26 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
         // ── Array con modo de display configurable ────────────────────────────
         if (Array.isArray(value)) {
             const mode = arrayDisplayModes[key] ?? "both";
-            if (mode === "first") return <span>{String(value[0] ?? "—")}</span>;
-            if (mode === "second") return <span>{String(value[1] ?? "—")}</span>;
-            if (mode === "third") return <span>{String(value[2] ?? "—")}</span>;
+            const formatArrayValue = (v: any) => {
+                if (v == null) return "—";
+                if (isDateColumn(key)) {
+                    try { const d = new Date(v); return isNaN(d.getTime()) ? String(v) : formatDateDisplay(d); }
+                    catch { return String(v); }
+                }
+                if (isPercentageColumn(key) && typeof v === "number") return formatNumberValue(v, "percentage", 2);
+                if (isCurrencyColumn(key) && typeof v === "number") return formatNumberValue(v, "currency", 2);
+                if (typeof v === "number") return formatNumberValue(v, "number", Number.isInteger(v) ? 0 : 2);
+                return String(v);
+            };
+            if (mode === "first") return <span>{formatArrayValue(value[0])}</span>;
+            if (mode === "second") return <span>{formatArrayValue(value[1])}</span>;
+            if (mode === "third") return <span>{formatArrayValue(value[2])}</span>;
+
             // "both"
             return (
                 <div className="flex flex-col text-xs leading-tight">
-                    <span>{String(value[0] ?? "—")}</span>
-                    <span className="text-gray-400 dark:text-gray-500">{String(value[1] ?? "—")}</span>
+                    <span>{formatArrayValue(value[0])}</span>
+                    {<span className="text-gray-400"> {value[1] != null && value[1] !== "" && formatArrayValue(value[1])}{value[2] != null && value[2] !== "" && (" | " + formatArrayValue(value[2]))} </span>}
                 </div>
             );
         }

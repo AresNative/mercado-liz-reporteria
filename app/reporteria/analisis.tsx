@@ -643,9 +643,22 @@ export default function Analisis() {
 
         try {
             const { promise } = manager.execute(payload);
-            const response = await safeCall(() => promise, `fetchTable/${selectedReport}`);
+            const response:any = await safeCall(() => promise, `fetchTable/${selectedReport}`);
             if (tableAbortRef.current.signal.aborted) return;
-            setDataTable(response.data?.data || []);
+
+            const formattedData = response.data && response.data.data.map((item: any) => {
+                const { Codigo, Articulo, Nombre, Categoria, Grupo, Familia, Unidad, Factor, ...rest } = item;
+
+                return ({
+                    Articulo: [item.Articulo, item.Nombre],
+                    FechaEmision: item.FechaEmision,
+                    Sucursal: item.Sucursal,
+                    Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
+                    Categoria: [item.Categoria, item.Grupo, item.Familia],
+                    ...rest,
+                })
+            }) || [];
+            setDataTable(formattedData);
             setTotalRecords(response.data?.totalRecords || response.data?.totalEstimated || 0);
         } catch (err: any) {
             if (err?.name === "AbortError") return;
