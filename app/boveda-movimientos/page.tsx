@@ -55,9 +55,8 @@ interface ActiveFilters {
 
 interface FiltrosForm {
     search: string;
-    departamento: string;
-    estado: string;
-    puesto: string;
+    sucursal: string;
+    date: string;
 }
 
 export default function Pago() {
@@ -129,9 +128,7 @@ export default function Pago() {
 
             if ('data' in response) {
                 const pagoData = response.data as PagoResponse;
-                const formattedData = pagoData.data.map((item) => {
-                    console.log(item);
-                    
+                const formattedData = pagoData.data.map((item) => {                    
                     return ({
                         ID: item.ID,
                         Sucursal: item.Sucursal,
@@ -163,11 +160,12 @@ export default function Pago() {
     const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
 
     const loadPago = (data: FiltrosForm) => {
+        console.log(data);
+        
         const nuevosFiltrosAnd: any[] = [];
 
-        if (data.search) {
-            nuevosFiltrosAnd.push({ Key: "email", Value: data.search, Operator: "like" });
-        }
+        if (data.search) nuevosFiltrosAnd.push({ Key: "CXP.Proveedor", Value: data.search, Operator: "like" });
+        if (data.sucursal) nuevosFiltrosAnd.push({ Key: "CXP.Sucursal", Value: data.sucursal, Operator: "like" });
 
         setActiveFilters(prev => ({
             ...prev,
@@ -238,10 +236,10 @@ export default function Pago() {
                                                 label: "Selecciona la sucursal",
                                                 icon: <Building className="size-4" />,
                                                 options: [
-                                                    { label: "Mayoreo", value: "" },
-                                                    { label: "Guadalupe", value: "" },
-                                                    { label: "Testerazo", value: "" },
-                                                    { label: "Palmas", value: "" },
+                                                    { label: "Mayoreo", value: "4" },
+                                                    { label: "Guadalupe", value: "1" },
+                                                    { label: "Testerazo", value: "2" },
+                                                    { label: "Palmas", value: "3" },
                                                 ],
                                                 placeholder: "Todas las sucursales",
                                                 require: false,
