@@ -103,7 +103,7 @@ export default function Pago() {
 
         try {
             const response = await getWithFilter({
-                table: "CXP INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor",
+                table: "CXP INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor RIGHT JOIN CXPD ON CXPD.ID = CXP.ID",
                 pageSize: pageSize,
                 page: currentPage,
                 filtros: {
@@ -119,7 +119,6 @@ export default function Pago() {
                         { Key: "CXP.Retencion2" },
                         { Key: "CXP.Retencion3" },
                         { Key: "CXP.FechaEmision" },
-
                     ],
                     Filtros: activeFilters.Filtros,
                     Order: activeFilters.OrderBy ? activeFilters.OrderBy : []
