@@ -88,7 +88,12 @@ export default function Pago() {
             },
         ],
         Selects: [],
-        OrderBy: null,
+        OrderBy: [
+            {
+                Key: "CXP.FechaEmision",
+                Direction: "DESC"
+            }
+        ],
         sum: false,
         distinct: false
     });
@@ -118,7 +123,7 @@ export default function Pago() {
 
                     ],
                     Filtros: activeFilters.Filtros,
-                    Order: activeFilters.OrderBy ? [activeFilters.OrderBy] : []
+                    Order: activeFilters.OrderBy ? activeFilters.OrderBy : []
                 }
             });
 
