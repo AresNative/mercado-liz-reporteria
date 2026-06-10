@@ -3,11 +3,15 @@
 import {
     Building,
     Clock,
+    Copy,
+    FileText,
     Filter,
     MessageCircle,
     Plus,
     RefreshCw,
-    Search
+    Search,
+    Share2,
+    Trash2
 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 
@@ -62,6 +66,7 @@ export default function Pago() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [getWithFilter] = useGetWithFiltersIntelisisMutation();
@@ -94,45 +99,22 @@ export default function Pago() {
 
         try {
             const response = await getWithFilter({
-                table: "CXP INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor",// INNER JOIN CXPD ON CXPD.Aplica = 'Entrada Compra' AND CXP.ID = CXPD.ID AND CXP.Estatus = 'CONCLUIDO'
-                pageSize: "10",
+                table: "CXP INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor",
+                pageSize: pageSize,
                 page: currentPage,
                 filtros: {
                     Selects: [
-                        {
-                            Key: "CXP.ID",
-                        },
-                        {
-                            Key: "CXP.Proveedor"
-                        },
-                        {
-                            Key: "Prov.Nombre"
-                        },
-                        {
-                            Key: "CXP.Sucursal"
-                        },
-                        {
-                            Key: "CXP.Importe",
-                            Alias: "Importe"
-                        },
-                        {
-                            Key: "CXP.Saldo"
-                        },
-                        {
-                            Key: "CXP.Impuestos"
-                        },
-                        {
-                            Key: "CXP.Retencion"
-                        },
-                        {
-                            Key: "CXP.Retencion2"
-                        },
-                        {
-                            Key: "CXP.Retencion3"
-                        },
-                        {
-                            Key: "CXP.FechaEmision"
-                        },
+                        { Key: "CXP.ID", },
+                        { Key: "CXP.Proveedor" },
+                        { Key: "Prov.Nombre" },
+                        { Key: "CXP.Sucursal" },
+                        { Key: "CXP.Importe", Alias: "Importe" },
+                        { Key: "CXP.Saldo" },
+                        { Key: "CXP.Impuestos" },
+                        { Key: "CXP.Retencion" },
+                        { Key: "CXP.Retencion2" },
+                        { Key: "CXP.Retencion3" },
+                        { Key: "CXP.FechaEmision" },
 
                     ],
                     Filtros: activeFilters.Filtros,
@@ -150,7 +132,7 @@ export default function Pago() {
                         Sucursal: item.Sucursal,
                         Proveedor: [item.Proveedor, item.Nombre],
                         Importe: [item.Importe, item.Saldo ],
-                        Impuestos: item.Impuestos || 0,
+                        Impuestos: item.Impuestos,
                         Retencion:[ item.Retencion, item.Retencion2, item.Retencion3],
                         FechaEmision: item.FechaEmision || "N/A",
                     })
@@ -167,11 +149,11 @@ export default function Pago() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, activeFilters, setActiveFilters]);
+    }, [currentPage, activeFilters, setActiveFilters, pageSize]);
 
     useEffect(() => {
         fetchPago();
-    }, [currentPage, activeFilters]);
+    }, [currentPage, activeFilters, pageSize]);
 
     const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
 
@@ -311,11 +293,36 @@ export default function Pago() {
                                     <DynamicTable
                                         data={pago}
                                         onRowClick={(pago) => handleOpenModal('detalles-pago', pago.ID)}
+                                                contextMenuItems={(row) => [
+                                                        {
+                                                            label: 'Copiar',
+                                                            icon: <Copy size={16} />,
+                                                            onClick: () => console.log('Copiado'),
+                                                        },
+                                                        {
+                                                            label: 'Ver detalles',
+                                                            icon: <FileText size={16} />,
+                                                            onClick: () => console.log('Mostrar detalles'),
+                                                        },
+                                                        {
+                                                            label: 'Compartir',
+                                                            icon: <Share2 size={16} />,
+                                                            onClick: () => console.log('Abrir diálogo de compartir'),
+                                                        },
+                                                        {
+                                                            label: 'Eliminar',
+                                                            icon: <Trash2 size={16} />,
+                                                            onClick: () => console.log('Elemento eliminado'),
+                                                            danger: true,
+                                                        },
+                                                    ]}
                                     />
                                     <Pagination
                                         currentPage={currentPage}
                                         loading={isLoading}
                                         setCurrentPage={setCurrentPage}
+                                        currentPageSize={pageSize}
+                                        onPageSizeChange={setPageSize}
                                         totalPages={totalPages}
                                     />
                                 </dt>

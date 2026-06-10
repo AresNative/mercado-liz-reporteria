@@ -1,15 +1,19 @@
 "use client";
 
 import {
-    User, Mail, Phone, MapPin, Calendar, Briefcase,
-    Building, DollarSign, FileText, BadgeCheck,
-    Download, Clock, Hash, X
+    Copy,
+    Eye,
+    FileText,
+    Share2,
+    Trash2,
+    Upload
 } from "lucide-react";
 import { Button } from "@/components/button";
 import { useCallback, useEffect, useState } from "react";
 import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
 import DynamicTable from "@/components/table";
 import Pagination from "@/components/pagination";
+import { ContextMenu } from "@/components/context-menu";
 
 interface PagoResponse {
     totalRecords: number;
@@ -21,10 +25,15 @@ interface PagoResponse {
 
 export const DetallesPago = ({ selectedPago }: any) => {
     const [pago, setPago] = useState<any>([]);
-    const [pagoDetails, setPagoDetails] = useState<any>([]);
+    const [pagoDetails, setPagoDetails] = useState({
+        num_empleado: "",
+        nombre: "",
+        apellido: "",
+        estado: "Activo",
+    });
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [totalRecords, setTotalRecords] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [getWithFilter] = useGetWithFiltersIntelisisMutation();
@@ -38,22 +47,20 @@ export const DetallesPago = ({ selectedPago }: any) => {
 
         try {
             const response = await getWithFilter({
-                table: `CXP INNER JOIN CXPD ON CXP.MOV = 'Pago' AND CXPD.ID = ${selectedPago} AND CXPD.Aplica = 'Entrada Compra' AND CXPD.ID = CXP.ID INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor LEFT JOIN COMPRA ON CXPD.AplicaID = COMPRA.MovID LEFT JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo `,
-                pageSize: "10",
+                table: `CXP INNER JOIN CXPD ON CXP.MOV = 'Pago' AND CXPD.Aplica = 'Entrada Compra' AND CXPD.ID = ${selectedPago} AND CXPD.ID = CXP.ID INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor LEFT JOIN COMPRA ON CXPD.AplicaID = COMPRA.MovID LEFT JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo `,
+                pageSize: pageSize,
                 page: currentPage,
                 filtros: {
                     Selects: [
                         { Key: "CXP.ID", },
-                        {
-                            Key: "CXP.Proveedor"
-                        },
-                        {
-                            Key: "Prov.Nombre",
-                            Alias: "Nombre Proveedor"
-                        },
+                        { Key: "CXP.Proveedor" },
+                        { Key: "Prov.Nombre", Alias: "Nombre Proveedor" },
                         { Key: "CXPD.Importe" },
                         { Key: "art.Articulo" },
                         { Key: "art.Descripcion1", Alias: "Nombre" },
+                        { Key: "ART.Categoria" },
+                        { Key: "ART.Grupo" },
+                        { Key: "ART.Familia" },
                         { Key: "comprad.Costo", Alias: "Costo Unitario" },
                         { Key: "comprad.Unidad" },
                         { Key: "comprad.Factor" },
@@ -70,33 +77,34 @@ export const DetallesPago = ({ selectedPago }: any) => {
             if ('data' in response) {
                 const pagoData = response.data as PagoResponse;
 
+                const lastItem = pagoData.data[pagoData.data.length - 1];
 
-                const formattedDetailsData = pagoData.data.map((item) => {
-                    //const { Codigo, Articulo, Nombre, Categoria, Grupo, Familia, Unidad, Factor, ...rest } = item;
-                    return ({
-                        nombre: item.Proveedor,
-                        apellido: item["Nombre Proveedor"],
-                        "Costo Unitario": item["Costo Unitario"] || 0,
-                        Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
-                        Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`${item["Articulos Totales"]}`] : [])],
-                        ["Total Compras"]: item["Total Compras"] || 0,
-                    })
-                });
-                setPagoDetails(formattedDetailsData);
+                const formattedDetails = lastItem ? {
+                    num_empleado: lastItem.Proveedor,
+                    nombre: lastItem["Nombre Proveedor"],
+                    apellido: lastItem["Apellido Proveedor"] || "",
+                    estado: lastItem["Estado Proveedor"] || "Activo",
+                } : {
+                    num_empleado: "",
+                    nombre: "",
+                    apellido: "",
+                    estado: "Activo",
+                };                
+                setPagoDetails(formattedDetails);
 
                 const formattedData = pagoData.data.map((item) => {
                     //const { Codigo, Articulo, Nombre, Categoria, Grupo, Familia, Unidad, Factor, ...rest } = item;
                     return ({
                         Articulo: [item.Nombre, item.Articulo ],
-                        "Costo Unitario": item["Costo Unitario"] || 0,
+                        Categoria: [item.Categoria, item.Grupo, item.Familia],
                         Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
-                        Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`${item["Articulos Totales"]}`] : []) ],
-                        ["Total Compras"]: item["Total Compras"] || 0,
+                        Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`${item["Articulos Totales"]}`] : [])],
+                        "Costo Unitario": item["Costo Unitario"],
+                        ["Total Compras"]: item["Total Compras"],
                     })
                 });
                 setPago(formattedData);
                 setTotalPages(pagoData.totalPages);
-                setTotalRecords(pagoData.totalRecords);
             } else if ('error' in response) {
                 throw new Error('Error en la respuesta del servidor');
             }
@@ -106,11 +114,11 @@ export const DetallesPago = ({ selectedPago }: any) => {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage,/*  activeFilters, setActiveFilters */]);
+    }, [currentPage, pageSize]);
     
     useEffect(() => {
         fetchPago();
-    }, [currentPage]);
+    }, [currentPage, pageSize]);
     
     const getStatusColor = (estado: string) => {
         return estado === "Activo"
@@ -121,12 +129,9 @@ export const DetallesPago = ({ selectedPago }: any) => {
     return (
         <main className="p-4">
             {/* Header con información básica */}
-            <header className="bg-gray-50 rounded-lg p-4 mb-6">
-                <ul className="flex items-center space-x-4">
-                    <li className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                        <User className="h-8 w-8 text-green-600" />
-                    </li>
-                    <li className="flex-1">
+            <header className="bg-zinc-50 rounded-lg p-4 mb-6">
+                <ul className="flex items-center gap-4 justify-between">
+                    <li className="flex flex-col">
                         <h2 className="text-xl font-bold text-gray-900">
                             {pagoDetails.nombre} {pagoDetails.apellido}
                         </h2>
@@ -137,16 +142,49 @@ export const DetallesPago = ({ selectedPago }: any) => {
                             <span className="text-sm text-gray-500">#{pagoDetails.num_empleado}</span>
                         </article>
                     </li>
+                    <li className="flex flex-col gap-2">
+                        <Button color="success" size="small">
+                            <Upload className="size-5" /> Subir Expediente
+                        </Button>
+                        <Button color="success" size="small">
+                            <Eye className="size-5" /> Ver Expediente
+                        </Button>
+                    </li>
                 </ul>
             </header>
             <dt className="flex flex-col gap-2">
                 <DynamicTable
                     data={pago}
+                    contextMenuItems={(row) => [
+                        {
+                            label: 'Copiar',
+                            icon: <Copy size={16} />,
+                            onClick: () => console.log('Copiado'),
+                        },
+                        {
+                            label: 'Ver detalles',
+                            icon: <FileText size={16} />,
+                            onClick: () => console.log('Mostrar detalles'),
+                        },
+                        {
+                            label: 'Compartir',
+                            icon: <Share2 size={16} />,
+                            onClick: () => console.log('Abrir diálogo de compartir'),
+                        },
+                        {
+                            label: 'Eliminar',
+                            icon: <Trash2 size={16} />,
+                            onClick: () => console.log('Elemento eliminado'),
+                            danger: true,
+                        },
+                    ]}
                 />
                 <Pagination
                     currentPage={currentPage}
                     loading={isLoading}
                     setCurrentPage={setCurrentPage}
+                    currentPageSize={pageSize}
+                    onPageSizeChange={setPageSize}
                     totalPages={totalPages}
                 />
             </dt>

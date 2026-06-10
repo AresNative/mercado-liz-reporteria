@@ -113,14 +113,14 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "ART.Categoria" },
                 { Key: "ART.Grupo" },
                 { Key: "ART.Familia" },
-                { Key: "ventad.Precio", Alias: "Precio unitario" },
-                { Key: "ventad.Costo", Alias: "Costo unitario" },
+                { Key: "ventad.Precio", Alias: "Precio Unitario" },
+                { Key: "ventad.Costo", Alias: "Costo Unitario" },
                 { Key: "ventad.Unidad", Alias: "Unidad" },
                 { Key: "ventad.Factor", Alias: "Factor" },
             ],
             agregaciones: [
                 { Key: "ventad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
-                { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Cantidad Total", Operation: "SUM" },
+                { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Articulos Totales", Operation: "SUM" },
                 { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "Total Ventas", Operation: "SUM" },
                 { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
                 { Key: "venta.Cliente", Alias: "Total Clientes", Operation: "COUNT DISTINCT" },
@@ -157,7 +157,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "comprad.Costo", Alias: "Maximo Costo", Operation: "MAX" },
                 { Key: "comprad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
                 { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "Total Compras", Operation: "SUM" },
-                { Key: "comprad.CantidadInventario", Alias: "Articulos Comprados", Operation: "SUM" },
+                { Key: "comprad.CantidadInventario", Alias: "Articulos Totales", Operation: "SUM" },
                 { Key: "compra.Proveedor", Alias: "Total Proveedores", Operation: "COUNT DISTINCT" },
             ],
             Filtros: [
@@ -262,6 +262,24 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
 
 // ─── Constantes estables ─────────────────────────────────────────────────────
 const REPORT_KEYS = Object.keys(REPORT_CONFIGS) as REPORT[];
+
+/**
+ * Columnas sintéticas: el nombre que aparece en DynamicTable (key) y los campos
+ * fuente del SELECT que las componen (sourceFields).
+ * Se usan para:
+ *  1. Registrar la columna con su nombre sintético en visibleColumns.
+ *  2. Expandir los campos fuente al filtrar selects en la petición al servidor.
+ */
+const SYNTHETIC_COLUMNS: {
+    syntheticKey: string;
+    sourceFields: string[]; // nombres tal como llegan del servidor (Alias o Key.split(".").pop())
+}[] = [
+        { syntheticKey: "Articulo", sourceFields: ["Nombre", "Articulo", "Codigo"] },
+        { syntheticKey: "Proveedor", sourceFields: ["Proveedor", "Fabricante"] },
+        { syntheticKey: "Categoria", sourceFields: ["Categoria", "Grupo", "Familia"] },
+        { syntheticKey: "Unidad", sourceFields: ["Unidad", "Factor"] },
+        { syntheticKey: "Cantidad", sourceFields: ["Cantidad", "Articulos Totales"] },
+    ];
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1500;
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -473,28 +491,6 @@ interface StatCardProps {
     subtitle?: string;
 }
 
-function StatCard({ label, value, icon, colorClass = "text-blue-600", loading, subtitle }: StatCardProps) {
-    return (
-        <div className="flex flex-col justify-between bg-white rounded-xl border border-gray-200 shadow-sm p-4 min-w-0">
-            <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{label}</span>
-                <span className={`${colorClass} flex-shrink-0 ml-2`}>{icon}</span>
-            </div>
-            {loading ? (
-                <div className="flex items-center gap-2 mt-1">
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                    <span className="text-sm text-gray-400">Cargando...</span>
-                </div>
-            ) : (
-                <>
-                    <span className="text-xl font-bold text-gray-900 truncate">{value}</span>
-                    {subtitle && <span className="text-xs text-gray-400 mt-0.5">{subtitle}</span>}
-                </>
-            )}
-        </div>
-    );
-}
-
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Analisis() {
     const [manager] = useManagmentRead();
@@ -551,11 +547,36 @@ export default function Analisis() {
         (report: REPORT = selectedReport): Record<string, boolean> => {
             if (visibleColumnsByReport[report]) return visibleColumnsByReport[report];
             const config = REPORT_CONFIGS[report];
+
+            // Nombres crudos de los selects del reporte
+            const rawSelectKeys = new Set(
+                (config.filtros?.selects || []).map((s: any) => s.Alias || s.Key.split(".").pop() || s.Key)
+            );
+
+            // Campos fuente que quedan absorbidos por una columna sintética
+            const absorbedBySynthetic = new Set<string>();
             const initial: Record<string, boolean> = {};
-            [
-                ...(config.filtros?.selects || []).map((s: any) => s.Alias || s.Key.split(".").pop() || s.Key),
-                ...(config.filtros?.agregaciones || []).map((a: any) => a.Alias || a.Key.split(".").pop() || a.Key),
-            ].forEach((col) => (initial[col] = true));
+
+            // 1. Registrar columnas sintéticas cuyo al menos un campo fuente existe en los selects
+            SYNTHETIC_COLUMNS.forEach(({ syntheticKey, sourceFields }) => {
+                const hasAny = sourceFields.some((f) => rawSelectKeys.has(f));
+                if (hasAny) {
+                    initial[syntheticKey] = true;
+                    sourceFields.forEach((f) => absorbedBySynthetic.add(f));
+                }
+            });
+
+            // 2. Resto de selects no absorbidos por ninguna columna sintética
+            rawSelectKeys.forEach((col) => {
+                if (!absorbedBySynthetic.has(col)) initial[col] = true;
+            });
+
+            // 3. Agregaciones (nunca son sintéticas)
+            (config.filtros?.agregaciones || []).forEach((a: any) => {
+                const alias = a.Alias || a.Key.split(".").pop() || a.Key;
+                initial[alias] = true;
+            });
+
             return initial;
         },
         [visibleColumnsByReport, selectedReport]
@@ -601,10 +622,24 @@ export default function Analisis() {
         let finalFiltros: any = config.filtros ? JSON.parse(JSON.stringify(config.filtros)) : {};
 
         // Filtrar selects y agregaciones según visibilidad
+        // Las columnas sintéticas se expanden a sus campos fuente para que el servidor las devuelva
         if (finalFiltros.selects) {
+            // Construir el set de campos fuente requeridos por las columnas sintéticas visibles
+            const requiredSourceFields = new Set<string>();
+            SYNTHETIC_COLUMNS.forEach(({ syntheticKey, sourceFields }) => {
+                if (visibleKeys.length === 0 || visibleKeys.includes(syntheticKey)) {
+                    sourceFields.forEach((f) => requiredSourceFields.add(f));
+                }
+            });
+
             finalFiltros.selects = finalFiltros.selects.filter((sel: any) => {
                 const alias = sel.Alias || sel.Key.split(".").pop() || sel.Key;
-                return visibleKeys.length === 0 || visibleKeys.includes(alias);
+                // Incluir si: todas visibles, es campo fuente de sintética visible, o está directamente visible
+                return (
+                    visibleKeys.length === 0 ||
+                    requiredSourceFields.has(alias) ||
+                    visibleKeys.includes(alias)
+                );
             });
         }
         if (finalFiltros.agregaciones) {
@@ -643,20 +678,31 @@ export default function Analisis() {
 
         try {
             const { promise } = manager.execute(payload);
-            const response:any = await safeCall(() => promise, `fetchTable/${selectedReport}`);
+            const response: any = await safeCall(() => promise, `fetchTable/${selectedReport}`);
             if (tableAbortRef.current.signal.aborted) return;
 
-            const formattedData = response.data && response.data.data.map((item: any) => {
-                const { Codigo, Articulo, Nombre, Categoria, Grupo, Familia, Unidad, Factor, ...rest } = item;
+            // Columnas visibles activas (vacío = todas visibles)
+            const activeVisible = visibleKeys.length > 0 ? new Set(visibleKeys) : null;
 
-                return ({
-                    Articulo: [item.Articulo, item.Nombre],
+            const formattedData = response.data && response.data.data.map((item: any) => {
+                const { Proveedor, Fabricante, Articulo, Nombre, Codigo, Categoria, Grupo, Familia, Unidad, Factor, Cantidad, ["Articulos Totales"]: ArticulosTotales, ["Total Clientes"]: TotalClientes, ["Total Tikets"]: TotalTikets, ...rest } = item;
+
+                const full: Record<string, any> = {
                     FechaEmision: item.FechaEmision,
+                    Articulo: [item.Nombre, item.Articulo, item.Codigo],
+                    Proveedor: [item.Proveedor, item.Fabricante],
                     Sucursal: item.Sucursal,
                     Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
+                    Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`${item["Articulos Totales"]}`] : [])],
                     Categoria: [item.Categoria, item.Grupo, item.Familia],
                     ...rest,
-                })
+                };
+
+                // Omitir campos cuya columna está oculta en DynamicTable
+                if (!activeVisible) return full;
+                return Object.fromEntries(
+                    Object.entries(full).filter(([key]) => activeVisible.has(key))
+                );
             }) || [];
             setDataTable(formattedData);
             setTotalRecords(response.data?.totalRecords || response.data?.totalEstimated || 0);
@@ -879,8 +925,8 @@ export default function Analisis() {
                         {/* Indicador de conexión SignalR */}
                         <span
                             className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${isConnected
-                                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                    : "bg-gray-100 border-gray-200 text-gray-500"
+                                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                                : "bg-gray-100 border-gray-200 text-gray-500"
                                 }`}
                         >
                             <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-emerald-500" : "bg-gray-400"}`} />
@@ -932,11 +978,20 @@ export default function Analisis() {
 
                 {/* ─── Stats Cards ───────────────────────────────────────── */}
                 {showStats && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3 mb-5">
+                    <BentoGrid cols={4} className="p-0">
                         {statsCards.map((card) => (
-                            <StatCard key={card.label} {...card} />
+                            <BentoItem key={card.label} title={card.label}>
+                                <article>
+                                    <span className={`${card.colorClass} absolute top-5 right-5`}>{card.icon}</span>
+
+                                    <label className="flex items-center justify-between mb-2">
+                                        <span className="text-xl font-bold text-gray-900 truncate">{card.value}</span>
+                                        {card.subtitle && <span className="text-xs text-gray-400 mt-0.5">{card.subtitle}</span>}
+                                    </label>
+                                </article>
+                            </BentoItem>
                         ))}
-                    </div>
+                    </BentoGrid>
                 )}
 
                 {/* ─── Selector de reporte ───────────────────────────────── */}
@@ -1011,7 +1066,7 @@ export default function Analisis() {
                         iconButton={<Filter className="mr-1 h-4 w-4" />}
                         onSuccess={(rows: any) => {
                             console.log(rows);
-                            
+
                             setSearchApplied(true); setCurrentPage(1); fetchTableData();
                         }}
                     />
@@ -1038,7 +1093,6 @@ export default function Analisis() {
                         onVisibleColumnsChange={handleVisibleColumnsChange}
                     />
 
-                    {/* Paginación */}
                     {!tableLoading && totalRecords > 0 && (
                         <Pagination
                             currentPage={currentPage}

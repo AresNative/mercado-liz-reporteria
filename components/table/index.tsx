@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
     Check,
@@ -28,26 +29,35 @@ import autoTable from 'jspdf-autotable';
 
 export type DataItem = Record<string, any>;
 
+// ── Tipo compartido del menú contextual ───────────────────────────────────────
+export interface ContextMenuItem {
+    label: string;
+    icon?: React.ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    danger?: boolean;
+}
+
 interface DynamicTableProps {
     data: Record<string, any>[];
     loading?: boolean;
     onRowClick?: (rowData: any) => void;
     onRightClick?: (rowData: any) => void;
     /**
+     * Items del menú contextual que aparece al hacer clic derecho en una fila.
+     * Si no se pasa, el clic derecho no tiene efecto.
+     */
+    contextMenuItems?: (rowData: any) => ContextMenuItem[];
+    /**
      * Si se pasa, el componente llama este callback cada vez que el usuario
      * cambia la columna de orden, para que el padre pueda re-fetchear desde
      * el servidor con el nuevo ORDER BY.
      */
     onSortChange?: (column: string, direction: "asc" | "desc") => void;
-    /**
-     * Visibilidad de columnas controlada externamente (controlled mode).
-     * Si se pasa junto con onVisibleColumnsChange, el componente actúa en modo
-     * controlado y no gestiona visibilidad internamente.
-     */
     visibleColumns?: Record<string, boolean>;
     /**
-     * Callback que se llama SOLO cuando el USUARIO cambia la visibilidad
-     * (toggle manual). NO se dispara al inicializar ni al llegar datos nuevos.
+     * Callback que se llama cuando cambia la visibilidad de las columnas.
+     * Útil para que el padre pueda ajustar las consultas dinámicamente.
      */
     onVisibleColumnsChange?: (columns: Record<string, boolean>) => void;
 }
@@ -102,6 +112,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     onSortChange,
     visibleColumns: controlledVisibleColumns,
     onVisibleColumnsChange,
+    contextMenuItems,
 }) => {
     const tableRef = useRef<HTMLDivElement>(null);
     const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -112,14 +123,66 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     const [sortColumn, setSortColumn] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [showColumnMenu, setShowColumnMenu] = useState<string | null>(null);
-    // Modo controlado: si el padre pasa visibleColumns, usamos ese valor directamente.
-    // Modo no controlado: gestionamos visibilidad internamente.
     const isControlled = controlledVisibleColumns !== undefined;
     const [internalVisibleColumns, setInternalVisibleColumns] = useState<Record<string, boolean>>({});
     const visibleColumns = isControlled ? controlledVisibleColumns : internalVisibleColumns;
-
     // Modo de visualización para columnas cuyo valor es un array (ej. ["PEPE", "00020"])
     const [arrayDisplayModes, setArrayDisplayModes] = useState<Record<string, ArrayColumnDisplay>>({});
+
+    // ── Estado del context menu interno ───────────────────────────────────────
+    const [ctxMenu, setCtxMenu] = useState<{
+        visible: boolean;
+        x: number;
+        y: number;
+        items: ContextMenuItem[];
+    }>({ visible: false, x: 0, y: 0, items: [] });
+    const ctxMenuRef = useRef<HTMLDivElement>(null);
+
+    const openCtxMenu = useCallback((e: React.MouseEvent, rowData: any) => {
+        if (!contextMenuItems) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const items = contextMenuItems(rowData);
+        if (!items?.length) return;
+        setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, items });
+    }, [contextMenuItems]);
+
+    const closeCtxMenu = useCallback(() => {
+        setCtxMenu(prev => ({ ...prev, visible: false }));
+    }, []);
+
+    // Ajustar posición para no salirse de la ventana, y cerrar al click fuera / Escape
+    useEffect(() => {
+        if (!ctxMenu.visible) return;
+
+        // Ajuste de posición tras render
+        if (ctxMenuRef.current) {
+            const rect = ctxMenuRef.current.getBoundingClientRect();
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            let { x, y } = ctxMenu;
+            if (x + rect.width > vw) x = vw - rect.width - 5;
+            if (y + rect.height > vh) y = vh - rect.height - 5;
+            if (x < 0) x = 5;
+            if (y < 0) y = 5;
+            if (x !== ctxMenu.x || y !== ctxMenu.y) {
+                setCtxMenu(prev => ({ ...prev, x, y }));
+            }
+        }
+
+        const onMouseDown = (e: MouseEvent) => {
+            if (ctxMenuRef.current && !ctxMenuRef.current.contains(e.target as Node))
+                closeCtxMenu();
+        };
+        const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") closeCtxMenu(); };
+
+        document.addEventListener("mousedown", onMouseDown);
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", onMouseDown);
+            document.removeEventListener("keydown", onKeyDown);
+        };
+    }, [ctxMenu.visible, ctxMenu.x, ctxMenu.y, closeCtxMenu]);
 
     const handleArrayDisplayChange = useCallback((col: string, mode: ArrayColumnDisplay) => {
         setArrayDisplayModes(prev => ({ ...prev, [col]: mode }));
@@ -165,8 +228,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
         });
     }, [data, isGroupedData]);
 
-    // Inicializar columnas internas cuando cambia la estructura de columnas
-    // Solo aplica en modo no controlado. En modo controlado, el padre gestiona esto.
+    // Inicializar / sincronizar columnas visibles
     useEffect(() => {
         if (isControlled) return;
         setInternalVisibleColumns(prev => {
@@ -179,8 +241,11 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             return hasChanged ? next : prev;
         });
     }, [columns, isControlled]);
-    // NOTA: onVisibleColumnsChange NO se llama aquí para evitar loops de refetch.
-    // Solo se llama cuando el usuario hace un toggle manual (ver toggleColumn).
+
+    // Notificar cambios de visibilidad al padre
+    useEffect(() => {
+        onVisibleColumnsChange?.(visibleColumns);
+    }, [visibleColumns, onVisibleColumnsChange]);
 
     // Resetear sort cuando llegan datos nuevos desde el padre
     useEffect(() => {
@@ -279,6 +344,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
         }
     }, [isControlled, controlledVisibleColumns, onVisibleColumnsChange]);
 
+
     const getVisibleColumnsForExport = () => columns.filter(c => visibleColumns[c]);
 
     // ── Formateo ───────────────────────────────────────────────────────────────
@@ -326,12 +392,16 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             if (mode === "first") return <span>{formatArrayValue(value[0])}</span>;
             if (mode === "second") return <span>{formatArrayValue(value[1])}</span>;
             if (mode === "third") return <span>{formatArrayValue(value[2])}</span>;
-
-            // "both"
+            // "both": todos los valores presentes, value[0] con formatters
             return (
                 <div className="flex flex-col text-xs leading-tight">
                     <span>{formatArrayValue(value[0])}</span>
-                    {<span className="text-gray-400"> {value[1] != null && value[1] !== "" && formatArrayValue(value[1])}{value[2] != null && value[2] !== "" && (" | " + formatArrayValue(value[2]))} </span>}
+                    {value[1] != null && value[1] !== "" && (
+                        <span className="text-gray-400 dark:text-gray-500">{String(value[1])}</span>
+                    )}
+                    {value[2] != null && value[2] !== "" && (
+                        <span className="text-gray-400 dark:text-gray-500">{String(value[2])}</span>
+                    )}
                 </div>
             );
         }
@@ -601,6 +671,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                                 isSelected && "bg-blue-50 dark:bg-blue-900/20"
                                             )}
                                             onClick={() => onRowClick?.(item)}
+                                            onContextMenu={e => openCtxMenu(e, item)}
                                             onKeyDown={e => handleRowKeyDown(e, item, index)}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
@@ -645,6 +716,41 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                     ? <span className="text-blue-600 dark:text-blue-400 font-medium">{selectedRows.size} fila(s) seleccionada(s)</span>
                     : `${filteredAndSortedData.length} registro(s)`}
             </div>
+
+            {/* ── Context menu portal ───────────────────────────────────────── */}
+            {ctxMenu.visible && typeof document !== "undefined" && createPortal(
+                <div
+                    ref={ctxMenuRef}
+                    role="menu"
+                    className="fixed z-[9999] min-w-[180px] bg-white dark:bg-zinc-800 rounded-md shadow-xl border border-gray-200 dark:border-zinc-700 py-1 animate-in fade-in zoom-in-95 duration-100"
+                    style={{ top: ctxMenu.y, left: ctxMenu.x }}
+                >
+                    {ctxMenu.items.map((item, idx) => (
+                        <button
+                            key={idx}
+                            role="menuitem"
+                            disabled={item.disabled}
+                            onClick={() => {
+                                if (item.disabled) return;
+                                item.onClick();
+                                closeCtxMenu();
+                            }}
+                            className={cn(
+                                "w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors",
+                                item.disabled
+                                    ? "opacity-50 cursor-not-allowed text-gray-400"
+                                    : item.danger
+                                        ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                        : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700"
+                            )}
+                        >
+                            {item.icon && <span className="w-4 h-4 flex items-center">{item.icon}</span>}
+                            {item.label}
+                        </button>
+                    ))}
+                </div>,
+                document.body
+            )}
         </div>
     );
 };
