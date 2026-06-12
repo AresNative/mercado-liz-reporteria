@@ -1,6 +1,7 @@
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 import { getCookieinPage } from "@/utils/functions/cookies";
 import AuthController from "@/components/auth/controller";
+import Analisis from "./analisis";
 
 const USER_DATA_KEY = "userData";
 const USER_ROLE_KEY = "user-role";
@@ -43,7 +44,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return (
         <AuthController>
             {isAuthorized ? (
-                <>{children}</>
+                <Analisis />
             ) : (
                 <div className="min-h-screen flex items-center justify-center bg-gray-50">
                     <div className="text-center">

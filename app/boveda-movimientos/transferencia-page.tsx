@@ -1,36 +1,34 @@
 "use client"
 // diferencias entre XML y Movimientos
 import {
-    Building,
     Clock,
     Copy,
+    DollarSign,
     FileText,
     Filter,
+    LucideFileText,
     MessageCircle,
     Plus,
     RefreshCw,
     Search,
-    Share2,
-    Trash2
+    User
 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
-import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int"
+import { useGetWithFiltersMutation } from "@/hooks/api/api"
 
 import { LoadingSection } from "@/template/loading-screen"
 
 import Pagination from "@/components/pagination"
 import DynamicTable from "@/components/table"
 import { Modal } from "@/components/modal"
-import { BentoGrid, BentoItem } from "@/components/bento-grid"
 import Footer from "@/template/footer"
 import Header from "@/template/header"
 import MainForm from "@/components/form/main-form"
 import { Button } from "@/components/button"
 import { DetallesPago } from "./components/detalles-pago"
-import Segment from "@/components/segment"
 
 interface PagoResponse {
     totalRecords: number;
@@ -59,11 +57,8 @@ interface FiltrosForm {
     sucursal: string;
     date: string;
 }
-const allCategories:any = ["Pagos", "Transferencias"]
-export default function Pago() {
+export default function Transferencia() {
     const dispatch = useAppDispatch();
-
-    const [selectedCategory, setSelectedCategory] = useState("Pagos");
 
     const [pago, setPago] = useState<any[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -72,28 +67,15 @@ export default function Pago() {
     const [pageSize, setPageSize] = useState(10);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [getWithFilter] = useGetWithFiltersIntelisisMutation();
+    const [getWithFilter] = useGetWithFiltersMutation();
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [
-            {
-                Key: "CXP.MOV",
-                Value: "Pago",
-                Operator: "="
-            }, {
-                Key: "CXP.Origen",
-                Value: "Entrada Compra",
-                Operator: "="
-            }, {
-                Key: "CXP.Estatus",
-                Value: "CONCLUIDO",
-                Operator: "="
-            },
         ],
         Selects: [],
         OrderBy: [
             {
-                Key: "CXP.FechaEmision",
+                Key: "Fecha",
                 Direction: "DESC"
             }
         ],
@@ -107,20 +89,15 @@ export default function Pago() {
 
         try {
             const response = await getWithFilter({
-                table: "CXP INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor INNER JOIN (SELECT DISTINCT ID FROM CXPD) AS CXPD_Unico ON CXP.ID = CXPD_Unico.ID INNER JOIN COMPRA ON COMPRA.Mov = CXP.Origen AND CXP.OrigenID = COMPRA.MovID",
+                table: "pagos INNER JOIN proveedores as prov ON prov.id = pagos.proveedor_id",
                 filtros: {
                     Selects: [
-                        { Key: "CXP.ID", },
-                        { Key: "CXP.OrigenID", },
-                        { Key: "CXP.Proveedor" },
-                        { Key: "Prov.Nombre" }, 
-                        { Key: "CXP.Sucursal" },
-                        { Key: "CXP.Importe", Alias: "Importe" },
-                        { Key: "CXP.Saldo" },
-                        { Key: "CXP.Impuestos" },
-                        { Key: "CXP.IVAFiscal" },
-                        { Key: "CXP.IEPSFiscal" },
-                        { Key: "CXP.FechaEmision" },
+                        { Key: "pagos.id", },
+                        { Key: "prov.clave", Alias: "Proveedor" },
+                        { Key: "prov.nombre", Alias: "Nombre" },
+                        { Key: "monto", },
+                        { Key: "fecha", },
+                        { Key: "metodo_pago", },
                     ],
                     FiltrosAnd: [{
                         Filtros: activeFilters.Filtros,
@@ -134,17 +111,13 @@ export default function Pago() {
 
             if ('data' in response) {
                 const pagoData = response.data as PagoResponse;
-                const formattedData = pagoData.data.map((item) => {                    
+                const formattedData = pagoData.data.map((item) => {
                     return ({
-                        ID: item.ID,
-                        MovId: item.OrigenID,
-                        FechaEmision: item.FechaEmision || "N/A",
-                        Sucursal: item.Sucursal,
-                        Proveedor: [item.Proveedor, item.Nombre],
-                        Importe: [item.Importe, item.Saldo ],
-                        Impuestos: item.Impuestos,
-                        IVAFiscal: item.IVAFiscal && (item.Importe / (item.IVAFiscal * 100)),
-                        IEPSFiscal: item.IEPSFiscal && (item.Importe / (item.IEPSFiscal * 100)),
+                        ID: item.id,
+                        FechaEmision: item.Fecha || "N/A",
+                        Proveedor: [item.proveedor_id, item.Nombre],
+                        Monto: item.monto,
+                        'Metodo Pago': item.metodo_pago,
                     })
                 });
                 setPago(formattedData);
@@ -171,16 +144,15 @@ export default function Pago() {
         const nuevosFiltrosAnd: any[] = [];
 
         if (data.search) {
-            nuevosFiltrosAnd.push({ Key: "CXP.Proveedor", Value: data.search, Operator: "LIKE" });
-            nuevosFiltrosAnd.push({ Key: "Prov.Nombre", Value: data.search, Operator: "LIKE" });
+            nuevosFiltrosAnd.push({ Key: "Proveedor", Value: data.search, Operator: "LIKE" });
+            nuevosFiltrosAnd.push({ Key: "Nombre", Value: data.search, Operator: "LIKE" });
             const searchStr = data.search.toString().trim();
             if (/^\d+$/.test(searchStr)) {
-                nuevosFiltrosAnd.push({ Key: "CXP.ID", Value: searchStr, Operator: "=" });
-                nuevosFiltrosAnd.push({ Key: "Importe", Value: searchStr, Operator: "=" });
+                nuevosFiltrosAnd.push({ Key: "ID", Value: searchStr, Operator: "=" });
+                nuevosFiltrosAnd.push({ Key: "Monto", Value: searchStr, Operator: "=" });
             }
         }
-        if (data.sucursal) nuevosFiltrosAnd.push({ Key: "CXP.Sucursal", Value: data.sucursal, Operator: "LIKE" });
-        if (data.date) nuevosFiltrosAnd.push({ Key: "FechaEmision", Value: data.date, Operator: data.date.includes("AND") ?  "BETWEEN" : "=" });
+        if (data.date) nuevosFiltrosAnd.push({ Key: "FechaEmision", Value: data.date, Operator: data.date.includes("AND") ? "BETWEEN" : "=" });
 
         setActiveFilters(prev => ({
             ...prev,
@@ -220,20 +192,12 @@ export default function Pago() {
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
                     <article className="p-4">
                         <span className="mr-4 flex justify-between">
-                                <label>
-                                    <h2 className="text-lg font-semibold">Gestión de Pagos</h2>
-                                    <p className="text-sm text-gray-500">
-                                        Mostrando {pago.length} de {totalRecords} pagos
-                                    </p>
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    Seccion:
-                                    <Segment
-                                        items={allCategories.map((cat:any) => ({ value: cat, label: cat }))}
-                                        value={selectedCategory}
-                                        onValueChange={setSelectedCategory}
-                                    />
-                                </label>
+                            <label>
+                                <h2 className="text-lg font-semibold">Gestión de Pagos</h2>
+                                <p className="text-sm text-gray-500">
+                                    Mostrando {pago.length} de {totalRecords} pagos
+                                </p>
+                            </label>
                         </span>
                         <dt className="relative flex flex-col gap-2">
                             <MainForm
@@ -256,20 +220,6 @@ export default function Pago() {
                                                 require: true,
                                             },
                                             {
-                                                name: "sucursal",
-                                                type: "SELECT",
-                                                label: "Selecciona la sucursal",
-                                                icon: <Building className="size-4" />,
-                                                options: [
-                                                    { label: "Mayoreo", value: "4" },
-                                                    { label: "Guadalupe", value: "1" },
-                                                    { label: "Testerazo", value: "2" },
-                                                    { label: "Palmas", value: "3" },
-                                                ],
-                                                placeholder: "Todas las sucursales",
-                                                require: false,
-                                            },
-                                            {
                                                 name: "date",
                                                 type: "DATE_RANGE",
                                                 label: "Fecha de Puesto",
@@ -287,6 +237,12 @@ export default function Pago() {
                                     Chat <MessageCircle className="size-4" />
                                 </Button>
 
+                                <Button
+                                    onClick={() => handleOpenModal('nuevo-pago')}
+                                    color="success"
+                                >
+                                    Nuevo pago <Plus className="size-4" />
+                                </Button>
                                 <Button
                                     onClick={limpiarFiltros}
                                     color="success"
@@ -322,17 +278,17 @@ export default function Pago() {
                                         data={pago}
                                         onRowClick={(pago) => handleOpenModal('detalles-pago', pago.ID)}
                                         contextMenuItems={(row) => [
-                                                {
-                                                    label: 'Copiar',
-                                                    icon: <Copy size={16} />,
-                                                    onClick: () => console.log('Copiado'),
-                                                },
-                                                {
-                                                    label: 'Ver detalles',
-                                                    icon: <FileText size={16} />,
-                                                    onClick: () => console.log('Mostrar detalles'),
-                                                },
-                                            ]}
+                                            {
+                                                label: 'Copiar',
+                                                icon: <Copy size={16} />,
+                                                onClick: () => console.log('Copiado'),
+                                            },
+                                            {
+                                                label: 'Ver detalles',
+                                                icon: <FileText size={16} />,
+                                                onClick: () => console.log('Mostrar detalles'),
+                                            },
+                                        ]}
                                     />
                                     <Pagination
                                         currentPage={currentPage}
@@ -370,13 +326,53 @@ export default function Pago() {
                             <p className="text-gray-500">No se ha seleccionado ningún pago.</p>
                         </div>
                     )}
-               </Modal>
+                </Modal>
                 <Modal
                     modalName="nuevo-pago"
-                    title="Agregar Nuevo Pago"
-                    maxWidth="lg"
+                    title="Agregar nuevo pago"
+                    maxWidth="2xl"
                 >
-                    <></>
+                    <MainForm
+                        message_button={"Registrar"}
+                        /* onSuccess={loadPago} */
+                        iconButton={<Plus className="size-4" />}
+                        actionType={"post-general"}
+                        table="pagos"
+                        dataForm={[
+                            {
+                                type: "Flex",
+                                require: false,
+                                elements: [
+                                    {
+                                        name: "proveedor_id",
+                                        type: "SEARCH",
+                                        label: "Proveedor",
+                                        icon: <User className="size-4" />,
+                                        placeholder: "PR-0000000",
+                                        options: [
+                                            { value: "", label: "" }
+                                        ],
+                                        require: true,
+                                    },
+                                    {
+                                        name: "monto",
+                                        type: "NUMBER",
+                                        label: "Monto de pago",
+                                        icon: <DollarSign className="size-4" />,
+                                        placeholder: "$0,000.00",
+                                        minLength: 0,
+                                        require: true,
+                                    },
+                                ],
+                            },
+                            {
+                                name: "file",
+                                type: "FILE",
+                                label: "Documento",
+                                icon: <LucideFileText className="size-4" />,
+                                require: false,
+                            },
+                    ]} />
                 </Modal>
 
                 <Modal

@@ -320,10 +320,8 @@ export const MainForm = React.forwardRef(({
   return (
     <form
       ref={ref}
-      onSubmit={(e) => {
-        e.preventDefault();
-        handleSubmit(onSubmit)(e);
-      }}
+      onSubmit={handleSubmit(onSubmit)}
+      method="post"
       className={cn(
         "relative flex w-full my-2 m-auto gap-2",
         flexDirection,
@@ -377,14 +375,14 @@ export const MainForm = React.forwardRef(({
               onClick={() => handlePageChange(page + 1)}
             />
           ) : (
-            <button
-              className="cursor-pointer flex gap-2 items-center rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-60"
+            <Button
+              color="success"
               type="submit"
               disabled={loading}
             >
               {iconButton ? iconButton : <CircleCheckBig className="size-4" />}
               {loading ? "Loading..." : message_button}
-            </button>
+            </Button>
           )}
         </div>
       )}

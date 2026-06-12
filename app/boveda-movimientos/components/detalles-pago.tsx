@@ -25,12 +25,7 @@ interface PagoResponse {
 
 export const DetallesPago = ({ selectedPago }: any) => {
     const [pago, setPago] = useState<any>([]);
-    const [pagoDetails, setPagoDetails] = useState({
-        num_empleado: "",
-        nombre: "",
-        apellido: "",
-        estado: "Activo",
-    });
+    const [pagoDetails, setPagoDetails] = useState<any>({});
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -47,12 +42,12 @@ export const DetallesPago = ({ selectedPago }: any) => {
 
         try {
             const response = await getWithFilter({
-                table: `CXP INNER JOIN CXPD ON CXP.MOV = 'Pago' AND CXPD.Aplica = 'Entrada Compra' AND CXPD.ID = ${selectedPago} AND CXPD.ID = CXP.ID INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor LEFT JOIN COMPRA ON CXPD.AplicaID = COMPRA.MovID LEFT JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo `,
-                pageSize: pageSize,
-                page: currentPage,
+                table: `CXP INNER JOIN CXPD ON CXP.MOV = 'Pago' AND CXP.ID = ${selectedPago} AND CXPD.ID = CXP.ID INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor INNER JOIN COMPRA ON COMPRA.Mov = CXP.Origen AND CXP.OrigenID = COMPRA.MovID INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo INNER JOIN CFDValidoMovLista AS CFDL ON CXP.OrigenID = CFDL.MovID INNER JOIN CFDEgreso AS Egreso ON Egreso.UUID = CFDL.UUID AND Egreso.ModuloID = CFDL.ModuloID`,
                 filtros: {
                     Selects: [
-                        { Key: "CXP.ID", },
+                        { Key: "COMPRA.MovID" },
+                        { Key: "CXP.OrigenID"},
+                        { Key: "CXP.ID" },
                         { Key: "CXP.Proveedor" },
                         { Key: "Prov.Nombre", Alias: "Nombre Proveedor" },
                         { Key: "CXPD.Importe" },
@@ -64,6 +59,10 @@ export const DetallesPago = ({ selectedPago }: any) => {
                         { Key: "comprad.Costo", Alias: "Costo Unitario" },
                         { Key: "comprad.Unidad" },
                         { Key: "comprad.Factor" },
+                        { Key: "comprad.Impuesto1", Alias: "IVA" },
+                        { Key: "comprad.Impuesto2", Alias: "IEPS" },
+                        { Key: "comprad.Impuesto3", Alias: "ISR" },
+                        { Key: "Egreso.Documento" },
                     ],
                     agregaciones: [
                         { Key: "comprad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
@@ -71,7 +70,9 @@ export const DetallesPago = ({ selectedPago }: any) => {
                         { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "Total Compras", Operation: "SUM" },
                     ],
                     /* Filtros: activeFilters.Filtros, */
-                }
+                },
+                pageSize: pageSize,
+                page: currentPage,
             });
 
             if ('data' in response) {
@@ -79,16 +80,11 @@ export const DetallesPago = ({ selectedPago }: any) => {
 
                 const lastItem = pagoData.data[pagoData.data.length - 1];
 
-                const formattedDetails = lastItem ? {
+                const formattedDetails = lastItem && {
+                    movId: lastItem.MovID,
                     num_empleado: lastItem.Proveedor,
                     nombre: lastItem["Nombre Proveedor"],
-                    apellido: lastItem["Apellido Proveedor"] || "",
                     estado: lastItem["Estado Proveedor"] || "Activo",
-                } : {
-                    num_empleado: "",
-                    nombre: "",
-                    apellido: "",
-                    estado: "Activo",
                 };                
                 setPagoDetails(formattedDetails);
 
@@ -99,6 +95,9 @@ export const DetallesPago = ({ selectedPago }: any) => {
                         Categoria: [item.Categoria, item.Grupo, item.Familia],
                         Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
                         Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`${item["Articulos Totales"]}`] : [])],
+                        IVA: item.IVA,
+                        IEPS: item.IEPS,
+                        ISR: item.ISR,
                         "Costo Unitario": item["Costo Unitario"],
                         ["Total Compras"]: item["Total Compras"],
                     })
@@ -133,13 +132,20 @@ export const DetallesPago = ({ selectedPago }: any) => {
                 <ul className="flex items-center gap-4 justify-between">
                     <li className="flex flex-col">
                         <h2 className="text-xl font-bold text-gray-900">
-                            {pagoDetails.nombre} {pagoDetails.apellido}
+                            {(pagoDetails && pagoDetails.nombre) && pagoDetails.nombre}
                         </h2>
                         <article className="flex items-center space-x-4 mt-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pagoDetails.estado)}`}>
-                                {pagoDetails.estado}
-                            </span>
-                            <span className="text-sm text-gray-500">#{pagoDetails.num_empleado}</span>
+                            {(pagoDetails && pagoDetails.estado) && (
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pagoDetails.estado)}`}>
+                                    {pagoDetails.estado}
+                                </span>
+                            )}
+                            {(pagoDetails && pagoDetails.num_empleado) && (
+                                <span className="text-sm text-gray-500">#{pagoDetails.num_empleado}</span>
+                            )}
+                            {(pagoDetails && pagoDetails.movId) && (
+                                <span className="text-sm text-gray-500">#{pagoDetails.movId}</span>
+                            )}
                         </article>
                     </li>
                     <li className="flex flex-col gap-2">

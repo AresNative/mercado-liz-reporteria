@@ -167,14 +167,14 @@ export function Segment({
                         tabIndex={isSelected ? 0 : -1}
                         onClick={() => !disabled && !item.disabled && setSelected(item.value)}
                         className={cn(
-                            "whitespace-nowrap font-medium outline-none transition-colors",
-                            "focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-zinc-950",
+                            "cursor-pointer whitespace-nowrap font-medium outline-none transition-colors",
+                            "focus-visible:ring-2 focus-visible:ring-offset-2 ring-offset-gray-200 dark:ring-offset-zinc-950",
                             focusRingByAccent[accent],
                             sizeConf.button,
                             fullWidth ? "flex-1" : "",
                             isSelected
                                 ? selectedBgByAccent[accent]
-                                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
+                                : "bg-zinc-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700",
                             (disabled || item.disabled) && "opacity-50 cursor-not-allowed",
                         )}
                     >

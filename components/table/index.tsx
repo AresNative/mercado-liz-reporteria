@@ -71,7 +71,7 @@ const isDateColumn = (key: string) => {
 
 const isPercentageColumn = (key: string) => {
     const k = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return k.includes("porcentaje") || key.includes("IVA") || key.includes("IEPS");
+    return k.includes("porcentaje") || key.includes("%");
 };
 
 const isCurrencyColumn = (key: string) => {

@@ -1,16 +1,19 @@
 "use client"
 
 import {
+    Building,
+    Clock,
     Filter,
     MessageCircle,
     Plus,
-    RefreshCw
+    RefreshCw,
+    Search
 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
-import { useGetWithFiltersMutation } from "@/hooks/api/api"
+import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int"
 
 import { LoadingSection } from "@/template/loading-screen"
 
@@ -22,6 +25,7 @@ import { ModalDetallesEmpleado } from "./components/detalles-empleado"
 import Footer from "@/template/footer"
 import Header from "@/template/header"
 import MainForm from "@/components/form/main-form"
+import { Button } from "@/components/button"
 
 // Definir interfaces para tipado fuerte basado en los datos reales
 interface Empleado {
@@ -91,7 +95,7 @@ const useEmpleados = () => {
     const [totalRecords, setTotalRecords] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [getWithFilter] = useGetWithFiltersMutation();
+    const [getWithFilter] = useGetWithFiltersIntelisisMutation();
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [],
@@ -109,7 +113,7 @@ const useEmpleados = () => {
         
         try {
             const response = await getWithFilter({
-                table: "empleados",
+                table: "personal",
                 pageSize: "10",
                 page: currentPage,
                 filtros: {
@@ -166,13 +170,6 @@ export default function Empleados() {
         setActiveFilters,
         refetch
     } = useEmpleados();
-
-/*     const {
-        estadisticas,
-        isLoading: isLoadingEstadisticas,
-        error: errorEstadisticas,
-        refetch: refetchEstadisticas
-    } = useEstadisticasEmpleados(); */
 
     const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null);
 
@@ -242,110 +239,79 @@ export default function Empleados() {
 
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
                     <article className="p-4">
-                        <header className="mb-6 flex flex-col gap-2 space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                            <div className="mr-4">
-                                <h2 className="text-lg font-semibold">Gestión de Empleados</h2>
-                                <p className="text-sm text-gray-500">
-                                    Mostrando {empleados.length} de {totalRecords} empleados
-                                </p>
-                            </div>
+                        <span className="mr-4">
+                            <h2 className="text-lg font-semibold">Gestión de Pagos</h2>
+                            <p className="text-sm text-gray-500">
+                                Mostrando {empleados.length} de {totalRecords} pagos
+                            </p>
+                        </span>
+                        <dt className="relative flex flex-col gap-2">
                             <MainForm
                                 message_button={"Filtrar"}
                                 onSuccess={loadEmpleados}
                                 iconButton={<Filter className="mr-1 h-4 w-4" />}
-                                actionType={"search"}
+                                actionType={""}
+                                flexDirection="flex-row"
                                 dataForm={[
-                                    {
-                                        name: "search",
-                                        type: "SEARCH",
-                                        label: "",
-                                        icon: <></>,
-                                        placeholder: "Busar por nombre, email...",
-                                        require: true,
-                                    },
                                     {
                                         type: "Flex",
                                         require: false,
                                         elements: [
                                             {
-                                                name: "departamento",
+                                                name: "search",
+                                                type: "SEARCH",
+                                                label: "Busqueda rapida",
+                                                icon: <Search className="size-4" />,
+                                                placeholder: "Busar por proveedor, importe, saldo...",
+                                                require: true,
+                                            },
+                                            {
+                                                name: "sucursal",
                                                 type: "SELECT",
-                                                label: "",
-                                                icon: <></>,
+                                                label: "Selecciona la sucursal",
+                                                icon: <Building className="size-4" />,
                                                 options: [
-                                                    { label: "Todos los departamentos", value: "" },
-                                                    { label: "Mayoreo Cajas", value: "MAYOREO CAJAS" },
-                                                    { label: "Administración", value: "ADMINISTRACION" },
-                                                    { label: "Ventas", value: "VENTAS" },
-                                                    { label: "Logística", value: "LOGISTICA" },
-                                                    { label: "Recursos Humanos", value: "RECURSOS HUMANOS" },
+                                                    { label: "Mayoreo", value: "4" },
+                                                    { label: "Guadalupe", value: "1" },
+                                                    { label: "Testerazo", value: "2" },
+                                                    { label: "Palmas", value: "3" },
                                                 ],
-                                                placeholder: "Todos los departamentos",
+                                                placeholder: "Todas las sucursales",
                                                 require: false,
-                                            }, {
-                                                name: "puesto",
-                                                type: "SELECT",
-                                                label: "",
-                                                icon: <></>,
-                                                options: [
-                                                    { label: "Todos los puestos", value: "" },
-                                                    { label: "Cajera", value: "CAJERA" },
-                                                    { label: "Gerente", value: "GERENTE" },
-                                                    { label: "Asesor", value: "ASESOR" },
-                                                    { label: "Auxiliar", value: "AUXILIAR" },
-                                                    { label: "Supervisor", value: "SUPERVISOR" },
-                                                ],
-                                                placeholder: "Todos los puestos",
-                                                require: false,
-                                            }, {
-                                                name: "estado",
-                                                type: "SELECT",
-                                                label: "",
-                                                icon: <></>,
-                                                options: [
-                                                    { label: "Todos los estados", value: "" },
-                                                    { label: "Activo", value: "Activo" },
-                                                    { label: "Inactivo", value: "Inactivo" },
-                                                ],
-                                                placeholder: "Todos los estados",
+                                            },
+                                            {
+                                                name: "date",
+                                                type: "DATE_RANGE",
+                                                label: "Fecha de Puesto",
+                                                icon: <Clock className="size-4" />,
                                                 require: false,
                                             },
                                         ],
                                     },
                                 ]} />
-                            <div className="flex flex-col items-center gap-4">
-                                <button
+                            <dl className="flex gap-2 ml-auto">
+                                <Button
                                     onClick={limpiarFiltros}
-                                    className="text-sm text-gray-600 hover:text-gray-800 underline"
+                                    color="success"
                                 >
                                     Limpiar
-                                </button>
+                                </Button>
 
-                                <button
+                                <Button
                                     onClick={handleRefetchAll}
-                                    className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-100"
-                                    title="Actualizar"
+                                    color="success"
                                 >
-                                    <RefreshCw className="h-4 w-4" />
-                                </button>
+                                    Actualizar <RefreshCw className="h-4 w-4" />
+                                </Button>
 
-                                <button
+                                <Button
                                     onClick={() => handleOpenModal('chat-general')}
-                                    className="flex items-center bg-purple-500 text-white text-sm px-3 py-2 rounded-md cursor-pointer hover:bg-purple-600 transition-colors"
-                                    title="Chat general"
+                                    color="info"
                                 >
-                                    <MessageCircle className="h-4 w-4" />
-                                </button>
-
-                                <button
-                                    onClick={() => handleOpenModal('nuevo-empleado')}
-                                    className="flex items-center gap-1 bg-green-600 text-white text-sm px-4 py-2 rounded-md cursor-pointer hover:bg-green-700 transition-colors"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Nuevo
-                                </button>
-                            </div>
-                        </header>
+                                    Chat <MessageCircle className="size-4" />
+                                </Button>
+                            </dl>
+                        </dt>
 
                         <section className="overflow-x-auto">
                             {isLoading ? (
