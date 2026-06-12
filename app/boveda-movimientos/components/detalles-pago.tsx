@@ -84,12 +84,11 @@ export const DetallesPago = ({ selectedPago }: any) => {
                     movId: lastItem.MovID,
                     num_empleado: lastItem.Proveedor,
                     nombre: lastItem["Nombre Proveedor"],
-                    estado: lastItem["Estado Proveedor"] || "Activo",
+                    estado: lastItem["Egreso.Documento"] ? "Con Documento" : "Sin Documento",
                 };                
                 setPagoDetails(formattedDetails);
 
                 const formattedData = pagoData.data.map((item) => {
-                    //const { Codigo, Articulo, Nombre, Categoria, Grupo, Familia, Unidad, Factor, ...rest } = item;
                     return ({
                         Articulo: [item.Nombre, item.Articulo ],
                         Categoria: [item.Categoria, item.Grupo, item.Familia],
@@ -120,7 +119,7 @@ export const DetallesPago = ({ selectedPago }: any) => {
     }, [currentPage, pageSize]);
     
     const getStatusColor = (estado: string) => {
-        return estado === "Activo"
+        return estado === "Con Documento"
             ? "bg-green-100 text-green-800"
             : "bg-red-100 text-red-800";
     };
