@@ -15,7 +15,7 @@ import DynamicTable from "@/components/table";
 import Pagination from "@/components/pagination";
 import { CFDIParser } from "@/hooks/classes/xml-reader";
 
-interface PagoResponse {
+interface Response {
     totalRecords: number;
     totalPages: number;
     pageSize: number;
@@ -87,10 +87,8 @@ export const DetallesPago = ({ selectedPago }: any) => {
             });
 
             if ('data' in response) {
-                const pagoData = response.data as PagoResponse;
-
+                const pagoData = response.data as Response;
                 const lastItem = pagoData.data[pagoData.data.length - 1];
-
                 const formattedDetails = lastItem && {
                     movId: lastItem.MovID,
                     num_empleado: lastItem.Proveedor,
@@ -99,48 +97,58 @@ export const DetallesPago = ({ selectedPago }: any) => {
                 };
                 setPagoDetails(formattedDetails);
 
-                // Parsear el XML del comprobante (si existe)
-                let parsedConceptos: any[] = [];
-                if (lastItem?.Documento) {
-                    const resultado = parser.parse(lastItem.Documento);
-                    parsedConceptos = resultado.conceptos.map((item: any) => {
-                        // Extraer impuestos correctamente desde la estructura 'impuestos'
-                        const impuestos = item.impuestos || { traslados: [], retenciones: [] };
-                        const iva = getTaxAmount(impuestos, '002', 'traslado');
-                        const ieps = getTaxAmount(impuestos, '003', 'traslado');
-                        const isr = getTaxAmount(impuestos, '001', 'retencion'); // ISR suele venir con código 001 en retenciones
-
-                        return {
-                            Articulo: [item.descripcion, item.claveProdServ],
-                            Unidad: item.unidad,
-                            Cantidad: item.cantidad,
-                            IVA: iva,
-                            IEPS: ieps,
-                            ISR: isr,
-                            "Costo Unitario": item.valorUnitario,
-                            ["Total Compras"]: item.importe,
-                        };
-                    });
+                // 2. Obtener todos los ítems que tienen documento y eliminar duplicados (por contenido XML)
+                const itemsConDocumento = pagoData.data.filter(item => item.Documento);
+                const documentosUnicos: typeof pagoData.data = [];
+                const documentosSet = new Set<string>();
+                for (const item of itemsConDocumento) {
+                    if (!documentosSet.has(item.Documento)) {
+                        documentosSet.add(item.Documento);
+                        documentosUnicos.push(item);
+                    }
                 }
+
+                // 3. Parsear TODOS los documentos únicos y concatenar sus conceptos
+                let parsedConceptos: any[] = [];
+                for (const item of documentosUnicos) {
+                    if (item.Documento) {
+                        const resultado = parser.parse(item.Documento);
+                        const conceptos = resultado.conceptos.map((itemConcepto: any) => {
+                            const impuestos = itemConcepto.impuestos || { traslados: [], retenciones: [] };
+                            const iva = getTaxAmount(impuestos, '002', 'traslado');
+                            const ieps = getTaxAmount(impuestos, '003', 'traslado');
+                            const isr = getTaxAmount(impuestos, '001', 'retencion');
+                            return {
+                                Articulo: [itemConcepto.descripcion, itemConcepto.claveProdServ],
+                                Unidad: itemConcepto.unidad,
+                                Cantidad: itemConcepto.cantidad,
+                                IVA: iva,
+                                IEPS: ieps,
+                                ISR: isr,
+                                "Costo Unitario": itemConcepto.valorUnitario,
+                                ["Total Compras"]: itemConcepto.importe,
+                            };
+                        });
+                        parsedConceptos = parsedConceptos.concat(conceptos);
+                    }
+                }
+
+                // 4. Asignar los conceptos combinados al estado (una sola vez)
                 setXml(parsedConceptos);
-                // Reiniciar paginación del XML cuando se carga un nuevo pago
                 setXmlCurrentPage(1);
-                // Sincronizar el tamaño de página del XML con el de la primera tabla (opcional)
                 setXmlPageSize(pageSize);
 
-                const formattedData = pagoData.data.map((item) => {
-                    return {
-                        Articulo: [item.Nombre, item.Articulo],
-                        /* Categoria: [item.Categoria, item.Grupo, item.Familia], */
-                        Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
-                        Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`${item["Articulos Totales"]}`] : [])],
-                        IVA: item.IVA,
-                        IEPS: item.IEPS,
-                        ISR: item.ISR,
-                        "Costo Unitario": item["Costo Unitario"],
-                        ["Total Compras"]: item["Total Compras"],
-                    };
-                });
+                // 5. Generar la tabla principal con todos los ítems (sin cambios en esta lógica)
+                const formattedData = pagoData.data.map((item) => ({
+                    Articulo: [item.Nombre, item.Articulo],
+                    Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
+                    Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`${item["Articulos Totales"]}`] : [])],
+                    IVA: item.IVA,
+                    IEPS: item.IEPS,
+                    ISR: item.ISR,
+                    "Costo Unitario": item["Costo Unitario"],
+                    "Total Compras": item["Total Compras"],
+                }));
                 setPago(formattedData);
                 setTotalPages(pagoData.totalPages);
             } else if ('error' in response) {
@@ -203,9 +211,8 @@ export const DetallesPago = ({ selectedPago }: any) => {
                     </li>
                 </ul>
             </header>
-            <div className="flex gap-4 flex-wrap">
-                {/* Primera tabla (compras agregadas) con su paginación */}
-                <div className="flex-1 min-w-[300px]">
+            <section className="flex gap-4 flex-wrap">
+                <div className="flex-1 min-w-75">
                     <DynamicTable
                         data={pago}
                         contextMenuItems={(row) => [
@@ -262,7 +269,7 @@ export const DetallesPago = ({ selectedPago }: any) => {
                         />
                     )}
                 </div>
-            </div>
+            </section>
         </main>
     );
 };

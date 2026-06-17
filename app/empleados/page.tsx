@@ -240,9 +240,9 @@ export default function Empleados() {
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
                     <article className="p-4">
                         <span className="mr-4">
-                            <h2 className="text-lg font-semibold">Gestión de Pagos</h2>
+                            <h2 className="text-lg font-semibold">Gestión de Empleados</h2>
                             <p className="text-sm text-gray-500">
-                                Mostrando {empleados.length} de {totalRecords} pagos
+                                Mostrando {empleados.length} de {totalRecords} empleados
                             </p>
                         </span>
                         <dt className="relative flex flex-col gap-2">

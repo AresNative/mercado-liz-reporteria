@@ -16,17 +16,13 @@ import {
 import { CONFIG } from "./utils/config-constants";
 import DynamicTable from "@/components/table";
 import Pagination from "@/components/pagination";
-import { BentoGrid, BentoItem } from "@/components/bento-grid";
-import { formatDateDisplay, formatValue } from "@/utils/constants/format-values";
+import { formatValue } from "@/utils/constants/format-values";
 import {
     RefreshCw,
-    Building,
     Loader2,
     Search,
-    X,
     Zap,
     Calendar,
-    ChevronDown,
     Eye,
     EyeOff,
     Package,
@@ -40,14 +36,11 @@ import {
     AlertTriangle,
     Warehouse,
     Filter,
+    GitCompare,
 } from "lucide-react";
 import { SearchColumn } from "./types/config";
-import { v4 as uuidv4 } from "uuid";
-import { FilterGroup, FilterRule } from "@/utils/types/consultas";
-import { AppliedFilters, DateRange } from "./types/filter";
-import { DATE_PERIODS, OPERATORS } from "./utils/consultas-constants";
+import { DateRange } from "./types/filter";
 import { Button } from "@/components/button";
-import { usePedidosSignalR } from "../pick-up/utils/singalr-pedidos";
 import { safeCall, useDebounce } from "@/hooks/use-debounce";
 import MainForm from "@/components/form/main-form";
 
@@ -59,7 +52,7 @@ type REPORT =
     | "inventario"
     | "clientes"
     | "proveedores"
-    | "gastos";
+   /*  | "gastos" */;
 
 type ReportStatus = "idle" | "loading" | "success" | "error" | "retrying";
 
@@ -102,19 +95,21 @@ function reportsReducer(
 // ─── Configuración de reportes ─────────────────────────────────────────────────
 const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> = {
     venta: {
-        table: `VENTA AS venta INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo`,
+        table: `VENTA AS venta INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo INNER JOIN Sucursal ON ventad.Sucursal = Sucursal.Sucursal INNER JOIN CB ON ventad.Articulo = CB.Cuenta`,
         filtros: {
             selects: [
-                { Key: "ventad.Codigo" },
-                { Key: "ventad.Articulo", Alias: "Articulo" },
+                { Key: "CB.Codigo" },
+                { Key: "ventad.Articulo" },
                 { Key: "ART.Descripcion1", Alias: "Nombre" },
                 { Key: "venta.FechaEmision" },
                 { Key: "ventad.Almacen" },
+                { Key: "ventad.Sucursal" },
+                { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
                 { Key: "ART.Categoria" },
                 { Key: "ART.Grupo" },
                 { Key: "ART.Familia" },
-                { Key: "ventad.Precio", Alias: "Precio Unitario" },
-                { Key: "ventad.Costo", Alias: "Costo Unitario" },
+                { Key: "ventad.Precio" },
+                { Key: "ventad.Costo" },
                 { Key: "ventad.Unidad", Alias: "Unidad" },
                 { Key: "ventad.Factor", Alias: "Factor" },
             ],
@@ -130,33 +125,41 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "venta.Estatus", Operator: "IN", Value: "CONCLUIDO,PROCESAR" },
                 { Key: "venta.Mov", Operator: "IN", Value: "Factura,Factura Credito,Nota" },
             ],
-            /* Order: [{ Key: "FechaEmision", Direction: "DESC" }], */
+            Order: [
+                {
+                    Key: "FechaEmision",
+                    Direction: "DESC"
+                }
+            ],
         },
     },
     compra: {
-        table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN CB AS cb ON cb.Cuenta = art.Articulo AND cb.Codigo = comprad.Codigo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
+        table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN CB AS cb ON cb.Cuenta = art.Articulo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor INNER JOIN Sucursal ON comprad.Sucursal = Sucursal.Sucursal`,
         filtros: {
             selects: [
                 { Key: "CB.Codigo" },
-                { Key: "P.Nombre", Alias: "Proveedor" },
+                { Key: "P.Nombre", Alias: "Proveedor Nombre" },
+                { Key: "P.Proveedor" },
                 { Key: "ART.Fabricante" },
                 { Key: "comprad.Articulo", Alias: "Articulo" },
                 { Key: "ART.Descripcion1", Alias: "Nombre" },
                 { Key: "compra.FechaEmision" },
                 { Key: "comprad.Almacen" },
+                { Key: "comprad.Sucursal" },
+                { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
                 { Key: "ART.Categoria" },
                 { Key: "ART.Grupo" },
                 { Key: "ART.Familia" },
                 { Key: "comprad.Unidad" },
                 { Key: "comprad.Factor" },
                 { Key: "comprad.DescuentoLinea", Alias: "Descuento" },
-                { Key: "comprad.Costo", Alias: "Costo Unitario" },
+                { Key: "comprad.Costo" },
             ],
             agregaciones: [
                 { Key: "comprad.Costo", Alias: "Minimo Costo", Operation: "MIN" },
                 { Key: "comprad.Costo", Alias: "Maximo Costo", Operation: "MAX" },
                 { Key: "comprad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
-                { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "Total Compras", Operation: "SUM" },
+                { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
                 { Key: "comprad.CantidadInventario", Alias: "Articulos Totales", Operation: "SUM" },
                 { Key: "compra.Proveedor", Alias: "Total Proveedores", Operation: "COUNT DISTINCT" },
             ],
@@ -164,7 +167,12 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "compra.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
                 { Key: "compra.Mov", Operator: "=", Value: "ENTRADA COMPRA" },
             ],
-            /* Order: [{ Key: "FechaEmision", Direction: "DESC" }], */
+            Order: [
+                {
+                    Key: "FechaEmision",
+                    Direction: "DESC"
+                }
+            ],
         },
     },
     merma: {
@@ -192,7 +200,12 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "inv.Concepto", Operator: "=", Value: "SALIDA POR MERMAS" },
                 { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
             ],
-            /* Order: [{ Key: "FechaEmision", Direction: "DESC" }], */
+            Order: [
+                {
+                    Key: "FechaEmision",
+                    Direction: "DESC"
+                }
+            ],
         },
     },
     inventario: {
@@ -220,17 +233,28 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
                 { Key: "inv.Mov", Operator: "<>", Value: "SALIDA DIVERSA" },
             ],
-            /* Order: [{ Key: "FechaEmision", Direction: "DESC" }], */
+            Order: [
+                {
+                    Key: "FechaEmision",
+                    Direction: "DESC"
+                }
+            ],
         },
     },
     clientes: { table: "Cte", filtros: {} },
     proveedores: {
         table: "Prov",
         filtros: {
-            Filtros: [{ Key: "ProvCuenta", Operator: "IS NULL" }],
+            Filtros: [{ Key: "ProvCuenta", Operator: "IS NULL" }], 
+            Order: [
+                {
+                    Key: "FechaEmision",
+                    Direction: "DESC"
+                }
+            ],
         },
     },
-    gastos: {
+    /* gastos: {
         table: `gasto G INNER JOIN ( SELECT GD.ID AS GastoID, MAX(GD.Concepto) AS Concepto, SUM(GD.Precio * GD.Cantidad) AS TotalPrecio, SUM(GD.Cantidad) AS TotalCantidad, SUM(GD.Importe) AS TotalImporte, SUM(GD.Impuestos) AS TotalImpuestos FROM gastod GD GROUP BY GD.ID ) GD_Concepto ON G.ID = GD_Concepto.GastoID LEFT JOIN Prov P ON P.Proveedor = G.Acreedor LEFT JOIN ( SELECT CFDL.ModuloID, MIN(CFDL.UUID) AS MinUUID FROM CFDValidoMovLista CFDL WHERE CFDL.ModuloD = 'GAS' GROUP BY CFDL.ModuloID ) CFDL ON G.ID = CFDL.ModuloID LEFT JOIN CFDEgreso E ON E.UUID = CFDL.MinUUID`,
         filtros: {
             selects: [
@@ -255,24 +279,16 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             Filtros: [
                 { Key: "G.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
             ],
-            /* Order: [{ Key: "FechaEmision", Direction: "DESC" }], */
         },
-    },
+    }, */
 };
 
 // ─── Constantes estables ─────────────────────────────────────────────────────
 const REPORT_KEYS = Object.keys(REPORT_CONFIGS) as REPORT[];
 
-/**
- * Columnas sintéticas: el nombre que aparece en DynamicTable (key) y los campos
- * fuente del SELECT que las componen (sourceFields).
- * Se usan para:
- *  1. Registrar la columna con su nombre sintético en visibleColumns.
- *  2. Expandir los campos fuente al filtrar selects en la petición al servidor.
- */
 const SYNTHETIC_COLUMNS: {
     syntheticKey: string;
-    sourceFields: string[]; // nombres tal como llegan del servidor (Alias o Key.split(".").pop())
+    sourceFields: string[];
 }[] = [
         { syntheticKey: "Articulo", sourceFields: ["Nombre", "Articulo", "Codigo"] },
         { syntheticKey: "Proveedor", sourceFields: ["Proveedor", "Fabricante"] },
@@ -280,9 +296,6 @@ const SYNTHETIC_COLUMNS: {
         { syntheticKey: "Unidad", sourceFields: ["Unidad", "Factor"] },
         { syntheticKey: "Cantidad", sourceFields: ["Cantidad", "Articulos Totales"] },
     ];
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1500;
-const REQUEST_TIMEOUT_MS = 30_000;
 
 const ALMACENES_OPCIONES = [
     { value: "ALMVGPE", label: "Guadalupe" },
@@ -290,6 +303,186 @@ const ALMACENES_OPCIONES = [
     { value: "ALMTESTE", label: "Testerazo" },
     { value: "ALMPALM", label: "Palmas" },
 ];
+
+// ─── Métricas para mostrar en el desglose ────────────────────────────────────
+interface MetricDefinition {
+    key: string;
+    label: string;
+    icon: React.ElementType;
+    color: string;
+    format: "currency" | "number" | "percentage";
+    description?: string;
+    getValue: (stats: StatsData) => number | null;
+}
+
+const METRICS_CONFIG: Record<REPORT, MetricDefinition[]> = {
+    venta: [
+        {
+            key: "ventas",
+            label: "Total Ventas",
+            icon: TrendingUp,
+            color: "text-emerald-500",
+            format: "currency",
+            getValue: (s) => s.totalVentas ?? null,
+        },
+        {
+            key: "tikets",
+            label: "Tickets",
+            icon: ShoppingCart,
+            color: "text-blue-500",
+            format: "number",
+            getValue: (s) => s.totalTikets ?? null,
+        },
+        {
+            key: "promedio",
+            label: "Ticket Promedio",
+            icon: Zap,
+            color: "text-amber-500",
+            format: "currency",
+            getValue: (s) => s.promedio ?? null,
+        },
+        {
+            key: "clientes",
+            label: "Clientes",
+            icon: Users,
+            color: "text-violet-500",
+            format: "number",
+            getValue: (s) => s.totalClientes ?? null,
+        },
+        {
+            key: "utilidad",
+            label: "Utilidad",
+            icon: DollarSign,
+            color: "text-emerald-500",
+            format: "currency",
+            getValue: (s) => s.utilidad ?? null,
+        },
+        {
+            key: "margen",
+            label: "Margen",
+            icon: BarChart2,
+            color: "text-amber-500",
+            format: "percentage",
+            getValue: (s) => s.margen ?? null,
+        },
+        {
+            key: "articulos",
+            label: "Artículos Vendidos",
+            icon: Package,
+            color: "text-indigo-500",
+            format: "number",
+            getValue: (s) => s.totalArticulos ?? null,
+        },
+    ],
+    compra: [
+        {
+            key: "compras",
+            label: "Total Compras",
+            icon: ShoppingCart,
+            color: "text-blue-500",
+            format: "currency",
+            getValue: (s) => s.totalCompras ?? null,
+        },
+        {
+            key: "proveedores",
+            label: "Proveedores",
+            icon: Truck,
+            color: "text-cyan-500",
+            format: "number",
+            getValue: (s) => s.totalProveedores ?? null,
+        },
+        {
+            key: "articulos",
+            label: "Artículos Comprados",
+            icon: Package,
+            color: "text-indigo-500",
+            format: "number",
+            getValue: (s) => s.totalArticulos ?? null,
+        },
+        {
+            key: "minimo",
+            label: "Costo Mínimo",
+            icon: TrendingDown,
+            color: "text-green-500",
+            format: "currency",
+            getValue: (s) => s.minimoCosto ?? null,
+        },
+        {
+            key: "maximo",
+            label: "Costo Máximo",
+            icon: TrendingUp,
+            color: "text-red-500",
+            format: "currency",
+            getValue: (s) => s.maximoCosto ?? null,
+        },
+    ],
+    merma: [
+        {
+            key: "mermas",
+            label: "Total Mermas",
+            icon: AlertTriangle,
+            color: "text-rose-500",
+            format: "currency",
+            getValue: (s) => s.totalMermas ?? null,
+        },
+        {
+            key: "articulos",
+            label: "Artículos Mermados",
+            icon: Package,
+            color: "text-orange-500",
+            format: "number",
+            getValue: (s) => s.totalArticulosMerma ?? null,
+        },
+    ],
+    inventario: [
+        {
+            key: "inventario",
+            label: "Costo Inventario",
+            icon: Warehouse,
+            color: "text-purple-500",
+            format: "currency",
+            getValue: (s) => s.totalCosto ?? null,
+        },
+        {
+            key: "articulos",
+            label: "Artículos en Inventario",
+            icon: Package,
+            color: "text-indigo-500",
+            format: "number",
+            getValue: (s) => s.totalArticulos ?? null,
+        },
+    ],
+    clientes: [
+        {
+            key: "clientes",
+            label: "Total Clientes",
+            icon: Users,
+            color: "text-violet-500",
+            format: "number",
+            getValue: (s) => s.totalClientes ?? null,
+        },
+    ],
+    proveedores: [
+        {
+            key: "proveedores",
+            label: "Total Proveedores",
+            icon: Truck,
+            color: "text-cyan-500",
+            format: "number",
+            getValue: (s) => s.totalProveedores ?? null,
+        },
+    ],
+    /*  gastos: [
+        {
+             key: "gastos",
+             label: "Total Gastos",
+             icon: DollarSign,
+             color: "text-red-500",
+             format: "currency",
+             getValue: (s) => s.totalGastos ?? null,
+         },
+    ], */
+};
 
 function makeInitialState(): Record<REPORT, ReportState> {
     return Object.fromEntries(
@@ -318,6 +511,7 @@ function processStatsData(statsData: any[] | any): StatsData {
         if (s.minimoCosto != null) out.minimoCosto = (out.minimoCosto ?? 0) + Number(s.minimoCosto);
         if (s.maximoCosto != null) out.maximoCosto = (out.maximoCosto ?? 0) + Number(s.maximoCosto);
         if (s.totalArticulosMerma != null) out.totalArticulosMerma = (out.totalArticulosMerma ?? 0) + Number(s.totalArticulosMerma);
+        /* if (s.totalGastos != null) out.totalGastos = (out.totalGastos ?? 0) + Number(s.totalGastos); */
     });
 
     if (out.totalVentas != null && out.totalCosto != null) {
@@ -337,112 +531,6 @@ function processStatsData(statsData: any[] | any): StatsData {
 
     return out;
 }
-
-// ─── Helpers para derivar StatsData de los datos crudos de cada reporte ──────
-function deriveStatsFromReports(reports: Record<REPORT, ReportState>): StatsData {
-    const raw: any = {};
-
-    // Venta
-    const ventaData = reports.venta?.data;
-    if (Array.isArray(ventaData) && ventaData.length > 0) {
-        const row = ventaData[0];
-        raw.totalVentas = Number(row["Total Ventas"] ?? row.totalVentas ?? 0);
-        raw.totalCosto = Number(row["Total Costo"] ?? row.totalCosto ?? 0);
-        raw.totalTikets = Number(row["Total Tikets"] ?? row.totalTikets ?? 0);
-        raw.totalClientes = Number(row["Total Clientes"] ?? row.totalClientes ?? 0);
-    } else if (ventaData && !Array.isArray(ventaData)) {
-        raw.totalVentas = Number(ventaData["Total Ventas"] ?? ventaData.totalVentas ?? 0);
-        raw.totalCosto = Number(ventaData["Total Costo"] ?? ventaData.totalCosto ?? 0);
-        raw.totalTikets = Number(ventaData["Total Tikets"] ?? ventaData.totalTikets ?? 0);
-        raw.totalClientes = Number(ventaData["Total Clientes"] ?? ventaData.totalClientes ?? 0);
-    }
-
-    // Compra
-    const compraData = reports.compra?.data;
-    if (Array.isArray(compraData) && compraData.length > 0) {
-        const row = compraData[0];
-        raw.totalCompras = Number(row["Total Compras"] ?? row.totalCompras ?? 0);
-        raw.totalProveedores = Number(row["Total Proveedores"] ?? row.totalProveedores ?? 0);
-        raw.minimoCosto = Number(row["Minimo Costo"] ?? row.minimoCosto ?? 0);
-        raw.maximoCosto = Number(row["Maximo Costo"] ?? row.maximoCosto ?? 0);
-    } else if (compraData && !Array.isArray(compraData)) {
-        raw.totalCompras = Number(compraData["Total Compras"] ?? compraData.totalCompras ?? 0);
-        raw.totalProveedores = Number(compraData["Total Proveedores"] ?? compraData.totalProveedores ?? 0);
-    }
-
-    // Merma
-    const mermaData = reports.merma?.data;
-    if (Array.isArray(mermaData) && mermaData.length > 0) {
-        const row = mermaData[0];
-        raw.totalMermas = Number(row["Total Mermas"] ?? row.totalMermas ?? 0);
-        raw.totalArticulosMerma = Number(row["Total Articulos Mermados"] ?? row.totalArticulosMerma ?? 0);
-    } else if (mermaData && !Array.isArray(mermaData)) {
-        raw.totalMermas = Number(mermaData["Total Mermas"] ?? mermaData.totalMermas ?? 0);
-    }
-
-    return processStatsData(raw);
-}
-
-// ─── Hook para fetching individual con reintentos ────────────────────────────
-function useSingleReportFetch(
-    manager: ReturnType<typeof useManagmentRead>[0],
-    dispatch: (action: ReportAction) => void
-) {
-    const abortMapRef = useRef<Map<REPORT, AbortController>>(new Map());
-    const retryTimersRef = useRef<Map<REPORT, ReturnType<typeof setTimeout>>>(new Map());
-
-    const cancelReport = useCallback((report: REPORT) => {
-        abortMapRef.current.get(report)?.abort();
-        abortMapRef.current.delete(report);
-        const timer = retryTimersRef.current.get(report);
-        if (timer) {
-            clearTimeout(timer);
-            retryTimersRef.current.delete(report);
-        }
-    }, []);
-
-    const cancelAll = useCallback(() => {
-        REPORT_KEYS.forEach(cancelReport);
-    }, [cancelReport]);
-
-    const fetchReport = useCallback(
-        (report: REPORT, payload: Omit<RequestPayload, "signal">, attempt = 1) => {
-            cancelReport(report);
-            const controller = new AbortController();
-            abortMapRef.current.set(report, controller);
-            const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-            if (attempt === 1) dispatch({ type: "LOADING", report });
-            else dispatch({ type: "RETRYING", report, attempt });
-
-            const { promise } = manager.execute({ ...payload, signal: controller.signal } as RequestPayload);
-
-            safeCall(() => promise, `fetchReport/${report}`)
-                .then((res: any) => {
-                    clearTimeout(timeoutId);
-                    if (controller.signal.aborted) return;
-                    const safeData = res?.data?.data ?? res?.data ?? null;
-                    dispatch({ type: "SUCCESS", report, data: safeData });
-                })
-                .catch((err: any) => {
-                    clearTimeout(timeoutId);
-                    if (controller.signal.aborted || err?.name === "AbortError") return;
-                    if (attempt < MAX_RETRIES) {
-                        const delay = RETRY_DELAY_MS * 2 ** (attempt - 1);
-                        const timer = setTimeout(() => fetchReport(report, payload, attempt + 1), delay);
-                        retryTimersRef.current.set(report, timer);
-                        return;
-                    }
-                    dispatch({ type: "ERROR", report, error: err?.message ?? "Error inesperado" });
-                });
-        },
-        [manager, cancelReport, dispatch]
-    );
-
-    useEffect(() => cancelAll, [cancelAll]);
-    return { fetchReport, cancelReport, cancelAll };
-}
-
 // ─── Inyección de filtro de fecha ─────────────────────────────────────────────
 const getDateNDaysAgo = (n: number): string => {
     const date = new Date();
@@ -463,7 +551,7 @@ const injectDateFilter = (
         compra: "compra.FechaEmision",
         merma: "inv.FechaEmision",
         inventario: "inv.FechaEmision",
-        gastos: "G.FechaEmision",
+        /* gastos: "G.FechaEmision", */
     };
 
     const dateFieldKey = dateFieldMap[report];
@@ -481,23 +569,12 @@ const injectDateFilter = (
     return newFiltros;
 };
 
-// ─── Componente de tarjeta de estadística ────────────────────────────────────
-interface StatCardProps {
-    label: string;
-    value: string | number;
-    icon: React.ReactNode;
-    colorClass?: string;
-    loading?: boolean;
-    subtitle?: string;
-}
-
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Analisis() {
     const [manager] = useManagmentRead();
     const [managerSearch] = useManagmentSearch();
 
-    // Estado de reportes (agregaciones/stats)
-    const [reports, dispatchReports] = useReducer(reportsReducer, undefined, makeInitialState);
+    const [reports] = useReducer(reportsReducer, undefined, makeInitialState);
     const deferredReports = useDeferredValue(reports);
 
     // Estados de UI
@@ -539,25 +616,20 @@ export default function Analisis() {
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
     // ─── Columnas visibles: mapa report → visibilidad ────────────────────────
-    // FIX: Se mantiene un mapa por reporte para evitar mezcla de columnas entre reportes
     const [visibleColumnsByReport, setVisibleColumnsByReport] = useState<Record<string, Record<string, boolean>>>({});
 
-    // Devuelve la visibilidad actual para el reporte seleccionado (inicializa todas en true si no existe)
     const getCurrentVisibility = useCallback(
         (report: REPORT = selectedReport): Record<string, boolean> => {
             if (visibleColumnsByReport[report]) return visibleColumnsByReport[report];
             const config = REPORT_CONFIGS[report];
 
-            // Nombres crudos de los selects del reporte
             const rawSelectKeys = new Set(
                 (config.filtros?.selects || []).map((s: any) => s.Alias || s.Key.split(".").pop() || s.Key)
             );
 
-            // Campos fuente que quedan absorbidos por una columna sintética
             const absorbedBySynthetic = new Set<string>();
             const initial: Record<string, boolean> = {};
 
-            // 1. Registrar columnas sintéticas cuyo al menos un campo fuente existe en los selects
             SYNTHETIC_COLUMNS.forEach(({ syntheticKey, sourceFields }) => {
                 const hasAny = sourceFields.some((f) => rawSelectKeys.has(f));
                 if (hasAny) {
@@ -566,12 +638,10 @@ export default function Analisis() {
                 }
             });
 
-            // 2. Resto de selects no absorbidos por ninguna columna sintética
             rawSelectKeys.forEach((col) => {
                 if (!absorbedBySynthetic.has(col)) initial[col] = true;
             });
 
-            // 3. Agregaciones (nunca son sintéticas)
             (config.filtros?.agregaciones || []).forEach((a: any) => {
                 const alias = a.Alias || a.Key.split(".").pop() || a.Key;
                 initial[alias] = true;
@@ -582,25 +652,18 @@ export default function Analisis() {
         [visibleColumnsByReport, selectedReport]
     );
 
-    // ─── Callback desde DynamicTable cuando el usuario cambia visibilidad ────
-    // FIX: Ya no llama a fetchTableData directamente; el useEffect lo dispara al detectar el cambio
     const handleVisibleColumnsChange = useCallback(
         (cols: Record<string, boolean>) => {
             setVisibleColumnsByReport((prev) => ({ ...prev, [selectedReport]: cols }));
-            // Resetear a página 1 al cambiar columnas para evitar paginación huérfana
             setCurrentPage(1);
         },
         [selectedReport]
     );
 
-    // ─── Lógica de fetching (stats y tabla) ──────────────────────────────────
-    const { fetchReport, cancelAll } = useSingleReportFetch(manager, dispatchReports);
-
-    // ─── Fetch de tabla: construye payload respetando columnas visibles ───────
+    // ─── Fetch de tabla ──────────────────────────────────────────────────────
     const tableAbortRef = useRef<AbortController | null>(null);
 
     const fetchTableData = useCallback(async () => {
-        // Cancelar petición anterior si existe
         tableAbortRef.current?.abort();
         tableAbortRef.current = new AbortController();
 
@@ -618,13 +681,9 @@ export default function Analisis() {
             .filter(([, visible]) => visible)
             .map(([key]) => key);
 
-        // Clonar filtros base
         let finalFiltros: any = config.filtros ? JSON.parse(JSON.stringify(config.filtros)) : {};
 
-        // Filtrar selects y agregaciones según visibilidad
-        // Las columnas sintéticas se expanden a sus campos fuente para que el servidor las devuelva
         if (finalFiltros.selects) {
-            // Construir el set de campos fuente requeridos por las columnas sintéticas visibles
             const requiredSourceFields = new Set<string>();
             SYNTHETIC_COLUMNS.forEach(({ syntheticKey, sourceFields }) => {
                 if (visibleKeys.length === 0 || visibleKeys.includes(syntheticKey)) {
@@ -634,7 +693,6 @@ export default function Analisis() {
 
             finalFiltros.selects = finalFiltros.selects.filter((sel: any) => {
                 const alias = sel.Alias || sel.Key.split(".").pop() || sel.Key;
-                // Incluir si: todas visibles, es campo fuente de sintética visible, o está directamente visible
                 return (
                     visibleKeys.length === 0 ||
                     requiredSourceFields.has(alias) ||
@@ -649,10 +707,8 @@ export default function Analisis() {
             });
         }
 
-        // Inyectar filtro de rango de fechas
         finalFiltros = injectDateFilter(selectedReport, finalFiltros, dateRange.from || undefined, dateRange.to || undefined);
 
-        // Filtro de almacén
         if (almacenFilter && config.table.toLowerCase().includes("almacen")) {
             if (!finalFiltros.Filtros) finalFiltros.Filtros = [];
             const almacenKey =
@@ -662,7 +718,6 @@ export default function Analisis() {
             finalFiltros.Filtros.push({ Key: almacenKey, Operator: "=", Value: almacenFilter });
         }
 
-        // Filtro de búsqueda por texto
         if (searchApplied && searchTerm && searchColumn.tableField) {
             if (!finalFiltros.Filtros) finalFiltros.Filtros = [];
             finalFiltros.Filtros.push({ Key: searchColumn.tableField, Operator: "LIKE", Value: `%${searchTerm}%` });
@@ -677,28 +732,55 @@ export default function Analisis() {
         };
 
         try {
-            const { promise } = manager.execute(payload);
+            const { promise } = await manager.execute(payload);
             const response: any = await safeCall(() => promise, `fetchTable/${selectedReport}`);
             if (tableAbortRef.current.signal.aborted) return;
 
-            // Columnas visibles activas (vacío = todas visibles)
             const activeVisible = visibleKeys.length > 0 ? new Set(visibleKeys) : null;
 
             const formattedData = response.data && response.data.data.map((item: any) => {
-                const { Proveedor, Fabricante, Articulo, Nombre, Codigo, Categoria, Grupo, Familia, Unidad, Factor, Cantidad, ["Articulos Totales"]: ArticulosTotales, ["Total Clientes"]: TotalClientes, ["Total Tikets"]: TotalTikets, ...rest } = item;
+                const {
+                    ["Nombre Sucursal"]: NombreSucursal,
+                    Sucursal,
+                    Almacen,
+                    Proveedor,
+                    Fabricante,
+                    Articulo,
+                    Nombre,
+                    Codigo,
+                    Categoria,
+                    Grupo,
+                    Familia,
+                    Unidad,
+                    Factor,
+                    Cantidad,
+                    ["Articulos Totales"]: ArticulosTotales,
+                    ["Total Clientes"]: TotalClientes,
+                    ["Total Tikets"]: TotalTikets,
+                    Costo,
+                    ["Total Costo"]: TotalCosto,
+                    ["Total Ventas"]: TotalVentas,
+                    ["Precio Unitario"]: PrecioUnitario,
+                    ["Total Proveedores"]: TotalProveedores,
+                    ["Proveedor Nombre"]: ProveedorNombre,
+                    ["Maximo Costo"]: CostoMaximo,
+                    ["Minimo Costo"]: CostoMinimo,
+                    ...rest
+                } = item;
 
                 const full: Record<string, any> = {
                     FechaEmision: item.FechaEmision,
                     Articulo: [item.Nombre, item.Articulo, item.Codigo],
-                    Proveedor: [item.Proveedor, item.Fabricante],
-                    Sucursal: item.Sucursal,
-                    Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
-                    Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`${item["Articulos Totales"]}`] : [])],
+                    Proveedor: [item["Proveedor Nombre"], item.Proveedor, item.Fabricante],
+                    Sucursal: [item['Nombre Sucursal'], item.Sucursal, item.Almacen],
                     Categoria: [item.Categoria, item.Grupo, item.Familia],
+                    Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
+                    Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`=${item["Articulos Totales"]}`] : [])],
+                    Costo: [item.Costo, formatValue(item["Total Costo"], "currency")],
+                    Precio: [item.Precio, item["Total Ventas"]],
                     ...rest,
                 };
 
-                // Omitir campos cuya columna está oculta en DynamicTable
                 if (!activeVisible) return full;
                 return Object.fromEntries(
                     Object.entries(full).filter(([key]) => activeVisible.has(key))
@@ -725,48 +807,26 @@ export default function Analisis() {
         getCurrentVisibility,
     ]);
 
-    // ─── Refrescar todo (stats + tabla) ──────────────────────────────────────
+    // ─── Refrescar stats ──────────────────────────────────────────────────────
     const refreshStats = useCallback(() => {
-        cancelAll();
         REPORT_KEYS.forEach((report) => {
-            const baseConfig = REPORT_CONFIGS[report];
-            const filtrosConFecha = injectDateFilter(report, baseConfig.filtros, dateRange.from || undefined, dateRange.to || undefined);
-            fetchReport(report, { table: baseConfig.table, filtros: filtrosConFecha, page: 1, pageSize: 1 });
         });
-    }, [cancelAll, fetchReport, dateRange]);
+    }, [ dateRange]);
 
     const refreshAllData = useCallback(() => {
         refreshStats();
         fetchTableData();
     }, [refreshStats, fetchTableData]);
 
-    // ─── SignalR ──────────────────────────────────────────────────────────────
-    const onPedidoActualizado = useCallback(() => refreshAllData(), [refreshAllData]);
-    const onNuevoPedido = useCallback(() => refreshAllData(), [refreshAllData]);
-    const onPedidoEliminado = useCallback(() => refreshAllData(), [refreshAllData]);
-    const onRefrescarDatos = useCallback(() => refreshAllData(), [refreshAllData]);
-
-    const { isConnected } = usePedidosSignalR(
-        onPedidoActualizado,
-        onNuevoPedido,
-        onPedidoEliminado,
-        onRefrescarDatos
-    );
-
     // ─── Carga inicial ────────────────────────────────────────────────────────
     useEffect(() => {
         refreshStats();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ─── Recarga de tabla al cambiar reporte, página, pageSize o visibilidad ─
-    // FIX: Este useEffect centraliza todos los disparadores de fetchTableData
     useEffect(() => {
         fetchTableData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedReport, currentPage, pageSize, visibleColumnsByReport, almacenFilter, searchApplied, dateRange]);
 
-    // ─── Al cambiar de reporte, volver a página 1 ─────────────────────────────
     useEffect(() => {
         setCurrentPage(1);
     }, [selectedReport]);
@@ -827,11 +887,20 @@ export default function Analisis() {
         setShowSuggestions(false);
         setCurrentPage(1);
     };
-    //DIENERO @TABLA
-    // MOV ESPEJO - PAGO
-    // POLIZA DE EGRESO - GASTO
-    // ─── Stats derivadas de los reportes cargados ────────────────────────────
-    const statsData = useMemo(() => deriveStatsFromReports(deferredReports), [deferredReports]);
+
+    // ─── Stats derivadas de los reportes cargados (por reporte independiente) ──
+    const statsDataByReport = useMemo(() => {
+        return Object.fromEntries(
+            REPORT_KEYS.map((report) => {
+                const r = deferredReports[report];
+                if (r.status === "success" && r.data) {
+                    const items = Array.isArray(r.data) ? r.data : [r.data];
+                    return [report, processStatsData(items)];
+                }
+                return [report, {}];
+            })
+        ) as Record<REPORT, StatsData>;
+    }, [deferredReports]);
 
     const loadingState = useMemo(() => {
         const entries = REPORT_KEYS.map((k) => ({ key: k, status: deferredReports[k].status }));
@@ -844,73 +913,26 @@ export default function Analisis() {
     const loadProgress = Math.round((loadingState.resolvedCount / REPORT_KEYS.length) * 100);
     const totalPages = Math.ceil(totalRecords / pageSize);
 
-    // ─── Tarjetas de stats para renderizar ───────────────────────────────────
-    const statsCards = useMemo<StatCardProps[]>(() => {
-        const isLoading = loadingState.isAnyLoading;
-        return [
-            {
-                label: "Total Ventas",
-                value: statsData.totalVentas != null ? formatValue(statsData.totalVentas, "currency") : "—",
-                icon: <TrendingUp className="h-5 w-5" />,
-                colorClass: "text-emerald-500",
-                loading: isLoading && deferredReports.venta.status !== "success",
-                subtitle: statsData.totalTikets ? `${statsData.totalTikets} tickets` : undefined,
-            },
-            {
-                label: "Total Compras",
-                value: statsData.totalCompras != null ? formatValue(statsData.totalCompras, "currency") : "—",
-                icon: <ShoppingCart className="h-5 w-5" />,
-                colorClass: "text-blue-500",
-                loading: isLoading && deferredReports.compra.status !== "success",
-                subtitle: statsData.totalProveedores ? `${statsData.totalProveedores} proveedores` : undefined,
-            },
-            {
-                label: "Utilidad",
-                value: statsData.utilidad != null ? formatValue(statsData.utilidad, "currency") : "—",
-                icon: <DollarSign className="h-5 w-5" />,
-                colorClass: (statsData.utilidad ?? 0) >= 0 ? "text-emerald-500" : "text-red-500",
-                loading: isLoading && (deferredReports.venta.status !== "success" || deferredReports.compra.status !== "success"),
-                subtitle: statsData.margen != null ? `Margen: ${statsData.margen}%` : undefined,
-            },
-            {
-                label: "Margen",
-                value: statsData.margen != null ? `${statsData.margen}%` : "—",
-                icon: <BarChart2 className="h-5 w-5" />,
-                colorClass: (statsData.margen ?? 0) >= 30 ? "text-emerald-500" : "text-amber-500",
+    // ─── Métricas para el reporte seleccionado (datos propios del reporte) ────
+    const metrics = useMemo(() => {
+        const config = METRICS_CONFIG[selectedReport] || [];
+        const reportStatus = deferredReports[selectedReport]?.status;
+        const isLoading = ["loading", "idle", "retrying"].includes(reportStatus);
+        // Usar solo los stats del reporte activo, no el combinado
+        const reportStats = statsDataByReport[selectedReport] ?? {};
+
+        return config.map((metric) => {
+            const value = metric.getValue(reportStats);
+            const display = value !== null ? formatValue(value, metric.format) : "—";
+
+            return {
+                ...metric,
+                display,
+                raw: value,
                 loading: isLoading,
-                subtitle: "Margen sobre ventas",
-            },
-            {
-                label: "Total Mermas",
-                value: statsData.totalMermas != null ? formatValue(statsData.totalMermas, "currency") : "—",
-                icon: <AlertTriangle className="h-5 w-5" />,
-                colorClass: "text-rose-500",
-                loading: isLoading && deferredReports.merma.status !== "success",
-                subtitle: statsData.totalArticulosMerma ? `${statsData.totalArticulosMerma} artículos` : undefined,
-            },
-            {
-                label: "Clientes",
-                value: statsData.totalClientes != null ? String(statsData.totalClientes) : "—",
-                icon: <Users className="h-5 w-5" />,
-                colorClass: "text-violet-500",
-                loading: isLoading && deferredReports.venta.status !== "success",
-            },
-            {
-                label: "Ticket Promedio",
-                value: statsData.promedio != null ? formatValue(statsData.promedio, "currency") : "—",
-                icon: <Zap className="h-5 w-5" />,
-                colorClass: "text-amber-500",
-                loading: isLoading,
-            },
-            {
-                label: "Proveedores",
-                value: statsData.totalProveedores != null ? String(statsData.totalProveedores) : "—",
-                icon: <Truck className="h-5 w-5" />,
-                colorClass: "text-cyan-500",
-                loading: isLoading && deferredReports.compra.status !== "success",
-            },
-        ];
-    }, [statsData, loadingState.isAnyLoading, deferredReports]);
+            };
+        });
+    }, [selectedReport, statsDataByReport, deferredReports]);
 
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
@@ -922,16 +944,6 @@ export default function Analisis() {
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-bold">Análisis</h1>
-                        {/* Indicador de conexión SignalR */}
-                        <span
-                            className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${isConnected
-                                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                : "bg-gray-100 border-gray-200 text-gray-500"
-                                }`}
-                        >
-                            <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-emerald-500" : "bg-gray-400"}`} />
-                            {isConnected ? "En vivo" : "Desconectado"}
-                        </span>
                         <button
                             onClick={() => setShowStats(!showStats)}
                             className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
@@ -976,44 +988,170 @@ export default function Analisis() {
                     </div>
                 )}
 
-                {/* ─── Stats Cards ───────────────────────────────────────── */}
-                {showStats && (
-                    <BentoGrid cols={4} className="p-0">
-                        {statsCards.map((card) => (
-                            <BentoItem key={card.label} title={card.label}>
-                                <article>
-                                    <span className={`${card.colorClass} absolute top-5 right-5`}>{card.icon}</span>
+                {/* ─── Stats en desglose (legibilidad mejorada) ──────────── */}
+                {showStats && metrics.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4 dark:bg-gray-800 dark:border-gray-700">
+                        <h2 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                            Resumen de métricas - {selectedReport.charAt(0).toUpperCase() + selectedReport.slice(1)}
+                            {selectedReport === "venta" && " (utilidad vs compras + mermas)"}
+                            {selectedReport === "compra" && " (costo mínimo y máximo)"}
+                            {selectedReport === "inventario" && " (costo total)"}
+                        </h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            {metrics.map((metric) => (
+                                <div
+                                    key={metric.key}
+                                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700 hover:shadow-sm transition-shadow"
+                                >
+                                    <div className={`p-2 rounded-full ${metric.color} bg-opacity-10 dark:bg-opacity-20`}>
+                                        <metric.icon className="h-5 w-5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{metric.label}</p>
+                                        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                            {metric.loading ? (
+                                                <Loader2 className="h-4 w-4 animate-spin text-gray-400 inline" />
+                                            ) : (
+                                                metric.display
+                                            )}
+                                        </p>
+                                        {metric.description && (
+                                            <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{metric.description}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
-                                    <label className="flex items-center justify-between mb-2">
-                                        <span className="text-xl font-bold text-gray-900 truncate">{card.value}</span>
-                                        {card.subtitle && <span className="text-xs text-gray-400 mt-0.5">{card.subtitle}</span>}
-                                    </label>
-                                </article>
-                            </BentoItem>
-                        ))}
-                    </BentoGrid>
+                {/* ─── Panel de comparación venta / compra / merma / inventario ── */}
+                {showStats && (
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4 dark:bg-gray-800 dark:border-gray-700">
+                        <h2 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                            <GitCompare className="h-5 w-5 text-indigo-500" />
+                            Comparación general
+                        </h2>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                            {/* Ventas */}
+                            <div className="flex flex-col gap-1 p-3 rounded-lg bg-emerald-50 border border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800">
+                                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                    <TrendingUp className="h-3.5 w-3.5" /> Ventas
+                                </span>
+                                {["loading", "idle", "retrying"].includes(deferredReports["venta"].status) ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+                                ) : (
+                                    <span className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
+                                        {statsDataByReport["venta"]?.totalVentas != null
+                                            ? formatValue(statsDataByReport["venta"].totalVentas!, "currency")
+                                            : "—"}
+                                    </span>
+                                )}
+                                <span className="text-xs text-emerald-500">
+                                    {statsDataByReport["venta"]?.totalTikets != null
+                                        ? `${statsDataByReport["venta"].totalTikets} tickets`
+                                        : ""}
+                                </span>
+                            </div>
+
+                            {/* Compras */}
+                            <div className="flex flex-col gap-1 p-3 rounded-lg bg-blue-50 border border-blue-100 dark:bg-blue-900/20 dark:border-blue-800">
+                                <span className="text-xs font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                    <ShoppingCart className="h-3.5 w-3.5" /> Compras
+                                </span>
+                                {["loading", "idle", "retrying"].includes(deferredReports["compra"].status) ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+                                ) : (
+                                    <span className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                                        {statsDataByReport["compra"]?.totalCompras != null
+                                            ? formatValue(statsDataByReport["compra"].totalCompras!, "currency")
+                                            : "—"}
+                                    </span>
+                                )}
+                                <span className="text-xs text-blue-500">
+                                    {statsDataByReport["compra"]?.totalProveedores != null
+                                        ? `${statsDataByReport["compra"].totalProveedores} proveedores`
+                                        : ""}
+                                </span>
+                            </div>
+
+                            {/* Mermas */}
+                            <div className="flex flex-col gap-1 p-3 rounded-lg bg-rose-50 border border-rose-100 dark:bg-rose-900/20 dark:border-rose-800">
+                                <span className="text-xs font-medium text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                                    <AlertTriangle className="h-3.5 w-3.5" /> Mermas
+                                </span>
+                                {["loading", "idle", "retrying"].includes(deferredReports["merma"].status) ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-rose-400" />
+                                ) : (
+                                    <span className="text-xl font-bold text-rose-700 dark:text-rose-300">
+                                        {statsDataByReport["merma"]?.totalMermas != null
+                                            ? formatValue(statsDataByReport["merma"].totalMermas!, "currency")
+                                            : "—"}
+                                    </span>
+                                )}
+                                <span className="text-xs text-rose-500">
+                                    {statsDataByReport["merma"]?.totalArticulosMerma != null
+                                        ? `${statsDataByReport["merma"].totalArticulosMerma} artículos`
+                                        : ""}
+                                </span>
+                            </div>
+
+                            {/* Inventario */}
+                            <div className="flex flex-col gap-1 p-3 rounded-lg bg-purple-50 border border-purple-100 dark:bg-purple-900/20 dark:border-purple-800">
+                                <span className="text-xs font-medium text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                                    <Warehouse className="h-3.5 w-3.5" /> Inventario
+                                </span>
+                                {["loading", "idle", "retrying"].includes(deferredReports["inventario"].status) ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+                                ) : (
+                                    <span className="text-xl font-bold text-purple-700 dark:text-purple-300">
+                                        {statsDataByReport["inventario"]?.totalCosto != null
+                                            ? formatValue(statsDataByReport["inventario"].totalCosto!, "currency")
+                                            : "—"}
+                                    </span>
+                                )}
+                                <span className="text-xs text-purple-500">costo total</span>
+                            </div>
+                        </div>
+
+                        {/* Utilidad neta calculada */}
+                        {(() => {
+                            const ventas = statsDataByReport["venta"]?.totalVentas;
+                            const compras = statsDataByReport["compra"]?.totalCompras ?? statsDataByReport["venta"]?.totalCosto;
+                            const mermas = statsDataByReport["merma"]?.totalMermas ?? 0;
+                            if (ventas == null || compras == null) return null;
+                            const utilidad = ventas - compras - mermas;
+                            const margen = ventas > 0 ? (utilidad / ventas) * 100 : 0;
+                            const positivo = utilidad >= 0;
+                            return (
+                                <div className={`flex items-center justify-between rounded-lg px-4 py-2.5 border ${positivo ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700" : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700"}`}>
+                                    <span className={`text-sm font-medium flex items-center gap-1.5 ${positivo ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}>
+                                        {positivo ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                                        Utilidad neta (Ventas − Compras − Mermas)
+                                    </span>
+                                    <span className={`text-lg font-bold ${positivo ? "text-emerald-700 dark:text-emerald-200" : "text-red-700 dark:text-red-200"}`}>
+                                        {formatValue(utilidad, "currency")}
+                                        <span className="ml-2 text-sm font-normal opacity-70">{margen.toFixed(1)}%</span>
+                                    </span>
+                                </div>
+                            );
+                        })()}
+                    </div>
                 )}
 
                 {/* ─── Selector de reporte ───────────────────────────────── */}
                 <div className="mb-4 flex flex-wrap gap-2">
                     {REPORT_KEYS.map((report) => {
-                        const status = deferredReports[report].status;
-                        const isDisabled = ["loading", "idle", "retrying"].includes(status);
                         return (
                             <Button
                                 key={report}
-                                disabled={isDisabled}
-                                color={
-                                    isDisabled
-                                        ? "second"
-                                        : selectedReport === report
+                                color={selectedReport === report
                                             ? "completed"
                                             : "success"
                                 }
                                 size="small"
                                 onClick={() => setSelectedReport(report)}
                             >
-                                {isDisabled && <Loader2 className="h-3 w-3 animate-spin" />}
                                 {report.charAt(0).toUpperCase() + report.slice(1)}
                             </Button>
                         );
@@ -1021,7 +1159,7 @@ export default function Analisis() {
                 </div>
 
                 {/* ─── Tabla + filtros ───────────────────────────────────── */}
-                <div className="relative flex flex-col rounded-xl border gap-3 border-gray-200 bg-white shadow-sm p-4">
+                <div className="relative flex flex-col rounded-xl border gap-3 border-gray-200 bg-white shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
 
                     {/* Filtros */}
                     <MainForm
@@ -1066,15 +1204,16 @@ export default function Analisis() {
                         iconButton={<Filter className="mr-1 h-4 w-4" />}
                         onSuccess={(rows: any) => {
                             console.log(rows);
-
-                            setSearchApplied(true); setCurrentPage(1); fetchTableData();
+                            setSearchApplied(true);
+                            setCurrentPage(1);
+                            fetchTableData();
                         }}
                     />
 
                     {/* Error de tabla */}
                     {tableError && (
-                        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
                             <span>{tableError}</span>
                             <button
                                 className="ml-auto underline hover:no-underline"

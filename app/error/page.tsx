@@ -29,7 +29,6 @@ import Footer from "@/template/footer"
 import Header from "@/template/header"
 import MainForm from "@/components/form/main-form"
 import { Button } from "@/components/button"
-import { DetallesPago } from "./components/detalles-pago"
 import Segment from "@/components/segment"
 
 interface PagoResponse {
@@ -75,28 +74,12 @@ export default function Pago() {
     const [getWithFilter] = useGetWithFiltersIntelisisMutation();
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-        Filtros: [
-            {
-                Key: "CXP.MOV",
-                Value: "Pago",
-                Operator: "="
-            }, {
-                Key: "CXP.Origen",
-                Value: "Entrada Compra",
-                Operator: "="
-            }, {
-                Key: "CXP.Estatus",
-                Value: "CONCLUIDO",
-                Operator: "="
-            },
-        ],
+        Filtros: [],
         Selects: [],
-        OrderBy: [
-            {
-                Key: "CXP.FechaEmision",
-                Direction: "DESC"
-            }
-        ],
+        OrderBy: [{
+            Key: "ID",
+            Direction: "DESC"
+        }],
         sum: false,
         distinct: false
     });
@@ -107,20 +90,10 @@ export default function Pago() {
 
         try {
             const response = await getWithFilter({
-                table: "CXP INNER JOIN Prov ON CXP.Proveedor = Prov.Proveedor INNER JOIN (SELECT DISTINCT ID FROM CXPD) AS CXPD_Unico ON CXP.ID = CXPD_Unico.ID INNER JOIN COMPRA ON COMPRA.Mov = CXP.Origen AND CXP.OrigenID = COMPRA.MovID",
+                table: "POSJobErrores",
                 filtros: {
                     Selects: [
-                        { Key: "CXP.ID", },
-                        { Key: "CXP.OrigenID", },
-                        { Key: "CXP.Proveedor" },
-                        { Key: "Prov.Nombre" }, 
-                        { Key: "CXP.Sucursal" },
-                        { Key: "CXP.Importe", Alias: "Importe" },
-                        { Key: "CXP.Saldo" },
-                        { Key: "CXP.Impuestos" },
-                        { Key: "CXP.IVAFiscal" },
-                        { Key: "CXP.IEPSFiscal" },
-                        { Key: "CXP.FechaEmision" },
+                        
                     ],
                     FiltrosAnd: [{
                         Filtros: activeFilters.Filtros,
@@ -134,18 +107,7 @@ export default function Pago() {
 
             if ('data' in response) {
                 const pagoData = response.data as PagoResponse;
-                const formattedData = pagoData.data.map((item) => {                    
-                    return ({
-                        ID: [item.ID, item.OrigenID],
-                        Sucursal: item.Sucursal,
-                        Proveedor: [item.Proveedor, item.Nombre],
-                        Importe: [item.Importe, item.Saldo ],
-                        Impuestos: item.Impuestos,
-                        IVAFiscal: item.IVAFiscal && (item.Importe / (item.IVAFiscal * 100)),
-                        IEPSFiscal: item.IEPSFiscal && (item.Importe / (item.IEPSFiscal * 100)),
-                        FechaEmision: item.FechaEmision || "N/A",
-                    })
-                });
+                const formattedData = pagoData.data;
                 setPago(formattedData);
                 setTotalPages(pagoData.totalPages);
                 setTotalRecords(pagoData.totalRecords);
@@ -165,27 +127,6 @@ export default function Pago() {
     }, [currentPage, activeFilters, pageSize]);
 
     const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
-
-    const loadPago = (data: FiltrosForm) => {
-        const nuevosFiltrosAnd: any[] = [];
-
-        if (data.search) {
-            nuevosFiltrosAnd.push({ Key: "CXP.Proveedor", Value: data.search, Operator: "LIKE" });
-            nuevosFiltrosAnd.push({ Key: "Prov.Nombre", Value: data.search, Operator: "LIKE" });
-            const searchStr = data.search.toString().trim();
-            if (/^\d+$/.test(searchStr)) {
-                nuevosFiltrosAnd.push({ Key: "CXP.ID", Value: searchStr, Operator: "=" });
-                nuevosFiltrosAnd.push({ Key: "Importe", Value: searchStr, Operator: "=" });
-            }
-        }
-        if (data.sucursal) nuevosFiltrosAnd.push({ Key: "CXP.Sucursal", Value: data.sucursal, Operator: "LIKE" });
-        if (data.date) nuevosFiltrosAnd.push({ Key: "FechaEmision", Value: data.date, Operator: data.date.includes("AND") ?  "BETWEEN" : "=" });
-
-        setActiveFilters(prev => ({
-            ...prev,
-            Filtros: nuevosFiltrosAnd
-        }));
-    };
 
     const limpiarFiltros = () => {
         setActiveFilters(prev => ({ ...prev, Filtros: [] }));
@@ -209,10 +150,10 @@ export default function Pago() {
             <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
                 <header className="mb-8">
                     <h1 className="flex items-center text-2xl font-bold md:text-3xl">
-                        Boveda de pagos
+                        Errores de intelisis
                     </h1>
                     <p className="mt-2 text-gray-600 dark:text-gray-100">
-                        Gestiona y visualiza todos los pagos realizados, con detalles completos de cada transacción. Utiliza los filtros para encontrar rápidamente la información que necesitas.
+                        Visor de errores intelisis    
                     </p>
                 </header>
 
@@ -220,77 +161,19 @@ export default function Pago() {
                     <article className="p-4">
                         <span className="mr-4 flex justify-between">
                                 <label>
-                                    <h2 className="text-lg font-semibold">Gestión de Pagos</h2>
+                                    <h2 className="text-lg font-semibold">Gestión de Errores</h2>
                                     <p className="text-sm text-gray-500">
-                                        Mostrando {pago.length} de {totalRecords} pagos
+                                        Mostrando {pago.length} de {totalRecords} errores
                                     </p>
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    Seccion:
-                                    <Segment
-                                        items={allCategories.map((cat:any) => ({ value: cat, label: cat }))}
-                                        value={selectedCategory}
-                                        onValueChange={setSelectedCategory}
-                                    />
                                 </label>
                         </span>
                         <dt className="relative flex flex-col gap-2">
-                            <MainForm
-                                message_button={"Filtrar"}
-                                onSuccess={loadPago}
-                                iconButton={<Filter className="mr-1 size-4" />}
-                                actionType={""}
-                                flexDirection="flex-row"
-                                dataForm={[
-                                    {
-                                        type: "Flex",
-                                        require: false,
-                                        elements: [
-                                            {
-                                                name: "search",
-                                                type: "SEARCH",
-                                                label: "Busqueda rapida",
-                                                icon: <Search className="size-4" />,
-                                                placeholder: "Busar por proveedor, importe, ID...",
-                                                require: true,
-                                            },
-                                            {
-                                                name: "sucursal",
-                                                type: "SELECT",
-                                                label: "Selecciona la sucursal",
-                                                icon: <Building className="size-4" />,
-                                                options: [
-                                                    { label: "Mayoreo", value: "4" },
-                                                    { label: "Guadalupe", value: "1" },
-                                                    { label: "Testerazo", value: "2" },
-                                                    { label: "Palmas", value: "3" },
-                                                ],
-                                                placeholder: "Todas las sucursales",
-                                                require: false,
-                                            },
-                                            {
-                                                name: "date",
-                                                type: "DATE_RANGE",
-                                                label: "Fecha de Puesto",
-                                                icon: <Clock className="size-4" />,
-                                                require: false,
-                                            },
-                                        ],
-                                    },
-                                ]} />
                             <dl className="flex gap-2 ml-auto">
                                 <Button
                                     onClick={() => handleOpenModal('chat-general')}
                                     color="info"
                                 >
                                     Chat <MessageCircle className="size-4" />
-                                </Button>
-
-                                <Button
-                                    onClick={limpiarFiltros}
-                                    color="success"
-                                >
-                                    Limpiar
                                 </Button>
 
                                 <Button
@@ -363,7 +246,7 @@ export default function Pago() {
                     title="Detalles del Pago"
                     maxWidth="5xl">
                     {pagoseleccionado ? (
-                        <DetallesPago selectedPago={pagoseleccionado} />
+                        <></>
                     ) : (
                         <div className="p-4 text-center">
                             <p className="text-gray-500">No se ha seleccionado ningún pago.</p>
