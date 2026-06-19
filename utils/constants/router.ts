@@ -11,6 +11,7 @@ import {
   ShoppingBasket,
   UserRoundPlus,
   Vault,
+  AlertCircle,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -138,6 +139,11 @@ export const navigationAdmin = [
     name: "Boveda Movimientos",
     href: "/boveda-movimientos",
     icon: Vault,
+  },
+  {
+    name: "Errores intelisis",
+    href: "/error",
+    icon: AlertCircle,
   },
   {
     name: "Update",

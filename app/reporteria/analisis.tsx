@@ -249,6 +249,7 @@ const SYNTHETIC_COLUMNS: {
         { syntheticKey: "Categoria", sourceFields: ["Categoria", "Grupo", "Familia"] },
         { syntheticKey: "Unidad", sourceFields: ["Unidad", "Factor"] },
         { syntheticKey: "Cantidad", sourceFields: ["Cantidad", "Articulos Totales"] },
+        { syntheticKey: "Costo", sourceFields: ["Costo", "Total Costo"] },
     ];
 const AGGREGATION_DEPENDENCIES: Record<string, string[]> = {
     "Total Costo": ["Costo"],
