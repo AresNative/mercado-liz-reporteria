@@ -1,50 +1,59 @@
+'use client';
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 import { getCookieinPage } from "@/utils/functions/cookies";
 import AuthController from "@/components/auth/controller";
+import Analisis from "./analisis";
+import { useEffect, useState } from "react";
 
 const USER_DATA_KEY = "userData";
 const USER_ROLE_KEY = "user-role";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
+    const [userRole, setUserRole] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     // Función para obtener el rol del usuario
-    const getUserRole = () => {
-        // 1. Intentar obtener de las cookies
-        const roleFromCookie = getCookieinPage(USER_ROLE_KEY);
-        if (roleFromCookie) {
-            return roleFromCookie;
-        }
+    const getUserRole = async () => {
 
-        // 2. Si no hay en cookies, buscar en localStorage
         try {
-            const userData = getLocalStorageItem(USER_DATA_KEY);
+            // 1. Intentar desde cookie
+            let role: any = await getCookieinPage(USER_ROLE_KEY);
 
-            // Verificar si userData es válido y tiene rol
-            if (userData && typeof userData === 'object' && userData !== null) {
-                // Manejar diferentes estructuras posibles
-                if ('rol' in userData) {
-                    return String(userData.rol);
-                } else if ('role' in userData) {
-                    return String(userData.role);
-                } else if ('userRole' in userData) {
-                    return String(userData.userRole);
+            // 2. Si no hay en cookies, buscar en localStorage
+            if (!role) {
+                const userData = await getLocalStorageItem(USER_DATA_KEY);
+                if (userData && typeof userData === 'object' && userData !== null) {
+                    role = userData.rol ? String(userData.rol) : null;
                 }
             }
+
+            setUserRole(role)
         } catch (error) {
             console.error("Error al obtener datos de localStorage:", error);
-            return null;
+            setIsLoading(false);
+        } finally {
+            setIsLoading(false);
         }
-
-        return null;
     };
 
-    const userRole = getUserRole();
-    const isAuthorized = Boolean(userRole);
+    useEffect(() => {
+        getUserRole();
+    }, []);
 
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Verificando acceso...</p>
+                </div>
+            </div>
+        );
+    }
     return (
         <AuthController>
-            {isAuthorized ? (
-                <>{children}</>
-            ) : (
+            {userRole !== 'admin' && children}
+            {userRole === 'admin' && <Analisis />}
+            {!userRole && (
                 <div className="min-h-screen flex items-center justify-center bg-gray-50">
                     <div className="text-center">
                         <h1 className="text-2xl font-bold text-gray-900 mb-4">
