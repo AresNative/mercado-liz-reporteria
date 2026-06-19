@@ -57,23 +57,18 @@ export default function Pagination({
     const handleJump = useCallback(
         (direction: JumpDirection) => {
             if (loading) return;
-
             const pages = Math.max(1, Math.min(jumpValue, totalPages));
-
             setCurrentPage(prev => {
                 const target =
                     direction === "forward"
                         ? Math.min(prev + pages, totalPages)
                         : Math.max(prev - pages, 1);
-
                 return target;
             });
-
             onJump?.(pages);
         },
         [jumpValue, totalPages, loading, setCurrentPage, onJump]
     );
-
     const goToPrevious = useCallback(() => {
         if (!isFirstPage && !loading) {
             setCurrentPage(p => Math.max(p - 1, 1));
@@ -86,7 +81,7 @@ export default function Pagination({
         }
     }, [isLastPage, loading, setCurrentPage, totalPages]);
 
-    const handlePageSizeChange =(newSize: number) => {
+    const handlePageSizeChange = (newSize: number) => {
         if (onPageSizeChange && !loading) {
             onPageSizeChange(newSize);
         }
@@ -103,7 +98,6 @@ export default function Pagination({
                             Página {currentPage} de {totalPages}
                         </span>
                     </div>
-
                     {totalItems > 0 && (
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                             Mostrando {startItem}-{endItem} de{" "}
@@ -158,7 +152,6 @@ export default function Pagination({
                         <SkipBack className="size-4" />
                         <span className="text-sm font-medium">-{jumpValue}</span>
                     </button>
-
                     <button
                         onClick={goToPrevious}
                         disabled={isFirstPage || loading}
@@ -168,7 +161,6 @@ export default function Pagination({
                         <ChevronLeft className="size-4" />
                     </button>
                 </div>
-
                 <div className="text-center">
                     <div className="text-md font-semibold text-gray-900 dark:text-white">
                         {currentPage}
@@ -177,7 +169,6 @@ export default function Pagination({
                         Página actual
                     </div>
                 </div>
-
                 <div className="flex items-center gap-2">
                     <button
                         onClick={goToNext}
@@ -187,7 +178,6 @@ export default function Pagination({
                     >
                         <ChevronRight className="size-4" />
                     </button>
-
                     <button
                         onClick={() => handleJump("forward")}
                         disabled={isLastPage || loading}
@@ -207,7 +197,6 @@ export default function Pagination({
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Tamaño de salto
                         </label>
-
                         <div className="flex flex-wrap gap-2">
                             {jumpOptions.map(option => (
                                 <button
@@ -223,7 +212,6 @@ export default function Pagination({
                             ))}
                         </div>
                     </div>
-
                     {/* Información adicional */}
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 flex justify-between text-sm">
                         {loading ? (
@@ -234,7 +222,6 @@ export default function Pagination({
                         ) : (
                             <span />
                         )}
-
                         <div className="flex items-center gap-4">
                             <span className="text-gray-500 dark:text-gray-400">
                                 {totalPages > 1000 ? "Big Data Mode" : "Standard Mode"}
