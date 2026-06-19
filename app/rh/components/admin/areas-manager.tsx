@@ -24,7 +24,6 @@ const AreasManager = () => {
     const loadAreas = async () => {
         try {
             setLoading(true);
-
             const response = await getWithFilter({
                 table: "Departamento",
                 page: currentPage,
@@ -36,7 +35,6 @@ const AreasManager = () => {
                     Order: [],
                 },
             });
-
             if ("data" in response) {
                 // ELIMINA DUPLICADOS
                 const uniqueAreas: Area[] = Array.from(
@@ -75,10 +73,8 @@ const AreasManager = () => {
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
                         Panel de Areas
                     </h1>
-
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Solo estarán disponibles las áreas
-                        con cuestionarios activos
+                        Solo estarán disponibles las áreas con cuestionarios activos
                     </p>
                 </div>
             </div>
@@ -99,7 +95,6 @@ const AreasManager = () => {
                                             <h3 className="font-semibold text-gray-800 dark:text-gray-200">
                                                 {area.Departamento}
                                             </h3>
-
                                             <p className="text-sm text-gray-500 dark:text-gray-400">
                                                 Áreas con cuestionarios activos
                                             </p>
@@ -110,42 +105,22 @@ const AreasManager = () => {
                                 {/* PAGINACIÓN */}
                                 <div className="mt-6">
                                     <Pagination
-                                        currentPage={
-                                            currentPage
-                                        }
+                                        currentPage={currentPage}
                                         loading={loading}
-                                        setCurrentPage={
-                                            setCurrentPage
-                                        }
-                                        totalPages={
-                                            totalPages
-                                        }
-                                        totalItems={
-                                            totalItems
-                                        }
-                                        itemsPerPage={
-                                            pageSize
-                                        }
-                                        currentPageSize={
-                                            pageSize
-                                        }
-                                        onPageSizeChange={(
-                                            newPageSize
-                                        ) => {
-                                            setPageSize(
-                                                newPageSize
-                                            );
-                                            setCurrentPage(
-                                                1
-                                            );
+                                        setCurrentPage={setCurrentPage}
+                                        totalPages={totalPages}
+                                        totalItems={totalItems}
+                                        itemsPerPage={pageSize}
+                                        currentPageSize={pageSize}
+                                        onPageSizeChange={(newPageSize) => {
+                                            setPageSize(newPageSize);
+                                            setCurrentPage(1);
                                         }}
                                     />
                                 </div>
                             </>
                         ) : (
-                            <p>
-                                No hay áreas disponibles
-                            </p>
+                            <p> No hay áreas disponibles</p>
                         )}
                     </div>
                 </div>

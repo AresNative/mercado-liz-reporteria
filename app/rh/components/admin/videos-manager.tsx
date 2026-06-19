@@ -18,23 +18,18 @@ import Pagination from "@/components/pagination";
 
 const PageVideos = () => {
     const dispatch = useAppDispatch();
-
     const [loading, setLoading] = useState(false);
-
     // PAGINACIÓN
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-
     // DATOS TEMPORALES
     const videos = [1, 2, 3];
-
     const totalRecords = videos.length;
     const totalPages = Math.ceil(totalRecords / pageSize) || 1;
 
     const handleRefresh = async () => {
         try {
             setLoading(true);
-
             // lógica futura
         } catch (error) {
             console.error(error);
@@ -56,7 +51,7 @@ const PageVideos = () => {
                         Gestiona videos de capacitación
                     </p>
                 </div>
-
+                {/* ACCIONES */}
                 <div className="flex gap-2 flex-wrap">
                     <button
                         onClick={handleRefresh}
@@ -200,17 +195,17 @@ const PageVideos = () => {
                                     require: true,
                                     type: "INPUT",
                                     label: "URL del Video (YouTube Embed)",
-                                    name: "link",
+                                    name: "url",
                                     icon: <Link className="w-4 h-4" />,
                                     placeholder:
                                         "Ej: https://www.youtube.com/embed/VIDEO_ID",
                                 },
                             ]}
-                            aditionalData={{
+                           /*  aditionalData={{
                                 fecha: new Date(),
-                            }}
+                            }}*/
                             actionType="post-general"
-                            message_button="Crear Video"
+                            message_button="Crear Video" 
                         />
                     </div>
                 </div>
