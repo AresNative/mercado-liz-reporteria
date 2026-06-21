@@ -31,6 +31,7 @@ import { DateRange } from "./types/filter";
 import { Button } from "@/components/button";
 import { safeCall } from "@/hooks/use-debounce";
 import MainForm from "@/components/form/main-form";
+import { ArrayColumnDisplay } from "@/components/table/toggle-view";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type REPORT =
@@ -48,7 +49,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
         table: `VENTA AS venta INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo INNER JOIN Sucursal ON ventad.Sucursal = Sucursal.Sucursal`,
         filtros: {
             selects: [
-                { Key: "ventad.Codigo" },
+                /* { Key: "ventad.Codigo" }, */
                 { Key: "ventad.Articulo" },
                 { Key: "ART.Descripcion1", Alias: "Nombre" },
                 { Key: "venta.FechaEmision" },
@@ -235,7 +236,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
 
 // ─── Constantes estables ─────────────────────────────────────────────────────
 const REPORT_KEYS = Object.keys(REPORT_CONFIGS) as REPORT[];
-
+const SYNTHETIC_ORDER = ['Articulo', 'Proveedor', 'Sucursal', 'Categoria', 'Unidad', 'Cantidad', 'Costo', 'Precio'];
 const SYNTHETIC_COLUMNS: {
     syntheticKey: string;
     sourceFields: string[];
@@ -255,11 +256,11 @@ const SYNTHETIC_COLUMNS: {
  */
 const AGGREGATION_DEPENDENCIES: Record<string, string[]> = {
     "Total Costo": ["Costo"],
+    "Total Ventas": ["Precio"],
     "Total Costo Inventario": ["Costo"],
     "Total Mermas": ["Costo"],
     "Minimo Costo": ["Costo"],
     "Maximo Costo": ["Costo"],
-    "Total Ventas": ["Precio"],
     "Articulos Totales": ["Cantidad"],
     "Total Articulos Mermados": ["Cantidad"],
     "Total Articulos Inventario": ["Cantidad"],
@@ -311,10 +312,6 @@ const injectDateFilter = (
     return newFiltros;
 };
 
-/**
- * Función auxiliar para determinar qué agregaciones deberían estar ocultas
- * basándose en sus dependencias con campos que están marcados como no visibles
- */
 const getHiddenAggregations = (visibleKeys: string[], aggregations: any[] = []): Set<string> => {
     const hiddenAggregations = new Set<string>();
 
@@ -337,26 +334,6 @@ const getHiddenAggregations = (visibleKeys: string[], aggregations: any[] = []):
     return hiddenAggregations;
 };
 
-/**
- * Función auxiliar para obtener los sourceFields que deben estar ocultos
- * Si una columna sintética está oculta, todos sus sourceFields deben ocultarse
- */
-const getHiddenSourceFields = (visibleKeys: string[]): Set<string> => {
-    const hiddenSourceFields = new Set<string>();
-
-    SYNTHETIC_COLUMNS.forEach(({ syntheticKey, sourceFields }) => {
-        // Si la columna sintética está oculta (no en visibleKeys)
-        if (!visibleKeys.includes(syntheticKey)) {
-            // Ocultar todos sus sourceFields
-            sourceFields.forEach((field) => {
-                hiddenSourceFields.add(field);
-            });
-        }
-    });
-
-    return hiddenSourceFields;
-};
-
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Analisis() {
     const [manager] = useManagmentRead();
@@ -377,33 +354,57 @@ export default function Analisis() {
         from: new Date(new Date().setDate(new Date().getDate() - 30)),
         to: new Date(),
     });
+    const [arrayDisplayModesByReport, setArrayDisplayModesByReport] = useState<Record<string, Record<string, ArrayColumnDisplay>>>({});
 
+    // Funciones de acceso y mutación
+    const getCurrentArrayDisplayModes = useCallback((report: REPORT = selectedReport): Record<string, ArrayColumnDisplay> => {
+        return arrayDisplayModesByReport[report] || {};
+    }, [arrayDisplayModesByReport, selectedReport]);
+
+    const handleArrayDisplayChange = useCallback((column: string, mode: ArrayColumnDisplay) => {
+        setArrayDisplayModesByReport(prev => ({
+            ...prev,
+            [selectedReport]: {
+                ...(prev[selectedReport] || {}),
+                [column]: mode,
+            }
+        }));
+    }, [selectedReport]);
     // ─── Columnas visibles: mapa report → visibilidad ────────────────────────
     const [visibleColumnsByReport, setVisibleColumnsByReport] = useState<Record<string, Record<string, boolean>>>({});
 
     const getCurrentVisibility = useCallback(
         (report: REPORT = selectedReport): Record<string, boolean> => {
             const config = REPORT_CONFIGS[report];
+            if (!config) return {};
+
             const stored = visibleColumnsByReport[report] || {};
 
-            if (visibleColumnsByReport[report] || !config.filtros?.selects || !config.filtros?.agregaciones) return visibleColumnsByReport[report];
-            console.log(visibleColumnsByReport[report]);
-            // Obtener todas las claves posibles
+            // Si ya existe un estado guardado para este reporte, devolverlo
+            if (visibleColumnsByReport[report]) {
+                return stored;
+            }
+
+            // Construir todas las claves posibles
             const allKeys = new Set<string>();
 
-            config.filtros?.selects.forEach((s: any) => {
+            // Selects
+            (config.filtros?.selects || []).forEach((s: any) => {
                 const alias = s.Alias || s.Key.split(".").pop() || s.Key;
                 allKeys.add(alias);
             });
-            config.filtros?.agregaciones.forEach((a: any) => {
+            // Agregaciones
+            (config.filtros?.agregaciones || []).forEach((a: any) => {
                 const alias = a.Alias;
-                allKeys.add(alias);
+                if (alias) allKeys.add(alias);
             });
+            // Columnas sintéticas y sus sourceFields
             SYNTHETIC_COLUMNS.forEach(({ syntheticKey, sourceFields }) => {
                 allKeys.add(syntheticKey);
                 sourceFields.forEach(sf => allKeys.add(sf));
             });
-            // Construir objeto con valores por defecto true
+
+            // Objeto con todas visibles por defecto
             const result: Record<string, boolean> = {};
             allKeys.forEach(key => {
                 result[key] = stored[key] ?? true;
@@ -442,44 +443,73 @@ export default function Analisis() {
             .filter(([, visible]) => visible)
             .map(([key]) => key);
 
+        const currentModes = getCurrentArrayDisplayModes(selectedReport);
+
         let finalFiltros: any = config.filtros ? JSON.parse(JSON.stringify(config.filtros)) : {};
         const orderConfig = finalFiltros.Order ? JSON.parse(JSON.stringify(finalFiltros.Order)) : null;
 
-        if (finalFiltros.selects) {
-            const requiredSourceFields = new Set<string>();
-            const hiddenSourceFields = getHiddenSourceFields(visibleKeys);
+        // ── Calcular campos requeridos según visibilidad y modos ──────────────
+        const allSelectAliases = new Set<string>();
+        (config.filtros?.selects || []).forEach((sel: any) => {
+            const alias = sel.Alias || sel.Key.split(".").pop() || sel.Key;
+            allSelectAliases.add(alias);
+        });
+        const allAggAliases = new Set<string>();
+        (config.filtros?.agregaciones || []).forEach((agg: any) => {
+            const alias = agg.Alias || agg.Key.split(".").pop() || agg.Key;
+            allAggAliases.add(alias);
+        });
 
-            // Agregar sourceFields de SYNTHETIC_COLUMNS si el campo sintético es visible
-            SYNTHETIC_COLUMNS.forEach(({ syntheticKey, sourceFields }) => {
-                if (visibleKeys.length === 0 || visibleKeys.includes(syntheticKey)) {
-                    sourceFields.forEach((f) => requiredSourceFields.add(f));
+        const requiredFields = new Set<string>();
+        if (visibleKeys.length === 0) {
+            // Sin filtro: incluir todos los campos
+            allSelectAliases.forEach(a => requiredFields.add(a));
+            allAggAliases.forEach(a => requiredFields.add(a));
+        } else {
+            // Solo campos explícitamente visibles
+            visibleKeys.forEach(k => {
+                if (allSelectAliases.has(k) || allAggAliases.has(k)) {
+                    requiredFields.add(k);
                 }
-            });
-
-            finalFiltros.selects = finalFiltros.selects.filter((sel: any) => {
-                const alias = sel.Alias || sel.Key.split(".").pop() || sel.Key;
-
-                // Excluir si está en hiddenSourceFields (columna sintética oculta)
-                if (hiddenSourceFields.has(alias)) {
-                    return false;
-                }
-
-                return (
-                    visibleKeys.length === 0 ||
-                    requiredSourceFields.has(alias) ||
-                    visibleKeys.includes(alias)
-                );
             });
         }
 
+        // Ajustar según columnas sintéticas y sus modos
+        for (const { syntheticKey, sourceFields } of SYNTHETIC_COLUMNS) {
+            const isVisible = visibleKeys.length === 0 || visibleKeys.includes(syntheticKey);
+            if (!isVisible) {
+                // Eliminar todos los sourceFields de esta columna sintética
+                sourceFields.forEach(f => requiredFields.delete(f));
+            } else {
+                const mode = currentModes[syntheticKey] || "both";
+                let fieldsToKeep: string[] = [];
+                if (mode === "first") fieldsToKeep = sourceFields.slice(0, 1);
+                else if (mode === "second") fieldsToKeep = sourceFields.slice(1, 2);
+                else if (mode === "third") fieldsToKeep = sourceFields.slice(2, 3);
+                else if (mode === "both") fieldsToKeep = sourceFields;
+
+                // Eliminar todos y agregar solo los que corresponden al modo
+                sourceFields.forEach(f => requiredFields.delete(f));
+                fieldsToKeep.forEach(f => requiredFields.add(f));
+            }
+        }
+
+        // ── Filtrar selects ──────────────────────────────────────────────────
+        if (finalFiltros.selects) {
+            finalFiltros.selects = finalFiltros.selects.filter((sel: any) => {
+                const alias = sel.Alias || sel.Key.split(".").pop() || sel.Key;
+                return requiredFields.has(alias);
+            });
+        }
+
+        // ── Filtrar agregaciones ─────────────────────────────────────────────
         if (finalFiltros.agregaciones) {
-            // Obtener el conjunto de agregaciones que deberían estar ocultas
+            // Ocultar agregaciones que dependen de campos no requeridos
             const hiddenAggregations = getHiddenAggregations(visibleKeys, finalFiltros.agregaciones);
 
             finalFiltros.agregaciones = finalFiltros.agregaciones.filter((ag: any) => {
                 const alias = ag.Alias || ag.Key.split(".").pop() || ag.Key;
 
-                // Si no hay filtro de visibilidad, incluir todo
                 if (visibleKeys.length === 0) return true;
 
                 // Si está en las agregaciones ocultas por dependencia, excluir
@@ -490,9 +520,9 @@ export default function Analisis() {
             });
         }
 
-        // Incluir FechaEmision si existe Order
+        // ── Asegurar FechaEmision si hay Order ──────────────────────────────
         if (orderConfig && orderConfig.length > 0) {
-            const hasFechaEmision = finalFiltros.selects.some((sel: any) => {
+            const hasFechaEmision = (finalFiltros.selects || []).some((sel: any) => {
                 const key = sel.Key || "";
                 return key.includes("FechaEmision") || key.endsWith(".FechaEmision");
             });
@@ -501,6 +531,7 @@ export default function Analisis() {
             }
         }
 
+        // ── Inyectar filtro de fecha ────────────────────────────────────────
         finalFiltros = injectDateFilter(selectedReport, finalFiltros, dateRange.from || undefined, dateRange.to || undefined);
 
         const payload: RequestPayload = {
@@ -518,7 +549,8 @@ export default function Analisis() {
 
             const activeVisible = visibleKeys.length > 0 ? new Set(visibleKeys) : null;
 
-            const formattedData = response.data && response.data.data.map((item: any) => {
+            // ── Construir datos formateados dinámicamente ──────────────────
+            const formattedData = response.data.data.map((item: any) => {
                 const {
                     ["Nombre Sucursal"]: NombreSucursal,
                     Sucursal,
@@ -566,12 +598,12 @@ export default function Analisis() {
                     Object.entries(full).filter(([key]) => activeVisible.has(key))
                 );
             }) || [];
+
             setDataTable(formattedData);
             setTotalPages(response.data?.totalPages)
             setTotalRecords(response.data?.totalRecords || response.data?.totalEstimated || 0);
         } catch (err: any) {
             if (err?.name === "AbortError") return;
-            setTableError(err.message ?? "Error al cargar datos");
         } finally {
             if (!tableAbortRef.current.signal.aborted) setTableLoading(false);
         }
@@ -582,11 +614,12 @@ export default function Analisis() {
         manager,
         dateRange,
         getCurrentVisibility,
+        getCurrentArrayDisplayModes,
     ]);
 
     useEffect(() => {
         fetchTableData();
-    }, [selectedReport, currentPage, pageSize, visibleColumnsByReport, dateRange]);
+    }, [selectedReport, currentPage, pageSize, visibleColumnsByReport, dateRange, arrayDisplayModesByReport]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -713,6 +746,8 @@ export default function Analisis() {
                         loading={tableLoading}
                         visibleColumns={getCurrentVisibility(selectedReport)}
                         onVisibleColumnsChange={handleVisibleColumnsChange}
+                        arrayDisplayModes={getCurrentArrayDisplayModes(selectedReport)}
+                        onArrayDisplayChange={handleArrayDisplayChange}
                     />
 
                     {!tableLoading && totalRecords > 0 && (

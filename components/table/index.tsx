@@ -60,6 +60,10 @@ interface DynamicTableProps {
      * Útil para que el padre pueda ajustar las consultas dinámicamente.
      */
     onVisibleColumnsChange?: (columns: Record<string, boolean>) => void;
+    /** Modos de display para columnas array (controlado desde padre) */
+    arrayDisplayModes?: Record<string, ArrayColumnDisplay>;
+    /** Callback cuando cambia el modo de display de una columna array */
+    onArrayDisplayChange?: (column: string, mode: ArrayColumnDisplay) => void;
 }
 
 // ── Helpers de tipo de columna ─────────────────────────────────────────────────
@@ -111,6 +115,8 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     onRightClick,
     onSortChange,
     visibleColumns: controlledVisibleColumns,
+    arrayDisplayModes: externalArrayDisplayModes,
+    onArrayDisplayChange,
     onVisibleColumnsChange,
     contextMenuItems,
 }) => {
@@ -126,8 +132,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     const isControlled = controlledVisibleColumns !== undefined;
     const [internalVisibleColumns, setInternalVisibleColumns] = useState<Record<string, boolean>>({});
     const visibleColumns = isControlled ? controlledVisibleColumns : internalVisibleColumns;
-    // Modo de visualización para columnas cuyo valor es un array (ej. ["PEPE", "00020"])
-    const [arrayDisplayModes, setArrayDisplayModes] = useState<Record<string, ArrayColumnDisplay>>({});
+    const [internalArrayDisplayModes, setInternalArrayDisplayModes] = useState<Record<string, ArrayColumnDisplay>>({});
 
     // ── Estado del context menu interno ───────────────────────────────────────
     const [ctxMenu, setCtxMenu] = useState<{
@@ -184,9 +189,17 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
         };
     }, [ctxMenu.visible, ctxMenu.x, ctxMenu.y, closeCtxMenu]);
 
+    const arrayDisplayModes = externalArrayDisplayModes !== undefined
+        ? externalArrayDisplayModes
+        : internalArrayDisplayModes;
+
     const handleArrayDisplayChange = useCallback((col: string, mode: ArrayColumnDisplay) => {
-        setArrayDisplayModes(prev => ({ ...prev, [col]: mode }));
-    }, []);
+        if (onArrayDisplayChange) {
+            onArrayDisplayChange(col, mode);
+        } else {
+            setInternalArrayDisplayModes(prev => ({ ...prev, [col]: mode }));
+        }
+    }, [onArrayDisplayChange]);
 
     // Cerrar menú de exportación al hacer clic fuera
     useEffect(() => {
