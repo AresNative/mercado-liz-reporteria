@@ -242,11 +242,6 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
         });
     }, [columns, isControlled]);
 
-    // Notificar cambios de visibilidad al padre
-    useEffect(() => {
-        onVisibleColumnsChange?.(visibleColumns);
-    }, [visibleColumns, onVisibleColumnsChange]);
-
     // Resetear sort cuando llegan datos nuevos desde el padre
     useEffect(() => {
         setSortColumn(null);
