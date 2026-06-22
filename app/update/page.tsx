@@ -334,15 +334,19 @@ const Page = () => {
         for (let i = 0; i < parsedData.length; i++) {
             const row = parsedData[i];
             const updateRequest: ActualizarRequest = {
-                Data: { Valor: parseFloat(row.Valor) || 0 },
                 Filtros: [
-                    { Key: "Cuenta", Value: row.Cuenta, Operator: "=" },
-                    { Key: "Propiedad", Value: row.Propiedad, Operator: "=" },
+                    {
+                        Key: "Articulo",
+                        Value: row.Articulo,
+                        Operator: "="
+                    }
                 ],
+                Data: Object.fromEntries(
+                    Object.entries(row)
+                        .filter(([k]) => k !== "Articulo")
+                        .map(([k, v]) => [k, Number(v) || 0])
+                )
             };
-            if (row.Rama) {
-                updateRequest.Filtros.push({ Key: "Rama", Value: row.Rama, Operator: "=" });
-            }
             try {
                 await apiRequest(baseUrl, "PUT", updateRequest);
                 success++;
