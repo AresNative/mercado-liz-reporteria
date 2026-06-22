@@ -285,23 +285,35 @@ const Page = () => {
 };
 
     // ── Actualización masiva (desde archivo TXT) ────────────────────────────
-    const parseTxtFile = (content: string): any[] => {
-        const lines = content.split("\n");
-        if (lines.length === 0) return [];
-        const headers = lines[0].split("\t");
-        const data: any[] = [];
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-            const values = line.split("\t");
-            const row: any = {};
-            headers.forEach((header, idx) => {
-                row[header.trim()] = values[idx]?.trim() || "";
-            });
-            if (row.Cuenta && row.Propiedad) data.push(row);
+   const parseTxtFile = (content: string): any[] => {
+    const lines = content.split("\n");
+    if (lines.length === 0) return [];
+    
+    const headers = lines[0].split("\t").map(h => h.trim());
+    const data: any[] = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const values = line.split("\t");
+        const row: any = {};
+        
+        headers.forEach((header, idx) => {
+            const value = values[idx]?.trim() || "";
+            // Convertir a número si es posible
+            const numValue = parseFloat(value);
+            row[header] = isNaN(numValue) ? value : numValue;
+        });
+        
+        // Solo agregar si tiene Articulo (el campo clave para la actualización)
+        if (row.Articulo !== undefined && row.Articulo !== "") {
+            data.push(row);
         }
-        return data;
-    };
+    }
+    
+    return data;
+};
 
     const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -317,57 +329,60 @@ const Page = () => {
         reader.readAsText(file);
     };
 
-    const processMassiveUpdates = async () => {
-        if (parsedData.length === 0) {
-            showNotification("No hay datos cargados", "error");
-            return;
-        }
-        setIsLoading(true);
-        setUploadProgress(0);
-        setMassiveStatus("Iniciando...");
-        setMassiveErrors([]);
-        let success = 0;
-        let errors: any[] = [];
-        const { api_int } = EnvConfig();
-        const baseUrl = `${api_int}v1/update/${encodeURIComponent(massiveTable)}`;
+   const processMassiveUpdates = async () => {
+    if (parsedData.length === 0) {
+        showNotification("No hay datos cargados", "error");
+        return;
+    }
+    setIsLoading(true);
+    setUploadProgress(0);
+    setMassiveStatus("Iniciando...");
+    setMassiveErrors([]);
+    let success = 0;
+    let errors: any[] = [];
+    const { api_int } = EnvConfig();
+    const baseUrl = `${api_int}/v1/update/${encodeURIComponent(massiveTable)}`; // 👈 Asegúrate de la barra
 
-        for (let i = 0; i < parsedData.length; i++) {
-            const row = parsedData[i];
-            const updateRequest: ActualizarRequest = {
-                Filtros: [
-                    {
-                        Key: "Articulo",
-                        Value: row.Articulo,
-                        Operator: "="
-                    }
-                ],
-                Data: Object.fromEntries(
-                    Object.entries(row)
-                        .filter(([k]) => k !== "Articulo")
-                        .map(([k, v]) => [k, Number(v) || 0])
-                )
-            };
-            try {
-                await apiRequest(baseUrl, "PUT", updateRequest);
-                success++;
-            } catch (err: any) {
-                errors.push({ row: i + 1, cuenta: row.Cuenta, propiedad: row.Propiedad, error: err.message });
-            }
-            const progress = Math.round(((i + 1) / parsedData.length) * 100);
-            setUploadProgress(progress);
-            setMassiveStatus(`Procesando ${i + 1} de ${parsedData.length}`);
-            await new Promise((r) => setTimeout(r, 100));
+    for (let i = 0; i < parsedData.length; i++) {
+        const row = parsedData[i];
+        const updateRequest: ActualizarRequest = {
+            Filtros: [
+                {
+                    Key: "Articulo",
+                    Value: row.Articulo.toString(), // 👈 Convertir a string
+                    Operator: "="
+                }
+            ],
+            Data: Object.fromEntries(
+                Object.entries(row)
+                    .filter(([k]) => k !== "Articulo")
+                    .map(([k, v]) => [k, typeof v === 'string' ? parseFloat(v) || 0 : v])
+            )
+        };
+        try {
+            await apiRequest(baseUrl, "PUT", updateRequest);
+            success++;
+        } catch (err: any) {
+            errors.push({ 
+                row: i + 1, 
+                articulo: row.Articulo, // 👈 Cambiado de Cuenta/Propiedad a Articulo
+                error: err.message 
+            });
         }
-        setIsLoading(false);
-        setMassiveStatus(`Completado. Éxitos: ${success}, Errores: ${errors.length}`);
-        setMassiveErrors(errors);
-        if (errors.length === 0) {
-            showNotification("Todos los registros fueron actualizados", "success");
-        } else {
-            showNotification(`${errors.length} errores encontrados`, "error");
-        }
-    };
-
+        const progress = Math.round(((i + 1) / parsedData.length) * 100);
+        setUploadProgress(progress);
+        setMassiveStatus(`Procesando ${i + 1} de ${parsedData.length}`);
+        await new Promise((r) => setTimeout(r, 100));
+    }
+    setIsLoading(false);
+    setMassiveStatus(`Completado. Éxitos: ${success}, Errores: ${errors.length}`);
+    setMassiveErrors(errors);
+    if (errors.length === 0) {
+        showNotification("Todos los registros fueron actualizados", "success");
+    } else {
+        showNotification(`${errors.length} errores encontrados`, "error");
+    }
+};
     // ── Archivar / Eliminar ──────────────────────────────────────────────────
     const handleArchive = async () => {
         if (!deleteId) {
@@ -665,17 +680,17 @@ const Page = () => {
                                         <table className="min-w-full border">
                                             <thead className="bg-gray-50">
                                                 <tr>
-                                                    <th className="p-2 border">Cuenta</th>
-                                                    <th className="p-2 border">Propiedad</th>
-                                                    <th className="p-2 border">Valor</th>
+                                                    <th className="p-2 border">Articulo</th>
+                                                    <th className="p-2 border">Impuesto1</th>
+                                                    <th className="p-2 border">Impuesto2</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {parsedData.slice(0, 5).map((row, i) => (
                                                     <tr key={i}>
-                                                        <td className="p-2 border">{row.Cuenta}</td>
-                                                        <td className="p-2 border">{row.Propiedad}</td>
-                                                        <td className="p-2 border">{row.Valor}</td>
+                                                        <td className="p-2 border">{row.Articulo}</td>
+                                                        <td className="p-2 border">{row.Impuesto1}</td>
+                                                        <td className="p-2 border">{row.Impuesto2}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
