@@ -32,6 +32,7 @@ import { Button } from "@/components/button";
 import { safeCall } from "@/hooks/use-debounce";
 import MainForm from "@/components/form/main-form";
 import { ArrayColumnDisplay } from "@/components/table/toggle-view";
+import { BentoGrid, BentoItem } from "@/components/bento-grid";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type REPORT =
@@ -69,8 +70,8 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Articulos Totales", Operation: "SUM" },
                 { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "Total Ventas", Operation: "SUM" },
                 { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
-                /* { Key: "venta.Cliente", Alias: "Total Clientes", Operation: "COUNT DISTINCT" },
-                { Key: "venta.ID", Alias: "Total Tikets", Operation: "COUNT DISTINCT" }, */
+                { Key: "venta.Cliente", Alias: "Total Clientes", Operation: "COUNT DISTINCT" },
+                { Key: "venta.ID", Alias: "Total Tikets", Operation: "COUNT DISTINCT" },
             ],
             Filtros: [
                 { Key: "venta.Estatus", Operator: "IN", Value: "CONCLUIDO,PROCESAR" },
@@ -236,7 +237,6 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
 
 // ─── Constantes estables ─────────────────────────────────────────────────────
 const REPORT_KEYS = Object.keys(REPORT_CONFIGS) as REPORT[];
-const SYNTHETIC_ORDER = ['Articulo', 'Proveedor', 'Sucursal', 'Categoria', 'Unidad', 'Cantidad', 'Costo', 'Precio'];
 const SYNTHETIC_COLUMNS: {
     syntheticKey: string;
     sourceFields: string[];
@@ -249,11 +249,6 @@ const SYNTHETIC_COLUMNS: {
         { syntheticKey: "Costo", sourceFields: ["Costo", "Total Costo"] },
         { syntheticKey: "Sucursal", sourceFields: ["Sucursal", "Nombre Sucursal", "Almacen"] },
     ];
-
-/**
- * Mapeo de agregaciones a los campos fuente de los que dependen
- * Si un campo fuente está oculto, sus agregaciones también se ocultarán
- */
 const AGGREGATION_DEPENDENCIES: Record<string, string[]> = {
     "Total Costo": ["Costo"],
     "Total Ventas": ["Precio"],
@@ -347,6 +342,7 @@ export default function Analisis() {
     const [selectedReport, setSelectedReport] = useState<REPORT>("venta");
     const [tableLoading, setTableLoading] = useState(false);
     const [dataTable, setDataTable] = useState<any[]>([]);
+    const [dataStats, setDataStats] = useState<any[]>([]);
     const [tableError, setTableError] = useState<string | null>(null);
 
     // Filtros
@@ -616,9 +612,51 @@ export default function Analisis() {
         getCurrentVisibility,
         getCurrentArrayDisplayModes,
     ]);
+    const fetchStatsData = useCallback(async () => {
+        tableAbortRef.current?.abort();
+        tableAbortRef.current = new AbortController();
 
+        const config = REPORT_CONFIGS[selectedReport];
+        if (!config) {
+            setTableLoading(false);
+            return;
+        }
+        let finalFiltros: any = config.filtros ? JSON.parse(JSON.stringify(config.filtros)) : {};
+        const { selects, Order, ...others } = finalFiltros;
+        // ── Inyectar filtro de fecha ────────────────────────────────────────
+        finalFiltros = injectDateFilter(selectedReport, others, dateRange.from || undefined, dateRange.to || undefined);
+
+        const payload: RequestPayload = {
+            table: config.table,
+            filtros: finalFiltros,
+            page: currentPage,
+            pageSize,
+            signal: tableAbortRef.current.signal,
+        };
+
+        try {
+            const { promise } = await manager.execute(payload);
+            const response: any = await safeCall(() => promise, `fetchTable/${selectedReport}`);
+            console.log(response.data.data);
+            
+            setDataStats(response.data.data)
+        } catch (err: any) {
+            if (err?.name === "AbortError") return;
+        } finally {
+            if (!tableAbortRef.current.signal.aborted) setTableLoading(false);
+        }
+    }, [
+        selectedReport,
+        currentPage,
+        pageSize,
+        manager,
+        dateRange,
+        getCurrentVisibility,
+        getCurrentArrayDisplayModes,
+    ]);
     useEffect(() => {
         fetchTableData();
+        fetchStatsData();
     }, [selectedReport, currentPage, pageSize, visibleColumnsByReport, dateRange, arrayDisplayModesByReport]);
 
     useEffect(() => {
@@ -652,7 +690,7 @@ export default function Analisis() {
                             size="small"
                         >
                             <RefreshCw className={`w-3.5 h-3.5 ${tableLoading ? "animate-spin" : ""}`} />
-                            <span className="hidden sm:inline">Tabla</span>
+                            <span className="hidden sm:inline">Recargar</span>
                         </Button>
 
                     </div>
@@ -675,6 +713,56 @@ export default function Analisis() {
                         );
                     })}
                 </div>
+                <BentoGrid cols={5} className="p-0">
+                    {dataStats.length > 0 &&
+                        Object.entries(dataStats[0]).map(([key, value]) => {
+                            // Asignación automática de columnas según el nombre de la métrica
+                            let colSpan = 1;
+                            if (
+                                key.includes("Total") ||
+                                key.includes("Costo") ||
+                                key.includes("Ventas") ||
+                                key.includes("Mermas") ||
+                                key.includes("Inventario")
+                            ) {
+                                colSpan = 2; // métricas principales ocupan 2 columnas
+                            }
+                            // Para otros casos específicos se puede ajustar
+                            if (key.includes("Clientes") || key.includes("Tikets") || key.includes("Proveedores")) {
+                                colSpan = 1; // estos pueden ir en una columna
+                            }
+
+                            // Formateo automático del valor según el tipo de métrica
+                            let formattedValue: any = value;
+                            if (typeof value === "number") {
+                                if (
+                                    key.includes("Costo") ||
+                                    key.includes("Ventas") ||
+                                    key.includes("Mermas") ||
+                                    key.includes("Precio")
+                                ) {
+                                    formattedValue = formatValue(value, "currency");
+                                } else {
+                                    formattedValue = formatValue(value, "number");
+                                }
+                            }
+
+                            return (
+                                <BentoItem
+                                    key={key}
+                                    colSpan={colSpan}
+                                    className="relative flex flex-col rounded-xl border gap-3 border-gray-200 bg-white shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700"
+                                >
+                                    <div className="flex flex-col">
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">{key}</span>
+                                        <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                                            {formattedValue}
+                                        </span>
+                                    </div>
+                                </BentoItem>
+                            );
+                        })}
+                </BentoGrid>
 
                 {/* ─── Tabla + filtros ───────────────────────────────────── */}
                 <div className="relative flex flex-col rounded-xl border gap-3 border-gray-200 bg-white shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
@@ -739,7 +827,7 @@ export default function Analisis() {
                             </button>
                         </div>
                     )}
-
+                    
                     {/* Tabla */}
                     <DynamicTable
                         data={dataTable}
