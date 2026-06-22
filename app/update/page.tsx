@@ -15,7 +15,7 @@ const USER_DATA_KEY = "userData";
 
 interface Filter {
     Key: string;
-    Value: string;
+    Value: string | number;
     Operator?: string;
 }
 
@@ -92,9 +92,10 @@ const Page = () => {
     const [fileContent, setFileContent] = useState<string>("");
     const [parsedData, setParsedData] = useState<any[]>([]);
     const [uploadProgress, setUploadProgress] = useState(0);
-    const [massiveTable, setMassiveTable] = useState("general");
+    const [massiveTable, setMassiveTable] = useState("art");
     const [massiveStatus, setMassiveStatus] = useState("");
     const [massiveErrors, setMassiveErrors] = useState<any[]>([]);
+    const [filteredCount, setFilteredCount] = useState<number>(0);
 
     // ── Archivar / Eliminar ─────────────────────────────────────────────────
     const [deleteTable, setDeleteTable] = useState("general");
@@ -220,100 +221,122 @@ const Page = () => {
     };
 
     // ── Registrar ────────────────────────────────────────────────────────────
-   const handleRegistrar = async (e: FormEvent) => {
-    e.preventDefault();
+    const handleRegistrar = async (e: FormEvent) => {
+        e.preventDefault();
 
-    let jsonData;
-    try {
-        jsonData = JSON.parse(regJson);
-    } catch {
-        showNotification("JSON inválido", "error");
-        return;
-    }
-
-    setIsLoading(true);
-
-    try {
-        const { api_int } = EnvConfig();
-        const url = `${api_int}/v1/register?table=${encodeURIComponent(regTable)}`;
-
-        // 👉 Caso 1: Array = múltiples inserts
-        if (Array.isArray(jsonData)) {
-            let success = 0;
-            let errors: any[] = [];
-
-            for (let i = 0; i < jsonData.length; i++) {
-                const item = jsonData[i];
-
-                try {
-                    await apiRequest(url, "POST", item);
-                    success++;
-                } catch (err: any) {
-                    errors.push({
-                        index: i,
-                        error: err.message,
-                        data: item,
-                    });
-                }
-            }
-
-            setRegResult({
-                total: jsonData.length,
-                success,
-                errors,
-            });
-
-            if (errors.length === 0) {
-                showNotification(`Todos los registros fueron insertados (${success})`, "success");
-            } else {
-                showNotification(`${success} insertados, ${errors.length} errores`, "error");
-            }
-
-        } else {
-            // 👉 Caso 2: Objeto normal
-            const data = await apiRequest(url, "POST", jsonData);
-            setRegResult(data);
-            showNotification("Registro insertado", "success");
+        let jsonData;
+        try {
+            jsonData = JSON.parse(regJson);
+        } catch {
+            showNotification("JSON inválido", "error");
+            return;
         }
 
-    } catch (err: any) {
-        showNotification(err.message, "error");
-        setRegResult({ error: err.message });
-    } finally {
-        setIsLoading(false);
-    }
-};
+        setIsLoading(true);
+
+        try {
+            const { api_int } = EnvConfig();
+            const url = `${api_int}/v1/register?table=${encodeURIComponent(regTable)}`;
+
+            // 👉 Caso 1: Array = múltiples inserts
+            if (Array.isArray(jsonData)) {
+                let success = 0;
+                let errors: any[] = [];
+
+                for (let i = 0; i < jsonData.length; i++) {
+                    const item = jsonData[i];
+
+                    try {
+                        await apiRequest(url, "POST", item);
+                        success++;
+                    } catch (err: any) {
+                        errors.push({
+                            index: i,
+                            error: err.message,
+                            data: item,
+                        });
+                    }
+                }
+
+                setRegResult({
+                    total: jsonData.length,
+                    success,
+                    errors,
+                });
+
+                if (errors.length === 0) {
+                    showNotification(`Todos los registros fueron insertados (${success})`, "success");
+                } else {
+                    showNotification(`${success} insertados, ${errors.length} errores`, "error");
+                }
+
+            } else {
+                // 👉 Caso 2: Objeto normal
+                const data = await apiRequest(url, "POST", jsonData);
+                setRegResult(data);
+                showNotification("Registro insertado", "success");
+            }
+
+        } catch (err: any) {
+            showNotification(err.message, "error");
+            setRegResult({ error: err.message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // ── Actualización masiva (desde archivo TXT) ────────────────────────────
-   const parseTxtFile = (content: string): any[] => {
-    const lines = content.split("\n");
-    if (lines.length === 0) return [];
-    
-    const headers = lines[0].split("\t").map(h => h.trim());
-    const data: any[] = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+    const parseTxtFile = (content: string): any[] => {
+        const lines = content.split("\n");
+        if (lines.length === 0) return [];
         
-        const values = line.split("\t");
-        const row: any = {};
+        const headers = lines[0].split("\t").map(h => h.trim());
+        const data: any[] = [];
+        let totalLines = 0;
+        let validLines = 0;
         
-        headers.forEach((header, idx) => {
-            const value = values[idx]?.trim() || "";
-            // Convertir a número si es posible
-            const numValue = parseFloat(value);
-            row[header] = isNaN(numValue) ? value : numValue;
-        });
-        
-        // Solo agregar si tiene Articulo (el campo clave para la actualización)
-        if (row.Articulo !== undefined && row.Articulo !== "") {
-            data.push(row);
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            totalLines++;
+            
+            const values = line.split("\t");
+            const row: any = {};
+            
+            headers.forEach((header, idx) => {
+                const value = values[idx]?.trim() || "";
+                // Intentar convertir a número, si falla mantener como string
+                const numValue = parseFloat(value);
+                row[header] = isNaN(numValue) ? value : numValue;
+            });
+            
+            // 👉 Solo agregar si Articulo es un número válido
+            if (row.Articulo !== undefined && row.Articulo !== "") {
+                const articuloNum = Number(row.Articulo);
+                if (!isNaN(articuloNum)) {
+                    // Convertir Articulo a número entero
+                    row.Articulo = articuloNum;
+                    
+                    // Convertir Impuesto1 e Impuesto2 a números
+                    ['Impuesto1', 'Impuesto2'].forEach(field => {
+                        if (row[field] !== undefined && row[field] !== "") {
+                            const num = Number(row[field]);
+                            row[field] = isNaN(num) ? 0 : num;
+                        }
+                    });
+                    
+                    data.push(row);
+                    validLines++;
+                }
+            }
         }
-    }
-    
-    return data;
-};
+        
+        const discarded = totalLines - validLines;
+        setFilteredCount(discarded);
+        console.log(`Total líneas: ${totalLines}, Válidas: ${validLines}, Descartadas: ${discarded}`);
+        
+        return data;
+    };
 
     const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -324,65 +347,80 @@ const Page = () => {
             setFileContent(content);
             const parsed = parseTxtFile(content);
             setParsedData(parsed);
-            showNotification(`${parsed.length} registros cargados`, "success");
+            
+            let message = `${parsed.length} registros cargados`;
+            if (filteredCount > 0) {
+                message += ` (${filteredCount} registros descartados por no tener Artículo numérico)`;
+            }
+            showNotification(message, parsed.length > 0 ? "success" : "error");
         };
         reader.readAsText(file);
     };
 
-   const processMassiveUpdates = async () => {
-    if (parsedData.length === 0) {
-        showNotification("No hay datos cargados", "error");
-        return;
-    }
-    setIsLoading(true);
-    setUploadProgress(0);
-    setMassiveStatus("Iniciando...");
-    setMassiveErrors([]);
-    let success = 0;
-    let errors: any[] = [];
-    const { api_int } = EnvConfig();
-    const baseUrl = `${api_int}/v1/update/${encodeURIComponent(massiveTable)}`; // 👈 Asegúrate de la barra
-
-    for (let i = 0; i < parsedData.length; i++) {
-        const row = parsedData[i];
-        const updateRequest: ActualizarRequest = {
-            Filtros: [
-                {
-                    Key: "Articulo",
-                    Value: row.Articulo.toString(), // 👈 Convertir a string
-                    Operator: "="
-                }
-            ],
-            Data: Object.fromEntries(
-                Object.entries(row)
-                    .filter(([k]) => k !== "Articulo")
-                    .map(([k, v]) => [k, typeof v === 'string' ? parseFloat(v) || 0 : v])
-            )
-        };
-        try {
-            await apiRequest(baseUrl, "PUT", updateRequest);
-            success++;
-        } catch (err: any) {
-            errors.push({ 
-                row: i + 1, 
-                articulo: row.Articulo, // 👈 Cambiado de Cuenta/Propiedad a Articulo
-                error: err.message 
-            });
+    const processMassiveUpdates = async () => {
+        if (parsedData.length === 0) {
+            showNotification("No hay datos cargados", "error");
+            return;
         }
-        const progress = Math.round(((i + 1) / parsedData.length) * 100);
-        setUploadProgress(progress);
-        setMassiveStatus(`Procesando ${i + 1} de ${parsedData.length}`);
-        await new Promise((r) => setTimeout(r, 100));
-    }
-    setIsLoading(false);
-    setMassiveStatus(`Completado. Éxitos: ${success}, Errores: ${errors.length}`);
-    setMassiveErrors(errors);
-    if (errors.length === 0) {
-        showNotification("Todos los registros fueron actualizados", "success");
-    } else {
-        showNotification(`${errors.length} errores encontrados`, "error");
-    }
-};
+        setIsLoading(true);
+        setUploadProgress(0);
+        setMassiveStatus("Iniciando...");
+        setMassiveErrors([]);
+        let success = 0;
+        let errors: any[] = [];
+        const { api_int } = EnvConfig();
+        const baseUrl = `${api_int}/v1/update/${encodeURIComponent(massiveTable)}`;
+
+        for (let i = 0; i < parsedData.length; i++) {
+            const row = parsedData[i];
+            
+            // Preparar datos para actualización
+            const updateData: any = {};
+            Object.entries(row).forEach(([key, value]) => {
+                if (key !== "Articulo") {
+                    // Convertir a número si es posible
+                    const num = Number(value);
+                    updateData[key] = isNaN(num) ? value : num;
+                }
+            });
+            
+            const updateRequest: ActualizarRequest = {
+                Filtros: [
+                    {
+                        Key: "Articulo",
+                        Value: row.Articulo, // Ya es un número
+                        Operator: "="
+                    }
+                ],
+                Data: updateData
+            };
+            
+            try {
+                await apiRequest(baseUrl, "PUT", updateRequest);
+                success++;
+            } catch (err: any) {
+                errors.push({ 
+                    row: i + 1, 
+                    articulo: row.Articulo, 
+                    error: err.message 
+                });
+            }
+            const progress = Math.round(((i + 1) / parsedData.length) * 100);
+            setUploadProgress(progress);
+            setMassiveStatus(`Procesando ${i + 1} de ${parsedData.length}`);
+            // Pequeña pausa para no saturar el servidor
+            await new Promise((r) => setTimeout(r, 50));
+        }
+        setIsLoading(false);
+        setMassiveStatus(`Completado. Éxitos: ${success}, Errores: ${errors.length}`);
+        setMassiveErrors(errors);
+        if (errors.length === 0) {
+            showNotification(`Todos los ${success} registros fueron actualizados`, "success");
+        } else {
+            showNotification(`${success} actualizados, ${errors.length} errores encontrados`, "error");
+        }
+    };
+
     // ── Archivar / Eliminar ──────────────────────────────────────────────────
     const handleArchive = async () => {
         if (!deleteId) {
@@ -392,7 +430,7 @@ const Page = () => {
         setIsLoading(true);
         try {
             const { api_int } = EnvConfig();
-            const url = `${api_int}v1/archivar/${encodeURIComponent(deleteId)}?table=${encodeURIComponent(deleteTable)}&column=${encodeURIComponent(deleteColumn)}`;
+            const url = `${api_int}/v1/archivar/${encodeURIComponent(deleteId)}?table=${encodeURIComponent(deleteTable)}&column=${encodeURIComponent(deleteColumn)}`;
             const data = await apiRequest(url, "DELETE");
             setDeleteResult(data);
             showNotification("Registro archivado", "success");
@@ -412,7 +450,7 @@ const Page = () => {
         setIsLoading(true);
         try {
             const { api_int } = EnvConfig();
-            const url = `${api_int}v1/delete/${encodeURIComponent(deleteId)}?table=${encodeURIComponent(deleteTable)}&column=${encodeURIComponent(deleteColumn)}`;
+            const url = `${api_int}/v1/delete/${encodeURIComponent(deleteId)}?table=${encodeURIComponent(deleteTable)}&column=${encodeURIComponent(deleteColumn)}`;
             const data = await apiRequest(url, "DELETE");
             setDeleteResult(data);
             showNotification("Registro eliminado permanentemente", "success");
@@ -589,7 +627,7 @@ const Page = () => {
                                         </select>
                                         <input
                                             placeholder="Valor"
-                                            value={f.Value}
+                                            value={f.Value as string}
                                             onChange={(e) => updateAdvFilter(idx, "Value", e.target.value)}
                                             className="border rounded p-1 flex-1"
                                         />
@@ -663,15 +701,21 @@ const Page = () => {
                                     value={massiveTable}
                                     onChange={(e) => setMassiveTable(e.target.value)}
                                     className="w-full border rounded p-2"
+                                    placeholder="art"
                                 />
                             </div>
                             <div className="border-2 border-dashed p-6 text-center">
                                 <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden" id="massiveFile" />
-                                <label htmlFor="massiveFile" className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded">
+                                <label htmlFor="massiveFile" className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                                     Seleccionar archivo TXT
                                 </label>
                                 {parsedData.length > 0 && (
-                                    <p className="mt-2 text-green-600">✓ {parsedData.length} registros cargados</p>
+                                    <div className="mt-2">
+                                        <p className="text-green-600">✓ {parsedData.length} registros cargados</p>
+                                        {filteredCount > 0 && (
+                                            <p className="text-yellow-600 text-sm">⚠️ {filteredCount} registros descartados por no tener Artículo numérico</p>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                             {parsedData.length > 0 && (
@@ -680,43 +724,52 @@ const Page = () => {
                                         <table className="min-w-full border">
                                             <thead className="bg-gray-50">
                                                 <tr>
-                                                    <th className="p-2 border">Articulo</th>
-                                                    <th className="p-2 border">Impuesto1</th>
-                                                    <th className="p-2 border">Impuesto2</th>
+                                                    <th className="p-2 border">Artículo</th>
+                                                    <th className="p-2 border">Impuesto 1</th>
+                                                    <th className="p-2 border">Impuesto 2</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {parsedData.slice(0, 5).map((row, i) => (
+                                                {parsedData.slice(0, 10).map((row, i) => (
                                                     <tr key={i}>
                                                         <td className="p-2 border">{row.Articulo}</td>
                                                         <td className="p-2 border">{row.Impuesto1}</td>
                                                         <td className="p-2 border">{row.Impuesto2}</td>
                                                     </tr>
                                                 ))}
+                                                {parsedData.length > 10 && (
+                                                    <tr>
+                                                        <td colSpan={3} className="p-2 border text-center text-gray-500">
+                                                            ... y {parsedData.length - 10} registros más
+                                                        </td>
+                                                    </tr>
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
                                     <button
                                         onClick={processMassiveUpdates}
                                         disabled={isLoading}
-                                        className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+                                        className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 disabled:bg-gray-400"
                                     >
-                                        {isLoading ? "Procesando..." : "Iniciar actualización masiva"}
+                                        {isLoading ? "Procesando..." : `Actualizar ${parsedData.length} registros`}
                                     </button>
                                     {isLoading && (
                                         <div className="mt-4">
                                             <div className="w-full bg-gray-200 rounded-full h-2">
-                                                <div className="bg-orange-600 h-2 rounded-full" style={{ width: `${uploadProgress}%` }} />
+                                                <div className="bg-orange-600 h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                                             </div>
                                             <p className="text-sm mt-1">{massiveStatus}</p>
                                         </div>
                                     )}
                                     {massiveErrors.length > 0 && (
-                                        <div className="mt-4 p-2 bg-red-50 border border-red-200 rounded">
-                                            <p className="font-semibold">Errores:</p>
-                                            {massiveErrors.map((err, i) => (
-                                                <p key={i} className="text-sm">Fila {err.row}: {err.error}</p>
-                                            ))}
+                                        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                                            <p className="font-semibold text-red-800">Errores encontrados ({massiveErrors.length}):</p>
+                                            <div className="max-h-60 overflow-y-auto">
+                                                {massiveErrors.map((err, i) => (
+                                                    <p key={i} className="text-sm text-red-600">Fila {err.row} (Artículo {err.articulo}): {err.error}</p>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </>
@@ -741,7 +794,7 @@ const Page = () => {
                                     <input value={deleteId} onChange={(e) => setDeleteId(e.target.value)} className="w-full border rounded p-2" />
                                 </div>
                             </div>
-                            <button onClick={handleArchive} className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">
+                            <button onClick={handleArchive} disabled={isLoading} className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">
                                 Archivar
                             </button>
                             {deleteResult && <pre className="mt-4 p-2 bg-gray-100 rounded">{JSON.stringify(deleteResult, null, 2)}</pre>}
@@ -765,7 +818,7 @@ const Page = () => {
                                     <input value={deleteId} onChange={(e) => setDeleteId(e.target.value)} className="w-full border rounded p-2" />
                                 </div>
                             </div>
-                            <button onClick={handleDelete} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                            <button onClick={handleDelete} disabled={isLoading} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
                                 Eliminar permanentemente
                             </button>
                             {deleteResult && <pre className="mt-4 p-2 bg-gray-100 rounded">{JSON.stringify(deleteResult, null, 2)}</pre>}
