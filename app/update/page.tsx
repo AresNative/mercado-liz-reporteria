@@ -389,7 +389,7 @@ const Page = () => {
                     {
                         Key: "Articulo",
                         Value: row.Articulo, // Ya es un número
-                        Operator: "="
+                        Operator: "like"
                     }
                 ],
                 Data: updateData
