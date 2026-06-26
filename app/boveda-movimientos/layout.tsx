@@ -4,6 +4,8 @@ import { getCookieinPage } from "@/utils/functions/cookies";
 import AuthController from "@/components/auth/controller";
 import Transferencia from "./transferencia-page";
 import { useEffect, useState } from "react";
+import Footer from "@/template/footer";
+import Header from "@/template/header";
 
 const USER_DATA_KEY = "userData";
 const USER_ROLE_KEY = "user-role";
@@ -11,14 +13,11 @@ const USER_ROLE_KEY = "user-role";
 const Layout = ({ children }: { children: React.ReactNode }) => {
     const [userRole, setUserRole] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    // Función para obtener el rol del usuario
-    const getUserRole = async() => {
 
+    const getUserRole = async () => {
         try {
-            // 1. Intentar desde cookie
-            let role:any = await getCookieinPage(USER_ROLE_KEY);
+            let role: any = await getCookieinPage(USER_ROLE_KEY);
 
-            // 2. Si no hay en cookies, buscar en localStorage
             if (!role) {
                 const userData = await getLocalStorageItem(USER_DATA_KEY);
                 if (userData && typeof userData === 'object' && userData !== null) {
@@ -26,19 +25,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 }
             }
 
-            setUserRole(role)
+            setUserRole(role);
         } catch (error) {
             console.error("Error al obtener datos de localStorage:", error);
-            setIsLoading(false);
-        }finally{
+        } finally {
             setIsLoading(false);
         }
     };
-    
+
     useEffect(() => {
         getUserRole();
     }, []);
-    
+
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -49,8 +47,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             </div>
         );
     }
+
     return (
         <AuthController>
+            <Header />
             {userRole === 'admin' && children}
             {userRole === 'pagos' && <Transferencia />}
             {userRole !== 'admin' && userRole !== 'pagos' && (
@@ -71,6 +71,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     </div>
                 </div>
             )}
+            <Footer />
         </AuthController>
     );
 };

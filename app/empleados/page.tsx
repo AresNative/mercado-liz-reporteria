@@ -180,9 +180,9 @@ export default function Empleados() {
         if (data.search) {
             nuevosFiltrosAnd.push({
                 Filtros: [
-                    { Key: "nombre", Value: data.search, Operator: "like" },
-                    { Key: "apellido", Value: data.search, Operator: "like" },
-                    { Key: "email", Value: data.search, Operator: "like" }
+                    { Key: "Nombre", Value: data.search, Operator: "like" },
+                    { Key: "ApellidoPaterno", Value: data.search, Operator: "like" },
+                    { Key: "ApellidoMaterno", Value: data.search, Operator: "like" },
                 ], OperadorLogico: "OR"
             } as any);
         }
@@ -198,13 +198,13 @@ export default function Empleados() {
         if (data.estado) {
             nuevosFiltros.push({ Key: "estado", Value: data.estado, Operator: "=" });
         }
-        console.log(nuevosFiltros, data);
         
         setActiveFilters(prev => ({
             ...prev,
             FiltrosAnd: nuevosFiltrosAnd,
             Filtros: nuevosFiltros
-        })); setCurrentPage(1);
+        }));
+        refetch();
     };
 
     const limpiarFiltros = () => {
@@ -221,7 +221,6 @@ export default function Empleados() {
 
     const handleRefetchAll = () => {
         refetch();
-       /*  refetchEstadisticas(); */
     };
 
     return (

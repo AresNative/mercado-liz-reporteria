@@ -44,6 +44,18 @@ type REPORT =
     | "proveedores"
    /*  | "gastos" */;
 
+interface Filtro {
+    Key: string;
+    Value: any;
+    Operator: string;
+}
+interface ActiveFilters {
+    Filtros: Filtro[];
+    Selects: any[];
+    OrderBy: any | null;
+    sum: boolean;
+    distinct: boolean;
+}
 // ─── Configuración de reportes ─────────────────────────────────────────────────
 const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> = {
     venta: {
@@ -66,10 +78,10 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "ventad.Factor", Alias: "Factor" },
             ],
             agregaciones: [
-                { Key: "ventad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
-                { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Articulos Totales", Operation: "SUM" },
                 { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "Total Ventas", Operation: "SUM" },
                 { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
+                { Key: "ventad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
+                { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Articulos Totales", Operation: "SUM" },
                 { Key: "venta.Cliente", Alias: "Total Clientes", Operation: "COUNT DISTINCT" },
                 { Key: "venta.ID", Alias: "Total Tikets", Operation: "COUNT DISTINCT" },
             ],
@@ -261,12 +273,30 @@ const AGGREGATION_DEPENDENCIES: Record<string, string[]> = {
     "Total Articulos Inventario": ["Cantidad"],
     // Agrega más según tus necesidades
 };
+// Mapeo del campo Almacén según reporte
+const ALMACEN_FIELD_MAP: Record<REPORT, string> = {
+    venta: "ventad.Almacen",
+    compra: "comprad.Almacen",
+    merma: "inv.Sucursal",
+    inventario: "inv.Sucursal",
+    clientes: "",        // no aplica
+    proveedores: "",     // no aplica
+};
 
+// Mapeo de campos para búsqueda (se usará con LIKE)
+const SEARCH_FIELDS_MAP: Record<REPORT, string[]> = {
+    venta: ["ART.Descripcion1", "ART.Articulo"],
+    compra: ["ART.Descripcion1", "ART.Articulo", "P.Nombre"],
+    merma: ["art.Descripcion1", "art.Articulo"],
+    inventario: ["art.Descripcion1", "art.Articulo"],
+    clientes: ["Cte.Nombre", "Cte.Codigo"],
+    proveedores: ["Prov.Nombre", "Prov.Proveedor"],
+};
 const ALMACENES_OPCIONES = [
-    { value: "ALMVGPE", label: "Guadalupe" },
+    { value: "ALMVGPE", label: "Valle de Guadalupe" },
     { value: "ALMMAYO", label: "Mayoreo" },
     { value: "ALMTESTE", label: "Testerazo" },
-    { value: "ALMPALM", label: "Palmas" },
+    { value: "ALMPALM", label: "Valle de las Palmas" },
 ];
 
 // ─── Inyección de filtro de fecha ─────────────────────────────────────────────
@@ -344,7 +374,24 @@ export default function Analisis() {
     const [dataTable, setDataTable] = useState<any[]>([]);
     const [dataStats, setDataStats] = useState<any[]>([]);
     const [tableError, setTableError] = useState<string | null>(null);
-
+    const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
+        Filtros: [
+            {
+                Key: "",
+                Value: "",
+                Operator: "="
+            },
+        ],
+        Selects: [],
+        OrderBy: [
+            {
+                Key: "CXP.FechaEmision",
+                Direction: "DESC"
+            }
+        ],
+        sum: false,
+        distinct: false
+    });
     // Filtros
     const [dateRange, setDateRange] = useState<DateRange>({
         from: new Date(new Date().setDate(new Date().getDate() - 30)),
@@ -375,7 +422,8 @@ export default function Analisis() {
             if (!config) return {};
 
             const stored = visibleColumnsByReport[report] || {};
-
+            console.log(visibleColumnsByReport[report]);
+            
             // Si ya existe un estado guardado para este reporte, devolverlo
             if (visibleColumnsByReport[report]) {
                 return stored;
@@ -468,6 +516,10 @@ export default function Analisis() {
                     requiredFields.add(k);
                 }
             });
+        }
+        if (activeFilters.Filtros && activeFilters.Filtros.length > 0) {
+            if (!finalFiltros.Filtros) finalFiltros.Filtros = [];
+            finalFiltros.Filtros.push(...activeFilters.Filtros);
         }
 
         // Ajustar según columnas sintéticas y sus modos
@@ -576,6 +628,20 @@ export default function Analisis() {
                     ...rest
                 } = item;
 
+                // ── Helper para determinar si un valor está vacío ──
+                const isEmptyValue = (value: any): boolean => {
+                    if (value === null || value === undefined) return true;
+                    if (Array.isArray(value)) {
+                        // Si el arreglo está vacío o todos sus elementos son vacíos
+                        if (value.length === 0) return true;
+                        return value.every(v => v === null || v === undefined || v === '');
+                    }
+                    if (typeof value === 'string') {
+                        return value.trim() === '';
+                    }
+                    return false;
+                };
+
                 const full: Record<string, any> = {
                     FechaEmision: item.FechaEmision,
                     Articulo: [item.Nombre, item.Articulo, item.Codigo],
@@ -589,9 +655,15 @@ export default function Analisis() {
                     ...rest,
                 };
 
-                if (!activeVisible) return full;
+                // Filtrar las columnas vacías (por fila)
+                const nonEmptyFull = Object.fromEntries(
+                    Object.entries(full).filter(([key, value]) => !isEmptyValue(value))
+                );
+
+                // Aplicar filtro de visibilidad si existe
+                if (!activeVisible) return nonEmptyFull;
                 return Object.fromEntries(
-                    Object.entries(full).filter(([key]) => activeVisible.has(key))
+                    Object.entries(nonEmptyFull).filter(([key]) => activeVisible.has(key))
                 );
             }) || [];
 
@@ -612,6 +684,7 @@ export default function Analisis() {
         getCurrentVisibility,
         getCurrentArrayDisplayModes,
     ]);
+
     const fetchStatsData = useCallback(async () => {
         tableAbortRef.current?.abort();
         tableAbortRef.current = new AbortController();
@@ -637,9 +710,21 @@ export default function Analisis() {
         try {
             const { promise } = await manager.execute(payload);
             const response: any = await safeCall(() => promise, `fetchTable/${selectedReport}`);
-            console.log(response.data.data);
-            
-            setDataStats(response.data.data)
+            const formattedData = response.data.data.map((out: any) => {
+                const totalVentas = out["Total Ventas"];
+                const totalCosto = out["Total Costo"];
+
+                const data: any = { ...out };
+
+                if (totalVentas !== undefined && totalVentas !== null && !isNaN(totalVentas) && totalVentas !== 0) {
+                    const utilidadRaw = totalVentas - (totalCosto ?? 0);
+                    data.Utilidad = formatValue(utilidadRaw, "currency");
+                    data.Margen = "% " + formatValue((utilidadRaw / totalVentas) * 100, "number");
+                }
+
+                return data;
+            });
+            setDataStats(formattedData)
         } catch (err: any) {
             if (err?.name === "AbortError") return;
         } finally {
@@ -654,15 +739,11 @@ export default function Analisis() {
         getCurrentVisibility,
         getCurrentArrayDisplayModes,
     ]);
+
     useEffect(() => {
         fetchTableData();
         fetchStatsData();
-    }, [selectedReport, currentPage, pageSize, visibleColumnsByReport, dateRange, arrayDisplayModesByReport]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [selectedReport]);
-
+    }, [fetchTableData]);
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
         <>
@@ -670,8 +751,8 @@ export default function Analisis() {
             <section className="p-3 md:p-4 min-h-[70vh]">
 
                 {/* Header de página */}
-                <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-3">
+                <dt className="flex justify-between items-center mb-4">
+                    <dl className="flex items-center gap-3">
                         <h1 className="text-2xl font-bold">Análisis</h1>
                         <button
                             onClick={() => setShowStats(!showStats)}
@@ -680,46 +761,60 @@ export default function Analisis() {
                             {showStats ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             <span className="hidden sm:inline">Estadísticas</span>
                         </button>
-                    </div>
-                    <div className="flex gap-2">
-
+                    </dl>
+                    <dl className="flex gap-2">
                         <Button
                             onClick={() => fetchTableData()}
                             disabled={tableLoading}
                             color="second"
-                            size="small"
-                        >
+                            size="small">
                             <RefreshCw className={`w-3.5 h-3.5 ${tableLoading ? "animate-spin" : ""}`} />
                             <span className="hidden sm:inline">Recargar</span>
                         </Button>
-
-                    </div>
-                </div>
+                    </dl>
+                </dt>
                 {/* ─── Selector de reporte ───────────────────────────────── */}
-                <div className="mb-4 flex flex-wrap gap-2">
-                    {REPORT_KEYS.map((report) => {
-                        return (
-                            <Button
-                                key={report}
-                                color={selectedReport === report
-                                    ? "completed"
-                                    : "success"
-                                }
-                                size="small"
-                                onClick={() => setSelectedReport(report)}
-                            >
-                                {report.charAt(0).toUpperCase() + report.slice(1)}
-                            </Button>
-                        );
-                    })}
-                </div>
-                <BentoGrid cols={5} className="p-0">
+                <ul className="mb-4 flex items-center justify-between bg-yellow-300/30 p-2 rounded-lg">
+                    <li className="flex flex-wrap gap-2">
+                        {REPORT_KEYS.map((report) => {
+                            return (
+                                <Button
+                                    key={report}
+                                    color={selectedReport === report
+                                        ? "completed"
+                                        : "success"
+                                    }
+                                    size="small"
+                                    onClick={() => setSelectedReport(report)}
+                                >
+                                    {report.charAt(0).toUpperCase() + report.slice(1)}
+                                </Button>
+                            );
+                        })}
+                    </li>
+                    <li className="flex flex-wrap gap-2">
+                        <Button
+                            color="success"
+                            size="small"
+                            
+                        >
+                            Venta desglosada
+                        </Button>
+                        <Button
+                            color="success"
+                            size="small"
+
+                        >
+                            Score Card
+                        </Button>
+                    </li>
+                </ul>
+                <BentoGrid cols={4} className="p-0 mb-5">
                     {dataStats.length > 0 &&
                         Object.entries(dataStats[0]).map(([key, value]) => {
                             // Asignación automática de columnas según el nombre de la métrica
                             let colSpan = 1;
                             if (
-                                key.includes("Total") ||
                                 key.includes("Costo") ||
                                 key.includes("Ventas") ||
                                 key.includes("Mermas") ||
@@ -751,23 +846,19 @@ export default function Analisis() {
                                 <BentoItem
                                     key={key}
                                     colSpan={colSpan}
-                                    className="relative flex flex-col rounded-xl border gap-3 border-gray-200 bg-white shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700"
+                                    title={key}
+                                    className="relative flex bg-white shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700"
                                 >
-                                    <div className="flex flex-col">
-                                        <span className="text-sm text-gray-500 dark:text-gray-400">{key}</span>
-                                        <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                                            {formattedValue}
-                                        </span>
-                                    </div>
+                                    <span className="text-xl text-gray-900 dark:text-white">
+                                        {formattedValue}
+                                    </span>
                                 </BentoItem>
                             );
                         })}
                 </BentoGrid>
 
-                {/* ─── Tabla + filtros ───────────────────────────────────── */}
                 <div className="relative flex flex-col rounded-xl border gap-3 border-gray-200 bg-white shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
 
-                    {/* Filtros */}
                     <MainForm
                         actionType=""
                         flexDirection="flex-row"
@@ -809,6 +900,41 @@ export default function Analisis() {
                         iconButton={<Filter className="mr-1 h-4 w-4" />}
                         onSuccess={(rows: any) => {
                             console.log(rows);
+                            
+                            const { almacen, search } = rows;
+                            const nuevosFiltros: Filtro[] = [];
+                            if (rows.dateRange) {
+                                setDateRange(rows.dateRange)
+                            }
+                            // Filtro por almacén (si se seleccionó)
+                            if (almacen && ALMACEN_FIELD_MAP[selectedReport]) {
+                                nuevosFiltros.push({
+                                    Key: ALMACEN_FIELD_MAP[selectedReport],
+                                    Operator: "=",
+                                    Value: almacen,
+                                });
+                            }
+
+                            // Filtro de búsqueda (si hay texto)
+                            if (search && SEARCH_FIELDS_MAP[selectedReport]?.length) {
+                                // Aplicamos LIKE a cada campo de búsqueda (se unirán con AND)
+                                SEARCH_FIELDS_MAP[selectedReport].forEach(field => {
+                                    nuevosFiltros.push({
+                                        Key: field,
+                                        Operator: "LIKE",
+                                        Value: `%${search}%`,
+                                    });
+                                });
+                            }
+
+                            // Actualizar activeFilters con los nuevos filtros (reemplazamos los anteriores)
+                            setActiveFilters(prev => ({
+                                ...prev,
+                                Filtros: nuevosFiltros,
+                                // Podríamos limpiar también Selects/OrderBy si se usaran, pero los dejamos como estaban
+                            }));
+
+                            // Reiniciar a la primera página y recargar
                             setCurrentPage(1);
                             fetchTableData();
                         }}
@@ -819,12 +945,12 @@ export default function Analisis() {
                         <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             <span>{tableError}</span>
-                            <button
-                                className="ml-auto underline hover:no-underline"
+                            <Button
+                               color="second"
                                 onClick={() => fetchTableData()}
                             >
                                 Reintentar
-                            </button>
+                            </Button>
                         </div>
                     )}
                     
