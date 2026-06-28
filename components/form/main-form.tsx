@@ -35,6 +35,7 @@ import { openAlertReducer } from "@/hooks/reducers/drop-down";
 import { usePostGeneralMutation, usePostImgMutation, usePutGeneralMutation } from "@/hooks/api/api";
 import { setLocalStorageItem } from "@/utils/functions/local-storage";
 import { cn } from "@/utils/functions/cn";
+import { usePostIntelisisMutation, usePutIntelisisMutation } from "@/hooks/api/api_int";
 
 export const MainForm = React.forwardRef(({
   message_button,
@@ -118,10 +119,13 @@ export const MainForm = React.forwardRef(({
 
   const [postUserLogin] = useLoginUserMutation();
   const [postGeneral] = usePostGeneralMutation();
-  const [putProject] = usePutGeneralMutation();
+  const [portInt] = usePostIntelisisMutation();
+  const [putGeneral] = usePutGeneralMutation();
+  const [putInt] = usePutIntelisisMutation()
   const [postImg] = usePostImgMutation(); // Hook para subir imágenes
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
+    const { id, ...restData } = data;
     switch (actionType) {
       case "post-login":
         return await postUserLogin(data).unwrap().then(() => {
@@ -133,9 +137,23 @@ export const MainForm = React.forwardRef(({
           data: data,
           signal: new AbortController().signal,
         }).unwrap();
+      case "post-intelisis":
+        return await portInt({
+          table: table,
+          data: data,
+          signal: new AbortController().signal,
+        }).unwrap();
       case "put-general":
-        const { id, ...restData } = data;
-        return await putProject({
+        return await putGeneral({
+          table: table,
+          data: {
+            Data: restData,
+            Filtros: [{ Key: "id", Value: aditionalData.id, Operator: "=" }]
+          },
+          signal: new AbortController().signal,
+        }).unwrap();
+      case "put-intelisis":
+        return await putInt({
           table: table,
           data: {
             Data: restData,

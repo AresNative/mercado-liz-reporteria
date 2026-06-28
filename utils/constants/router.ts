@@ -12,6 +12,7 @@ import {
   UserRoundPlus,
   Vault,
   AlertCircle,
+  Wrench,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -136,8 +137,8 @@ export const navigationAdmin = [
     icon: AlertCircle,
   },
   {
-    name: "Update",
+    name: "Herramientas",
     href: "/update",
-    icon: Info,
+    icon: Wrench,
   },
 ];

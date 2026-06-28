@@ -78,11 +78,13 @@ interface FiltrosForm {
     estado: string;
     puesto: string;
 }
-// Hook personalizado para la gestión de empleados
-const useEmpleados = () => {
+
+export default function Empleados() {
+    const dispatch = useAppDispatch();
     const [empleados, setEmpleados] = useState<Empleado[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -101,11 +103,11 @@ const useEmpleados = () => {
         setIsLoading(true);
         setError(null);
         console.log(activeFilters);
-        
+
         try {
             const response = await getWithFilter({
                 table: "personal",
-                pageSize: "10",
+                pageSize: pageSize,
                 page: currentPage,
                 filtros: {
                     Filtros: activeFilters.Filtros,
@@ -129,38 +131,11 @@ const useEmpleados = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, activeFilters, setActiveFilters]);
+    }, [currentPage, activeFilters, setActiveFilters, pageSize]);
 
     useEffect(() => {
         fetchEmpleados();
     }, [fetchEmpleados]);
-
-    return {
-        empleados,
-        currentPage,
-        totalPages,
-        totalRecords,
-        isLoading,
-        error,
-        setCurrentPage,
-        setActiveFilters,
-        refetch: fetchEmpleados
-    };
-};
-
-export default function Empleados() {
-    const dispatch = useAppDispatch();
-    const {
-        empleados,
-        currentPage,
-        totalPages,
-        totalRecords,
-        isLoading,
-        error,
-        setCurrentPage,
-        setActiveFilters,
-        refetch
-    } = useEmpleados();
 
     const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null);
 
@@ -211,7 +186,7 @@ export default function Empleados() {
     };
 
     const handleRefetchAll = () => {
-        refetch();
+        fetchEmpleados();
     };
 
     return (
@@ -256,7 +231,7 @@ export default function Empleados() {
                                                 require: true,
                                             },
                                             {
-                                                name: "sucursal",
+                                                name: "departamento",
                                                 type: "SELECT",
                                                 label: "Selecciona la sucursal",
                                                 icon: <Building className="size-4" />,
@@ -269,24 +244,10 @@ export default function Empleados() {
                                                 placeholder: "Todas las sucursales",
                                                 require: false,
                                             },
-                                            {
-                                                name: "date",
-                                                type: "DATE_RANGE",
-                                                label: "Fecha de Puesto",
-                                                icon: <Clock className="size-4" />,
-                                                require: false,
-                                            },
                                         ],
                                     },
                                 ]} />
                             <dl className="flex gap-2 ml-auto">
-                                <Button
-                                    onClick={limpiarFiltros}
-                                    color="success"
-                                >
-                                    Limpiar
-                                </Button>
-
                                 <Button
                                     onClick={handleRefetchAll}
                                     color="success"
@@ -309,12 +270,13 @@ export default function Empleados() {
                             ) : error ? (
                                 <div className="p-4 text-center">
                                     <p className="text-red-500 mb-2">{error}</p>
-                                    <button
-                                        onClick={refetch}
-                                        className="text-green-600 hover:text-green-800 underline"
+                                    <Button
+                                        onClick={fetchEmpleados}
+                                        color="success"
+                                        size="small"    
                                     >
                                         Reintentar
-                                    </button>
+                                    </Button>
                                 </div>
                             ) : empleados.length > 0 ? (
                                 <>
@@ -324,8 +286,10 @@ export default function Empleados() {
                                     />
                                     <Pagination
                                         currentPage={currentPage}
+                                        currentPageSize={pageSize}
                                         loading={isLoading}
                                         setCurrentPage={setCurrentPage}
+                                        onPageSizeChange={setPageSize}
                                         totalPages={totalPages}
                                     />
                                 </>

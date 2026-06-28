@@ -47,16 +47,17 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             </div>
         );
     }
-
+    console.log(userRole);
+    
     return (
         <AuthController>
             <Header />
             {userRole === 'admin' && children}
             {userRole === 'pagos' && <Transferencia />}
             {userRole !== 'admin' && userRole !== 'pagos' && (
-                <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[var(--background)]">
                     <div className="text-center">
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-200 mb-4">
                             Acceso no autorizado
                         </h1>
                         <p className="text-gray-600 mb-6">

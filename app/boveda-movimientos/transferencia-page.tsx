@@ -248,13 +248,6 @@ export function TransferenciaContent() {
                             </Button>
 
                             <Button
-                                onClick={limpiarFiltros}
-                                color="success"
-                            >
-                                Limpiar
-                            </Button>
-
-                            <Button
                                 onClick={handleRefetchAll}
                                 color="success"
                             >
@@ -392,8 +385,7 @@ export function TransferenciaContent() {
 export default function Transferencia() {
     return (
         <>
-            <Header />
-            <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
+            <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900 dark:text-white">
                 <header className="mb-8">
                     <h1 className="flex items-center text-2xl font-bold md:text-3xl">
                         Boveda de transferencias
@@ -404,7 +396,6 @@ export default function Transferencia() {
                 </header>
                 <TransferenciaContent />
             </main>
-            <Footer />
         </>
     );
 }

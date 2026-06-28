@@ -10,7 +10,7 @@ const { api: apiUrl } = EnvConfig();
 
 // Constantes para evitar errores de escritura
 const TOKEN_KEY = "token";
-const USER_ROLE_KEY = "rol";
+const USER_ROLE_KEY = "user-role";
 const USER_ID_KEY = "userId";
 const USER_DATA_KEY = "userData";
 

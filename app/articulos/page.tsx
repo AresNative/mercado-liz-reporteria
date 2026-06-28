@@ -6,6 +6,8 @@ import {
     Edit,
     FileText,
     Filter,
+    Image,
+    ImageDown,
     MessageCircle,
     RefreshCw,
     Search,
@@ -89,125 +91,135 @@ export default function Pago() {
                 table: "Art",
                 filtros: {
                     Selects: [],
-                    FiltrosAnd: [{
-                        Filtros: activeFilters.Filtros,
-                        OperadorLogico: "OR"
-                    }, {
-                        Filtros: activeFilters.FiltrosOther,
-                        OperadorLogico: "AND"
-                    }],
+                    FiltrosAnd: [
+                        { Filtros: activeFilters.Filtros, OperadorLogico: "OR" },
+                        { Filtros: activeFilters.FiltrosOther, OperadorLogico: "AND" }
+                    ],
                     Order: activeFilters.OrderBy ? activeFilters.OrderBy : []
                 },
-                pageSize: pageSize,
+                pageSize,
                 page: currentPage,
             });
 
             if ('data' in response_int) {
                 const data = response_int.data as Response;
 
-                // ✅ Usar Promise.all para resolver todas las promesas
-                const formattedData = await Promise.all(data.data.map(async (item: any) => {
-                    const {
-                        Articulo,
-                        Descripcion1,
-                        Descripcion2,
-                        NombreCorto,
-                        Grupo,
-                        Categoria,
-                        Familia,
-                        Linea,
-                        Proveedor,
-                        Fabricante,
-                        Unidad,
-                        UnidadCompra,
-                        UnidadTraspaso,
-                        Factor,
-                        PrecioLista,
-                        CostoEstandar,
-                        Impuesto1,
-                        TipoImpuesto1,
-                        Estatus,
-                        SeCompra,
-                        SeVende,
-                        TieneCaducidad,
-                        ...rest
-                    } = item;
-
-                    const response = await getWithFilter({
-                        table: `articulos  LEFT JOIN imagenes  ON articulos.id = imagenes.id_ref AND articulos.articulo = '${Articulo}' AND imagenes.tabla = 'articulos' AND imagenes.id = ( SELECT MAX(i2.id)  FROM imagenes i2  WHERE i2.id_ref = articulos.id  AND i2.tabla = 'articulos' )`,
-                        filtros: {
-                            Selects: [
-                                { key: "articulos.articulo" },
-                                { key: "imagenes.url" }
-                            ],
-                        },
-                        pageSize: 1,
-                        page: 1,
-                    });
-
-                    let dataImg: any;
-                    if ('data' in response) dataImg = response.data as Response;
-
-                    const isEmptyValue = (value: any): boolean => {
-                        if (value === null || value === undefined) return true;
-                        if (Array.isArray(value)) {
-                            if (value.length === 0) return true;
-                            return value.every(v => v === null || v === undefined || v === '');
-                        }
-                        if (typeof value === 'string') {
-                            return value.trim() === '';
-                        }
-                        return false;
-                    };
-
-                    const full: Record<string, any> = {
-                        Imagen: dataImg?.data?.[0]?.url ? true : false,
-                        Articulo: [
-                            NombreCorto || Descripcion1,
+                const formattedData = await Promise.all(
+                    data.data.map(async (item: any) => {
+                        const {
                             Articulo,
-                        ].filter(Boolean),
-                        Descripcion: [
                             Descripcion1,
-                            Descripcion2
-                        ].filter(Boolean),
-                        Categoria: [
-                            Categoria,
+                            Descripcion2,
+                            NombreCorto,
                             Grupo,
+                            Categoria,
                             Familia,
-                            Linea
-                        ].filter(Boolean),
-                        Proveedor: [
+                            Linea,
                             Proveedor,
-                            Fabricante
-                        ].filter(Boolean),
-                        Unidad: [
+                            Fabricante,
                             Unidad,
-                            ...(Factor && Factor > 1 ? [`x${Factor}`] : []),
-                            UnidadCompra ? `Compra: ${UnidadCompra}` : null,
-                            UnidadTraspaso ? `Traspaso: ${UnidadTraspaso}` : null
-                        ].filter(Boolean),
-                        Precio: [
-                            PrecioLista ? formatValue(PrecioLista, "currency") : null,
-                            TipoImpuesto1 ? `${TipoImpuesto1} ${Impuesto1}%` : null
-                        ].filter(Boolean),
-                        Costo: [
-                            CostoEstandar ? formatValue(CostoEstandar, "currency") : null,
-                        ].filter(Boolean),
-                        Estatus: [
+                            UnidadCompra,
+                            UnidadTraspaso,
+                            Factor,
+                            PrecioLista,
+                            CostoEstandar,
+                            Impuesto1,
+                            TipoImpuesto1,
+                            Impuesto2,
+                            TipoImpuesto2,
                             Estatus,
-                            SeCompra && SeVende ? "Compra y Venta" : SeCompra ? "Solo Compra" : SeVende ? "Solo Venta" : null,
-                            TieneCaducidad ? "Con Caducidad" : null
-                        ].filter(Boolean),
-                        Url: dataImg?.data?.[0]?.url,
-                        ...rest,
-                    };
+                            SeCompra,
+                            SeVende,
+                            TieneCaducidad,
+                            SincroID,
+                            SincroC,
+                            ...rest
+                        } = item;
 
-                    const nonEmptyFull = Object.fromEntries(
-                        Object.entries(full).filter(([_, value]) => !isEmptyValue(value))
-                    );
+                        // 🔹 CONSULTA 2: Obtener la última imagen del artículo
+                        const responseImg = await getWithFilter({
+                            table: `imagenes`,
+                            filtros: {
+                                Selects: [
+                                    { key: "imagenes.url" },
+                                ],
+                                Filtros: [
+                                    { Key: "imagenes.id_ref", Operator: "=", Value: Articulo },
+                                ],
+                                Order: [{ Key: "id", Direction: "DESC" }],
+                            },
+                            pageSize: 1,
+                            page: 1,
+                        });
 
-                    return nonEmptyFull;
-                }));
+                        let imagenUrl = null;
+                        if ('data' in responseImg) {
+                            imagenUrl = responseImg.data?.data?.[0]?.url ?? null;
+                        }
+
+                        // 🔹 Ahora combinamos: IdRef desde la primera consulta, Imagen/Url desde la segunda
+                        const isEmptyValue = (value: any): boolean => {
+                            if (value === null || value === undefined) return true;
+                            if (Array.isArray(value)) {
+                                if (value.length === 0) return true;
+                                return value.every(v => v === null || v === undefined || v === '');
+                            }
+                            if (typeof value === 'string') return value.trim() === '';
+                            return false;
+                        };
+
+                        const full: Record<string, any> = {
+                            Imagen: [
+                                imagenUrl ? <p className="flex gap-2 text-green-600 items-center"> <Image className="size-4" /> Con Imagen</p> : <p className="flex gap-2 text-red-600 items-center"> <ImageDown className="size-4" /> Sin Imagen</p>,
+                                imagenUrl
+                            ],
+                            Articulo: [
+                                NombreCorto || Descripcion1,
+                                Articulo,
+                            ].filter(Boolean),
+                            Descripcion: [
+                                Descripcion1,
+                                Descripcion2
+                            ].filter(Boolean),
+                            Categoria: [
+                                Categoria,
+                                Grupo,
+                                Familia,
+                                Linea
+                            ].filter(Boolean),
+                            Proveedor: [
+                                Proveedor,
+                                Fabricante
+                            ].filter(Boolean),
+                            Unidad: [
+                                Unidad,
+                                ...(Factor && Factor > 1 ? [`x${Factor}`] : []),
+                                UnidadCompra ? `Compra: ${UnidadCompra}` : null,
+                                UnidadTraspaso ? `Traspaso: ${UnidadTraspaso}` : null
+                            ].filter(Boolean),
+                            Precio: [
+                                PrecioLista ? formatValue(PrecioLista, "currency") : null,
+                                TipoImpuesto1 ? `${TipoImpuesto1} ${Impuesto1}%` : null,
+                                TipoImpuesto2 ? `${TipoImpuesto2} ${Impuesto2}%` : null
+                            ].filter(Boolean),
+                            Costo: [
+                                CostoEstandar ? formatValue(CostoEstandar, "currency") : null,
+                            ].filter(Boolean),
+                            Estatus: [
+                                Estatus,
+                                SeCompra && SeVende ? "Compra y Venta" : SeCompra ? "Solo Compra" : SeVende ? "Solo Venta" : null,
+                                TieneCaducidad ? "Con Caducidad" : null
+                            ].filter(Boolean),
+                            ...rest,
+                        };
+
+                        const nonEmptyFull = Object.fromEntries(
+                            Object.entries(full).filter(([_, value]) => !isEmptyValue(value))
+                        );
+
+                        return nonEmptyFull;
+                    })
+                );
 
                 setPago(formattedData);
                 setTotalPages(data.totalPages);
@@ -241,6 +253,7 @@ export default function Pago() {
             filtrosOther.push({ Key: "estatus", Value: data.estatus, Operator: "=" });
         }
 
+        setCurrentPage(1);
         setActiveFilters(prev => ({
             ...prev,
             Filtros: filtrosOr,
@@ -248,17 +261,12 @@ export default function Pago() {
         }));
     };
 
-    const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
-
     const limpiarFiltros = () => {
         setActiveFilters(prev => ({ ...prev, Filtros: [] }));
         setCurrentPage(1);
     };
 
     const handleOpenModal = (modalName: string, pago?: any) => {
-        if (modalName === 'detalles-pago' && pago) {
-            setPagoseleccionado(pago);
-        }
         dispatch(openModalReducer({ modalName }));
     };
 
@@ -376,9 +384,13 @@ export default function Pago() {
                                                 {
                                                     label: 'Editar',
                                                     icon: <Edit size={16} />,
-                                                    onClick: () => console.log('Copiado'),
+                                                    onClick: () => console.log(row),
                                                 },
                                             ]}
+                                            onRowClick={(row) => {
+                                                setArticuloSeleccionado(row);
+                                                dispatch(openModalReducer({ modalName: 'detalles-articulo' }));
+                                            }}
                                     />
                                     <Pagination
                                         currentPage={currentPage}
@@ -410,7 +422,7 @@ export default function Pago() {
                     title="Detalles del Artículo"
                     maxWidth="4xl"
                 >
-                    <ModalDetallesArticulo selectedArticulo={articuloSeleccionado} />
+                    <ModalDetallesArticulo selectedArticulo={articuloSeleccionado} refetch={()=> fetchData()} />
                 </Modal>
             </main>
             <Footer />

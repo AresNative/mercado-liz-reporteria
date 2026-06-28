@@ -102,6 +102,22 @@ export const api_int = createApi({
       }),
       extraOptions: { maxRetries: 2 },
     }),
+    putIntelisis: builder.mutation({
+      query: ({ table, data, signal }) => ({
+        url: `v1/update/${table}`,
+        method: "PUT",
+        body: JSON.stringify(data),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal,
+      }),
+      transformErrorResponse: (response: any) => ({
+        status: response.status,
+        message: response.data?.message || "Error fetching data",
+      }),
+      extraOptions: { maxRetries: 2 },
+    }),
   }),
 });
 
@@ -110,4 +126,5 @@ export const {
   usePostIntelisisMutation,
   useGetArticulosQuery,
   useGetWithFiltersIntelisisMutation,
+  usePutIntelisisMutation
 } = api_int;

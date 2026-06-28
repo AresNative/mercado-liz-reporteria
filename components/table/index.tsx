@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, isValidElement } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -383,10 +383,14 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
     const formatCellValue = (key: string, value: any): React.ReactNode => {
         if (value == null) return <span className="text-gray-300 dark:text-gray-600">—</span>;
+        if (isValidElement(value)) {
+            return value;
+        }
         // ── Array con modo de display configurable ────────────────────────────
         if (Array.isArray(value)) {
             const mode = arrayDisplayModes[key] ?? "both";
             const formatArrayValue = (v: any) => {
+                if (isValidElement(v)) return v;
                 if (v == null) return "—";
                 if (isDateColumn(key)) {
                     try { const d = new Date(v); return isNaN(d.getTime()) ? String(v) : formatDateDisplay(d); }

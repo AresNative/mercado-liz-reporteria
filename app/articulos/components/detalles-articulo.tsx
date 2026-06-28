@@ -2,13 +2,10 @@
 
 import { useAppSelector } from "@/hooks/selector";
 import {
-    Package, Image as ImageIcon, Upload, X, DollarSign,
-    Tag, Building, Calendar, User
+    Package, Image as ImageIcon, Upload
 } from "lucide-react";
 import { EnvConfig } from '@/utils/constants/env.config';
-import { useState, useEffect } from "react";
 import MainForm from '@/components/form/main-form';
-import { useGetWithFiltersMutation } from "@/hooks/api/api";
 
 const { hubs: apiUrl } = EnvConfig();
 
@@ -25,82 +22,13 @@ interface ArticuloDetalle {
     [key: string]: any;
 }
 
-export const ModalDetallesArticulo = ({ selectedArticulo }: { selectedArticulo: ArticuloDetalle | null }) => {
+export const ModalDetallesArticulo = ({ selectedArticulo, refetch }: { selectedArticulo: ArticuloDetalle | null, refetch: any }) => {
     const isOpen = useAppSelector((state: any) => state.dropDownReducer.modals['detalles-articulo']);
-    const [getWithFilter] = useGetWithFiltersMutation();
-
-    const [imagenPrincipal, setImagenPrincipal] = useState<string | null>(null);
-    const [cargandoImagen, setCargandoImagen] = useState(false);
-
-    // Función para obtener la URL de la imagen usando la misma consulta que en page.tsx
-    const obtenerUrlImagen = async (articuloCode: string) => {
-        if (!articuloCode) return null;
-
-        setCargandoImagen(true);
-        try {
-            const response = await getWithFilter({
-                table: `articulos LEFT JOIN imagenes ON articulos.id = imagenes.id_ref AND articulos.articulo = '${articuloCode}' AND imagenes.tabla = 'articulos' AND imagenes.id = (SELECT MAX(i2.id) FROM imagenes i2 WHERE i2.id_ref = articulos.id AND i2.tabla = 'articulos')`,
-                filtros: {
-                    Selects: [
-                        { key: "articulos.articulo" },
-                        { key: "imagenes.url" }
-                    ],
-                },
-                pageSize: 1,
-                page: 1,
-            });
-
-            if ('data' in response) {
-                const data = response.data as any;
-                if (data?.data?.[0]?.url) {
-                    return data.data[0].url;
-                }
-            }
-            return null;
-        } catch (error) {
-            console.error("Error al obtener imagen:", error);
-            return null;
-        } finally {
-            setCargandoImagen(false);
-        }
-    };
-
-    // Cargar imagen cuando se abre el modal o cambia el artículo seleccionado
-    useEffect(() => {
-        if (isOpen && selectedArticulo) {
-            const articuloCode = selectedArticulo.Articulo?.[1] || selectedArticulo.Articulo?.[0] || '';
-
-            // Primero verificar si ya tenemos la URL en los datos
-            if (selectedArticulo.Url) {
-                setImagenPrincipal(selectedArticulo.Url);
-            } else if (articuloCode) {
-                // Si no, obtenerla con la consulta
-                obtenerUrlImagen(articuloCode).then(url => {
-                    if (url) {
-                        setImagenPrincipal(url);
-                    }
-                });
-            }
-        } else {
-            // Limpiar al cerrar el modal
-            setImagenPrincipal(null);
-        }
-    }, [isOpen, selectedArticulo]);
 
     if (!isOpen || !selectedArticulo) return null;
 
     // Obtener el código del artículo (usando el mismo formato que en page.tsx)
     const articuloCode = selectedArticulo.Articulo?.[1] || selectedArticulo.Articulo?.[0] || '';
-
-    // Función para refrescar la imagen después de subir una nueva
-    const refrescarImagen = async () => {
-        if (articuloCode) {
-            const url = await obtenerUrlImagen(articuloCode);
-            if (url) {
-                setImagenPrincipal(url);
-            }
-        }
-    };
 
     return (
         <div className="p-6 max-h-[90vh] overflow-y-auto">
@@ -126,17 +54,11 @@ export const ModalDetallesArticulo = ({ selectedArticulo }: { selectedArticulo: 
                         <ImageIcon className="h-5 w-5" /> Imagen del Artículo
                     </h3>
                     <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800 min-h-80 flex flex-col items-center justify-center">
-                        {cargandoImagen ? (
-                            <div className="text-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                                <p className="text-gray-500">Cargando imagen...</p>
-                            </div>
-                        ) : imagenPrincipal ? (
+                        { selectedArticulo.Imagen?.[1] ? (
                             <img
-                                src={imagenPrincipal}
-                                alt={selectedArticulo.Articulo?.[0] || 'Artículo'}
+                                src={apiUrl.slice(0, -1) + selectedArticulo.Imagen?.[1]}
+                                alt={selectedArticulo.Imagen?.[1] || 'Artículo'}
                                 className="max-h-80 object-contain rounded-lg"
-                                onError={() => setImagenPrincipal(null)}
                             />
                         ) : (
                             <div className="text-center">
@@ -153,12 +75,10 @@ export const ModalDetallesArticulo = ({ selectedArticulo }: { selectedArticulo: 
                                         require: true,
                                     }]}
                                     aditionalData={{
-                                        idRef: articuloCode,
-                                        tabla: 'articulos' // Usar 'articulos' en lugar de 'Art'
-                                    }}
-                                    onSuccess={() => {
-                                        refrescarImagen();
-                                    }}
+                                        idRef: selectedArticulo.Articulo?.[1],
+                                        tabla: 'articulos'
+                                        }}
+                                    onSuccess={refetch}
                                     iconButton={<Upload className="size-4" />}
                                 />
                             </div>
