@@ -60,11 +60,6 @@ export const navigationVentas = [
     icon: ShoppingBasket,
   },
   {
-    name: "Compras",
-    href: "/compras",
-    icon: ShoppingBasket,
-  },
-  {
     name: "Proyectos",
     href: "/proyectos",
     icon: ClipboardList,
@@ -114,11 +109,6 @@ export const navigationAdmin = [
     name: "Proyectos",
     href: "/proyectos",
     icon: ClipboardList,
-  },
-  {
-    name: "Compras",
-    href: "/compras",
-    icon: ShoppingBasket,
   },
   {
     name: "Empleados",

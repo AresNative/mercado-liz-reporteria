@@ -130,7 +130,7 @@ export function SearchComponent(props: SearchableSelectProps) {
                     type="text"
                     placeholder={cuestion.placeholder}
                     value={searchTerm}
-                    className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 py-2 pl-10 w-full rounded-md focus:outline-none border focus:border-green-500 focus:ring-green-500"
+                    className="bg-white dark:bg-gray-900 dark:text-white border-gray-300 dark:border-gray-800 py-2 pl-10 w-full rounded-md focus:outline-none border focus:border-green-500 focus:ring-green-500"
                     onClick={() => setShowSkillsDropdown(true)}
                     onChange={(e) => {
                         if (cuestion.options) dispatch(searchData(e.target.value));

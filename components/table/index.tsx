@@ -515,7 +515,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
         <div className="w-full relative" ref={tableRef}>
 
             {/* ── Toolbar ──────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-2 py-2 border-b border-gray-200 dark:border-zinc-700 flex-wrap gap-2">
+            <div className="flex items-center justify-between px-2 py-2 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-2">
                 <ul className="flex items-center gap-2 flex-wrap">
                     <ViewTR
                         setShowColumnMenu={setShowColumnMenu}
@@ -527,14 +527,14 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                     />
                     <button
                         onClick={selectAllRows}
-                        className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs dark:bg-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-600 transition-colors"
+                        className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
                         {allCurrentPageSelected ? 'Deseleccionar página' : 'Seleccionar página'}
                     </button>
                     {selectedRows.size > 0 && (
                         <button
                             onClick={clearAllSelections}
-                            className="px-2.5 py-1.5 flex gap-1 items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs dark:bg-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-600 transition-colors"
+                            className="px-2.5 py-1.5 flex gap-1 items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition-colors"
                         >
                             Deseleccionar todos <X size={12} className="text-red-500" />
                         </button>
@@ -576,7 +576,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -6 }}
                                         transition={{ duration: 0.12 }}
-                                        className="absolute right-0 mt-1 w-52 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-gray-200 dark:border-zinc-700 z-50"
+                                        className="absolute right-0 mt-1 w-52 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 z-50"
                                     >
                                         <div className="py-1">
                                             {[
@@ -587,7 +587,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                                 <button
                                                     key={opt.label}
                                                     onClick={opt.action}
-                                                    className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                                                    className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                                                 >
                                                     {opt.icon} {opt.label}
                                                 </button>
@@ -602,16 +602,16 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             </div>
 
             {/* ── Tabla ─────────────────────────────────────────────────────── */}
-            <section className="mt-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm rounded-lg">
+            <section className="mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 shadow-sm rounded-lg">
                 <div className="overflow-x-auto">
                     <table className="w-full relative">
-                        <thead className="bg-zinc-50 dark:bg-zinc-900">
+                        <thead className="bg-gray-50 dark:bg-gray-900">
                             <tr>
                                 {/* Checkbox global */}
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">
                                     <input
                                         type="checkbox"
-                                        className="border-gray-300 dark:border-zinc-600 text-blue-600"
+                                        className="border-gray-300 dark:border-gray-700 text-blue-600"
                                         checked={allCurrentPageSelected}
                                         onChange={selectAllRows}
                                     />
@@ -659,7 +659,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                             </tr>
                         </thead>
 
-                        <tbody className="divide-y divide-gray-100 dark:divide-zinc-700">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
                             <AnimatePresence>
                                 {filteredAndSortedData.map((item, index) => {
                                     const rowId = getRowId(item);
@@ -674,7 +674,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                             className={cn(
                                                 "transition-colors",
                                                 onRowClick && "cursor-pointer",
-                                                "hover:bg-zinc-50 dark:hover:bg-zinc-700/40",
+                                                "hover:bg-gray-50 dark:hover:bg-gray-800/40",
                                                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset",
                                                 isSelected && "bg-blue-50 dark:bg-blue-900/20"
                                             )}
@@ -730,7 +730,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                 <div
                     ref={ctxMenuRef}
                     role="menu"
-                    className="fixed z-[9999] min-w-[180px] bg-white dark:bg-zinc-800 rounded-md shadow-xl border border-gray-200 dark:border-zinc-700 py-1 animate-in fade-in zoom-in-95 duration-100"
+                    className="fixed z-[9999] min-w-[180px] bg-white dark:bg-gray-900 rounded-md shadow-xl border border-gray-200 dark:border-gray-800 py-1 animate-in fade-in zoom-in-95 duration-100"
                     style={{ top: ctxMenu.y, left: ctxMenu.x }}
                 >
                     {ctxMenu.items.map((item, idx) => (
@@ -744,12 +744,12 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                 closeCtxMenu();
                             }}
                             className={cn(
-                                "w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors",
+                                "w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors cursor-pointer",
                                 item.disabled
                                     ? "opacity-50 cursor-not-allowed text-gray-400"
                                     : item.danger
                                         ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                        : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700"
+                                        : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                             )}
                         >
                             {item.icon && <span className="w-4 h-4 flex items-center">{item.icon}</span>}
@@ -767,27 +767,27 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
 const TableSkeleton = () => (
     <div className="w-full space-y-3 animate-pulse">
-        <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-zinc-600">
-            <div className="h-6 w-36 bg-gray-200 dark:bg-zinc-700 rounded" />
-            <div className="h-6 w-6 bg-gray-200 dark:bg-zinc-700 rounded" />
+        <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="h-6 w-36 bg-gray-200 dark:bg-gray-800 rounded" />
+            <div className="h-6 w-6 bg-gray-200 dark:bg-gray-800 rounded" />
         </div>
-        <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm rounded-lg overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 shadow-sm rounded-lg overflow-hidden">
             <table className="w-full">
-                <thead className="bg-zinc-50 dark:bg-zinc-900">
+                <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
                         {Array.from({ length: 5 }).map((_, i) => (
                             <th key={i} className="px-4 py-3">
-                                <div className="h-3 w-20 bg-gray-300 dark:bg-zinc-700 rounded" />
+                                <div className="h-3 w-20 bg-gray-300 dark:bg-gray-800 rounded" />
                             </th>
                         ))}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-zinc-700">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {Array.from({ length: 5 }).map((_, r) => (
                         <tr key={r}>
                             {Array.from({ length: 5 }).map((_, c) => (
                                 <td key={c} className="px-4 py-3">
-                                    <div className="h-3 w-full bg-gray-200 dark:bg-zinc-700 rounded" />
+                                    <div className="h-3 w-full bg-gray-200 dark:bg-gray-800 rounded" />
                                 </td>
                             ))}
                         </tr>

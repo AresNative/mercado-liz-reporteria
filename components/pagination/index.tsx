@@ -7,6 +7,7 @@ import {
     Filter,
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
+import { Button } from "../button";
 
 interface PaginationProps {
     currentPage: number;
@@ -88,7 +89,7 @@ export default function Pagination({
     };
 
     return (
-        <section className="bg-white dark:bg-black border relative border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-lg shadow-sm p-4">
+        <section className="bg-white dark:bg-gray-900 border relative border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-lg shadow-sm p-4">
             {/* Header */}
             <header className="flex flex-wrap items-center justify-between mb-4 gap-3">
                 <div className="flex items-center gap-4">
@@ -129,37 +130,38 @@ export default function Pagination({
                         </div>
                     )}
 
-                    <button
+                    <Button
                         type="button"
+                        color="completed"
+                        size="small"
                         onClick={() => setShowAdvanced(v => !v)}
-                        className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
                     >
                         <Maximize2 className="size-4" />
                         {showAdvanced ? "Ocultar controles" : "Controles avanzados"}
-                    </button>
+                    </Button>
                 </div>
             </header>
 
             {/* Navegación principal */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <button
+                    <Button
                         onClick={() => handleJump("backward")}
                         disabled={isFirstPage || loading}
                         aria-label="Saltar páginas hacia atrás"
-                        className="px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                    >
+                        color="second"
+                        size="small">
                         <SkipBack className="size-4" />
                         <span className="text-sm font-medium">-{jumpValue}</span>
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={goToPrevious}
                         disabled={isFirstPage || loading}
                         aria-label="Página anterior"
-                        className="px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
+                        color="second"
+                        size="small">
                         <ChevronLeft className="size-4" />
-                    </button>
+                    </Button>
                 </div>
                 <div className="text-center">
                     <div className="text-md font-semibold text-gray-900 dark:text-white">
@@ -170,23 +172,23 @@ export default function Pagination({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
+                    <Button
                         onClick={goToNext}
                         disabled={isLastPage || loading}
                         aria-label="Página siguiente"
-                        className="px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
+                        color="second"
+                        size="small" >
                         <ChevronRight className="size-4" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={() => handleJump("forward")}
                         disabled={isLastPage || loading}
                         aria-label="Saltar páginas hacia adelante"
-                        className="px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                    >
+                        color="second"
+                        size="small">
                         <span className="text-sm font-medium">+{jumpValue}</span>
                         <SkipForward className="size-4" />
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -199,16 +201,14 @@ export default function Pagination({
                         </label>
                         <div className="flex flex-wrap gap-2">
                             {jumpOptions.map(option => (
-                                <button
+                                <Button
                                     key={option}
                                     onClick={() => setJumpValue(option)}
-                                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors border ${jumpValue === option
-                                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700"
-                                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-700"
-                                        }`}
+                                    color="second"
+                                    size="small"
                                 >
                                     {option} páginas
-                                </button>
+                                </Button>
                             ))}
                         </div>
                     </div>

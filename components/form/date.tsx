@@ -2,6 +2,7 @@ import { formatDateDisplay } from "@/utils/constants/format-values";
 import { InputFormProps } from "@/utils/types/interfaces";
 import { CalendarRange } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
+import { Button } from "../button";
 
 interface DateRange {
     from: Date | null;
@@ -102,13 +103,13 @@ export function DateRangeComponent(props: InputFormProps) {
                     value={inputValue.replace(/ AND /g, " - ")}
                     onClick={() => setShowInterviewDatePicker(true)}
                     readOnly
-                    className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 py-2 px-4 w-full rounded-md focus:outline-none border focus:border-green-500 focus:ring-green-500"
+                    className="bg-white dark:bg-gray-900 dark:text-white border-gray-300 dark:border-gray-800 py-2 px-4 w-full rounded-md focus:outline-none border focus:border-green-500 focus:ring-green-500"
                 />
                 {showInterviewDatePicker && (
-                    <dt className="absolute z-50 mt-1 p-3 bg-white border border-gray-300 rounded shadow-lg">
-                        <dl><label>Desde:</label><input type="date" value={formData.from?.toISOString().split("T")[0]} onChange={e => setFormData(prev => ({ ...prev, from: new Date(e.target.value) }))} className="w-full border border-gray-300 rounded p-1" /></dl>
-                        <dl><label>Hasta:</label><input type="date" value={formData.to?.toISOString().split("T")[0]} onChange={e => setFormData(prev => ({ ...prev, to: new Date(e.target.value) }))} className="w-full border border-gray-300 rounded p-1" /></dl>
-                        <dl className="flex flex-wrap gap-1 mt-2">{DATE_PERIODS.map(p => <button key={p.label} onClick={() => applyDatePeriod(p)} className="text-xs px-2 py-1 bg-gray-100 rounded">{p.label}</button>)}</dl>
+                    <dt className="absolute z-50 mt-1 p-3 bg-white dark:bg-gray-900 dark:text-white border border-gray-300 dark:border-gray-800 rounded shadow-lg">
+                        <dl><label>Desde:</label><input type="date" value={formData.from?.toISOString().split("T")[0]} onChange={e => setFormData(prev => ({ ...prev, from: new Date(e.target.value) }))} className="w-full border border-gray-300 dark:border-gray-800 rounded p-1" /></dl>
+                        <dl><label>Hasta:</label><input type="date" value={formData.to?.toISOString().split("T")[0]} onChange={e => setFormData(prev => ({ ...prev, to: new Date(e.target.value) }))} className="w-full border border-gray-300 dark:border-gray-800 rounded p-1" /></dl>
+                        <dl className="flex flex-wrap gap-1 mt-2">{DATE_PERIODS.map(p => <Button key={p.label} onClick={() => applyDatePeriod(p)} color="second" size="small">{p.label}</Button>)}</dl>
                         <dl className="flex justify-end mt-2"><button onClick={() => setShowInterviewDatePicker(false)} className="px-3 py-1 bg-blue-600 text-white rounded">Aplicar</button></dl>
                     </dt>
                 )}

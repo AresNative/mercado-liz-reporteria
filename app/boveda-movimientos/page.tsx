@@ -114,7 +114,7 @@ export default function Pago() {
         distinct: false
     });
 
-    const fetchPago = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         setError(null);
 
@@ -172,8 +172,8 @@ export default function Pago() {
     }, [currentPage, activeFilters, pageSize, getWithFilter]);
 
     useEffect(() => {
-        fetchPago();
-    }, [fetchPago]);
+        fetchData();
+    }, [fetchData]);
 
     const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
 
@@ -218,7 +218,7 @@ export default function Pago() {
     };
 
     const handleRefetchAll = () => {
-        fetchPago();
+        fetchData();
     };
 
     const handleCopyId = async (id: number) => {
@@ -233,14 +233,14 @@ export default function Pago() {
         <>
             <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
                 <header className="mb-8">
-                    <h1 className="flex items-center text-2xl font-bold md:text-3xl">
+                    <h1 className="flex items-center text-2xl font-bold md:text-3xl dark:text-white">
                         Boveda de pagos
                     </h1>
                     <label className="flex gap-2 content-between">
-                        <p className="mt-2 text-gray-600 dark:text-gray-100">
+                        <p className="mt-2 text-gray-600 dark:text-gray-200">
                             Gestiona y visualiza todos los pagos realizados, con detalles completos de cada transacción. Utiliza los filtros para encontrar rápidamente la información que necesitas.
                         </p>
-                        <p className="flex items-center gap-2">
+                        <p className="flex items-center gap-2 dark:text-gray-200">
                             Seccion:
                             <Segment
                                 items={allCategories.map((cat) => ({ value: cat, label: cat }))}
@@ -251,185 +251,181 @@ export default function Pago() {
                     </label>
                 </header>
 
-                
-
-                        {/* Contenido condicional */}
-                        {selectedCategory === "Pagos" ? (
-                            <>
-                                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-                                <article className="p-4">
-                                    <span className="mr-4 flex justify-between">
-                                        <label>
-                                            <h2 className="text-lg font-semibold">Gestión de Pagos</h2>
-                                            <p className="text-sm text-gray-500">
-                                                Mostrando {pago.length} de {totalRecords} pagos
-                                            </p>
-                                        </label>
-                                    
-                                    </span>
-                                            {/* Filtros y tabla de pagos */}
-                                            <dt className="relative flex flex-col gap-2">
-                                                <MainForm
-                                                    message_button={"Filtrar"}
-                                                    onSuccess={loadPago}
-                                                    iconButton={<Filter className="mr-1 size-4" />}
-                                                    actionType={""}
-                                                    flexDirection="flex-row"
-                                                    dataForm={[
+                {/* Contenido condicional */}
+                {selectedCategory === "Pagos" ? (
+                <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm">
+                        <article className="p-4">
+                            <span className="mr-4 flex justify-between">
+                                <label>
+                                    <h2 className="text-lg font-semibold dark:text-white">Gestión de Pagos</h2>
+                                    <p className="text-sm text-gray-500">
+                                        Mostrando {pago.length} de {totalRecords} pagos
+                                    </p>
+                                </label>
+                            
+                            </span>
+                                    {/* Filtros y tabla de pagos */}
+                                    <dt className="relative flex flex-col gap-2">
+                                        <MainForm
+                                            message_button={"Filtrar"}
+                                            onSuccess={loadPago}
+                                            iconButton={<Filter className="mr-1 size-4" />}
+                                            actionType={""}
+                                            flexDirection="flex-row"
+                                            dataForm={[
+                                                {
+                                                    type: "Flex",
+                                                    require: false,
+                                                    elements: [
                                                         {
-                                                            type: "Flex",
-                                                            require: false,
-                                                            elements: [
-                                                                {
-                                                                    name: "search",
-                                                                    type: "SEARCH",
-                                                                    label: "Busqueda rapida",
-                                                                    icon: <Search className="size-4" />,
-                                                                    placeholder: "Buscar por proveedor, importe, ID...",
-                                                                    require: true,
-                                                                },
-                                                                {
-                                                                    name: "sucursal",
-                                                                    type: "SELECT",
-                                                                    label: "Selecciona la sucursal",
-                                                                    icon: <Building className="size-4" />,
-                                                                    options: [
-                                                                        { label: "Mayoreo", value: "4" },
-                                                                        { label: "Guadalupe", value: "1" },
-                                                                        { label: "Testerazo", value: "2" },
-                                                                        { label: "Palmas", value: "3" },
-                                                                    ],
-                                                                    placeholder: "Todas las sucursales",
-                                                                    require: false,
-                                                                },
-                                                                {
-                                                                    name: "date",
-                                                                    type: "DATE_RANGE",
-                                                                    label: "Fecha de Puesto",
-                                                                    icon: <Clock className="size-4" />,
-                                                                    require: false,
-                                                                },
+                                                            name: "search",
+                                                            type: "SEARCH",
+                                                            label: "Busqueda rapida",
+                                                            icon: <Search className="size-4" />,
+                                                            placeholder: "Buscar por proveedor, importe, ID...",
+                                                            require: true,
+                                                        },
+                                                        {
+                                                            name: "sucursal",
+                                                            type: "SELECT",
+                                                            label: "Selecciona la sucursal",
+                                                            icon: <Building className="size-4" />,
+                                                            options: [
+                                                                { label: "Mayoreo", value: "4" },
+                                                                { label: "Guadalupe", value: "1" },
+                                                                { label: "Testerazo", value: "2" },
+                                                                { label: "Palmas", value: "3" },
                                                             ],
+                                                            placeholder: "Todas las sucursales",
+                                                            require: false,
+                                                        },
+                                                        {
+                                                            name: "date",
+                                                            type: "DATE_RANGE",
+                                                            label: "Fecha de Puesto",
+                                                            icon: <Clock className="size-4" />,
+                                                            require: false,
+                                                        },
+                                                    ],
+                                                },
+                                            ]}
+                                        />
+                                        <dl className="flex gap-2 ml-auto">
+                                            <Button
+                                                onClick={() => handleOpenModal('nuevo-pago')}
+                                                color="success"
+                                            >
+                                                Nuevo pago <Plus className="size-4" />
+                                            </Button>
+
+                                            <Button
+                                                onClick={() => handleOpenModal('chat-general')}
+                                                color="info"
+                                            >
+                                                Chat <MessageCircle className="size-4" />
+                                            </Button>
+
+                                            <Button
+                                                onClick={limpiarFiltros}
+                                                color="success"
+                                            >
+                                                Limpiar
+                                            </Button>
+
+                                            <Button
+                                                onClick={handleRefetchAll}
+                                                color="success"
+                                            >
+                                                Actualizar <RefreshCw className="size-4" />
+                                            </Button>
+                                        </dl>
+                                    </dt>
+
+                                    <section className="overflow-x-auto">
+                                        {isLoading ? (
+                                            <LoadingSection message="Cargando pago..." />
+                                        ) : error ? (
+                                            <div className="p-4 text-center">
+                                                <p className="text-red-500 mb-2">{error}</p>
+                                                <Button onClick={fetchData} color="success">
+                                                    Reintentar
+                                                </Button>
+                                            </div>
+                                        ) : pago.length > 0 ? (
+                                            <dt className="flex flex-col gap-2">
+                                                <DynamicTable
+                                                    data={pago}
+                                                    onRowClick={(pago) => handleOpenModal('detalles-pago', pago.ID[0])}
+                                                    contextMenuItems={(row) => [
+                                                        {
+                                                            label: 'Copiar',
+                                                            icon: <Copy size={16} />,
+                                                            onClick: () => handleCopyId(row.ID[0]),
+                                                        },
+                                                        {
+                                                            label: 'Ver detalles',
+                                                            icon: <FileText size={16} />,
+                                                            onClick: () => handleOpenModal('detalles-pago', row.ID[0]),
                                                         },
                                                     ]}
                                                 />
-                                                <dl className="flex gap-2 ml-auto">
-                                                    <Button
-                                                        onClick={() => handleOpenModal('nuevo-pago')}
-                                                        color="success"
-                                                    >
-                                                        Nuevo pago <Plus className="size-4" />
-                                                    </Button>
-
-                                                    <Button
-                                                        onClick={() => handleOpenModal('chat-general')}
-                                                        color="info"
-                                                    >
-                                                        Chat <MessageCircle className="size-4" />
-                                                    </Button>
-
-                                                    <Button
-                                                        onClick={limpiarFiltros}
-                                                        color="success"
-                                                    >
-                                                        Limpiar
-                                                    </Button>
-
-                                                    <Button
-                                                        onClick={handleRefetchAll}
-                                                        color="success"
-                                                    >
-                                                        Actualizar <RefreshCw className="size-4" />
-                                                    </Button>
-                                                </dl>
+                                                <Pagination
+                                                    currentPage={currentPage}
+                                                    loading={isLoading}
+                                                    setCurrentPage={setCurrentPage}
+                                                    currentPageSize={pageSize}
+                                                    onPageSizeChange={setPageSize}
+                                                    totalPages={totalPages}
+                                                />
                                             </dt>
+                                        ) : (
+                                            <div className="p-8 text-center">
+                                                <p className="text-gray-500 mb-4">No se encontraron pago con los filtros aplicados.</p>
+                                                <button
+                                                    onClick={limpiarFiltros}
+                                                    className="text-green-600 hover:text-green-800 underline"
+                                                >
+                                                    Ver todos los pago
+                                                </button>
+                                            </div>
+                                        )}
+                                    </section>
 
-                                            <section className="overflow-x-auto">
-                                                {isLoading ? (
-                                                    <LoadingSection message="Cargando pago..." />
-                                                ) : error ? (
-                                                    <div className="p-4 text-center">
-                                                        <p className="text-red-500 mb-2">{error}</p>
-                                                        <Button onClick={fetchPago} color="success">
-                                                            Reintentar
-                                                        </Button>
-                                                    </div>
-                                                ) : pago.length > 0 ? (
-                                                    <dt className="flex flex-col gap-2">
-                                                        <DynamicTable
-                                                            data={pago}
-                                                            onRowClick={(pago) => handleOpenModal('detalles-pago', pago.ID[0])}
-                                                            contextMenuItems={(row) => [
-                                                                {
-                                                                    label: 'Copiar',
-                                                                    icon: <Copy size={16} />,
-                                                                    onClick: () => handleCopyId(row.ID[0]),
-                                                                },
-                                                                {
-                                                                    label: 'Ver detalles',
-                                                                    icon: <FileText size={16} />,
-                                                                    onClick: () => handleOpenModal('detalles-pago', row.ID[0]),
-                                                                },
-                                                            ]}
-                                                        />
-                                                        <Pagination
-                                                            currentPage={currentPage}
-                                                            loading={isLoading}
-                                                            setCurrentPage={setCurrentPage}
-                                                            currentPageSize={pageSize}
-                                                            onPageSizeChange={setPageSize}
-                                                            totalPages={totalPages}
-                                                        />
-                                                    </dt>
-                                                ) : (
-                                                    <div className="p-8 text-center">
-                                                        <p className="text-gray-500 mb-4">No se encontraron pago con los filtros aplicados.</p>
-                                                        <button
-                                                            onClick={limpiarFiltros}
-                                                            className="text-green-600 hover:text-green-800 underline"
-                                                        >
-                                                            Ver todos los pago
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </section>
+                                    {/* Modales exclusivos de pagos */}
+                                    <Modal
+                                        modalName="detalles-pago"
+                                        title="Detalles del Pago"
+                                        maxWidth="5xl"
+                                    >
+                                        {pagoseleccionado ? (
+                                            <DetallesPago selectedPago={pagoseleccionado} />
+                                        ) : (
+                                            <div className="p-4 text-center">
+                                                <p className="text-gray-500">No se ha seleccionado ningún pago.</p>
+                                            </div>
+                                        )}
+                                    </Modal>
 
-                                            {/* Modales exclusivos de pagos */}
-                                            <Modal
-                                                modalName="detalles-pago"
-                                                title="Detalles del Pago"
-                                                maxWidth="5xl"
-                                            >
-                                                {pagoseleccionado ? (
-                                                    <DetallesPago selectedPago={pagoseleccionado} />
-                                                ) : (
-                                                    <div className="p-4 text-center">
-                                                        <p className="text-gray-500">No se ha seleccionado ningún pago.</p>
-                                                    </div>
-                                                )}
-                                            </Modal>
+                                    <Modal
+                                        modalName="nuevo-pago"
+                                        title="Agregar Nuevo Pago"
+                                        maxWidth="lg"
+                                    >
+                                        <></>
+                                    </Modal>
 
-                                            <Modal
-                                                modalName="nuevo-pago"
-                                                title="Agregar Nuevo Pago"
-                                                maxWidth="lg"
-                                            >
-                                                <></>
-                                            </Modal>
-
-                                            <Modal
-                                                modalName="chat-general"
-                                                title="Chat General"
-                                                maxWidth="xl"
-                                            >
-                                                <></>
-                                            </Modal>
-                                </article>
-                            </div>
-                            </>
-                        ) : (
-                            <TransferenciaContent />
-                        )}
+                                    <Modal
+                                        modalName="chat-general"
+                                        title="Chat General"
+                                        maxWidth="xl"
+                                    >
+                                        <></>
+                                    </Modal>
+                        </article>
+                    </div>
+                ) : (
+                    <TransferenciaContent />
+                )}
             </main>
         </>
     );

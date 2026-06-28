@@ -32,7 +32,11 @@ import { Button } from "@/components/button";
 import { safeCall } from "@/hooks/use-debounce";
 import MainForm from "@/components/form/main-form";
 import { ArrayColumnDisplay } from "@/components/table/toggle-view";
-import { BentoGrid, BentoItem } from "@/components/bento-grid";
+import KardexStats from "./components/kardex-stats";
+import ScoreCard from "./components/modal-scorecard";
+import { useAppDispatch } from "@/hooks/selector";
+import { openModalReducer } from "@/hooks/reducers/drop-down";
+import { ModalReporting } from "./components/modal-reporting";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type REPORT =
@@ -82,7 +86,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
                 { Key: "ventad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
                 { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Articulos Totales", Operation: "SUM" },
-                { Key: "venta.Cliente", Alias: "Total Clientes", Operation: "COUNT DISTINCT" },
+                { Key: "venta.Cliente", Alias: "Clientes Distintos", Operation: "COUNT DISTINCT" },
                 { Key: "venta.ID", Alias: "Total Tikets", Operation: "COUNT DISTINCT" },
             ],
             Filtros: [
@@ -362,7 +366,9 @@ const getHiddenAggregations = (visibleKeys: string[], aggregations: any[] = []):
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Analisis() {
     const [manager] = useManagmentRead();
+    const dispatch = useAppDispatch();
 
+    const [showScoreCard, setShowScoreCard] = useState(false);
     // Estados de UI
     const [totalPages, setTotalPages] = useState(0)
     const [pageSize, setPageSize] = useState<number>(CONFIG.PAGE_SIZE);
@@ -422,8 +428,6 @@ export default function Analisis() {
             if (!config) return {};
 
             const stored = visibleColumnsByReport[report] || {};
-            console.log(visibleColumnsByReport[report]);
-            
             // Si ya existe un estado guardado para este reporte, devolverlo
             if (visibleColumnsByReport[report]) {
                 return stored;
@@ -615,7 +619,7 @@ export default function Analisis() {
                     Factor,
                     Cantidad,
                     ["Articulos Totales"]: ArticulosTotales,
-                    ["Total Clientes"]: TotalClientes,
+                    ["Clientes Distintos"]: TotalClientes,
                     ["Total Tikets"]: TotalTikets,
                     Costo,
                     ["Total Costo"]: TotalCosto,
@@ -753,7 +757,7 @@ export default function Analisis() {
                 {/* Header de página */}
                 <dt className="flex justify-between items-center mb-4">
                     <dl className="flex items-center gap-3">
-                        <h1 className="text-2xl font-bold">Análisis</h1>
+                        <h1 className="text-2xl font-bold dark:text-white">Análisis</h1>
                         <button
                             onClick={() => setShowStats(!showStats)}
                             className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
@@ -774,7 +778,7 @@ export default function Analisis() {
                     </dl>
                 </dt>
                 {/* ─── Selector de reporte ───────────────────────────────── */}
-                <ul className="mb-4 flex items-center justify-between bg-yellow-300/30 p-2 rounded-lg">
+                <ul className="mb-4 flex items-center justify-between">
                     <li className="flex flex-wrap gap-2">
                         {REPORT_KEYS.map((report) => {
                             return (
@@ -796,66 +800,13 @@ export default function Analisis() {
                         <Button
                             color="success"
                             size="small"
-                            
-                        >
-                            Venta desglosada
-                        </Button>
-                        <Button
-                            color="success"
-                            size="small"
-
+                            onClick={() => { setShowScoreCard(true);   dispatch(openModalReducer({ modalName: "scorecard" }))}}
                         >
                             Score Card
                         </Button>
                     </li>
                 </ul>
-                <BentoGrid cols={4} className="p-0 mb-5">
-                    {dataStats.length > 0 &&
-                        Object.entries(dataStats[0]).map(([key, value]) => {
-                            // Asignación automática de columnas según el nombre de la métrica
-                            let colSpan = 1;
-                            if (
-                                key.includes("Costo") ||
-                                key.includes("Ventas") ||
-                                key.includes("Mermas") ||
-                                key.includes("Inventario")
-                            ) {
-                                colSpan = 2; // métricas principales ocupan 2 columnas
-                            }
-                            // Para otros casos específicos se puede ajustar
-                            if (key.includes("Clientes") || key.includes("Tikets") || key.includes("Proveedores")) {
-                                colSpan = 1; // estos pueden ir en una columna
-                            }
-
-                            // Formateo automático del valor según el tipo de métrica
-                            let formattedValue: any = value;
-                            if (typeof value === "number") {
-                                if (
-                                    key.includes("Costo") ||
-                                    key.includes("Ventas") ||
-                                    key.includes("Mermas") ||
-                                    key.includes("Precio")
-                                ) {
-                                    formattedValue = formatValue(value, "currency");
-                                } else {
-                                    formattedValue = formatValue(value, "number");
-                                }
-                            }
-
-                            return (
-                                <BentoItem
-                                    key={key}
-                                    colSpan={colSpan}
-                                    title={key}
-                                    className="relative flex bg-white shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700"
-                                >
-                                    <span className="text-xl text-gray-900 dark:text-white">
-                                        {formattedValue}
-                                    </span>
-                                </BentoItem>
-                            );
-                        })}
-                </BentoGrid>
+                <KardexStats dataStats={dataStats} show={showStats} />
 
                 <div className="relative flex flex-col rounded-xl border gap-3 border-gray-200 bg-white shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
 
@@ -899,8 +850,6 @@ export default function Analisis() {
                         message_button={"Filtrar"}
                         iconButton={<Filter className="mr-1 h-4 w-4" />}
                         onSuccess={(rows: any) => {
-                            console.log(rows);
-                            
                             const { almacen, search } = rows;
                             const nuevosFiltros: Filtro[] = [];
                             if (rows.dateRange) {
@@ -946,14 +895,14 @@ export default function Analisis() {
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             <span>{tableError}</span>
                             <Button
-                               color="second"
+                                color="second"
                                 onClick={() => fetchTableData()}
                             >
                                 Reintentar
                             </Button>
                         </div>
                     )}
-                    
+
                     {/* Tabla */}
                     <DynamicTable
                         data={dataTable}
@@ -979,6 +928,7 @@ export default function Analisis() {
                     )}
                 </div>
             </section>
+            <ScoreCard open={showScoreCard} />
             <Footer />
         </>
     );

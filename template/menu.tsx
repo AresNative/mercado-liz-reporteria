@@ -182,9 +182,9 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                                 </li>
                             ) : null;
                         })}
-                        {/* <li className='flex items-center rounded-lg text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-green-700 transition-colors'>
+                        <li className='flex items-center rounded-lg text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-green-700 transition-colors'>
                             <SwitchToggle />
-                        </li> */}
+                        </li>
                     </ul>
                 </nav>
             </aside>

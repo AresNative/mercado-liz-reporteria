@@ -48,7 +48,7 @@ export const DetallesPago = ({ selectedPago }: any) => {
         return item ? item.importe : 0;
     };
 
-    const fetchPago = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         const parser = new CFDIParser();
@@ -163,8 +163,8 @@ export const DetallesPago = ({ selectedPago }: any) => {
     }, [currentPage, pageSize, selectedPago]);
 
     useEffect(() => {
-        fetchPago();
-    }, [fetchPago, currentPage, pageSize]);
+        fetchData();
+    }, [fetchData, currentPage, pageSize]);
 
     // Calcular datos paginados para la segunda tabla (XML)
     const startIdx = (xmlCurrentPage - 1) * xmlPageSize;
@@ -181,10 +181,10 @@ export const DetallesPago = ({ selectedPago }: any) => {
     return (
         <main className="p-4">
             {/* Header con información básica */}
-            <header className="bg-zinc-50 rounded-lg p-4 mb-6">
+            <header className="bg-zinc-50 dark:bg-gray-900 rounded-lg p-4 mb-6">
                 <ul className="flex items-center gap-4 justify-between">
                     <li className="flex flex-col">
-                        <h2 className="text-xl font-bold text-gray-900">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                             {pagoDetails?.nombre || "Sin nombre"}
                         </h2>
                         <article className="flex items-center space-x-4 mt-2">

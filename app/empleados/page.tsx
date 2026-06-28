@@ -5,7 +5,6 @@ import {
     Clock,
     Filter,
     MessageCircle,
-    Plus,
     RefreshCw,
     Search
 } from "lucide-react"
@@ -20,7 +19,6 @@ import { LoadingSection } from "@/template/loading-screen"
 import Pagination from "@/components/pagination"
 import DynamicTable from "@/components/table"
 import { Modal } from "@/components/modal"
-import { BentoGrid, BentoItem } from "@/components/bento-grid"
 import { ModalDetallesEmpleado } from "./components/detalles-empleado"
 import Footer from "@/template/footer"
 import Header from "@/template/header"
@@ -80,13 +78,6 @@ interface FiltrosForm {
     estado: string;
     puesto: string;
 }
-
-interface EstadisticasEmpleados {
-    totalRecords: number;
-    empleadosActivos: number;
-    empleadosInactivos: number;
-    topDepartamentos: [string, number][];
-}
 // Hook personalizado para la gestión de empleados
 const useEmpleados = () => {
     const [empleados, setEmpleados] = useState<Empleado[]>([]);
@@ -142,7 +133,7 @@ const useEmpleados = () => {
 
     useEffect(() => {
         fetchEmpleados();
-    }, []);
+    }, [fetchEmpleados]);
 
     return {
         empleados,
@@ -183,6 +174,7 @@ export default function Empleados() {
                     { Key: "Nombre", Value: data.search, Operator: "like" },
                     { Key: "ApellidoPaterno", Value: data.search, Operator: "like" },
                     { Key: "ApellidoMaterno", Value: data.search, Operator: "like" },
+                    { Key: "personal", Value: data.search, Operator: "like" },
                 ], OperadorLogico: "OR"
             } as any);
         }
@@ -204,7 +196,6 @@ export default function Empleados() {
             FiltrosAnd: nuevosFiltrosAnd,
             Filtros: nuevosFiltros
         }));
-        refetch();
     };
 
     const limpiarFiltros = () => {
@@ -228,19 +219,19 @@ export default function Empleados() {
             <Header />
             <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
                 <header className="mb-8">
-                    <h1 className="flex items-center text-2xl font-bold md:text-3xl">
+                    <h1 className="flex items-center text-2xl font-bold md:text-3xl dark:text-white">
                         Portal de Empleados
                     </h1>
-                    <p className="mt-2 text-gray-600 dark:text-gray-100">
+                    <p className="mt-2 text-gray-600 dark:text-gray-300">
                         Gestiona y visualiza todos los empleados de la organización
                     </p>
                 </header>
 
-                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                     <article className="p-4">
                         <span className="mr-4">
-                            <h2 className="text-lg font-semibold">Gestión de Empleados</h2>
-                            <p className="text-sm text-gray-500">
+                            <h2 className="text-lg font-semibold dark:text-white">Gestión de Empleados</h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-300">
                                 Mostrando {empleados.length} de {totalRecords} empleados
                             </p>
                         </span>
@@ -261,7 +252,7 @@ export default function Empleados() {
                                                 type: "SEARCH",
                                                 label: "Busqueda rapida",
                                                 icon: <Search className="size-4" />,
-                                                placeholder: "Busar por proveedor, importe, saldo...",
+                                                placeholder: "Busar por nombre, apellidos, num. personal...",
                                                 require: true,
                                             },
                                             {

@@ -83,7 +83,7 @@ export function TransferenciaContent() {
         distinct: false
     });
 
-    const fetchPago = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         setError(null);
 
@@ -133,8 +133,8 @@ export function TransferenciaContent() {
     }, [currentPage, activeFilters, pageSize, getWithFilter]);
 
     useEffect(() => {
-        fetchPago();
-    }, [fetchPago]);
+        fetchData();
+    }, [fetchData]);
 
     const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
 
@@ -178,7 +178,7 @@ export function TransferenciaContent() {
     };
 
     const handleRefetchAll = () => {
-        fetchPago();
+        fetchData();
     };
 
     const handleCopyId = async (id: number) => {
@@ -191,11 +191,11 @@ export function TransferenciaContent() {
 
     return (
         <>
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm">
                 <article className="p-4">
                     <span className="mr-4 flex justify-between">
                         <label>
-                            <h2 className="text-lg font-semibold">Gestión de Transferencias</h2>
+                            <h2 className="text-lg font-semibold dark:text-white">Gestión de Transferencias</h2>
                             <p className="text-sm text-gray-500">
                                 Mostrando {pago.length} de {totalRecords} transferencias
                             </p>
@@ -269,7 +269,7 @@ export function TransferenciaContent() {
                         ) : error ? (
                             <div className="p-4 text-center">
                                 <p className="text-red-500 mb-2">{error}</p>
-                                <Button onClick={fetchPago} color="success">
+                                <Button onClick={fetchData} color="success">
                                     Reintentar
                                 </Button>
                             </div>
@@ -337,7 +337,7 @@ export function TransferenciaContent() {
             >
                 <MainForm
                     message_button={"Registrar"}
-                    onSuccess={fetchPago} // <-- ahora refresca la tabla al registrar
+                    onSuccess={fetchData} // <-- ahora refresca la tabla al registrar
                     iconButton={<Plus className="size-4" />}
                     actionType={"post-general"}
                     table="pagos"

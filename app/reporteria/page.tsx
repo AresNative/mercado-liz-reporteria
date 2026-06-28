@@ -35,10 +35,10 @@ import { FilterGroup, FilterRule } from "@/utils/types/consultas";
 import { AppliedFilters, DateRange } from "./types/filter";
 import { FilterBuilder } from "./utils/filter-class";
 import { DATE_PERIODS, OPERATORS } from "./utils/consultas-constants";
-import { ModalReporting } from "./components/modal-reporting";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
 import { useAppDispatch } from "@/hooks/selector";
 import { Button } from "@/components/button";
+import { ModalReporting } from "./components/modal-reporting";
 import ScoreCard from "./components/modal-scorecard";
 
 // Interfaz para datos de tabla

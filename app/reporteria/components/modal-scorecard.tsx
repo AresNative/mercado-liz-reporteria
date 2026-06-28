@@ -475,21 +475,21 @@ const ScoreCard = ({ open }: { open: boolean }) => {
         const effective = getEffectiveChartConfig(key);
 
         return (
-            <div className="mt-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
+            <div className="mt-2 p-2.5 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+                <div className="flex items-center justify-between mb-2.5">
                     <h4 className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">Configuración de gráfica</h4>
                     <button onClick={() => toggleChartConfig(key)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
                 </div>
 
                 {/* Tipo de gráfica */}
-                <div className="mb-3">
+                <div className="mb-2.5">
                     <label className="text-xs font-medium text-gray-500 block mb-1">Tipo de gráfica</label>
                     <div className="flex flex-wrap gap-1">
                         {meta.availableChartTypes.map(type => (
                             <button key={type} onClick={() => updateChartOverride(key, { chartType: type })}
                                 className={`flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors ${effective.chartType === type
-                                        ? "bg-indigo-600 text-white border-indigo-600"
-                                        : "bg-white text-gray-600 border-gray-300 hover:border-indigo-400 dark:bg-gray-700 dark:text-gray-300"
+                                    ? "bg-indigo-600 text-white border-indigo-600"
+                                    : "bg-white text-gray-600 border-gray-300 hover:border-indigo-400 dark:bg-gray-700 dark:text-gray-300"
                                     }`}>
                                 {CHART_TYPE_ICONS[type]}{CHART_TYPE_LABELS[type]}
                             </button>
@@ -499,7 +499,7 @@ const ScoreCard = ({ open }: { open: boolean }) => {
 
                 {/* Eje X (no para pie/treemap) */}
                 {effective.chartType !== "pie" && effective.chartType !== "treemap" && (
-                    <div className="mb-3">
+                    <div className="mb-2.5">
                         <label className="text-xs font-medium text-gray-500 block mb-1">Eje X (Dimensión)</label>
                         <select value={effective.xKey} onChange={e => updateChartOverride(key, { xKey: e.target.value })}
                             className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600">
@@ -533,8 +533,8 @@ const ScoreCard = ({ open }: { open: boolean }) => {
         ];
 
         return (
-            <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
+            <div className="mt-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <div className="flex items-center justify-between mb-2.5">
                     <h4 className="text-sm font-semibold text-amber-700 dark:text-amber-300">Filtros</h4>
                     <div className="flex items-center gap-2">
                         {queryFilters.length > 0 && (
@@ -548,12 +548,12 @@ const ScoreCard = ({ open }: { open: boolean }) => {
 
                 {/* Filtros activos */}
                 {queryFilters.length > 0 && (
-                    <div className="space-y-1 mb-3">
+                    <div className="space-y-1 mb-2.5">
                         {queryFilters.map((filter, idx) => (
-                            <div key={idx} className="flex items-center gap-2 text-xs bg-white dark:bg-gray-700 rounded px-2 py-1.5 border">
+                            <div key={idx} className="flex items-center gap-2 text-xs bg-white dark:bg-gray-700 rounded px-2 py-1 border">
                                 <span className="font-mono text-indigo-600 dark:text-indigo-400 font-medium">{filter.field}</span>
                                 <span className="text-gray-400">{filter.operator}</span>
-                                <span className="font-mono text-gray-700 dark:text-gray-300 flex-1">{String(filter.value)}</span>
+                                <span className="font-mono text-gray-700 dark:text-gray-300 flex-1 truncate">{String(filter.value)}</span>
                                 <button onClick={() => removeFilter(key, idx)} className="text-red-400 hover:text-red-600 ml-auto">
                                     <X size={12} />
                                 </button>
@@ -563,32 +563,32 @@ const ScoreCard = ({ open }: { open: boolean }) => {
                 )}
 
                 {/* Constructor nuevo filtro */}
-                <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="grid grid-cols-3 gap-1.5 mb-2">
                     <select value={pending.field || ""}
                         onChange={e => setPendingFilter(p => ({ ...p, [key]: { ...p[key], field: e.target.value } }))}
-                        className="px-2 py-1.5 border rounded text-xs dark:bg-gray-700 dark:border-gray-600">
+                        className="px-2 py-1 border rounded text-xs dark:bg-gray-700 dark:border-gray-600">
                         <option value="">Campo...</option>
                         {allColumns.map(col => <option key={col.key} value={col.key}>{col.label}</option>)}
                     </select>
                     <select value={pending.operator || ""}
                         onChange={e => setPendingFilter(p => ({ ...p, [key]: { ...p[key], operator: e.target.value } }))}
-                        className="px-2 py-1.5 border rounded text-xs dark:bg-gray-700 dark:border-gray-600">
+                        className="px-2 py-1 border rounded text-xs dark:bg-gray-700 dark:border-gray-600">
                         <option value="">Operador...</option>
                         {OPERATOR_OPTIONS.map(op => <option key={op} value={op}>{op}</option>)}
                     </select>
                     <input type="text" placeholder="Valor..." value={String(pending.value ?? "")}
                         onChange={e => setPendingFilter(p => ({ ...p, [key]: { ...p[key], value: e.target.value } }))}
-                        className="px-2 py-1.5 border rounded text-xs dark:bg-gray-700 dark:border-gray-600" />
+                        className="px-2 py-1 border rounded text-xs dark:bg-gray-700 dark:border-gray-600" />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                     <button onClick={() => addFilter(key)}
                         disabled={!pending.field || !pending.operator || pending.value === undefined || pending.value === ""}
-                        className="flex-1 px-3 py-1.5 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                        className="flex-1 px-3 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                         + Agregar filtro
                     </button>
                     {queryFilters.length > 0 && (
                         <button onClick={() => applyFilters(key)}
-                            className="flex-1 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                            className="flex-1 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
                             Aplicar y recargar
                         </button>
                     )}
@@ -618,8 +618,8 @@ const ScoreCard = ({ open }: { open: boolean }) => {
 
     const renderContent = (key: QueryKey, state: QueryState) => {
         if (state.loading) return (
-            <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+            <div className="flex items-center justify-center h-48">
+                <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-blue-600" />
             </div>
         );
         if (state.error) return <div className="p-4 text-center text-red-500">Error: {state.error}</div>;
@@ -733,7 +733,7 @@ const ScoreCard = ({ open }: { open: boolean }) => {
                 {showChartConfig[key] && meta && renderChartConfigPanel(key)}
                 {showFilters[key] && renderFiltersPanel(key)}
 
-                <div className="flex-1 overflow-auto min-h-72">
+                <div className="flex-1 overflow-auto min-h-64">
                     {renderContent(key, state)}
                 </div>
             </BentoItem>
@@ -749,7 +749,7 @@ const ScoreCard = ({ open }: { open: boolean }) => {
 
         const renderChart = () => {
             if (comparisonData.loading)
-                return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
+                return <div className="flex items-center justify-center h-48"><div className="animate-spin rounded-full h-7 w-7 border-b-2 border-blue-600" /></div>;
             if (!comparisonData.period1Data.length && !comparisonData.period2Data.length)
                 return <div className="p-4 text-center text-gray-400">No hay datos para los períodos seleccionados</div>;
 
@@ -769,7 +769,7 @@ const ScoreCard = ({ open }: { open: boolean }) => {
 
         const renderTable = () => {
             if (comparisonData.loading)
-                return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
+                return <div className="flex items-center justify-center h-48"><div className="animate-spin rounded-full h-7 w-7 border-b-2 border-blue-600" /></div>;
 
             const xKey = effective.xKey;
             const yKey = effective.yKey;
@@ -797,21 +797,22 @@ const ScoreCard = ({ open }: { open: boolean }) => {
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                         <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                             <tr>
-                                {[xKey, comparisonPeriods.period1.label, comparisonPeriods.period2.label, "Diferencia", "Variación"].map(h => (
-                                    <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                                <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">{xKey}</th>
+                                {[comparisonPeriods.period1.label, comparisonPeriods.period2.label, "Diferencia", "Variación"].map(h => (
+                                    <th key={h} className="px-3 py-1.5 text-right text-xs font-medium text-gray-500 uppercase">{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {tableData.map((row, idx) => (
                                 <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                                    <td className="px-3 py-1.5 font-medium">{row[xKey]}</td>
-                                    <td className="px-3 py-1.5">${(row[comparisonPeriods.period1.label] as number).toLocaleString("es-MX")}</td>
-                                    <td className="px-3 py-1.5">${(row[comparisonPeriods.period2.label] as number).toLocaleString("es-MX")}</td>
-                                    <td className={`px-3 py-1.5 font-medium ${row.diferencia >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                    <td className="px-3 py-1 font-medium truncate max-w-56">{row[xKey]}</td>
+                                    <td className="px-3 py-1 text-right tabular-nums">${(row[comparisonPeriods.period1.label] as number).toLocaleString("es-MX")}</td>
+                                    <td className="px-3 py-1 text-right tabular-nums">${(row[comparisonPeriods.period2.label] as number).toLocaleString("es-MX")}</td>
+                                    <td className={`px-3 py-1 text-right font-medium tabular-nums ${row.diferencia >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                                         {row.diferencia >= 0 ? "+" : ""}${row.diferencia.toLocaleString("es-MX")}
                                     </td>
-                                    <td className={`px-3 py-1.5 ${row.variacion !== "N/A" && parseFloat(row.variacion as string) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                    <td className={`px-3 py-1 text-right tabular-nums ${row.variacion !== "N/A" && parseFloat(row.variacion as string) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                                         {row.variacion}
                                     </td>
                                 </tr>
@@ -825,7 +826,7 @@ const ScoreCard = ({ open }: { open: boolean }) => {
         return (
             <BentoItem key="PERIODOS_SEMANA" title="Comparación de Períodos" className="overflow-hidden flex flex-col">
                 {/* Selectores de períodos */}
-                <div className="flex flex-wrap items-center gap-4 p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
+                <div className="flex flex-wrap items-center gap-3 p-2.5 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
                     {(["period1", "period2"] as const).map((p, i) => (
                         <div key={p} className="flex-1 min-w-52">
                             <label className="text-xs font-semibold text-blue-600 block mb-1">Período {i + 1}</label>
@@ -841,7 +842,7 @@ const ScoreCard = ({ open }: { open: boolean }) => {
                         </div>
                     ))}
                     <button onClick={fetchComparisonData} disabled={comparisonData.loading}
-                        className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
+                        className="px-4 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
                         {comparisonData.loading ? "Cargando..." : "Comparar"}
                     </button>
                 </div>
@@ -871,7 +872,7 @@ const ScoreCard = ({ open }: { open: boolean }) => {
 
                 {showChartConfig["PERIODOS_SEMANA"] && renderChartConfigPanel("PERIODOS_SEMANA")}
 
-                <div className="flex-1 overflow-auto min-h-96">
+                <div className="flex-1 overflow-auto min-h-80">
                     {state?.viewMode === "table" ? renderTable() : renderChart()}
                 </div>
             </BentoItem>

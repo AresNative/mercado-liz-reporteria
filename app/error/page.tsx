@@ -1,17 +1,9 @@
 "use client"
-// diferencias entre XML y Movimientos
 import {
-    Building,
-    Clock,
     Copy,
     FileText,
-    Filter,
     MessageCircle,
-    Plus,
     RefreshCw,
-    Search,
-    Share2,
-    Trash2
 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 
@@ -24,12 +16,9 @@ import { LoadingSection } from "@/template/loading-screen"
 import Pagination from "@/components/pagination"
 import DynamicTable from "@/components/table"
 import { Modal } from "@/components/modal"
-import { BentoGrid, BentoItem } from "@/components/bento-grid"
 import Footer from "@/template/footer"
 import Header from "@/template/header"
-import MainForm from "@/components/form/main-form"
 import { Button } from "@/components/button"
-import Segment from "@/components/segment"
 
 interface PagoResponse {
     totalRecords: number;
@@ -53,16 +42,8 @@ interface ActiveFilters {
     distinct: boolean;
 }
 
-interface FiltrosForm {
-    search: any;
-    sucursal: string;
-    date: string;
-}
-const allCategories:any = ["Pagos", "Transferencias"]
 export default function Pago() {
     const dispatch = useAppDispatch();
-
-    const [selectedCategory, setSelectedCategory] = useState("Pagos");
 
     const [pago, setPago] = useState<any[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -84,7 +65,7 @@ export default function Pago() {
         distinct: false
     });
 
-    const fetchPago = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         setError(null);
 
@@ -123,7 +104,7 @@ export default function Pago() {
     }, [currentPage, activeFilters, setActiveFilters, pageSize]);
 
     useEffect(() => {
-        fetchPago();
+        fetchData();
     }, [currentPage, activeFilters, pageSize]);
 
     const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
@@ -141,7 +122,7 @@ export default function Pago() {
     };
 
     const handleRefetchAll = () => {
-        fetchPago();
+        fetchData();
     };
 
     return (
@@ -149,20 +130,20 @@ export default function Pago() {
             <Header />
             <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
                 <header className="mb-8">
-                    <h1 className="flex items-center text-2xl font-bold md:text-3xl">
+                    <h1 className="flex items-center text-2xl font-bold md:text-3xl dark:text-white">
                         Errores de intelisis
                     </h1>
-                    <p className="mt-2 text-gray-600 dark:text-gray-100">
+                    <p className="mt-2 text-gray-600 dark:text-gray-100 dark:dark:text-gray-300">
                         Visor de errores intelisis    
                     </p>
                 </header>
 
-                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                     <article className="p-4">
                         <span className="mr-4 flex justify-between">
                                 <label>
-                                    <h2 className="text-lg font-semibold">Gestión de Errores</h2>
-                                    <p className="text-sm text-gray-500">
+                                    <h2 className="text-lg font-semibold dark:text-white">Gestión de Errores</h2>
+                                <p className="text-sm text-gray-500 dark:dark:text-gray-300">
                                         Mostrando {pago.length} de {totalRecords} errores
                                     </p>
                                 </label>
@@ -192,7 +173,7 @@ export default function Pago() {
                                 <div className="p-4 text-center">
                                     <p className="text-red-500 mb-2">{error}</p>
                                     <Button
-                                        onClick={fetchPago}
+                                        onClick={fetchData}
                                         color="success"
                                     >
                                         Reintentar
@@ -202,7 +183,6 @@ export default function Pago() {
                                 <dt className="flex flex-col gap-2">
                                     <DynamicTable
                                         data={pago}
-                                        onRowClick={(pago) => handleOpenModal('detalles-pago', pago.ID[0])}
                                         contextMenuItems={(row) => [
                                                 {
                                                     label: 'Copiar',
