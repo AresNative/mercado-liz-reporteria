@@ -266,13 +266,13 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                     )}
                 </div>
 
-                <div className="relative bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3">
+                <div className="relative bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-3">
                     <div className="flex items-center gap-2">
                         <input
                             value={newMessage}
                             placeholder="Escribe un mensaje..."
                             onChange={(e) => setNewMessage(e.target.value)}
-                            className="flex-1 rounded-full bg-gray-100 px-4 py-3 text-gray-900 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                            className="flex-1 rounded-full bg-gray-100  dark:bg-gray-900 dark:text-white  px-4 py-3 text-gray-900  dark:border-gray-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
                             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                         />
                         <button

@@ -24,7 +24,7 @@ interface Response {
 }
 
 export const DetallesPago = ({ selectedPago }: any) => {
-    const [pago, setPago] = useState<any[]>([]);
+    const [data, setData] = useState<any[]>([]);
     const [xml, setXml] = useState<any[]>([]);
     const [pagoDetails, setPagoDetails] = useState<any>({});
     // Paginación para la primera tabla (viene del API)
@@ -149,7 +149,7 @@ export const DetallesPago = ({ selectedPago }: any) => {
                     "Costo Unitario": item["Costo Unitario"],
                     "Total Compras": item["Total Compras"],
                 }));
-                setPago(formattedData);
+                setData(formattedData);
                 setTotalPages(pagoData.totalPages);
             } else if ('error' in response) {
                 throw new Error('Error en la respuesta del servidor');

@@ -74,11 +74,11 @@ interface FiltrosForm {
 
 const allCategories: string[] = ["Pagos", "Transferencias"];
 
-export default function Pago() {
+export default function Page() {
     const dispatch = useAppDispatch();
 
     const [selectedCategory, setSelectedCategory] = useState("Pagos");
-    const [pago, setPago] = useState<any[]>([]);
+    const [data, setData] = useState<any[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
@@ -157,7 +157,7 @@ export default function Pago() {
                     IEPSFiscal: item.IEPSFiscal && (item.Importe / (item.IEPSFiscal * 100)),
                     FechaEmision: item.FechaEmision || "N/A",
                 }));
-                setPago(formattedData);
+                setData(formattedData);
                 setTotalPages(pagoData.totalPages);
                 setTotalRecords(pagoData.totalRecords);
             } else if ('error' in response) {
@@ -231,7 +231,7 @@ export default function Pago() {
 
     return (
         <>
-            <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
+            <main className="min-h-screen mx-auto p-4 md:p-6 text-gray-900">
                 <header className="mb-8">
                     <h1 className="flex items-center text-2xl font-bold md:text-3xl dark:text-white">
                         Boveda de pagos
@@ -259,7 +259,7 @@ export default function Pago() {
                                 <label>
                                     <h2 className="text-lg font-semibold dark:text-white">Gestión de Pagos</h2>
                                     <p className="text-sm text-gray-500">
-                                        Mostrando {pago.length} de {totalRecords} pagos
+                                        Mostrando {data.length} de {totalRecords} pagos
                                     </p>
                                 </label>
                             
@@ -351,11 +351,11 @@ export default function Pago() {
                                                     Reintentar
                                                 </Button>
                                             </div>
-                                        ) : pago.length > 0 ? (
+                                        ) : data.length > 0 ? (
                                             <dt className="flex flex-col gap-2">
                                                 <DynamicTable
-                                                    data={pago}
-                                                    onRowClick={(pago) => handleOpenModal('detalles-pago', pago.ID[0])}
+                                                    data={data}
+                                                    onRowClick={(data) => handleOpenModal('detalles-pago', data.ID[0])}
                                                     contextMenuItems={(row) => [
                                                         {
                                                             label: 'Copiar',

@@ -47,12 +47,10 @@ interface DynamicTableProps {
      * Items del menú contextual que aparece al hacer clic derecho en una fila.
      * Si no se pasa, el clic derecho no tiene efecto.
      */
-    contextMenuItems?: (rowData: any) => ContextMenuItem[];
-    /**
-     * Si se pasa, el componente llama este callback cada vez que el usuario
-     * cambia la columna de orden, para que el padre pueda re-fetchear desde
-     * el servidor con el nuevo ORDER BY.
-     */
+    contextMenuItems?: (
+        rowData: any,
+        selectedRowsData?: any[]   // ← nuevo parámetro
+    ) => ContextMenuItem[];
     onSortChange?: (column: string, direction: "asc" | "desc") => void;
     visibleColumns?: Record<string, boolean>;
     /**
@@ -143,14 +141,22 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     }>({ visible: false, x: 0, y: 0, items: [] });
     const ctxMenuRef = useRef<HTMLDivElement>(null);
 
+    const getRowId = useCallback((item: any): string => item.ID || JSON.stringify(item), []);
+
     const openCtxMenu = useCallback((e: React.MouseEvent, rowData: any) => {
         if (!contextMenuItems) return;
         e.preventDefault();
         e.stopPropagation();
-        const items = contextMenuItems(rowData);
+
+        const rowId = getRowId(rowData);
+        const isSelected = selectedRows.has(rowId);
+        const selectedData = isSelected ? Array.from(selectedRowsData.values()) : undefined;
+
+        const items = contextMenuItems(rowData, selectedData);
         if (!items?.length) return;
+
         setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, items });
-    }, [contextMenuItems]);
+    }, [contextMenuItems, selectedRows, selectedRowsData, getRowId]);
 
     const closeCtxMenu = useCallback(() => {
         setCtxMenu(prev => ({ ...prev, visible: false }));
@@ -292,7 +298,6 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
     // ── Selección ──────────────────────────────────────────────────────────────
 
-    const getRowId = useCallback((item: any): string => item.ID || JSON.stringify(item), []);
     const isRowSelected = useCallback((id: string) => selectedRows.has(id), [selectedRows]);
 
     const toggleRowSelection = (rowId: string, rowData: any) => {

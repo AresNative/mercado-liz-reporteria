@@ -504,7 +504,7 @@ const Page = () => {
         <>
             <Header />
             {renderNotifications()}
-            <section className="min-h-screen mx-auto max-w-7xl p-4 md:p-6">
+            <section className="min-h-screen mx-auto p-4 md:p-6">
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">Panel de Administración</h1>
                 <p className="text-gray-600 mb-6">Consume todos los endpoints del API general</p>
 

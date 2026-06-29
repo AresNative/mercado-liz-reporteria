@@ -42,10 +42,10 @@ interface ActiveFilters {
     distinct: boolean;
 }
 
-export default function Pago() {
+export default function Page() {
     const dispatch = useAppDispatch();
 
-    const [pago, setPago] = useState<any[]>([]);
+    const [data, setData] = useState<any[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
@@ -89,7 +89,7 @@ export default function Pago() {
             if ('data' in response) {
                 const pagoData = response.data as PagoResponse;
                 const formattedData = pagoData.data;
-                setPago(formattedData);
+                setData(formattedData);
                 setTotalPages(pagoData.totalPages);
                 setTotalRecords(pagoData.totalRecords);
             } else if ('error' in response) {
@@ -128,7 +128,7 @@ export default function Pago() {
     return (
         <>
             <Header />
-            <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
+            <main className="min-h-screen mx-auto p-4 md:p-6 text-gray-900">
                 <header className="mb-8">
                     <h1 className="flex items-center text-2xl font-bold md:text-3xl dark:text-white">
                         Errores de intelisis
@@ -144,7 +144,7 @@ export default function Pago() {
                                 <label>
                                     <h2 className="text-lg font-semibold dark:text-white">Gestión de Errores</h2>
                                 <p className="text-sm text-gray-500 dark:dark:text-gray-300">
-                                        Mostrando {pago.length} de {totalRecords} errores
+                                        Mostrando {data.length} de {totalRecords} errores
                                     </p>
                                 </label>
                         </span>
@@ -179,10 +179,10 @@ export default function Pago() {
                                         Reintentar
                                     </Button>
                                 </div>
-                            ) : pago.length > 0 ? (
+                            ) : data.length > 0 ? (
                                 <dt className="flex flex-col gap-2">
                                     <DynamicTable
-                                        data={pago}
+                                        data={data}
                                         contextMenuItems={(row) => [
                                                 {
                                                     label: 'Copiar',

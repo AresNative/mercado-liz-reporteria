@@ -61,7 +61,7 @@ interface FiltrosForm {
 export function TransferenciaContent() {
     const dispatch = useAppDispatch();
 
-    const [pago, setPago] = useState<any[]>([]);
+    const [data, setData] = useState<any[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
@@ -118,7 +118,7 @@ export function TransferenciaContent() {
                     Monto: item.monto,
                     'Metodo Pago': item.metodo_pago,
                 }));
-                setPago(formattedData);
+                setData(formattedData);
                 setTotalPages(pagoData.totalPages);
                 setTotalRecords(pagoData.totalRecords);
             } else if ('error' in response) {
@@ -197,7 +197,7 @@ export function TransferenciaContent() {
                         <label>
                             <h2 className="text-lg font-semibold dark:text-white">Gestión de Transferencias</h2>
                             <p className="text-sm text-gray-500">
-                                Mostrando {pago.length} de {totalRecords} transferencias
+                                Mostrando {data.length} de {totalRecords} transferencias
                             </p>
                         </label>
                     </span>
@@ -266,11 +266,11 @@ export function TransferenciaContent() {
                                     Reintentar
                                 </Button>
                             </div>
-                        ) : pago.length > 0 ? (
+                        ) : data.length > 0 ? (
                             <dt className="flex flex-col gap-2">
                                 <DynamicTable
-                                    data={pago}
-                                    onRowClick={(pago) => handleOpenModal('detalles-transferencia', pago.ID)}
+                                    data={data}
+                                    onRowClick={(data) => handleOpenModal('detalles-transferencia', data.ID)}
                                     contextMenuItems={(row) => [
                                         {
                                             label: 'Copiar',
@@ -385,7 +385,7 @@ export function TransferenciaContent() {
 export default function Transferencia() {
     return (
         <>
-            <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900 dark:text-white">
+            <main className="min-h-screen mx-auto p-4 md:p-6 text-gray-900 dark:text-white">
                 <header className="mb-8">
                     <h1 className="flex items-center text-2xl font-bold md:text-3xl">
                         Boveda de transferencias

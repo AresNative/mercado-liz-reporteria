@@ -396,7 +396,7 @@ export default function ProjectsPage() {
     return (
         <>
             <Header />
-            <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
+            <main className="min-h-screen mx-auto p-4 md:p-6 text-gray-900">
                 <ul className="flex justify-between items-center">
                     <header className="mb-8 flex flex-col">
                         <h1 className="flex items-center text-2xl font-bold md:text-3xl">Scrum</h1>
