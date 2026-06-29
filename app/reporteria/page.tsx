@@ -1192,40 +1192,40 @@ export default function Report() {
                                     onClick={() => { setShowModal2(true); dispatch(openModalReducer({ modalName: "scorecard" })) }} />
                             </>
                         )}
-                        <button
+                        <Button
                             onClick={() => fetchStatsData(true)}
                             disabled={statsLoading || refreshingStats}
-                            className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
-                            title="Recargar solo estadísticas"
+                            color="second"
+                            size="small"
                         >
                             <RefreshCw className={`w-4 h-4 ${refreshingStats ? "animate-spin" : ""}`} />
                             Stats
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => {
                                 setRefreshingTable(true);
                                 fetchTableData().finally(() => setRefreshingTable(false));
                             }}
                             disabled={tableLoading || refreshingTable}
-                            className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
-                            title="Recargar solo tabla"
+                            color="second"
+                            size="small"
                         >
                             <RefreshCw className={`w-4 h-4 ${refreshingTable ? "animate-spin" : ""}`} />
                             Tabla
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => {
                                 setCurrentPage(1);
                                 fetchCurrentReportData();
                             }}
                             disabled={tableLoading || statsLoading || comparisonLoading}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600"
-                            title="Recargar todo"
+                            color="second"
+                            size="small"
                         >
                             <RefreshCw className={`w-4 h-4 ${tableLoading || statsLoading ? "animate-spin" : ""}`} />
                             <span className="hidden md:inline">Recargar Todo</span>
                             <span className="md:hidden">Todo</span>
-                        </button>
+                        </Button>
                     </li>
                 </ul>
 
