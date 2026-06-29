@@ -46,11 +46,6 @@ export const navigationVentas = [
     icon: ChartArea,
   },
   {
-    name: "Subastas",
-    href: "/subastas",
-    icon: ChartColumnStacked,
-  },
-  {
     name: "Pick Up",
     href: "/pick-up",
     icon: Truck,
