@@ -214,7 +214,7 @@ export const DetallesPago = ({ selectedPago }: any) => {
             <section className="flex gap-4 flex-wrap">
                 <div className="flex-1 min-w-75">
                     <DynamicTable
-                        data={pago}
+                        data={data}
                         contextMenuItems={(row) => [
                             {
                                 label: 'Copiar',
