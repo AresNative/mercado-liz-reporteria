@@ -13,6 +13,7 @@ import {
   Vault,
   AlertCircle,
   Wrench,
+  Clock,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -120,6 +121,11 @@ export const navigationAdmin = [
     name: "Pick Up",
     href: "/pick-up",
     icon: Truck,
+  },
+  {
+    name: "Checador",
+    href: "/checador",
+    icon: Clock,
   },
   {
     name: "Boveda Movimientos",
