@@ -65,11 +65,11 @@ export default function Page() {
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [
-            /* {
+            {
                 Key: "Fecha",
-                Value: new Date().getUTCDate(),
+                Value: new Date().toISOString().split('T')[0], // "2026-06-30"
                 Operator: "="
-            } */
+            }
         ],
         Selects: [],
         OrderBy: [
@@ -109,9 +109,9 @@ export default function Page() {
             if ('data' in response) {
                 const pagoData = response.data as PagoResponse;
                 const formattedData = pagoData.data.map((item) => ({
-                    ID: item.empleado_id,
-                    Proveedor: [item.hora_entrada, item.hora_salida],
-                    Importe: item.estado,
+                    empleado: item.empleado_id,
+                    hora: [item.hora_entrada, item.hora_salida],
+                    estado: item.estado,
                 }));
                 setData(formattedData);
                 setTotalPages(pagoData.totalPages);
@@ -132,11 +132,6 @@ export default function Page() {
     }, [fetchData]);
 
     const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
-
-    const limpiarFiltros = () => {
-        setActiveFilters(prev => ({ ...prev, Filtros: [] }));
-        setCurrentPage(1);
-    };
 
     const handleOpenModal = (modalName: string, pago?: any) => {
         if (modalName === 'detalles-pago' && pago) {
