@@ -312,19 +312,9 @@ const Page = () => {
             
             // 👉 Solo agregar si Articulo es un número válido
             if (row.Articulo !== undefined && row.Articulo !== "") {
-                const articuloNum = Number(row.Articulo);
-                if (!isNaN(articuloNum)) {
-                    // Convertir Articulo a número entero
-                    row.Articulo = articuloNum;
-                    
-                    // Convertir Impuesto1 e Impuesto2 a números
-                    ['Impuesto1', 'Impuesto2'].forEach(field => {
-                        if (row[field] !== undefined && row[field] !== "") {
-                            const num = Number(row[field]);
-                            row[field] = isNaN(num) ? 0 : num;
-                        }
-                    });
-                    
+                // Solo verificamos que Articulo no esté vacío (opcional)
+                if (row.Articulo !== undefined && row.Articulo !== "") {
+                    // No se convierte nada, se conservan los valores originales
                     data.push(row);
                     validLines++;
                 }
@@ -733,8 +723,8 @@ const Page = () => {
                                                 {parsedData.slice(0, 10).map((row, i) => (
                                                     <tr key={i}>
                                                         <td className="p-2 border">{row.Articulo}</td>
-                                                        <td className="p-2 border">{row.Impuesto1}</td>
-                                                        <td className="p-2 border">{row.Impuesto2}</td>
+                                                        <td className="p-2 border">{row.tipoimpuesto1}</td>
+                                                        <td className="p-2 border">{row.tipoimpuesto2}</td>
                                                     </tr>
                                                 ))}
                                                 {parsedData.length > 10 && (
