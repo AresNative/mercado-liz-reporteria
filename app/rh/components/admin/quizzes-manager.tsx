@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, FileQuestion, Pencil, Trash2, Plus, Type, Video, CircleHelp, } from "lucide-react";
+import { RefreshCw, FileQuestion, Pencil, Trash2, Plus, Type, Video, CircleHelp, Terminal, Binary, } from "lucide-react";
 import { useAppDispatch } from "@/hooks/selector";
 import { Modal } from "@/components/modal";
 import { MainForm } from "@/components/form/main-form";
@@ -141,21 +141,16 @@ const PageQuizzes = () => {
 
             {/* MODAL CUESTIONARIO */}
             <Modal
-                title=""
+                title="Nuevo Cuestionario"
                 modalName="modalCuestionarios"
                 maxWidth="xl"
             >
                 <div className="px-4 py-2">
-                    <div className="mb-4">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                            Nuevo Cuestionario
-                        </h2>
-
+                    <div className="mb-2">
                         <p className="text-gray-500 dark:text-gray-400 mt-2">
                             Crea un cuestionario asociado a un video
                         </p>
                     </div>
-
                     <div className="flex justify-end mb-4">
                         <button
                             type="button"
@@ -168,8 +163,8 @@ const PageQuizzes = () => {
                             }
                             className="flex items-center gap-2 px-4 py-2 rounded-lg border"
                         >
-                            <Plus className="w-4 h-4" />
-                            Agregar Pregunta
+                            <Plus className="w-4 h-4 stroke-blue-400 " />
+                            Agregar Preguntas
                         </button>
                     </div>
 
@@ -180,21 +175,30 @@ const PageQuizzes = () => {
                                 require: true,
                                 type: "INPUT",
                                 label: "Título",
-                                name: "titulo",
+                                name: "nombre",
                                 icon: (
-                                    <Type className="w-4 h-4" />
+                                    <Type className="w-4 h-4 stroke-blue-400" />
                                 ),
                                 placeholder:
                                     "Ej: Evaluación de Seguridad Industrial",
                             },
                             {
                                 require: true,
+                                type: "INPUT",
+                                label: "Descripcion del cuestionario",
+                                name: "descripcion",
+                                icon: (
+                                    <Pencil className="w-4 h-4 stroke-pink-400" />),
+                                placeholder:
+                                    "Ej: Este cuestionario evalúa el conocimiento de los empleados sobre las normas de seguridad industrial.",
+                            },
+                            {
+                                require: true,
                                 type: "NUMBER",
                                 label: "Puntaje mínimo",
-                                name: "puntajeMinimo",
-
+                                name: "calificacion",
                                 icon: (
-                                    <CircleHelp className="w-4 h-4" />
+                                    <Binary className="w-4 h-4 stroke-green-400" />
                                 ),
                                 placeholder:
                                     "70",
@@ -205,7 +209,7 @@ const PageQuizzes = () => {
                                 label: "Video asociado",
                                 name: "videoId",
                                 icon: (
-                                    <Video className="w-4 h-4" />
+                                    <Video className="w-4 h-4 stroke-blue-400" />
                                 ),
                                 options: [
                                     {
@@ -217,9 +221,6 @@ const PageQuizzes = () => {
                                 ],
                             },
                         ]}
-                        aditionalData={{
-                            fecha: new Date(),
-                        }}
                         actionType="post-general"
                         message_button="Crear Cuestionario"
                     />
@@ -228,7 +229,7 @@ const PageQuizzes = () => {
 
             {/* MODAL PREGUNTAS */}
             <Modal
-                title=""
+                title="Nueva Pregunta"
                 modalName="modalPreguntas"
                 maxWidth="lg"
             >
@@ -251,7 +252,7 @@ const PageQuizzes = () => {
                                 label: "Pregunta",
                                 name: "pregunta",
                                 icon: (
-                                    <CircleHelp className="w-4 h-4" />
+                                    <CircleHelp className="w-4 h-4 stroke-blue-400" />
                                 ),
                             },
                             {
@@ -260,7 +261,7 @@ const PageQuizzes = () => {
                                 label: "Opción A",
                                 name: "opcionA",
                                 icon: (
-                                    <CircleHelp className="w-4 h-4" />
+                                    <CircleHelp className="w-4 h-4 stroke-blue-400" />
                                 ),
                             },
                             {
@@ -269,7 +270,7 @@ const PageQuizzes = () => {
                                 label: "Opción B",
                                 name: "opcionB",
                                 icon: (
-                                    <CircleHelp className="w-4 h-4" />
+                                    <CircleHelp className="w-4 h-4 stroke-blue-400" />
                                 ),
                             },
                             {
@@ -278,7 +279,7 @@ const PageQuizzes = () => {
                                 label: "Opción C",
                                 name: "opcionC",
                                 icon: (
-                                    <CircleHelp className="w-4 h-4" />
+                                    <CircleHelp className="w-4 h-4 stroke-blue-400  " />
                                 ),
                             },
                             {
@@ -287,7 +288,7 @@ const PageQuizzes = () => {
                                 label: "Opción D",
                                 name: "opcionD",
                                 icon: (
-                                    <CircleHelp className="w-4 h-4" />
+                                    <Terminal className="w-4 h-4 stroke-blue-400" />
                                 ),
                             },
                         ]}

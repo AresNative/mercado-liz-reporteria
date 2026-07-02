@@ -21,7 +21,7 @@ const PageAreas = () => {
     const areas = [
         {
             id: 1,
-            nombre: "Areas",
+            nombre: "Cuestionarios Activos",
             icon: <LayoutList className="w-4 h-4" />,
         },
         {
@@ -31,12 +31,12 @@ const PageAreas = () => {
         },
         {
             id: 3,
-            nombre: "Videos",
+            nombre: "Agregar videos",
             icon: <Clapperboard className="w-4 h-4" />,
         },
         {
             id: 4,
-            nombre: "Cuestionarios",
+            nombre: "Crear Cuestionarios",
             icon: <BookOpenText className="w-4 h-4" />,
         },
     ];
