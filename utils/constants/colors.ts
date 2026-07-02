@@ -88,8 +88,9 @@ export const buttonClasses = {
     ring: "ring-indigo-500/10",
   },
   second: {
-    bg: "bg-gray-200 border border-gray-200 rounded-md",
-    hover: "hover:bg-gray-100 hover:text-gray-800 hover:border-gray-300",
+    bg: "bg-gray-200 dark:bg-gray-700 dark:text-white border border-gray-200 dark:border-gray-700 rounded-md",
+    hover:
+      "hover:bg-gray-100 hover:dark:bg-gray-700 hover:text-gray-300 hover:border-gray-300 hover:dark:border-gray-600",
     text: "text-gray-600",
     ring: "ring-gray-500/10",
   },

@@ -7,22 +7,33 @@ import {
     Package,
     Clock,
     RefreshCw,
-    AlertCircle
+    AlertCircle,
+    Copy,
+    Edit,
+    FileText,
+    Printer,
+    Eye,
+    Image,
+    ImageDown,
+    MessageCircle,
 } from "lucide-react"
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
 import { useGetWithFiltersMutation, usePutGeneralMutation } from "@/hooks/api/api"
-import { useEffect, useState, useCallback } from "react"
-import { TablaPedidos } from "./components/table"
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { LoadingSection } from "@/template/loading-screen"
-import { useForm } from "react-hook-form"
 import Pagination from "@/components/pagination"
-import { BentoGrid, BentoItem } from "@/components/bento-grid"
 import { usePedidosSignalR } from './utils/singalr-pedidos';
 import { ModalList } from './components/modal-list';
 import Header from '@/template/header';
 import Footer from '@/template/footer';
 import { ModalChat } from './components/modal-chat';
+import DynamicTable from "@/components/table";
+import MainForm from "@/components/form/main-form";
+import { Modal } from "@/components/modal";
+import { Button } from "@/components/button";
+import { formatValue } from "@/utils/constants/format-values";
+import { CountdownTimer } from '@/components/counter-down';
 
 type Filtro = { Key: string; Value: any; Operator: string };
 type ActiveFilters = {
@@ -83,56 +94,27 @@ interface Pedido {
     tiempo_restante?: number;
 }
 
-interface EstadisticasPedidos {
-    total_pedidos: number;
-    pedidos_nuevos: number;
-    pedidos_proceso: number;
-    pedidos_listos: number;
-    pedidos_entregados: number;
-    pedidos_cancelados: number;
-    total_pickup: number;
-    total_domicilio: number;
-    promedio_tiempo_entrega: number;
-    pedidos_urgentes: number;
-}
-
 export default function GestionPedidos() {
     const [pedidos, setPedidos] = useState<Pedido[]>([])
-    const [pedidoSeleccionadoId, setPedidoSeleccionadoId] = useState<number | null>(null)
     const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null)
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false); // refresco silencioso (SignalR / countdown)
+    const [error, setError] = useState<string | null>(null);
     const [getWithFilter] = useGetWithFiltersMutation();
-    const [tipoFiltro, setTipoFiltro] = useState<'todos' | 'pickup' | 'domicilio'>('todos');
-    const [estadoFiltro, setEstadoFiltro] = useState<string>('todos');
+    const [putGeneral] = usePutGeneralMutation();
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-        Filtros: [{	
-            Key:"listas.estado",
-            Operator:"<>",
-            Value:"cancelado"
-        }],
+        Filtros: [{ Key: "listas.estado", Operator: "<>", Value: "cancelado" }],
         Selects: [],
         OrderBy: null,
         sum: false,
         distinct: false
     });
 
-    const [estadisticas, setEstadisticas] = useState<EstadisticasPedidos>({
-        total_pedidos: 0,
-        pedidos_nuevos: 0,
-        pedidos_proceso: 0,
-        pedidos_listos: 0,
-        pedidos_entregados: 0,
-        pedidos_cancelados: 0,
-        total_pickup: 0,
-        total_domicilio: 0,
-        promedio_tiempo_entrega: 0,
-        pedidos_urgentes: 0
-    });
-
-    const { handleSubmit, register, reset } = useForm();
     const dispatch = useAppDispatch();
 
     // Función para parsear array_lista y calcular total
@@ -146,7 +128,6 @@ export default function GestionPedidos() {
                 total = items.reduce((sum, item) => sum + (item.precio * item.quantity), 0);
             }
         } catch (error) {
-            //console.error('Error parsing array_lista:', error);
             items = [];
         }
 
@@ -154,7 +135,6 @@ export default function GestionPedidos() {
             if (estado !== 'nuevo' && estado !== 'proceso') {
                 return { urgencia: 'baja', tiempo_restante: 0 };
             }
-
             if (!fechaCita) return { urgencia: 'baja', tiempo_restante: 0 };
 
             const ahora = new Date();
@@ -205,36 +185,57 @@ export default function GestionPedidos() {
         };
     }
 
-    const ordenarPedidos = (a: Pedido, b: Pedido) => {
-        const prioridadEstado = { 'nuevo': 5, 'proceso': 4, 'listo': 3, 'entregado': 2, 'cancelado': 1, 'incompleto': 1 };
-        const prioridadUrgencia = { 'alta': 3, 'media': 2, 'baja': 1 };
+    // Formatear pedido para DynamicTable
+    const formatPedidoForTable = (pedido: Pedido) => {
+        const getEstadoBadge = (estado: string) => {
+            const colors: Record<string, string> = {
+                nuevo: 'bg-blue-100 text-blue-800',
+                proceso: 'bg-yellow-100 text-yellow-800',
+                listo: 'bg-green-100 text-green-800',
+                entregado: 'bg-gray-100 text-gray-800',
+                cancelado: 'bg-red-100 text-red-800',
+                incompleto: 'bg-orange-100 text-orange-800'
+            };
+            return <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[estado] || 'bg-gray-100'}`}>
+                {estado.toUpperCase()}
+            </span>;
+        };
 
-        const pendienteA = a.estado === 'nuevo' || a.estado === 'proceso';
-        const pendienteB = b.estado === 'nuevo' || b.estado === 'proceso';
-
-        if (pendienteA && pendienteB) {
-            const urgA = prioridadUrgencia[a.urgencia || 'baja'];
-            const urgB = prioridadUrgencia[b.urgencia || 'baja'];
-            if (urgA !== urgB) return urgB - urgA;
-
-            const tiempoA = a.tiempo_restante ?? Number.MAX_SAFE_INTEGER;
-            const tiempoB = b.tiempo_restante ?? Number.MAX_SAFE_INTEGER;
-            if (tiempoA !== tiempoB) return tiempoA - tiempoB;
-        } else if (pendienteA !== pendienteB) {
-            return pendienteA ? -1 : 1;
-        }
-
-        if (prioridadEstado[a.estado] !== prioridadEstado[b.estado]) {
-            return prioridadEstado[b.estado] - prioridadEstado[a.estado];
-        }
-
-        const fechaA = a.fecha_entrega ? new Date(a.fecha_entrega).getTime() : new Date(a.fecha_creacion).getTime();
-        const fechaB = b.fecha_entrega ? new Date(b.fecha_entrega).getTime() : new Date(b.fecha_creacion).getTime();
-        return fechaA - fechaB;
+        return {
+            ID: [pedido.id],
+            Cliente: [pedido.nombre || 'N/A', pedido.cliente_telefono],
+            Servicio: [pedido.servicio],
+            Estado: [getEstadoBadge(pedido.estado)],
+            Urgencia: pedido.fecha_entrega
+                ? <CountdownTimer endDate={new Date(pedido.fecha_entrega)} refrech={()=>{}} />
+                : <span className="text-gray-400">N/A</span>,
+            Total: [formatValue(pedido.total, 'currency')],
+            'Fecha Creación': [new Date(pedido.fecha_creacion).toLocaleDateString()],
+            'Fecha Entrega': [pedido.fecha_entrega ? new Date(pedido.fecha_entrega).toLocaleDateString() : 'N/A'],
+            Items: [pedido.items?.length || 0],
+            // Guardamos el objeto original para referencia
+            _original: pedido
+        };
     };
 
-    const fetchPedidos = useCallback(async () => {
-        setIsLoading(true);
+    // Petición en curso: nos permite cancelar una anterior si llega otra antes
+    // de que termine (p.ej. el usuario cambia de página muy rápido, o un
+    // refresco de SignalR llega mientras ya había uno en vuelo). Sin esto,
+    // la respuesta más vieja podía llegar después y pisar datos más nuevos.
+    const peticionActualRef = useRef<{ abort: () => void } | null>(null);
+
+    const fetchPedidos = useCallback(async (opciones?: { silent?: boolean }) => {
+        const silencioso = opciones?.silent ?? false;
+
+        peticionActualRef.current?.abort();
+
+        if (silencioso) {
+            setIsRefreshing(true);
+        } else {
+            setIsLoading(true);
+        }
+        setError(null);
+
         try {
             const filtros: any = {
                 Selects: [
@@ -260,19 +261,23 @@ export default function GestionPedidos() {
                 filtros.Filtros = activeFilters.Filtros;
             }
 
-            const response = await getWithFilter({
+            const peticion = getWithFilter({
                 table: `listas left join clientes on listas.id_cliente = clientes.id`,
-                pageSize: 10,
+                pageSize,
                 page: currentPage,
                 tag: 'Pedidos',
                 filtros: filtros
-            }).unwrap();
+            });
+            peticionActualRef.current = peticion;
+
+            const response = await peticion.unwrap();
 
             if (response && response.data) {
                 setTotalPages(response.totalPages);
+                setTotalRecords(response.totalRecords);
 
                 const pedidosProcesados: Pedido[] = response.data.map(parseListaData);
-                
+
                 const pedidosOrdenados = pedidosProcesados.sort((a, b) => {
                     const estadosActivos = ['nuevo', 'proceso', 'listo'];
                     const esAActivo = estadosActivos.includes(a.estado);
@@ -296,111 +301,92 @@ export default function GestionPedidos() {
                 });
 
                 setPedidos(pedidosOrdenados);
-
-                // Calcular estadísticas
-                const stats: EstadisticasPedidos = {
-                    total_pedidos: response.totalRecords,
-                    pedidos_nuevos: pedidosOrdenados.filter(p => p.estado === 'nuevo').length,
-                    pedidos_proceso: pedidosOrdenados.filter(p => p.estado === 'proceso').length,
-                    pedidos_listos: pedidosOrdenados.filter(p => p.estado === 'listo').length,
-                    pedidos_entregados: pedidosOrdenados.filter(p => p.estado === 'entregado').length,
-                    pedidos_cancelados: pedidosOrdenados.filter(p => p.estado === 'cancelado').length,
-                    total_pickup: pedidosOrdenados.filter(p => p.servicio === 'Pickup').length,
-                    total_domicilio: pedidosOrdenados.filter(p => p.servicio === 'Domicilio').length,
-                    promedio_tiempo_entrega: 45,
-                    pedidos_urgentes: pedidosOrdenados.filter(p =>
-                        (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
-                    ).length
-                };
-                setEstadisticas(stats);
             }
-        } catch (error) {
+        } catch (error: any) {
+            // Si fue cancelada por una petición más nueva, la ignoramos: no es
+            // un error real, solo una respuesta vieja que ya no nos interesa.
+            if (error?.name === 'AbortError' || error?.message === 'Aborted') {
+                return;
+            }
             console.error("Error fetching pedidos:", error);
-            setPedidos([]);
+            setError("No se pudieron cargar los pedidos. Verifica tu conexión e intenta de nuevo.");
+            // Solo limpiamos la tabla si era la carga inicial; en un refresco
+            // silencioso preferimos mantener los últimos datos buenos en pantalla.
+            if (!silencioso) {
+                setPedidos([]);
+            }
         } finally {
-            setIsLoading(false);
+            if (silencioso) {
+                setIsRefreshing(false);
+            } else {
+                setIsLoading(false);
+            }
         }
-    }, [currentPage, activeFilters, getWithFilter]);
+    }, [currentPage, activeFilters, getWithFilter, pageSize]);
 
     useEffect(() => {
         fetchPedidos();
     }, [fetchPedidos]);
 
-    // ✅ Función para calcular estadísticas
-    const calcularEstadisticas = useCallback((listaPedidos: Pedido[]) => {
-        const stats: EstadisticasPedidos = {
-            total_pedidos: listaPedidos.length,
-            pedidos_nuevos: listaPedidos.filter(p => p.estado === 'nuevo').length,
-            pedidos_proceso: listaPedidos.filter(p => p.estado === 'proceso').length,
-            pedidos_listos: listaPedidos.filter(p => p.estado === 'listo').length,
-            pedidos_entregados: listaPedidos.filter(p => p.estado === 'entregado').length,
-            pedidos_cancelados: listaPedidos.filter(p => p.estado === 'cancelado').length,
-            total_pickup: listaPedidos.filter(p => p.servicio === 'Pickup').length,
-            total_domicilio: listaPedidos.filter(p => p.servicio === 'Domicilio').length,
-            promedio_tiempo_entrega: 45,
-            pedidos_urgentes: listaPedidos.filter(p =>
-                (p.estado === 'nuevo' || p.estado === 'proceso') && p.urgencia === 'alta'
-            ).length
+    // Punto único de entrada para refrescos en segundo plano (SignalR y
+    // countdowns que expiran). Se agrupan con un pequeño debounce: si varios
+    // disparadores llegan casi juntos (p.ej. 3 pedidos expiran el mismo
+    // segundo), solo se hace UNA petición en vez de varias simultáneas.
+    const debounceRefrescoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const refrescarSilenciosamente = useCallback(() => {
+        if (debounceRefrescoRef.current) clearTimeout(debounceRefrescoRef.current);
+        debounceRefrescoRef.current = setTimeout(() => {
+            fetchPedidos({ silent: true });
+        }, 300);
+    }, [fetchPedidos]);
+
+    useEffect(() => {
+        return () => {
+            if (debounceRefrescoRef.current) clearTimeout(debounceRefrescoRef.current);
         };
-        setEstadisticas(stats);
     }, []);
 
-    // ✅ HANDLERS CORREGIDOS PARA SIGNALR - SIN DUPLICACIÓN
+    // SignalR
     const handlePedidoActualizado = useCallback((pedidoActualizado: any) => {
         console.log('🔄 Pedido actualizado desde hub:', pedidoActualizado);
-
         setPedidos(prev => {
             const pedidoProcesado = parseListaData(pedidoActualizado);
             const existeIndex = prev.findIndex(p => p.id === pedidoProcesado.id);
-
             if (existeIndex >= 0) {
                 const nuevosPedidos = [...prev];
                 nuevosPedidos[existeIndex] = pedidoProcesado;
-                calcularEstadisticas(nuevosPedidos);
                 return nuevosPedidos;
             } else {
-                const nuevosPedidos = [pedidoProcesado, ...prev];
-                calcularEstadisticas(nuevosPedidos);
-                return nuevosPedidos;
+                return [pedidoProcesado, ...prev];
             }
         });
-    }, [calcularEstadisticas]);
+    }, []);
 
     const handleNuevoPedido = useCallback((nuevoPedido: any) => {
         console.log('🆕 Nuevo pedido desde hub:', nuevoPedido);
         const pedidoProcesado = parseListaData(nuevoPedido);
-
         setPedidos(prev => {
             const existe = prev.some(p => p.id === pedidoProcesado.id);
             if (!existe) {
-                const nuevosPedidos = [pedidoProcesado, ...prev];
-                calcularEstadisticas(nuevosPedidos);
-                return nuevosPedidos;
+                return [pedidoProcesado, ...prev];
             }
             return prev;
         });
-    }, [calcularEstadisticas]);
+    }, []);
 
     const handlePedidoEliminado = useCallback((pedidoId: number) => {
         console.log('🗑️ Pedido eliminado recibido:', pedidoId);
-
-        setPedidos(prev => {
-            const nuevosPedidos = prev.filter(pedido => pedido.id !== pedidoId);
-            calcularEstadisticas(nuevosPedidos);
-            return nuevosPedidos;
-        });
-
-        if (pedidoSeleccionadoId === pedidoId) {
-            setPedidoSeleccionadoId(null);
+        setPedidos(prev => prev.filter(pedido => pedido.id !== pedidoId));
+        if (pedidoSeleccionado?.id === pedidoId) {
+            setPedidoSeleccionado(null);
         }
-    }, [pedidoSeleccionadoId, calcularEstadisticas]);
+    }, [pedidoSeleccionado]);
 
     const handleRefrescarDatos = useCallback(() => {
         console.log('🔄 Refrescando datos por solicitud de sincronización');
-        fetchPedidos();
-    }, [fetchPedidos]);
+        refrescarSilenciosamente();
+    }, [refrescarSilenciosamente]);
 
-    // ✅ SOLO UNA CONEXIÓN SIGNALR - en el componente principal
     const { isConnected } = usePedidosSignalR(
         handlePedidoActualizado,
         handleNuevoPedido,
@@ -408,15 +394,36 @@ export default function GestionPedidos() {
         handleRefrescarDatos
     );
 
-    const handleOpenModal = (pedido: Pedido) => {
-        setPedidoSeleccionadoId(pedido.id);
-        setPedidoSeleccionado(pedido);
-        dispatch(openModalReducer({ modalName: "detalle_pedido" }));
-    }
+    // Manejo de filtros (MainForm)
+    const loadFiltros = (data: any) => {
+        const filtros: Filtro[] = [];
 
-    const [putGeneral] = usePutGeneralMutation();
+        if (data.search) {
+            filtros.push({ Key: "clientes.nombre", Value: data.search, Operator: "like" });
+        }
+        if (data.servicio && data.servicio !== 'todos') {
+            filtros.push({ Key: "listas.servicio", Value: data.servicio, Operator: "=" });
+        }
+        if (data.estado && data.estado !== 'todos') {
+            filtros.push({ Key: "listas.estado", Value: data.estado, Operator: "=" });
+        }
 
-    // ✅ Función para manejar actualizaciones de estado desde el modal
+        setActiveFilters(prev => ({
+            ...prev,
+            Filtros: filtros.length ? filtros : [{ Key: "listas.estado", Operator: "<>", Value: "cancelado" }]
+        }));
+        setCurrentPage(1);
+    };
+
+    const limpiarFiltros = () => {
+        setActiveFilters(prev => ({
+            ...prev,
+            Filtros: [{ Key: "listas.estado", Operator: "<>", Value: "cancelado" }]
+        }));
+        setCurrentPage(1);
+    };
+
+    // Actualización de estado desde modal
     const handleEstadoActualizadoDesdeModal = useCallback(async (pedidoId: number, nuevoEstado: string) => {
         if (!pedidoId) return;
         try {
@@ -427,234 +434,214 @@ export default function GestionPedidos() {
                         "estado": nuevoEstado,
                         "fecha_actualizacion": new Date().toISOString()
                     },
-                    Filtros: [
-                            {
-                                "Key": "ID",
-                                "Value": pedidoId,
-                                "Operator": "="
-                            }
-                        ]
+                    Filtros: [{ "Key": "ID", "Value": pedidoId, "Operator": "=" }]
                 }
             }).unwrap();
 
-            // Actualizar localmente
             setPedidos(prev => prev.map(pedido =>
                 pedido.id === pedidoId
-                    ? {
-                        ...pedido,
-                        estado: nuevoEstado as any,
-                        fecha_actualizacion: new Date().toISOString()
-                    }
+                    ? { ...pedido, estado: nuevoEstado as any, fecha_actualizacion: new Date().toISOString() }
                     : pedido
             ));
-
         } catch (error) {
             console.error("Error actualizando estado desde modal:", error);
-            await fetchPedidos();
+            await fetchPedidos({ silent: true });
         }
     }, [putGeneral, fetchPedidos]);
 
-    const limpiarFiltros = () => {
-        reset();
-        setTipoFiltro('todos');
-        setEstadoFiltro('todos');
-        setActiveFilters(prev => ({
-            ...prev, Filtros: [{
-                Key: "listas.estado",
-                Operator: "<>",
-                Value: "cancelado"
-            }] }));
-        setCurrentPage(1);
-    }
+    // Abrir modal de detalles
+    const handleOpenModal = (pedido: Pedido) => {
+        setPedidoSeleccionado(pedido);
+        dispatch(openModalReducer({ modalName: "detalle_pedido" }));
+    };
 
-    const onSubmit = (data: any) => {
-        const nuevosFiltros: Filtro[] = [];
-
-        if (data.search) {
-            nuevosFiltros.push({
-                Key: "clientes.nombre",
-                Value: data.search,
-                Operator: "like"
-            });
-        }
-
-        if (tipoFiltro !== 'todos') {
-            nuevosFiltros.push({
-                Key: "servicio",
-                Value: tipoFiltro === 'pickup' ? 'Pickup' : 'Domicilio',
-                Operator: "="
-            });
-        }
-
-        if (estadoFiltro !== 'todos') {
-            nuevosFiltros.push({
-                Key: "listas.estado",
-                Value: estadoFiltro,
-                Operator: "="
-            });
-        }
-
-        setActiveFilters(prev => ({
-            ...prev,
-            Filtros: nuevosFiltros
-        }));
-        setCurrentPage(1);
-    }
-
-    const EstadisticasPedidosComponent = ({ stats }: { stats: EstadisticasPedidos }) => (
-        <BentoGrid cols={3} className="mb-6">
-            <BentoItem
-                title="Total Listas"
-                description="Todas las listas"
-                className="bg-blue-50 border-blue-200"
-                icon={<Package className="h-6 w-6 text-blue-600" />}
-            >
-                <div className="text-2xl font-bold text-blue-600">{stats.total_pedidos}</div>
-            </BentoItem>
-
-            <BentoItem
-                title="Urgentes"
-                description="Por atender"
-                className="bg-red-50 border-red-200"
-                icon={<Clock className="h-6 w-6 text-red-600" />}
-            >
-                <div className="text-2xl font-bold text-red-600">{stats.pedidos_urgentes || 0}</div>
-            </BentoItem>
-
-            <BentoItem
-                title="Nuevos"
-                description="Por procesar"
-                className="bg-orange-50 border-orange-200"
-                icon={<AlertCircle className="h-6 w-6 text-orange-600" />}
-            >
-                <div className="text-2xl font-bold text-orange-600">{stats.pedidos_nuevos}</div>
-            </BentoItem>
-        </BentoGrid>
-    );
+    // Preparar datos para DynamicTable
+    // Memoizado: solo se recalcula cuando cambian los pedidos, no en cada
+    // render (p.ej. cuando solo cambia isRefreshing).
+    const tableData = useMemo(() => pedidos.map(p => formatPedidoForTable(p)), [pedidos]);
 
     return (
         <>
             <Header />
-            <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
+            <main className="min-h-screen mx-auto p-4 md:p-6 text-gray-900">
                 <header className="mb-8">
-                    <h1 className="flex items-center text-2xl font-bold md:text-3xl">
-                        <Truck className="mr-2 h-8 w-8 text-blue-600" />
+                    <h1 className="flex items-center text-2xl font-bold md:text-3xl dark:text-white">
                         Gestión de Pedidos
                         {isConnected && (
                             <span className="ml-2 text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                                {isConnected ? '🟢  En tiempo real' : '🔴 Sin conexion'}
+                                🟢 En tiempo real
+                            </span>
+                        )}
+                        {isRefreshing && (
+                            <span className="ml-2 text-xs text-gray-400 flex items-center gap-1">
+                                <RefreshCw className="size-3 animate-spin" /> Actualizando...
                             </span>
                         )}
                     </h1>
-                    <p className="mt-2 text-gray-600">
+                    <p className="mt-2 text-gray-600 dark:text-gray-100 dark:text-gray-300">
                         Administra listas Pick-Up y entregas a domicilio
                     </p>
                 </header>
 
-                <EstadisticasPedidosComponent stats={estadisticas} />
+                {error && (
+                    <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                        <span className="flex items-center gap-2">
+                            <AlertCircle className="size-4 shrink-0" /> {error}
+                        </span>
+                        <button
+                            onClick={() => fetchPedidos()}
+                            className="font-medium underline hover:no-underline shrink-0"
+                        >
+                            Reintentar
+                        </button>
+                    </div>
+                )}
 
-                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                     <article className="p-4">
-                        <header className="mb-6 flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                            <div className="flex flex-wrap items-center gap-3">
-                                <form onSubmit={handleSubmit(onSubmit)} className="flex flex-wrap items-center gap-3">
-                                    <div className="relative flex-1 min-w-[200px]">
-                                        <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                        <input
-                                            type="text"
-                                            {...register("search")}
-                                            placeholder="Buscar por nombre de lista..."
-                                            className="w-full rounded-md border border-gray-300 pl-8 pr-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                        />
-                                    </div>
-
-                                    <select
-                                        value={tipoFiltro}
-                                        onChange={(e) => setTipoFiltro(e.target.value as any)}
-                                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                    >
-                                        <option value="todos">Todos los servicios</option>
-                                        <option value="pickup">Solo Pick-Up</option>
-                                        <option value="domicilio">Solo Domicilio</option>
-                                    </select>
-
-                                    <select
-                                        value={estadoFiltro}
-                                        onChange={(e) => setEstadoFiltro(e.target.value)}
-                                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                    >
-                                        <option value="todos">Todos los estados</option>
-                                        <option value="nuevo">Nuevo</option>
-                                        <option value="proceso">En proceso</option>
-                                        <option value="listo">Listo</option>
-                                        <option value="entregado">Entregado</option>
-                                        <option value="cancelado">Cancelado</option>
-                                    </select>
-
-                                    <button
-                                        type="submit"
-                                        className="flex items-center rounded-md px-3 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                                    >
-                                        <Filter className="mr-1 h-4 w-4" />
-                                        Filtrar
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={limpiarFiltros}
-                                        className="text-sm text-gray-600 hover:text-gray-800 underline"
-                                    >
-                                        Limpiar
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={fetchPedidos}
-                                        className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-100 transition-colors"
-                                        title="Actualizar"
-                                    >
-                                        <RefreshCw className="h-4 w-4" />
-                                    </button>
-                                </form>
-
-                               {/*  <button
+                        <span className="mr-4 flex justify-between">
+                            <label>
+                                <h2 className="text-lg font-semibold dark:text-white">Gestión de articulos</h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-300">
+                                    Mostrando {tableData.length} de {totalRecords} articulos
+                                </p>
+                            </label>
+                        </span>
+                        <dt className="relative flex flex-col gap-2">
+                            {/* Filtros con MainForm */}
+                            <MainForm
+                                message_button="Filtrar"
+                                onSuccess={loadFiltros}
+                                iconButton={<Filter className="mr-1 h-4 w-4" />}
+                                actionType=""
+                                flexDirection="flex-row"
+                                dataForm={[
+                                    {
+                                        type: "Flex",
+                                        require: false,
+                                        elements: [
+                                            {
+                                                name: "search",
+                                                type: "SEARCH",
+                                                label: "Buscar por cliente",
+                                                icon: <Search className="size-4" />,
+                                                placeholder: "Nombre del cliente...",
+                                                require: false,
+                                            },
+                                            {
+                                                name: "servicio",
+                                                type: "SELECT",
+                                                label: "Servicio",
+                                                icon: <Truck className="size-4" />,
+                                                options: [
+                                                    { label: "Todos", value: "todos" },
+                                                    { label: "Pickup", value: "Pickup" },
+                                                    { label: "Domicilio", value: "Domicilio" },
+                                                ],
+                                                placeholder: "Seleccionar servicio",
+                                                require: false,
+                                            },
+                                            {
+                                                name: "estado",
+                                                type: "SELECT",
+                                                label: "Estado",
+                                                icon: <Package className="size-4" />,
+                                                options: [
+                                                    { label: "Todos", value: "todos" },
+                                                    { label: "Nuevo", value: "nuevo" },
+                                                    { label: "En proceso", value: "proceso" },
+                                                    { label: "Listo", value: "listo" },
+                                                    { label: "Entregado", value: "entregado" },
+                                                    { label: "Cancelado", value: "cancelado" },
+                                                ],
+                                                placeholder: "Seleccionar estado",
+                                                require: false,
+                                            },
+                                        ],
+                                    },
+                                ]}
+                            />
+                            <dl className="flex gap-2 ml-auto">
+                                <Button
                                     onClick={() => dispatch(openModalReducer({ modalName: 'chat_general' }))}
-                                    className="flex items-center bg-purple-500 text-white text-sm px-3 py-2 rounded-md cursor-pointer hover:bg-purple-600 transition-colors"
-                                    title="Chat general"
+                                    color="info"
                                 >
-                                    <MessageCircle className="h-4 w-4" />
-                                </button> */}
-                            </div>
-                        </header>
+                                    Chat <MessageCircle className="size-4" />
+                                </Button>
+
+                                <Button
+                                    onClick={() => fetchPedidos()}
+                                    color="success"
+                                >
+                                    Actualizar <RefreshCw className="size-4" />
+                                </Button>
+                            </dl>
+                        </dt>
 
                         <section className="overflow-x-auto">
                             {isLoading ? (
-                                <LoadingSection message="Cargando listas..." />
-                            ) : pedidos.length > 0 ? (
+                                <LoadingSection message="Cargando pedidos..." />
+                            ) : tableData.length > 0 ? (
                                 <>
-                                    <TablaPedidos
-                                        data={pedidos}
-                                        onViewDetails={handleOpenModal}
-                                        onUpdateStatus={handleEstadoActualizadoDesdeModal}
+                                    <DynamicTable
+                                        data={tableData}
+                                        contextMenuItems={(row, selected) => {
+                                            const targetRows = selected || [row];
+                                            const original = row._original as Pedido;
+                                            return [
+                                                {
+                                                    label: 'Ver detalles',
+                                                    icon: <Eye size={16} />,
+                                                    onClick: () => handleOpenModal(original),
+                                                },
+                                                {
+                                                    label: 'Copiar ID',
+                                                    icon: <Copy size={16} />,
+                                                    onClick: () => navigator.clipboard.writeText(String(original.id)),
+                                                },
+                                                {
+                                                    label: 'Cambiar estado',
+                                                    icon: <Edit size={16} />,
+                                                    onClick: () => targetRows.forEach(r => {
+                                                        const ped = (r as any)._original as Pedido;
+                                                        // Aquí podrías abrir un modal de cambio rápido
+                                                        console.log('Cambiar estado de', ped.id);
+                                                    }),
+                                                },
+                                                {
+                                                    label: 'Imprimir',
+                                                    icon: <Printer size={16} />,
+                                                    onClick: () => targetRows.forEach(r => {
+                                                        console.log('Imprimir', (r as any)._original.id);
+                                                    }),
+                                                },
+                                            ];
+                                        }}
+                                        onRowClick={(row) => {
+                                            const original = row._original as Pedido;
+                                            handleOpenModal(original);
+                                        }}
                                     />
                                     <div className="p-4">
                                         <Pagination
                                             currentPage={currentPage}
                                             loading={isLoading}
                                             setCurrentPage={setCurrentPage}
+                                            currentPageSize={pageSize}
+                                            onPageSizeChange={setPageSize}
                                             totalPages={totalPages}
                                         />
                                     </div>
                                 </>
-                            ) : (
+                            ) : error ? null : (
                                 <div className="p-8 text-center">
                                     <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                                    <p className="text-gray-500 mb-4">No se encontraron listas con los filtros aplicados.</p>
+                                    <p className="text-gray-500 mb-4">No se encontraron pedidos con los filtros aplicados.</p>
                                     <button
                                         onClick={limpiarFiltros}
                                         className="text-blue-600 hover:text-blue-800 underline"
                                     >
-                                        Ver todas las listas
+                                        Ver todos los pedidos
                                     </button>
                                 </div>
                             )}
@@ -662,20 +649,30 @@ export default function GestionPedidos() {
                     </article>
                 </div>
 
-                {pedidoSeleccionadoId && (
-                    <ModalList
-                        pedidoId={pedidoSeleccionadoId}
-                        onEstadoActualizado={handleEstadoActualizadoDesdeModal}
-                    />
-                )}
-                {pedidoSeleccionado && (
+                {/* Modal de detalles */}
+                <Modal
+                    modalName="detalle_pedido"
+                    title="Detalles del Pedido"
+                    maxWidth="4xl"
+                >
+                    {pedidoSeleccionado && (
+                        <ModalList
+                            pedidoId={pedidoSeleccionado.id}
+                            onEstadoActualizado={handleEstadoActualizadoDesdeModal}
+                        />
+                    )}
+                </Modal>
+
+                {pedidoSeleccionado ? (
                     <ModalChat
-                        telefonoClient={pedidoSeleccionado.cliente_telefono || `general`}
+                        telefonoClient={pedidoSeleccionado.cliente_telefono || 'general'}
                         pedido={pedidoSeleccionado}
                     />
+                ) : (
+                    <ModalChat telefonoClient="general" pedido={null} />
                 )}
             </main>
             <Footer />
         </>
-    )
+    );
 }

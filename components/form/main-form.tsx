@@ -18,7 +18,7 @@ import { CheckboxComponent as Checkbox } from "./checkbox";
 import { CheckboxGroupComponent as CheckboxGroup } from "./checkbox-group";
 
 import { CalendarComponent as Calendar } from "./calendar";
-import { DateRangeComponent as DateRange } from "./date-range";
+import { DateRangeComponent as DateRange } from "./date";
 
 import { Rating } from "./rating";
 
@@ -34,10 +34,13 @@ import { useAppDispatch } from "@/hooks/selector";
 import { openAlertReducer } from "@/hooks/reducers/drop-down";
 import { usePostGeneralMutation, usePostImgMutation, usePutGeneralMutation } from "@/hooks/api/api";
 import { setLocalStorageItem } from "@/utils/functions/local-storage";
+import { cn } from "@/utils/functions/cn";
+import { usePostIntelisisMutation, usePutIntelisisMutation } from "@/hooks/api/api_int";
 
 export const MainForm = React.forwardRef(({
   message_button,
   dataForm,
+  flexDirection = "flex-col",
   actionType,
   aditionalData,
   showButton = true,
@@ -116,10 +119,13 @@ export const MainForm = React.forwardRef(({
 
   const [postUserLogin] = useLoginUserMutation();
   const [postGeneral] = usePostGeneralMutation();
-  const [putProject] = usePutGeneralMutation();
+  const [portInt] = usePostIntelisisMutation();
+  const [putGeneral] = usePutGeneralMutation();
+  const [putInt] = usePutIntelisisMutation()
   const [postImg] = usePostImgMutation(); // Hook para subir imágenes
 
   async function getMutationFunction(actionType: string, data: FormData | any) {
+    const { id, ...restData } = data;
     switch (actionType) {
       case "post-login":
         return await postUserLogin(data).unwrap().then(() => {
@@ -131,9 +137,23 @@ export const MainForm = React.forwardRef(({
           data: data,
           signal: new AbortController().signal,
         }).unwrap();
+      case "post-intelisis":
+        return await portInt({
+          table: table,
+          data: data,
+          signal: new AbortController().signal,
+        }).unwrap();
       case "put-general":
-        const { id, ...restData } = data;
-        return await putProject({
+        return await putGeneral({
+          table: table,
+          data: {
+            Data: restData,
+            Filtros: [{ Key: "id", Value: aditionalData.id, Operator: "=" }]
+          },
+          signal: new AbortController().signal,
+        }).unwrap();
+      case "put-intelisis":
+        return await putInt({
           table: table,
           data: {
             Data: restData,
@@ -318,41 +338,72 @@ export const MainForm = React.forwardRef(({
   return (
     <form
       ref={ref}
-      onSubmit={(e) => {
-        e.preventDefault(); // doble seguridad
-        handleSubmit(onSubmit)(e);
-      }}
-      className="relative w-full space-y-2 my-2 m-auto">
-      {pages[page].map((field: any, key: any) => (
-        <SwitchTypeInputRender
-          key={key}
-          cuestion={field}
-          control={control}
-          register={register}
-          watch={watch}
-          clearErrors={clearErrors}
-          setError={setError}
-          errors={errors}
-          getValues={getValues}
-          setValue={setValue}
-        />
-      ))}
+      onSubmit={handleSubmit(onSubmit)}
+      method="post"
+      className={cn(
+        "relative flex w-full my-2 m-auto gap-2",
+        flexDirection,
+        // En row, necesitamos items-end para que el div del botón se alinee abajo
+        flexDirection === "flex-row" && "items-end"
+      )}
+    >
+      <div className="flex flex-col gap-4 w-full">
+        {pages[page].map((field: any, key: any) => (
+          <SwitchTypeInputRender
+            key={key}
+            cuestion={field}
+            control={control}
+            register={register}
+            watch={watch}
+            clearErrors={clearErrors}
+            setError={setError}
+            errors={errors}
+            getValues={getValues}
+            setValue={setValue}
+          />
+        ))}
+      </div>
 
-      {showButton && (<div className="flex justify-between mt-4">
-        {page > 0 && (
-          <Button color="success" type="button" size="small" label="Anterior" onClick={() => handlePageChange(page - 1)} />
-        )}
-        {page < pages.length - 1 ? (
-          <Button color="success" aling="ml-auto" size="small" type="button" label="Siguiente" onClick={() => handlePageChange(page + 1)} />
-        ) : (
-          <button
-            className="float-right ml-auto cursor-pointer flex gap-2 items-center rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
-            type="submit"
-            slot="end"
-            disabled={loading}
-          >{iconButton ? iconButton : <CircleCheckBig className="size-4" />}{loading ? "Loading..." : message_button}</button>
-        )}
-      </div>)}
+      {showButton && (
+        <div
+          className={cn(
+            "flex gap-2",
+            flexDirection === "flex-row"
+              // row: columna de botones pegada al borde inferior derecho, sin crecer
+              ? "flex-col justify-end items-end shrink-0 self-end"
+              // col: fila con prev/next separados
+              : "flex-row justify-between w-full"
+          )}
+        >
+          {page > 0 && (
+            <Button
+              color="success"
+              type="button"
+              size="small"
+              label="Anterior"
+              onClick={() => handlePageChange(page - 1)}
+            />
+          )}
+          {page < pages.length - 1 ? (
+            <Button
+              color="success"
+              size="small"
+              type="button"
+              label="Siguiente"
+              onClick={() => handlePageChange(page + 1)}
+            />
+          ) : (
+            <Button
+              color="success"
+              type="submit"
+              disabled={loading}
+            >
+              {iconButton ? iconButton : <CircleCheckBig className="size-4" />}
+              {loading ? "Loading..." : message_button}
+            </Button>
+          )}
+        </div>
+      )}
     </form>
   );
 });

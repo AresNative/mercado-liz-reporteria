@@ -279,14 +279,14 @@ export default function ProjectsPage() {
                 return (
                     <BentoItem
                         key={project.id}
-                        className="bg-white dark:bg-zinc-800 shadow border-l-2 border-l-green-500 rounded-2xl px-3 py-2 hover:shadow-md transition-all flex-1 min-w-[200px] relative group"
+                        className="bg-white dark:bg-gray-800 shadow border-l-2 border-l-green-500 rounded-2xl px-3 py-2 hover:shadow-md transition-all flex-1 min-w-[200px] relative group"
                     >
                         <div
                             className="cursor-pointer"
                             onClick={() => setProjectId(project.id)}
                         >
-                            <label className="flex gap-2 items-center cursor-pointer uppercase">
-                                <SquareChevronRight className="size-4 text-green-800 dark:text-green-200" />
+                            <label className="flex gap-2 items-center cursor-pointer uppercase text-green-800 dark:text-white">
+                                <SquareChevronRight className="size-4" />
                                 {project.nombre}
                             </label>
                             <div className="flex justify-between items-center gap-2 mt-2">
@@ -298,14 +298,14 @@ export default function ProjectsPage() {
                                 </section>
                             </div>
                         </div>
-                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity dark:text-white">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedProject(project);
                                     dispatch(openModalReducer({ modalName: "edit-project" }));
                                 }}
-                                className="p-1 bg-gray-200 dark:bg-zinc-700 rounded-full hover:bg-gray-300"
+                                className="p-1 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300"
                                 title="Editar"
                             >
                                 <Edit size={14} />
@@ -315,7 +315,7 @@ export default function ProjectsPage() {
                                     e.stopPropagation();
                                     handleDeleteProject(project.id, project.nombre);
                                 }}
-                                className="p-1 bg-gray-200 dark:bg-zinc-700 rounded-full hover:bg-red-200 dark:hover:bg-red-800"
+                                className="p-1 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-red-200 dark:hover:bg-red-800"
                                 title="Eliminar"
                             >
                                 <Trash2 size={14} />
@@ -347,27 +347,27 @@ export default function ProjectsPage() {
                             className="flex-1 cursor-pointer"
                             onClick={() => setSprintId(sprint.id)}
                         >
-                            <label className="flex gap-2 items-center cursor-pointer uppercase text-sm">
+                            <label className="flex gap-2 items-center cursor-pointer uppercase text-sm dark:text-white">
                                 <ClipboardListIcon className="size-4 text-blue-500" />
                                 {sprint.nombre}
                                 <span className="flex gap-2">
                                     <Hash className="text-cyan-600" /> {sprint.id}
                                 </span>
                             </label>
-                            <div className="flex items-center gap-2 justify-between mt-1">
+                            <div className="flex items-center gap-2 justify-between mt-1 dark:text-white">
                                 <section className="flex flex-col">
                                     <span className="text-sm">{formatted}</span>
                                 </section>
                             </div>
                         </div>
-                        <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity dark:text-white">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedSprint(sprint);
                                     dispatch(openModalReducer({ modalName: "edit-sprint" }));
                                 }}
-                                className="p-1 bg-gray-200 dark:bg-zinc-700 rounded-full hover:bg-gray-300"
+                                className="p-1 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300"
                                 title="Editar"
                             >
                                 <Edit size={14} />
@@ -377,7 +377,7 @@ export default function ProjectsPage() {
                                     e.stopPropagation();
                                     handleDeleteSprint(sprint.id, sprint.nombre);
                                 }}
-                                className="p-1 bg-gray-200 dark:bg-zinc-700 rounded-full hover:bg-red-200 dark:hover:bg-red-800"
+                                className="p-1 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-red-200 dark:hover:bg-red-800"
                                 title="Eliminar"
                             >
                                 <Trash2 size={14} />
@@ -396,10 +396,10 @@ export default function ProjectsPage() {
     return (
         <>
             <Header />
-            <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
+            <main className="min-h-screen mx-auto p-4 md:p-6 text-gray-900">
                 <ul className="flex justify-between items-center">
                     <header className="mb-8 flex flex-col">
-                        <h1 className="flex items-center text-2xl font-bold md:text-3xl">Scrum</h1>
+                        <h1 className="flex items-center text-2xl font-bold md:text-3xl dark:text-white">Scrum</h1>
                         <p className="mt-2 text-gray-600 dark:text-gray-100">Gestiona proyectos y actividades de mejor manera</p>
                         {showBackButton && (
                             <button

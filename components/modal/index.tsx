@@ -38,7 +38,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
     }, [isOpen])
 
     const handleBackdropClick = () => {
-        dispatch(closeModalReducer({ modalName }));
+        modalName && dispatch(closeModalReducer({ modalName }));
     };
 
     const maxWidthClasses = {
@@ -89,7 +89,7 @@ export function Modal({ modalName, title, children, maxWidth = "2xl" }: ModalPro
                         )}
                     >
                         {/* Botón de cierre y título */}
-                        <form method="dialog" className="sticky top-0 z-40 backdrop-blur-2xl bg-white/80 flex items-center justify-between gap-2 m-2 border-b py-2 border-gray-200">
+                        <form method="dialog" className="sticky top-0 z-40 backdrop-blur-2xl bg-white/80 dark:bg-gray-900 flex items-center justify-between gap-2 m-2 border-b py-2 border-gray-200 dark:border-gray-800">
                             <h3
                                 id="modal-title"
                                 className="absolute left-0 right-0 text-center text-gray-900 dark:text-white pointer-events-none"

@@ -27,6 +27,11 @@ export const filterData = createSlice({
       state[searchKey] = { type: "form", value: action.payload };
       return state;
     },
+    filterGroup: (state, action: PayloadAction<string>) => {
+      const searchKey = "search";
+      state[searchKey] = { type: "form", value: action.payload };
+      return state;
+    },
     clearFilters: () => {
       return initialState;
     },

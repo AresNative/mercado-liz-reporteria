@@ -566,14 +566,14 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
 
                     {/* Header */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        <div className="space-y-2 text-sm">
+                        <div className="space-y-2 text-sm dark:text-white">
                             <h3 className="font-semibold text-base border-b border-gray-200 pb-1.5">Información General</h3>
                             <p><span className="text-gray-500">ID Lista:</span> <strong>{pedidoSeleccionado.id}</strong></p>
                             <p><span className="text-gray-500">Cliente:</span> <strong>{pedidoSeleccionado.nombre}</strong></p>
                             <p><span className="text-gray-500">Tipo:</span> {pedidoSeleccionado.tipo_lista}</p>
                             <p><span className="text-gray-500">Creado:</span> {formatDate(pedidoSeleccionado.fecha_creacion)}</p>
                         </div>
-                        <div className="space-y-2 text-sm">
+                        <div className="space-y-2 text-sm dark:text-white">
                             <h3 className="font-semibold text-base border-b border-gray-200 pb-1.5">Estado y Servicio</h3>
                             <div className="flex items-center gap-2">
                                 <span className="text-gray-500">Servicio:</span>
@@ -581,7 +581,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                     {pedidoSeleccionado.servicio}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 dark:text-white">
                                 <span className="text-gray-500">Estado:</span>
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getEstadoBadgeClass(pedidoSeleccionado.estado)}`}>
                                     {ESTADO_META[pedidoSeleccionado.estado]?.label ?? pedidoSeleccionado.estado}
@@ -594,7 +594,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                 </div>
                             )}
                         </div>
-                        <div className="space-y-2 text-sm">
+                        <div className="space-y-2 text-sm dark:text-white">
                             <h3 className="font-semibold text-base border-b border-gray-200 pb-1.5">Resumen Financiero</h3>
                             <div className="flex justify-between"><span className="text-gray-500">Subtotal:</span><span>{formatValue(pedidoSeleccionado.subtotal, "currency")}</span></div>
                             {pedidoSeleccionado.descuentoTotal > 0 && (
@@ -606,10 +606,10 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
 
                     {/* Barra de progreso */}
                     {productosReales.length > 0 && (
-                        <div className="bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-100">
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-3 border border-gray-100 dark:border-gray-700">
                             <div className="flex items-center justify-between text-sm font-medium">
-                                <span className="text-gray-700">Progreso de recolección</span>
-                                <span className="text-gray-500">{pct}%</span>
+                                <span className="text-gray-700 dark:text-gray-200">Progreso de recolección</span>
+                                <span className="text-gray-500 dark:text-gray-300">{pct}%</span>
                             </div>
                             <div className="h-3 rounded-full bg-gray-200 overflow-hidden flex gap-0.5">
                                 {recolectados > 0 && <div className="h-full bg-emerald-500 transition-all duration-500 rounded-l-full" style={{ width: `${(recolectados / productosReales.length) * 100}%` }} />}
@@ -617,9 +617,9 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                 {pendientes > 0 && <div className="h-full bg-gray-200 flex-1 rounded-r-full" />}
                             </div>
                             <div className="flex flex-wrap gap-4 text-xs">
-                                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-emerald-500 inline-block" /><span className="text-gray-600">Recolectados: <strong className="text-emerald-700">{recolectados}</strong></span></div>
-                                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-red-400 inline-block" /><span className="text-gray-600">No encontrados: <strong className="text-red-600">{noEncontrados}</strong></span></div>
-                                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-gray-300 inline-block" /><span className="text-gray-600">Pendientes: <strong>{pendientes}</strong></span></div>
+                                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-emerald-500 inline-block" /><span className="text-gray-600 dark:text-gray-300">Recolectados: <strong className="text-emerald-700">{recolectados}</strong></span></div>
+                                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-red-400 inline-block" /><span className="text-gray-600 dark:text-gray-300">No encontrados: <strong className="text-red-600">{noEncontrados}</strong></span></div>
+                                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-gray-300 inline-block" /><span className="text-gray-600 dark:text-gray-300">Pendientes: <strong>{pendientes}</strong></span></div>
                             </div>
                             {pct === 100 && noEncontrados === 0 && <p className="text-xs text-emerald-700 flex items-center gap-1 font-medium"><CheckCircle2 className="size-3.5" /> ¡Todos los productos recolectados! El pedido se marcó como <strong>Listo</strong>.</p>}
                             {noEncontrados > 0 && pendientes === 0 && <p className="text-xs text-orange-600 flex items-center gap-1 font-medium"><AlertTriangle className="size-3.5" /> Hay productos no encontrados. El pedido se marcó como <strong>Incompleto</strong>.</p>}
@@ -629,10 +629,10 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
 
                     {/* Tabla de productos */}
                     <div className="overflow-x-auto">
-                        <h3 className="font-semibold text-base mb-3">Productos en la Lista <span className="text-sm font-normal text-gray-400">({pedidoSeleccionado.items.length} items)</span></h3>
-                        <div className="border border-gray-200 rounded-xl overflow-auto">
+                        <h3 className="font-semibold text-base mb-3 dark:text-white">Productos en la Lista <span className="text-sm font-normal text-gray-400">({pedidoSeleccionado.items.length} items)</span></h3>
+                        <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-auto">
                             <table className="w-full text-sm">
-                                <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                                <thead className="bg-gray-50 dark:bg-gray-800 text-gray-500 text-xs uppercase tracking-wide">
                                     <tr>
                                         <th className="px-3 py-2.5 text-center w-10">✓</th>
                                         <th className="px-3 py-2.5 text-center w-10">⚠️</th>
@@ -648,7 +648,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                         const isNo = item.noEncontrado;
                                         const isRec = item.recolectado;
                                         const esServicio = item.esServicio || item.codigo === "SPICKUP";
-                                        let rowClass = 'border-t border-gray-100 transition-colors ';
+                                        let rowClass = 'border-t border-gray-100 dark:border-gray-700 transition-colors';
                                         if (isNo) rowClass += 'bg-red-50 hover:bg-red-100/70';
                                         else if (isRec) rowClass += 'bg-emerald-50 hover:bg-emerald-100/70';
                                         else if (esServicio) rowClass += 'bg-blue-50 hover:bg-blue-100/70';
@@ -659,7 +659,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                                     <button
                                                         onClick={() => !isNo && handleToggleRecolectado(pedidoSeleccionado.id, item.id, !isRec)}
                                                         disabled={isNo}
-                                                        className={`size-6 rounded-full border-2 flex items-center justify-center mx-auto transition-all ${isNo ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-40' : isRec ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600' : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50'}`}
+                                                        className={`size-6 rounded-full border-2 flex items-center justify-center mx-auto transition-all ${isNo ? 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-40' : isRec ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600' : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50'}`}
                                                     >
                                                         {isRec && <CheckCircle2 className="size-3.5" />}
                                                     </button>
@@ -668,12 +668,12 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                                     <button
                                                         onClick={() => !isRec && handleToggleNoEncontrado(pedidoSeleccionado.id, item.id, !isNo)}
                                                         disabled={isRec}
-                                                        className={`size-6 rounded-full border-2 flex items-center justify-center mx-auto transition-all ${isRec ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-40' : isNo ? 'border-red-500 bg-red-500 text-white hover:bg-red-600' : 'border-gray-300 hover:border-red-400 hover:bg-red-50'}`}
+                                                        className={`size-6 rounded-full border-2 flex items-center justify-center mx-auto transition-all ${isRec ? 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-40' : isNo ? 'border-red-500 bg-red-500 text-white hover:bg-red-600' : 'border-gray-300 hover:border-red-400 hover:bg-red-50'}`}
                                                     >
                                                         {isNo && <XCircle className="size-3.5" />}
                                                     </button>
                                                 </td>
-                                                <td className="px-4 py-3">
+                                                <td className="px-4 py-3 dark:text-white">
                                                     <div className={`font-medium flex flex-col ${isNo ? 'line-through text-red-500' : ''}`}>
                                                         <div className="flex items-center gap-2 flex-wrap">
                                                             <span>{item.nombre || item.descripcion}</span>
@@ -685,9 +685,9 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-gray-500 text-xs">{item.categoria || 'Servicio'}</td>
-                                                <td className="px-4 py-3 text-center"><span className={`font-medium ${isNo ? 'line-through text-gray-400' : ''}`}>{item.quantity}</span><span className="text-xs text-gray-400 ml-1">{item.unidad}</span></td>
-                                                <td className="px-4 py-3 text-right">{renderPrecio(item)}</td>
-                                                <td className={`px-4 py-3 text-right font-medium ${isNo ? 'line-through text-red-400' : ''}`}>{formatValue(calcularSubtotalItem(item), "currency")}</td>
+                                                <td className="px-4 py-3 text-center dark:text-white"><span className={`font-medium ${isNo ? 'line-through text-gray-400' : ''}`}>{item.quantity}</span><span className="text-xs text-gray-400 ml-1">{item.unidad}</span></td>
+                                                <td className="px-4 py-3 text-right dark:text-white">{renderPrecio(item)}</td>
+                                                <td className={`px-4 py-3 text-right font-medium dark:text-white ${isNo ? 'line-through text-red-400' : ''}`}>{formatValue(calcularSubtotalItem(item), "currency")}</td>
                                             </tr>
                                         );
                                     })}
@@ -697,7 +697,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                     </div>
 
                     {/* Panel de control */}
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
                         <div className="flex flex-wrap gap-4 items-start justify-between">
                             {pedidoSeleccionado.estado !== 'entregado' && (
                                 <div className="flex gap-2 flex-wrap">

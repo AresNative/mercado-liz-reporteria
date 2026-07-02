@@ -9,7 +9,7 @@ export interface RequestPayload {
   table: string;
   filtros: {
     selects?: Array<{ Key: string; Alias?: string }>;
-    agregaciones?: Array<{ Key: string; Alias: string; Operation: string }>;
+    agregaciones?: Array<{ Key: string; Alias?: string; Operation: string }>;
     FiltrosAnd?: Array<{
       Filtros?: Array<{ Key: string; Operator: string; Value?: any }>;
       OperadorLogico?: "AND" | "OR";

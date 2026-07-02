@@ -1,27 +1,29 @@
 "use client"
 
 import {
+    Building,
+    Clock,
     Filter,
     MessageCircle,
-    Plus,
-    RefreshCw
+    RefreshCw,
+    Search
 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
-import { useGetWithFiltersMutation } from "@/hooks/api/api"
+import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int"
 
 import { LoadingSection } from "@/template/loading-screen"
 
 import Pagination from "@/components/pagination"
 import DynamicTable from "@/components/table"
 import { Modal } from "@/components/modal"
-import { BentoGrid, BentoItem } from "@/components/bento-grid"
 import { ModalDetallesEmpleado } from "./components/detalles-empleado"
 import Footer from "@/template/footer"
 import Header from "@/template/header"
 import MainForm from "@/components/form/main-form"
+import { Button } from "@/components/button"
 
 // Definir interfaces para tipado fuerte basado en los datos reales
 interface Empleado {
@@ -77,21 +79,16 @@ interface FiltrosForm {
     puesto: string;
 }
 
-interface EstadisticasEmpleados {
-    totalRecords: number;
-    empleadosActivos: number;
-    empleadosInactivos: number;
-    topDepartamentos: [string, number][];
-}
-// Hook personalizado para la gestión de empleados
-const useEmpleados = () => {
+export default function Empleados() {
+    const dispatch = useAppDispatch();
     const [empleados, setEmpleados] = useState<Empleado[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [getWithFilter] = useGetWithFiltersMutation();
+    const [getWithFilter] = useGetWithFiltersIntelisisMutation();
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [],
@@ -106,11 +103,11 @@ const useEmpleados = () => {
         setIsLoading(true);
         setError(null);
         console.log(activeFilters);
-        
+
         try {
             const response = await getWithFilter({
-                table: "empleados",
-                pageSize: "10",
+                table: "personal",
+                pageSize: pageSize,
                 page: currentPage,
                 filtros: {
                     Filtros: activeFilters.Filtros,
@@ -134,45 +131,11 @@ const useEmpleados = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, activeFilters, setActiveFilters]);
+    }, [currentPage, activeFilters, setActiveFilters, pageSize]);
 
     useEffect(() => {
         fetchEmpleados();
-    }, []);
-
-    return {
-        empleados,
-        currentPage,
-        totalPages,
-        totalRecords,
-        isLoading,
-        error,
-        setCurrentPage,
-        setActiveFilters,
-        refetch: fetchEmpleados
-    };
-};
-
-export default function Empleados() {
-    const dispatch = useAppDispatch();
-    const {
-        empleados,
-        currentPage,
-        totalPages,
-        totalRecords,
-        isLoading,
-        error,
-        setCurrentPage,
-        setActiveFilters,
-        refetch
-    } = useEmpleados();
-
-/*     const {
-        estadisticas,
-        isLoading: isLoadingEstadisticas,
-        error: errorEstadisticas,
-        refetch: refetchEstadisticas
-    } = useEstadisticasEmpleados(); */
+    }, [fetchEmpleados]);
 
     const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null);
 
@@ -183,9 +146,10 @@ export default function Empleados() {
         if (data.search) {
             nuevosFiltrosAnd.push({
                 Filtros: [
-                    { Key: "nombre", Value: data.search, Operator: "like" },
-                    { Key: "apellido", Value: data.search, Operator: "like" },
-                    { Key: "email", Value: data.search, Operator: "like" }
+                    { Key: "Nombre", Value: data.search, Operator: "like" },
+                    { Key: "ApellidoPaterno", Value: data.search, Operator: "like" },
+                    { Key: "ApellidoMaterno", Value: data.search, Operator: "like" },
+                    { Key: "personal", Value: data.search, Operator: "like" },
                 ], OperadorLogico: "OR"
             } as any);
         }
@@ -201,13 +165,12 @@ export default function Empleados() {
         if (data.estado) {
             nuevosFiltros.push({ Key: "estado", Value: data.estado, Operator: "=" });
         }
-        console.log(nuevosFiltros, data);
         
         setActiveFilters(prev => ({
             ...prev,
             FiltrosAnd: nuevosFiltrosAnd,
             Filtros: nuevosFiltros
-        })); setCurrentPage(1);
+        }));
     };
 
     const limpiarFiltros = () => {
@@ -223,129 +186,83 @@ export default function Empleados() {
     };
 
     const handleRefetchAll = () => {
-        refetch();
-       /*  refetchEstadisticas(); */
+        fetchEmpleados();
     };
 
     return (
         <>
             <Header />
-            <main className="min-h-screen mx-auto max-w-7xl p-4 md:p-6 text-gray-900">
+            <main className="min-h-screen mx-auto p-4 md:p-6 text-gray-900">
                 <header className="mb-8">
-                    <h1 className="flex items-center text-2xl font-bold md:text-3xl">
+                    <h1 className="flex items-center text-2xl font-bold md:text-3xl dark:text-white">
                         Portal de Empleados
                     </h1>
-                    <p className="mt-2 text-gray-600 dark:text-gray-100">
+                    <p className="mt-2 text-gray-600 dark:text-gray-300">
                         Gestiona y visualiza todos los empleados de la organización
                     </p>
                 </header>
 
-                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                     <article className="p-4">
-                        <header className="mb-6 flex flex-col gap-2 space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                            <div className="mr-4">
-                                <h2 className="text-lg font-semibold">Gestión de Empleados</h2>
-                                <p className="text-sm text-gray-500">
-                                    Mostrando {empleados.length} de {totalRecords} empleados
-                                </p>
-                            </div>
+                        <span className="mr-4">
+                            <h2 className="text-lg font-semibold dark:text-white">Gestión de Empleados</h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-300">
+                                Mostrando {empleados.length} de {totalRecords} empleados
+                            </p>
+                        </span>
+                        <dt className="relative flex flex-col gap-2">
                             <MainForm
                                 message_button={"Filtrar"}
                                 onSuccess={loadEmpleados}
                                 iconButton={<Filter className="mr-1 h-4 w-4" />}
-                                actionType={"search"}
+                                actionType={""}
+                                flexDirection="flex-row"
                                 dataForm={[
-                                    {
-                                        name: "search",
-                                        type: "SEARCH",
-                                        label: "",
-                                        icon: <></>,
-                                        placeholder: "Busar por nombre, email...",
-                                        require: true,
-                                    },
                                     {
                                         type: "Flex",
                                         require: false,
                                         elements: [
                                             {
+                                                name: "search",
+                                                type: "SEARCH",
+                                                label: "Busqueda rapida",
+                                                icon: <Search className="size-4" />,
+                                                placeholder: "Busar por nombre, apellidos, num. personal...",
+                                                require: true,
+                                            },
+                                            {
                                                 name: "departamento",
                                                 type: "SELECT",
-                                                label: "",
-                                                icon: <></>,
+                                                label: "Selecciona la sucursal",
+                                                icon: <Building className="size-4" />,
                                                 options: [
-                                                    { label: "Todos los departamentos", value: "" },
-                                                    { label: "Mayoreo Cajas", value: "MAYOREO CAJAS" },
-                                                    { label: "Administración", value: "ADMINISTRACION" },
-                                                    { label: "Ventas", value: "VENTAS" },
-                                                    { label: "Logística", value: "LOGISTICA" },
-                                                    { label: "Recursos Humanos", value: "RECURSOS HUMANOS" },
+                                                    { label: "Mayoreo", value: "4" },
+                                                    { label: "Guadalupe", value: "1" },
+                                                    { label: "Testerazo", value: "2" },
+                                                    { label: "Palmas", value: "3" },
                                                 ],
-                                                placeholder: "Todos los departamentos",
-                                                require: false,
-                                            }, {
-                                                name: "puesto",
-                                                type: "SELECT",
-                                                label: "",
-                                                icon: <></>,
-                                                options: [
-                                                    { label: "Todos los puestos", value: "" },
-                                                    { label: "Cajera", value: "CAJERA" },
-                                                    { label: "Gerente", value: "GERENTE" },
-                                                    { label: "Asesor", value: "ASESOR" },
-                                                    { label: "Auxiliar", value: "AUXILIAR" },
-                                                    { label: "Supervisor", value: "SUPERVISOR" },
-                                                ],
-                                                placeholder: "Todos los puestos",
-                                                require: false,
-                                            }, {
-                                                name: "estado",
-                                                type: "SELECT",
-                                                label: "",
-                                                icon: <></>,
-                                                options: [
-                                                    { label: "Todos los estados", value: "" },
-                                                    { label: "Activo", value: "Activo" },
-                                                    { label: "Inactivo", value: "Inactivo" },
-                                                ],
-                                                placeholder: "Todos los estados",
+                                                placeholder: "Todas las sucursales",
                                                 require: false,
                                             },
                                         ],
                                     },
                                 ]} />
-                            <div className="flex flex-col items-center gap-4">
-                                <button
-                                    onClick={limpiarFiltros}
-                                    className="text-sm text-gray-600 hover:text-gray-800 underline"
-                                >
-                                    Limpiar
-                                </button>
-
-                                <button
+                            <dl className="flex gap-2 ml-auto">
+                                <Button
                                     onClick={handleRefetchAll}
-                                    className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-100"
-                                    title="Actualizar"
+                                    color="success"
                                 >
-                                    <RefreshCw className="h-4 w-4" />
-                                </button>
+                                    Actualizar <RefreshCw className="h-4 w-4" />
+                                </Button>
 
-                                <button
+                                <Button
                                     onClick={() => handleOpenModal('chat-general')}
-                                    className="flex items-center bg-purple-500 text-white text-sm px-3 py-2 rounded-md cursor-pointer hover:bg-purple-600 transition-colors"
-                                    title="Chat general"
+                                    color="info"
                                 >
-                                    <MessageCircle className="h-4 w-4" />
-                                </button>
-
-                                <button
-                                    onClick={() => handleOpenModal('nuevo-empleado')}
-                                    className="flex items-center gap-1 bg-green-600 text-white text-sm px-4 py-2 rounded-md cursor-pointer hover:bg-green-700 transition-colors"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Nuevo
-                                </button>
-                            </div>
-                        </header>
+                                    Chat <MessageCircle className="size-4" />
+                                </Button>
+                            </dl>
+                        </dt>
 
                         <section className="overflow-x-auto">
                             {isLoading ? (
@@ -353,12 +270,13 @@ export default function Empleados() {
                             ) : error ? (
                                 <div className="p-4 text-center">
                                     <p className="text-red-500 mb-2">{error}</p>
-                                    <button
-                                        onClick={refetch}
-                                        className="text-green-600 hover:text-green-800 underline"
+                                    <Button
+                                        onClick={fetchEmpleados}
+                                        color="success"
+                                        size="small"    
                                     >
                                         Reintentar
-                                    </button>
+                                    </Button>
                                 </div>
                             ) : empleados.length > 0 ? (
                                 <>
@@ -368,8 +286,10 @@ export default function Empleados() {
                                     />
                                     <Pagination
                                         currentPage={currentPage}
+                                        currentPageSize={pageSize}
                                         loading={isLoading}
                                         setCurrentPage={setCurrentPage}
+                                        onPageSizeChange={setPageSize}
                                         totalPages={totalPages}
                                     />
                                 </>

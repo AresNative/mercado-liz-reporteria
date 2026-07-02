@@ -45,7 +45,7 @@ export default function BlogPage() {
             <Header />
 
             {/* Hero Section del Blog */}
-            <header className="text-center bg-gradient-to-r from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 text-green-800 dark:text-green-200">
+            <header className="text-center bg-linear-to-r from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 text-green-800 dark:text-green-200">
                 <div className="py-20 px-4">
                     <section className="max-w-6xl mx-auto">
                         <h1 className="text-4xl md:text-5xl font-bold mb-4">
@@ -71,16 +71,14 @@ export default function BlogPage() {
             </header>
 
             {/* Categorías con Segment */}
-            <section className="py-8 px-4 bg-gray-50 dark:bg-gray-900/50">
-                <div className="max-w-6xl mx-auto">
-                    <div className="flex flex-wrap gap-2 justify-center">
-                        <Segment
-                            items={allCategories.map(cat => ({ value: cat, label: cat }))}
-                            value={selectedCategory}
-                            onValueChange={setSelectedCategory}
-                            className="mb-8"
-                        />
-                    </div>
+            <section className="py-8 px-4 bg-linear-to-r from-green-50 to-blue-50 dark:bg-gray-900/50">
+                <div className="max-w-6xl mx-auto flex flex-wrap gap-2 justify-center">
+                    <Segment
+                        items={allCategories.map(cat => ({ value: cat, label: cat }))}
+                        value={selectedCategory}
+                        onValueChange={setSelectedCategory}
+                        className="mb-8"
+                    />
                 </div>
             </section>
 

@@ -1,7 +1,8 @@
 "use client";
 
 import type React from "react";
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, isValidElement } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
     Check,
@@ -28,17 +29,39 @@ import autoTable from 'jspdf-autotable';
 
 export type DataItem = Record<string, any>;
 
+// ── Tipo compartido del menú contextual ───────────────────────────────────────
+export interface ContextMenuItem {
+    label: string;
+    icon?: React.ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    danger?: boolean;
+}
+
 interface DynamicTableProps {
     data: Record<string, any>[];
     loading?: boolean;
     onRowClick?: (rowData: any) => void;
     onRightClick?: (rowData: any) => void;
     /**
-     * Si se pasa, el componente llama este callback cada vez que el usuario
-     * cambia la columna de orden, para que el padre pueda re-fetchear desde
-     * el servidor con el nuevo ORDER BY.
+     * Items del menú contextual que aparece al hacer clic derecho en una fila.
+     * Si no se pasa, el clic derecho no tiene efecto.
      */
+    contextMenuItems?: (
+        rowData: any,
+        selectedRowsData?: any[]   // ← nuevo parámetro
+    ) => ContextMenuItem[];
     onSortChange?: (column: string, direction: "asc" | "desc") => void;
+    visibleColumns?: Record<string, boolean>;
+    /**
+     * Callback que se llama cuando cambia la visibilidad de las columnas.
+     * Útil para que el padre pueda ajustar las consultas dinámicamente.
+     */
+    onVisibleColumnsChange?: (columns: Record<string, boolean>) => void;
+    /** Modos de display para columnas array (controlado desde padre) */
+    arrayDisplayModes?: Record<string, ArrayColumnDisplay>;
+    /** Callback cuando cambia el modo de display de una columna array */
+    onArrayDisplayChange?: (column: string, mode: ArrayColumnDisplay) => void;
 }
 
 // ── Helpers de tipo de columna ─────────────────────────────────────────────────
@@ -50,7 +73,7 @@ const isDateColumn = (key: string) => {
 
 const isPercentageColumn = (key: string) => {
     const k = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return k.includes("porcentaje") || key.includes("IVA") || key.includes("IEPS");
+    return k.includes("porcentaje") || key.includes("%");
 };
 
 const isCurrencyColumn = (key: string) => {
@@ -89,6 +112,11 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     onRowClick,
     onRightClick,
     onSortChange,
+    visibleColumns: controlledVisibleColumns,
+    arrayDisplayModes: externalArrayDisplayModes,
+    onArrayDisplayChange,
+    onVisibleColumnsChange,
+    contextMenuItems,
 }) => {
     const tableRef = useRef<HTMLDivElement>(null);
     const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -99,13 +127,85 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
     const [sortColumn, setSortColumn] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [showColumnMenu, setShowColumnMenu] = useState<string | null>(null);
-    const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({});
-    // Modo de visualización para columnas cuyo valor es un array (ej. ["PEPE", "00020"])
-    const [arrayDisplayModes, setArrayDisplayModes] = useState<Record<string, ArrayColumnDisplay>>({});
+    const isControlled = controlledVisibleColumns !== undefined;
+    const [internalVisibleColumns, setInternalVisibleColumns] = useState<Record<string, boolean>>({});
+    const visibleColumns = isControlled ? controlledVisibleColumns : internalVisibleColumns;
+    const [internalArrayDisplayModes, setInternalArrayDisplayModes] = useState<Record<string, ArrayColumnDisplay>>({});
+
+    // ── Estado del context menu interno ───────────────────────────────────────
+    const [ctxMenu, setCtxMenu] = useState<{
+        visible: boolean;
+        x: number;
+        y: number;
+        items: ContextMenuItem[];
+    }>({ visible: false, x: 0, y: 0, items: [] });
+    const ctxMenuRef = useRef<HTMLDivElement>(null);
+
+    const getRowId = useCallback((item: any): string => item.ID || JSON.stringify(item), []);
+
+    const openCtxMenu = useCallback((e: React.MouseEvent, rowData: any) => {
+        if (!contextMenuItems) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const rowId = getRowId(rowData);
+        const isSelected = selectedRows.has(rowId);
+        const selectedData = isSelected ? Array.from(selectedRowsData.values()) : undefined;
+
+        const items = contextMenuItems(rowData, selectedData);
+        if (!items?.length) return;
+
+        setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, items });
+    }, [contextMenuItems, selectedRows, selectedRowsData, getRowId]);
+
+    const closeCtxMenu = useCallback(() => {
+        setCtxMenu(prev => ({ ...prev, visible: false }));
+    }, []);
+
+    // Ajustar posición para no salirse de la ventana, y cerrar al click fuera / Escape
+    useEffect(() => {
+        if (!ctxMenu.visible) return;
+
+        // Ajuste de posición tras render
+        if (ctxMenuRef.current) {
+            const rect = ctxMenuRef.current.getBoundingClientRect();
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            let { x, y } = ctxMenu;
+            if (x + rect.width > vw) x = vw - rect.width - 5;
+            if (y + rect.height > vh) y = vh - rect.height - 5;
+            if (x < 0) x = 5;
+            if (y < 0) y = 5;
+            if (x !== ctxMenu.x || y !== ctxMenu.y) {
+                setCtxMenu(prev => ({ ...prev, x, y }));
+            }
+        }
+
+        const onMouseDown = (e: MouseEvent) => {
+            if (ctxMenuRef.current && !ctxMenuRef.current.contains(e.target as Node))
+                closeCtxMenu();
+        };
+        const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") closeCtxMenu(); };
+
+        document.addEventListener("mousedown", onMouseDown);
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", onMouseDown);
+            document.removeEventListener("keydown", onKeyDown);
+        };
+    }, [ctxMenu.visible, ctxMenu.x, ctxMenu.y, closeCtxMenu]);
+
+    const arrayDisplayModes = externalArrayDisplayModes !== undefined
+        ? externalArrayDisplayModes
+        : internalArrayDisplayModes;
 
     const handleArrayDisplayChange = useCallback((col: string, mode: ArrayColumnDisplay) => {
-        setArrayDisplayModes(prev => ({ ...prev, [col]: mode }));
-    }, []);
+        if (onArrayDisplayChange) {
+            onArrayDisplayChange(col, mode);
+        } else {
+            setInternalArrayDisplayModes(prev => ({ ...prev, [col]: mode }));
+        }
+    }, [onArrayDisplayChange]);
 
     // Cerrar menú de exportación al hacer clic fuera
     useEffect(() => {
@@ -149,13 +249,17 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
     // Inicializar / sincronizar columnas visibles
     useEffect(() => {
-        setVisibleColumns(prev =>
-            columns.reduce((acc, col) => {
+        if (isControlled) return;
+        setInternalVisibleColumns(prev => {
+            const next = columns.reduce((acc, col) => {
                 acc[col] = col in prev ? prev[col] : true;
                 return acc;
-            }, {} as Record<string, boolean>)
-        );
-    }, [columns]);
+            }, {} as Record<string, boolean>);
+            // Evitar re-render si no cambió nada
+            const hasChanged = columns.some(c => prev[c] !== next[c]) || Object.keys(prev).length !== columns.length;
+            return hasChanged ? next : prev;
+        });
+    }, [columns, isControlled]);
 
     // Resetear sort cuando llegan datos nuevos desde el padre
     useEffect(() => {
@@ -194,7 +298,6 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
     // ── Selección ──────────────────────────────────────────────────────────────
 
-    const getRowId = useCallback((item: any): string => item.ID || JSON.stringify(item), []);
     const isRowSelected = useCallback((id: string) => selectedRows.has(id), [selectedRows]);
 
     const toggleRowSelection = (rowId: string, rowData: any) => {
@@ -238,7 +341,23 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
     const clearAllSelections = () => { setSelectedRows(new Set()); setSelectedRowsData(new Map()); };
     const getSelectedData = useCallback(() => Array.from(selectedRowsData.values()), [selectedRowsData]);
-    const toggleColumn = (col: string) => setVisibleColumns(p => ({ ...p, [col]: !p[col] }));
+
+    const toggleColumn = useCallback((col: string) => {
+        if (isControlled) {
+            // Modo controlado: calcular nuevo estado y notificar al padre
+            const newState = { ...controlledVisibleColumns, [col]: !controlledVisibleColumns[col] };
+            onVisibleColumnsChange?.(newState);
+        } else {
+            // Modo no controlado: actualizar estado interno y notificar
+            setInternalVisibleColumns(p => {
+                const newState = { ...p, [col]: !p[col] };
+                onVisibleColumnsChange?.(newState);
+                return newState;
+            });
+        }
+    }, [isControlled, controlledVisibleColumns, onVisibleColumnsChange]);
+
+
     const getVisibleColumnsForExport = () => columns.filter(c => visibleColumns[c]);
 
     // ── Formateo ───────────────────────────────────────────────────────────────
@@ -269,17 +388,37 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
     const formatCellValue = (key: string, value: any): React.ReactNode => {
         if (value == null) return <span className="text-gray-300 dark:text-gray-600">—</span>;
+        if (isValidElement(value)) {
+            return value;
+        }
         // ── Array con modo de display configurable ────────────────────────────
         if (Array.isArray(value)) {
             const mode = arrayDisplayModes[key] ?? "both";
-            if (mode === "first") return <span>{String(value[0] ?? "—")}</span>;
-            if (mode === "second") return <span>{String(value[1] ?? "—")}</span>;
-            if (mode === "third") return <span>{String(value[2] ?? "—")}</span>;
-            // "both"
+            const formatArrayValue = (v: any) => {
+                if (isValidElement(v)) return v;
+                if (v == null) return "—";
+                if (isDateColumn(key)) {
+                    try { const d = new Date(v); return isNaN(d.getTime()) ? String(v) : formatDateDisplay(d); }
+                    catch { return String(v); }
+                }
+                if (isPercentageColumn(key) && typeof v === "number") return formatNumberValue(v, "percentage", 2);
+                if (isCurrencyColumn(key) && typeof v === "number") return formatNumberValue(v, "currency", 2);
+                if (typeof v === "number") return formatNumberValue(v, "number", Number.isInteger(v) ? 0 : 2);
+                return String(v);
+            };
+            if (mode === "first") return <span>{formatArrayValue(value[0])}</span>;
+            if (mode === "second") return <span>{formatArrayValue(value[1])}</span>;
+            if (mode === "third") return <span>{formatArrayValue(value[2])}</span>;
+            // "both": todos los valores presentes, value[0] con formatters
             return (
                 <div className="flex flex-col text-xs leading-tight">
-                    <span>{String(value[0] ?? "—")}</span>
-                    <span className="text-gray-400 dark:text-gray-500">{String(value[1] ?? "—")}</span>
+                    <span>{formatArrayValue(value[0])}</span>
+                    {value[1] != null && value[1] !== "" && (
+                        <span className="text-gray-400 dark:text-gray-500">{String(value[1])}</span>
+                    )}
+                    {value[2] != null && value[2] !== "" && (
+                        <span className="text-gray-400 dark:text-gray-500">{String(value[2])}</span>
+                    )}
                 </div>
             );
         }
@@ -385,7 +524,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
         <div className="w-full relative" ref={tableRef}>
 
             {/* ── Toolbar ──────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-2 py-2 border-b border-gray-200 dark:border-zinc-700 flex-wrap gap-2">
+            <div className="flex items-center justify-between px-2 py-2 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-2">
                 <ul className="flex items-center gap-2 flex-wrap">
                     <ViewTR
                         setShowColumnMenu={setShowColumnMenu}
@@ -397,14 +536,14 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                     />
                     <button
                         onClick={selectAllRows}
-                        className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs dark:bg-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-600 transition-colors"
+                        className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
                         {allCurrentPageSelected ? 'Deseleccionar página' : 'Seleccionar página'}
                     </button>
                     {selectedRows.size > 0 && (
                         <button
                             onClick={clearAllSelections}
-                            className="px-2.5 py-1.5 flex gap-1 items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs dark:bg-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-600 transition-colors"
+                            className="px-2.5 py-1.5 flex gap-1 items-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition-colors"
                         >
                             Deseleccionar todos <X size={12} className="text-red-500" />
                         </button>
@@ -446,7 +585,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -6 }}
                                         transition={{ duration: 0.12 }}
-                                        className="absolute right-0 mt-1 w-52 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-gray-200 dark:border-zinc-700 z-50"
+                                        className="absolute right-0 mt-1 w-52 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 z-50"
                                     >
                                         <div className="py-1">
                                             {[
@@ -457,7 +596,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                                 <button
                                                     key={opt.label}
                                                     onClick={opt.action}
-                                                    className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                                                    className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                                                 >
                                                     {opt.icon} {opt.label}
                                                 </button>
@@ -472,16 +611,16 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             </div>
 
             {/* ── Tabla ─────────────────────────────────────────────────────── */}
-            <section className="mt-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm rounded-lg">
+            <section className="mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 shadow-sm rounded-lg">
                 <div className="overflow-x-auto">
                     <table className="w-full relative">
-                        <thead className="bg-zinc-50 dark:bg-zinc-900">
+                        <thead className="bg-gray-50 dark:bg-gray-900">
                             <tr>
                                 {/* Checkbox global */}
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">
                                     <input
                                         type="checkbox"
-                                        className="border-gray-300 dark:border-zinc-600 text-blue-600"
+                                        className="border-gray-300 dark:border-gray-700 text-blue-600"
                                         checked={allCurrentPageSelected}
                                         onChange={selectAllRows}
                                     />
@@ -529,7 +668,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                             </tr>
                         </thead>
 
-                        <tbody className="divide-y divide-gray-100 dark:divide-zinc-700">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
                             <AnimatePresence>
                                 {filteredAndSortedData.map((item, index) => {
                                     const rowId = getRowId(item);
@@ -544,11 +683,12 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                             className={cn(
                                                 "transition-colors",
                                                 onRowClick && "cursor-pointer",
-                                                "hover:bg-zinc-50 dark:hover:bg-zinc-700/40",
+                                                "hover:bg-gray-50 dark:hover:bg-gray-800/40",
                                                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset",
                                                 isSelected && "bg-blue-50 dark:bg-blue-900/20"
                                             )}
                                             onClick={() => onRowClick?.(item)}
+                                            onContextMenu={e => openCtxMenu(e, item)}
                                             onKeyDown={e => handleRowKeyDown(e, item, index)}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
@@ -593,6 +733,41 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                     ? <span className="text-blue-600 dark:text-blue-400 font-medium">{selectedRows.size} fila(s) seleccionada(s)</span>
                     : `${filteredAndSortedData.length} registro(s)`}
             </div>
+
+            {/* ── Context menu portal ───────────────────────────────────────── */}
+            {ctxMenu.visible && typeof document !== "undefined" && createPortal(
+                <div
+                    ref={ctxMenuRef}
+                    role="menu"
+                    className="fixed z-[9999] min-w-[180px] bg-white dark:bg-gray-900 rounded-md shadow-xl border border-gray-200 dark:border-gray-800 py-1 animate-in fade-in zoom-in-95 duration-100"
+                    style={{ top: ctxMenu.y, left: ctxMenu.x }}
+                >
+                    {ctxMenu.items.map((item, idx) => (
+                        <button
+                            key={idx}
+                            role="menuitem"
+                            disabled={item.disabled}
+                            onClick={() => {
+                                if (item.disabled) return;
+                                item.onClick();
+                                closeCtxMenu();
+                            }}
+                            className={cn(
+                                "w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors cursor-pointer",
+                                item.disabled
+                                    ? "opacity-50 cursor-not-allowed text-gray-400"
+                                    : item.danger
+                                        ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                        : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                            )}
+                        >
+                            {item.icon && <span className="w-4 h-4 flex items-center">{item.icon}</span>}
+                            {item.label}
+                        </button>
+                    ))}
+                </div>,
+                document.body
+            )}
         </div>
     );
 };
@@ -601,27 +776,27 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 
 const TableSkeleton = () => (
     <div className="w-full space-y-3 animate-pulse">
-        <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-zinc-600">
-            <div className="h-6 w-36 bg-gray-200 dark:bg-zinc-700 rounded" />
-            <div className="h-6 w-6 bg-gray-200 dark:bg-zinc-700 rounded" />
+        <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="h-6 w-36 bg-gray-200 dark:bg-gray-800 rounded" />
+            <div className="h-6 w-6 bg-gray-200 dark:bg-gray-800 rounded" />
         </div>
-        <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm rounded-lg overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 shadow-sm rounded-lg overflow-hidden">
             <table className="w-full">
-                <thead className="bg-zinc-50 dark:bg-zinc-900">
+                <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
                         {Array.from({ length: 5 }).map((_, i) => (
                             <th key={i} className="px-4 py-3">
-                                <div className="h-3 w-20 bg-gray-300 dark:bg-zinc-700 rounded" />
+                                <div className="h-3 w-20 bg-gray-300 dark:bg-gray-800 rounded" />
                             </th>
                         ))}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-zinc-700">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {Array.from({ length: 5 }).map((_, r) => (
                         <tr key={r}>
                             {Array.from({ length: 5 }).map((_, c) => (
                                 <td key={c} className="px-4 py-3">
-                                    <div className="h-3 w-full bg-gray-200 dark:bg-zinc-700 rounded" />
+                                    <div className="h-3 w-full bg-gray-200 dark:bg-gray-800 rounded" />
                                 </td>
                             ))}
                         </tr>

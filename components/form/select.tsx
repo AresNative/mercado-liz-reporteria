@@ -141,9 +141,9 @@ export function SelectComponent(props: SearchableSelectProps) {
             </label>
 
             {/* Selector */}
-            <div className="relative bg-white dark:bg-zinc-800">
+            <div className="relative bg-white dark:bg-gray-900">
                 <div
-                    className="px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-md flex items-center justify-between cursor-pointer"
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-800 rounded-md flex items-center justify-between cursor-pointer"
                     onClick={toggleDropdown}
                 >
                     <span>{displayText}</span>
@@ -151,15 +151,15 @@ export function SelectComponent(props: SearchableSelectProps) {
                 </div>
 
                 {showDropdown && (
-                    <div className="absolute z-30 w-full mt-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md shadow-lg">
+                    <div className="absolute z-30 w-full mt-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-md shadow-lg">
 
                         {cuestion.Search && (
                             <div className="p-2">
                                 <input
                                     type="text"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-zinc-800 dark:border-zinc-700"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-900 dark:border-gray-800"
                                     placeholder={`Buscar ${cuestion.name}...`}
-                                    value={searchTerm}
+                                    value={searchTerm ?? ""}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
@@ -169,8 +169,8 @@ export function SelectComponent(props: SearchableSelectProps) {
                             {filteredOptions.map((opt) => (
                                 <li
                                     key={opt.value}
-                                    className={`px-4 py-2 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 ${skills.includes(opt.value)
-                                        ? "dark:bg-zinc-800"
+                                    className={`px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-900 ${skills.includes(opt.value)
+                                        ? "dark:bg-gray-900"
                                         : ""
                                         }`}
                                     onClick={() => handleSelect(opt.value)}

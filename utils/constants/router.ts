@@ -10,6 +10,10 @@ import {
   UsersRound,
   ShoppingBasket,
   UserRoundPlus,
+  Vault,
+  AlertCircle,
+  Wrench,
+  Clock,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -43,11 +47,6 @@ export const navigationVentas = [
     icon: ChartArea,
   },
   {
-    name: "Subastas",
-    href: "/subastas",
-    icon: ChartColumnStacked,
-  },
-  {
     name: "Pick Up",
     href: "/pick-up",
     icon: Truck,
@@ -55,11 +54,6 @@ export const navigationVentas = [
   {
     name: "Articulos",
     href: "/articulos",
-    icon: ShoppingBasket,
-  },
-  {
-    name: "Compras",
-    href: "/compras",
     icon: ShoppingBasket,
   },
   {
@@ -114,19 +108,9 @@ export const navigationAdmin = [
     icon: ClipboardList,
   },
   {
-    name: "Compras",
-    href: "/compras",
-    icon: ShoppingBasket,
-  },
-  {
     name: "Empleados",
     href: "/empleados",
     icon: UsersRound,
-  },
-  {
-    name: "Update",
-    href: "/update",
-    icon: Info,
   },
   {
     name: "Articulos",
@@ -137,5 +121,25 @@ export const navigationAdmin = [
     name: "Pick Up",
     href: "/pick-up",
     icon: Truck,
+  },
+  {
+    name: "Checador",
+    href: "/checador",
+    icon: Clock,
+  },
+  {
+    name: "Boveda Movimientos",
+    href: "/boveda-movimientos",
+    icon: Vault,
+  },
+  {
+    name: "Errores intelisis",
+    href: "/error",
+    icon: AlertCircle,
+  },
+  {
+    name: "Herramientas",
+    href: "/update",
+    icon: Wrench,
   },
 ];
