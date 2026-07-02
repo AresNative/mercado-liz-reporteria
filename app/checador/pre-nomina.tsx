@@ -28,7 +28,7 @@ import Footer from "@/template/footer"
 import Header from "@/template/header"
 import MainForm from "@/components/form/main-form"
 import { Button } from "@/components/button"
-import { DetallesPago } from "./components/detalles-nomina"
+import { DetallesNomina } from "./components/detalles-nomina"
 
 interface PagoResponse {
     totalRecords: number;
@@ -315,7 +315,7 @@ export function PreNomina() {
                 maxWidth="5xl"
             >
                 {pagoseleccionado ? (
-                    <DetallesPago selectedPago={pagoseleccionado} />
+                    <DetallesNomina selectedPago={pagoseleccionado} />
                 ) : (
                     <div className="p-4 text-center">
                         <p className="text-gray-500">No se ha seleccionado ninguna transferencia.</p>

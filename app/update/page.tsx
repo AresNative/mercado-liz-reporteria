@@ -289,42 +289,30 @@ const Page = () => {
     const parseTxtFile = (content: string): any[] => {
         const lines = content.split("\n");
         if (lines.length === 0) return [];
-        
+
         const headers = lines[0].split("\t").map(h => h.trim());
         const data: any[] = [];
-        let totalLines = 0;
-        let validLines = 0;
-        
+
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
-            totalLines++;
-            
+
             const values = line.split("\t");
             const row: any = {};
-            
+
             headers.forEach((header, idx) => {
-                const value = values[idx]?.trim() || "";
-                // Intentar convertir a número, si falla mantener como string
-                const numValue = parseFloat(value);
-                row[header] = isNaN(numValue) ? value : numValue;
+                // ✅ Conservar el valor exacto (incluyendo cadenas vacías)
+                row[header] = values[idx]?.trim() ?? "";
             });
-            
-            // 👉 Solo agregar si Articulo es un número válido
-            if (row.Articulo !== undefined && row.Articulo !== "") {
-                // Solo verificamos que Articulo no esté vacío (opcional)
-                if (row.Articulo !== undefined && row.Articulo !== "") {
-                    // No se convierte nada, se conservan los valores originales
-                    data.push(row);
-                    validLines++;
-                }
+
+            // Solo agregar si Articulo no está vacío (opcional)
+            if (row.Articulo !== "") {
+                data.push(row);
             }
         }
-        
-        const discarded = totalLines - validLines;
-        setFilteredCount(discarded);
-        console.log(`Total líneas: ${totalLines}, Válidas: ${validLines}, Descartadas: ${discarded}`);
-        
+
+        setFilteredCount(0); // ya no descartamos por número
+        console.log(`Total líneas: ${data.length}`);
         return data;
     };
 
@@ -363,42 +351,40 @@ const Page = () => {
 
         for (let i = 0; i < parsedData.length; i++) {
             const row = parsedData[i];
-            
-            // Preparar datos para actualización
+
+            // ✅ Datos a actualizar: todas las columnas excepto "Articulo"
             const updateData: any = {};
             Object.entries(row).forEach(([key, value]) => {
                 if (key !== "Articulo") {
-                    // Convertir a número si es posible
-                    const num = Number(value);
-                    updateData[key] = isNaN(num) ? value : num;
+                    // ✅ Conservar el valor tal cual, sin convertir a número
+                    updateData[key] = value;
                 }
             });
-            
+
             const updateRequest: ActualizarRequest = {
                 Filtros: [
                     {
                         Key: "Articulo",
-                        Value: row.Articulo, // Ya es un número
+                        Value: row.Articulo,  // ya es string (o número si quieres)
                         Operator: "like"
                     }
                 ],
                 Data: updateData
             };
-            
+
             try {
                 await apiRequest(baseUrl, "PUT", updateRequest);
                 success++;
             } catch (err: any) {
-                errors.push({ 
-                    row: i + 1, 
-                    articulo: row.Articulo, 
-                    error: err.message 
+                errors.push({
+                    row: i + 1,
+                    articulo: row.Articulo,
+                    error: err.message
                 });
             }
             const progress = Math.round(((i + 1) / parsedData.length) * 100);
             setUploadProgress(progress);
             setMassiveStatus(`Procesando ${i + 1} de ${parsedData.length}`);
-            // Pequeña pausa para no saturar el servidor
             await new Promise((r) => setTimeout(r, 50));
         }
         setIsLoading(false);
@@ -723,8 +709,8 @@ const Page = () => {
                                                 {parsedData.slice(0, 10).map((row, i) => (
                                                     <tr key={i}>
                                                         <td className="p-2 border">{row.Articulo}</td>
-                                                        <td className="p-2 border">{row.tipoimpuesto1}</td>
-                                                        <td className="p-2 border">{row.tipoimpuesto2}</td>
+                                                        <td className="p-2 border">{row[1]}</td>
+                                                        <td className="p-2 border">{row[2]}</td>
                                                     </tr>
                                                 ))}
                                                 {parsedData.length > 10 && (

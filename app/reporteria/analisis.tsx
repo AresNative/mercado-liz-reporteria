@@ -36,8 +36,6 @@ import KardexStats from "./components/kardex-stats";
 import ScoreCard from "./components/modal-scorecard";
 import { useAppDispatch } from "@/hooks/selector";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
-import { ModalReporting } from "./components/modal-reporting";
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 type REPORT =
     | "venta"
@@ -57,8 +55,6 @@ interface ActiveFilters {
     Filtros: Filtro[];
     Selects: any[];
     OrderBy: any | null;
-    sum: boolean;
-    distinct: boolean;
 }
 // ─── Configuración de reportes ─────────────────────────────────────────────────
 const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> = {
@@ -75,6 +71,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
                 { Key: "ART.Categoria" },
                 { Key: "ART.Grupo" },
+                { Key: "ART.Linea" },
                 { Key: "ART.Familia" },
                 { Key: "ventad.Precio" },
                 { Key: "ventad.Costo" },
@@ -85,7 +82,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "Total Ventas", Operation: "SUM" },
                 { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
                 { Key: "ventad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
-                { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Articulos Totales", Operation: "SUM" },
+                { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Articulos", Operation: "SUM" },
                 { Key: "venta.Cliente", Alias: "Clientes Distintos", Operation: "COUNT DISTINCT" },
                 { Key: "venta.ID", Alias: "Total Tikets", Operation: "COUNT DISTINCT" },
             ],
@@ -102,10 +99,9 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
         },
     },
     compra: {
-        table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN CB AS cb ON cb.Cuenta = art.Articulo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor INNER JOIN Sucursal ON comprad.Sucursal = Sucursal.Sucursal`,
+        table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor INNER JOIN Sucursal ON comprad.Sucursal = Sucursal.Sucursal`,
         filtros: {
             selects: [
-                { Key: "CB.Codigo" },
                 { Key: "P.Nombre", Alias: "Proveedor Nombre" },
                 { Key: "P.Proveedor" },
                 { Key: "ART.Fabricante" },
@@ -117,6 +113,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
                 { Key: "ART.Categoria" },
                 { Key: "ART.Grupo" },
+                { Key: "ART.Linea" },
                 { Key: "ART.Familia" },
                 { Key: "comprad.Unidad" },
                 { Key: "comprad.Factor" },
@@ -128,7 +125,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "comprad.Costo", Alias: "Maximo Costo", Operation: "MAX" },
                 { Key: "comprad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
                 { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
-                { Key: "comprad.CantidadInventario", Alias: "Articulos Totales", Operation: "SUM" },
+                { Key: "comprad.CantidadInventario", Alias: "Articulos", Operation: "SUM" },
                 { Key: "compra.Proveedor", Alias: "Total Proveedores", Operation: "COUNT DISTINCT" },
             ],
             Filtros: [
@@ -144,13 +141,15 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
         },
     },
     merma: {
-        table: `INV AS inv INNER JOIN INVD AS invd ON invd.ID = inv.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
+        table: `INV AS inv INNER JOIN INVD AS invd ON inv.Mov = 'SALIDA DIVERSA' AND invd.ID = inv.ID AND inv.Concepto = 'SALIDA POR MERMAS' OR inv.Mov = 'MERMAS' AND invd.ID = inv.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo  INNER JOIN Sucursal ON invd.Sucursal = Sucursal.Sucursal`,
         filtros: {
             selects: [
                 { Key: "art.Articulo" },
                 { Key: "art.Descripcion1", Alias: "Nombre" },
                 { Key: "inv.FechaEmision" },
+                { Key: "invd.Almacen" },
                 { Key: "inv.Sucursal" },
+                { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
                 { Key: "art.Categoria" },
                 { Key: "art.Grupo" },
                 { Key: "art.Linea" },
@@ -161,11 +160,8 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             agregaciones: [
                 { Key: "invd.Cantidad", Alias: "Cantidad", Operation: "SUM" },
                 { Key: "(invd.Costo * invd.Cantidad)", Alias: "Total Mermas", Operation: "SUM" },
-                { Key: "invd.Cantidad", Alias: "Total Articulos Mermados", Operation: "SUM" },
             ],
             Filtros: [
-                { Key: "inv.Mov", Operator: "=", Value: "SALIDA DIVERSA" },
-                { Key: "inv.Concepto", Operator: "=", Value: "SALIDA POR MERMAS" },
                 { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
             ],
             Order: [
@@ -177,13 +173,15 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
         },
     },
     inventario: {
-        table: `INVD AS invd INNER JOIN inv AS inv ON inv.ID = invd.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
+        table: `INVD AS invd INNER JOIN inv AS inv ON inv.ID = invd.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo  INNER JOIN Sucursal ON invd.Sucursal = Sucursal.Sucursal`,
         filtros: {
             selects: [
                 { Key: "art.Articulo" },
                 { Key: "art.Descripcion1", Alias: "Nombre" },
                 { Key: "inv.FechaEmision" },
+                { Key: "invd.Almacen" },
                 { Key: "inv.Sucursal" },
+                { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
                 { Key: "art.Categoria" },
                 { Key: "art.Grupo" },
                 { Key: "art.Linea" },
@@ -194,12 +192,11 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             ],
             agregaciones: [
                 { Key: "invd.Cantidad", Alias: "Cantidad", Operation: "SUM" },
-                { Key: "(invd.Costo * invd.Cantidad)", Alias: "Total Costo Inventario", Operation: "SUM" },
-                { Key: "invd.Cantidad", Alias: "Total Articulos Inventario", Operation: "SUM" },
+                { Key: "(invd.Costo * invd.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
             ],
             Filtros: [
                 { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                { Key: "inv.Mov", Operator: "<>", Value: "SALIDA DIVERSA" },
+                { Key: "inv.Mov", Operator: "NOT IN", Value: "SALIDA DIVERSA, MERMAS" },
             ],
             Order: [
                 {
@@ -261,7 +258,7 @@ const SYNTHETIC_COLUMNS: {
         { syntheticKey: "Proveedor", sourceFields: ["Proveedor", "Fabricante"] },
         { syntheticKey: "Categoria", sourceFields: ["Categoria", "Grupo", "Familia"] },
         { syntheticKey: "Unidad", sourceFields: ["Unidad", "Factor"] },
-        { syntheticKey: "Cantidad", sourceFields: ["Cantidad", "Articulos Totales"] },
+        { syntheticKey: "Cantidad", sourceFields: ["Cantidad", "Articulos"] },
         { syntheticKey: "Costo", sourceFields: ["Costo", "Total Costo"] },
         { syntheticKey: "Sucursal", sourceFields: ["Sucursal", "Nombre Sucursal", "Almacen"] },
     ];
@@ -272,7 +269,7 @@ const AGGREGATION_DEPENDENCIES: Record<string, string[]> = {
     "Total Mermas": ["Costo"],
     "Minimo Costo": ["Costo"],
     "Maximo Costo": ["Costo"],
-    "Articulos Totales": ["Cantidad"],
+    "Articulos": ["Cantidad"],
     "Total Articulos Mermados": ["Cantidad"],
     "Total Articulos Inventario": ["Cantidad"],
     // Agrega más según tus necesidades
@@ -303,43 +300,6 @@ const ALMACENES_OPCIONES = [
     { value: "ALMPALM", label: "Valle de las Palmas" },
 ];
 
-// ─── Inyección de filtro de fecha ─────────────────────────────────────────────
-const getDateNDaysAgo = (n: number): string => {
-    const date = new Date();
-    date.setDate(date.getDate() - n);
-    return date.toISOString().split("T")[0];
-};
-
-const injectDateFilter = (
-    report: REPORT,
-    filtrosOriginal: any,
-    from?: Date,
-    to?: Date
-): any => {
-    if (report === "clientes" || report === "proveedores") return filtrosOriginal;
-
-    const dateFieldMap: Partial<Record<REPORT, string>> = {
-        venta: "venta.FechaEmision",
-        compra: "compra.FechaEmision",
-        merma: "inv.FechaEmision",
-        inventario: "inv.FechaEmision",
-        /* gastos: "G.FechaEmision", */
-    };
-
-    const dateFieldKey = dateFieldMap[report];
-    if (!dateFieldKey) return filtrosOriginal;
-
-    const newFiltros = JSON.parse(JSON.stringify(filtrosOriginal));
-    if (!newFiltros.Filtros) newFiltros.Filtros = [];
-
-    const fromStr = from ? from.toISOString().split("T")[0] : getDateNDaysAgo(30);
-    const toStr = to ? to.toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
-
-    newFiltros.Filtros.push({ Key: dateFieldKey, Operator: ">=", Value: fromStr });
-    newFiltros.Filtros.push({ Key: dateFieldKey, Operator: "<=", Value: toStr });
-
-    return newFiltros;
-};
 
 const getHiddenAggregations = (visibleKeys: string[], aggregations: any[] = []): Set<string> => {
     const hiddenAggregations = new Set<string>();
@@ -383,25 +343,18 @@ export default function Analisis() {
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [
             {
-                Key: "",
-                Value: "",
-                Operator: "="
+                Key: "FechaEmision",
+                Value: `${new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split("T")[0]} AND ${new Date().toISOString().split("T")[0]}`,
+                Operator: "BETWEEN"
             },
         ],
         Selects: [],
         OrderBy: [
             {
-                Key: "CXP.FechaEmision",
+                Key: "FechaEmision",
                 Direction: "DESC"
             }
         ],
-        sum: false,
-        distinct: false
-    });
-    // Filtros
-    const [dateRange, setDateRange] = useState<DateRange>({
-        from: new Date(new Date().setDate(new Date().getDate() - 30)),
-        to: new Date(),
     });
     const [arrayDisplayModesByReport, setArrayDisplayModesByReport] = useState<Record<string, Record<string, ArrayColumnDisplay>>>({});
 
@@ -522,7 +475,6 @@ export default function Analisis() {
             });
         }
         if (activeFilters.Filtros && activeFilters.Filtros.length > 0) {
-            if (!finalFiltros.Filtros) finalFiltros.Filtros = [];
             finalFiltros.Filtros.push(...activeFilters.Filtros);
         }
 
@@ -583,9 +535,6 @@ export default function Analisis() {
             }
         }
 
-        // ── Inyectar filtro de fecha ────────────────────────────────────────
-        finalFiltros = injectDateFilter(selectedReport, finalFiltros, dateRange.from || undefined, dateRange.to || undefined);
-
         const payload: RequestPayload = {
             table: config.table,
             filtros: finalFiltros,
@@ -614,11 +563,12 @@ export default function Analisis() {
                     Codigo,
                     Categoria,
                     Grupo,
+                    Linea,
                     Familia,
                     Unidad,
                     Factor,
                     Cantidad,
-                    ["Articulos Totales"]: ArticulosTotales,
+                    Articulos,
                     ["Clientes Distintos"]: TotalClientes,
                     ["Total Tikets"]: TotalTikets,
                     Costo,
@@ -629,6 +579,7 @@ export default function Analisis() {
                     ["Proveedor Nombre"]: ProveedorNombre,
                     ["Maximo Costo"]: CostoMaximo,
                     ["Minimo Costo"]: CostoMinimo,
+                    ["Total Mermas"]: TotalMermas,
                     ...rest
                 } = item;
 
@@ -651,11 +602,11 @@ export default function Analisis() {
                     Articulo: [item.Nombre, item.Articulo, item.Codigo],
                     Proveedor: [item["Proveedor Nombre"], item.Proveedor, item.Fabricante],
                     Sucursal: [item['Nombre Sucursal'], item.Sucursal, item.Almacen],
-                    Categoria: [item.Categoria, item.Grupo, item.Familia],
+                    Categoria: [item.Categoria, item.Grupo, item.Linea, item.Familia],
                     Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
-                    Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`=${item["Articulos Totales"]}`] : [])],
-                    Costo: [item.Costo, formatValue(item["Total Costo"], "currency")],
-                    Precio: [item.Precio, formatValue(item["Total Ventas"], "currency")],
+                    Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`=${item["Articulos"]}`] : [])],
+                    Costo: [item.Costo, (item.Cantidad > 1) ? item["Total Costo"] ? [`=${formatValue(item["Total Costo"], "currency")}`] : [`=${formatValue(item["Total Mermas"], "currency")}`] : ""],
+                    Precio: [item.Precio, (item.Cantidad > 1) ? [`=${formatValue(item["Total Ventas"], "currency")}`]:""],
                     ...rest,
                 };
 
@@ -684,7 +635,7 @@ export default function Analisis() {
         currentPage,
         pageSize,
         manager,
-        dateRange,
+        activeFilters,
         getCurrentVisibility,
         getCurrentArrayDisplayModes,
     ]);
@@ -701,11 +652,12 @@ export default function Analisis() {
         let finalFiltros: any = config.filtros ? JSON.parse(JSON.stringify(config.filtros)) : {};
         const { selects, Order, ...others } = finalFiltros;
         // ── Inyectar filtro de fecha ────────────────────────────────────────
-        finalFiltros = injectDateFilter(selectedReport, others, dateRange.from || undefined, dateRange.to || undefined);
-
+        if (activeFilters.Filtros && activeFilters.Filtros.length > 0) {
+            others.Filtros.push(...activeFilters.Filtros);
+        }
         const payload: RequestPayload = {
             table: config.table,
-            filtros: finalFiltros,
+            filtros: others,
             page: currentPage,
             pageSize,
             signal: tableAbortRef.current.signal,
@@ -739,7 +691,7 @@ export default function Analisis() {
         currentPage,
         pageSize,
         manager,
-        dateRange,
+        activeFilters,
         getCurrentVisibility,
         getCurrentArrayDisplayModes,
     ]);
@@ -823,8 +775,7 @@ export default function Analisis() {
                                         type: "DATE_RANGE",
                                         name: "dateRange",
                                         label: "Rango de fechas",
-                                        icon: <Calendar className="size-4" />,
-                                        valueDefined: dateRange,
+                                        icon: <Calendar className="size-4" />
                                     },
                                     {
                                         require: false,
@@ -850,22 +801,27 @@ export default function Analisis() {
                         message_button={"Filtrar"}
                         iconButton={<Filter className="mr-1 h-4 w-4" />}
                         onSuccess={(rows: any) => {
-                            const { almacen, search } = rows;
+                            const { almacen, search, dateRange } = rows;
                             const nuevosFiltros: Filtro[] = [];
-                            if (rows.dateRange) {
-                                setDateRange(rows.dateRange)
+                            
+                            if (dateRange) {
+                                nuevosFiltros.push({
+                                    Key: "FechaEmision",
+                                    Operator: "BETWEEN",
+                                    Value: dateRange,
+                                });
                             }
                             // Filtro por almacén (si se seleccionó)
-                            if (almacen && ALMACEN_FIELD_MAP[selectedReport]) {
+                            if (almacen) {
                                 nuevosFiltros.push({
-                                    Key: ALMACEN_FIELD_MAP[selectedReport],
+                                    Key: "Almacen",
                                     Operator: "=",
                                     Value: almacen,
                                 });
                             }
 
                             // Filtro de búsqueda (si hay texto)
-                            if (search && SEARCH_FIELDS_MAP[selectedReport]?.length) {
+                            if (search) {
                                 // Aplicamos LIKE a cada campo de búsqueda (se unirán con AND)
                                 SEARCH_FIELDS_MAP[selectedReport].forEach(field => {
                                     nuevosFiltros.push({
