@@ -143,6 +143,7 @@ export default function Empleados() {
             nuevosFiltros.push({ Key: "Estatus", Value: data.estado, Operator: "=" });
         }
 
+        setCurrentPage(1);
         setActiveFilters(prev => ({
             ...prev,
             FiltrosAnd: nuevosFiltrosAnd,
