@@ -3,11 +3,15 @@
 import {
     User, Mail, Phone, MapPin, Calendar, Briefcase,
     Building, DollarSign, FileText, BadgeCheck,
-    Download, Hash, Users, CreditCard, Landmark, Clock
+    Download, Hash, Users, CreditCard, Landmark, Clock,
+    ShieldCheck, Save, RotateCcw // <-- nuevos íconos para permisos
 } from "lucide-react";
 import { useAppSelector } from "@/hooks/selector";
 import { closeModalReducer } from "@/hooks/reducers/drop-down";
 import { useAppDispatch } from "@/hooks/selector";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/button"; // <-- asumiendo que existe
+import MainForm from "@/components/form/main-form";
 
 const SUCURSALES: Record<string, string> = {
     "1": "Guadalupe",
@@ -16,13 +20,59 @@ const SUCURSALES: Record<string, string> = {
     "4": "Mayoreo",
 };
 
+// Tipo para los permisos
+interface Permisos {
+    rol: "admin" | "usuario" | "invitado";
+    permisos: {
+        ver_pagos: boolean;
+        editar_pagos: boolean;
+        ver_empleados: boolean;
+        editar_empleados: boolean;
+        // agregar más si se requiere
+    };
+}
+
+// Permisos por defecto
+const DEFAULT_PERMISOS: Permisos = {
+    rol: "usuario",
+    permisos: {
+        ver_pagos: true,
+        editar_pagos: false,
+        ver_empleados: true,
+        editar_empleados: false,
+    },
+};
+
 export const ModalDetallesEmpleado = ({ selectedEmpleado }: { selectedEmpleado: any | null }) => {
     const dispatch = useAppDispatch();
     const isOpen = useAppSelector((state: any) => state.dropDownReducer.modals['detalles-empleado']);
 
+    // Estado local para los permisos del empleado actual
+    const [permisos, setPermisos] = useState<Permisos>(DEFAULT_PERMISOS);
+    const [permisosCargados, setPermisosCargados] = useState(false);
+
     const handleClose = () => {
         dispatch(closeModalReducer({ modalName: 'detalles-empleado' }));
     };
+
+    // Cargar permisos desde localStorage cuando el empleado cambia
+    useEffect(() => {
+        if (selectedEmpleado && isOpen) {
+            const clave = `empleado_permisos_${selectedEmpleado.Personal}`;
+            const stored = localStorage.getItem(clave);
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored);
+                    setPermisos(parsed);
+                } catch {
+                    setPermisos(DEFAULT_PERMISOS);
+                }
+            } else {
+                setPermisos(DEFAULT_PERMISOS);
+            }
+            setPermisosCargados(true);
+        }
+    }, [selectedEmpleado, isOpen]);
 
     if (!isOpen || !selectedEmpleado) return null;
 
@@ -85,6 +135,41 @@ export const ModalDetallesEmpleado = ({ selectedEmpleado }: { selectedEmpleado: 
         ? SUCURSALES[String(empleado.SucursalTrabajo)] ?? `Sucursal ${empleado.SucursalTrabajo}`
         : null;
 
+    // --- Manejadores para editar permisos ---
+
+    const handleRolChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setPermisos(prev => ({
+            ...prev,
+            rol: e.target.value as Permisos["rol"],
+        }));
+    };
+
+    const handlePermisoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, checked } = e.target;
+        setPermisos(prev => ({
+            ...prev,
+            permisos: {
+                ...prev.permisos,
+                [name]: checked,
+            },
+        }));
+    };
+
+    const guardarPermisos = () => {
+        const clave = `empleado_permisos_${empleado.Personal}`;
+        localStorage.setItem(clave, JSON.stringify(permisos));
+        alert("Permisos guardados correctamente");
+    };
+
+    const restablecerPermisos = () => {
+        setPermisos(DEFAULT_PERMISOS);
+        const clave = `empleado_permisos_${empleado.Personal}`;
+        localStorage.removeItem(clave);
+        alert("Permisos restablecidos a valores por defecto");
+    };
+
+    // --- Componentes internos ---
+
     const InfoItem = ({ icon: Icon, label, value, className = "" }: {
         icon: any;
         label: string;
@@ -111,7 +196,7 @@ export const ModalDetallesEmpleado = ({ selectedEmpleado }: { selectedEmpleado: 
 
     return (
         <div className="p-4">
-            {/* Header con información básica */}
+            {/* Header con información básica (sin cambios) */}
             <div className="bg-gray-50 dark:bg-gray-800/70 rounded-lg p-4 mb-6">
                 <div className="flex items-center space-x-4">
                     <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
@@ -143,7 +228,7 @@ export const ModalDetallesEmpleado = ({ selectedEmpleado }: { selectedEmpleado: 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Información Personal */}
+                {/* Información Personal (sin cambios) */}
                 <div className="space-y-4">
                     <SectionTitle title="Información Personal" icon={User} />
 
@@ -159,7 +244,7 @@ export const ModalDetallesEmpleado = ({ selectedEmpleado }: { selectedEmpleado: 
                     } />
                 </div>
 
-                {/* Información Laboral */}
+                {/* Información Laboral (sin cambios) */}
                 <div className="space-y-4">
                     <SectionTitle title="Información Laboral" icon={Briefcase} />
 
@@ -174,7 +259,7 @@ export const ModalDetallesEmpleado = ({ selectedEmpleado }: { selectedEmpleado: 
                 </div>
             </div>
 
-            {/* Información Fiscal y Bancaria */}
+            {/* Información Fiscal y Bancaria (sin cambios) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 <div className="space-y-4">
                     <SectionTitle title="Información Fiscal" icon={FileText} />
@@ -193,7 +278,7 @@ export const ModalDetallesEmpleado = ({ selectedEmpleado }: { selectedEmpleado: 
                 </div>
             </div>
 
-            {/* Beneficiario */}
+            {/* Beneficiario (sin cambios) */}
             {empleado.Beneficiario && (
                 <div className="mt-6">
                     <SectionTitle title="Beneficiario" icon={Users} />
@@ -206,6 +291,70 @@ export const ModalDetallesEmpleado = ({ selectedEmpleado }: { selectedEmpleado: 
                     </div>
                 </div>
             )}
+
+            {/* ================= NUEVA SECCIÓN: PERMISOS ================= */}
+            <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+                <SectionTitle title="Permisos" icon={ShieldCheck} />
+
+                {permisosCargados ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Selector de Rol */}
+                        <MainForm
+                            dataForm={[
+                                {
+                                    type: "SELECT",
+                                    name: "rol",
+                                    label: "Rol",
+                                    options: [
+                                        { value: "administrador", label: "Administrador" },
+                                        { value: "usuario", label: "Usuario" }
+                                    ],
+                                    require: false,
+                                }
+                            ]}
+                            actionType=""
+                            message_button="actualizar rol"
+                        />
+
+                        {/* Permisos específicos */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Permisos específicos
+                            </label>
+                            <MainForm
+                                dataForm={[
+                                    {
+                                        type: "CHECKBOX",
+                                        name: "ver_pagos",
+                                        label: "Ver Pagos",
+                                        require: false,
+
+                                    },
+                                    {
+                                        type: "CHECKBOX",
+                                        name: "editar_pagos",
+                                        label: "Editar Pagos",
+                                        require: false,
+                                    },
+                                    {
+                                        type: "CHECKBOX",
+                                        name: "eliminar_pagos",
+                                        label: "Eliminar Pagos",
+                                        require: false
+                                    }
+                                ]}
+                                actionType=""
+                                message_button="actualizar permisos"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Marca los permisos que tendrá este empleado.
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-500">Cargando permisos...</p>
+                )}
+            </div>
         </div>
     );
 };
