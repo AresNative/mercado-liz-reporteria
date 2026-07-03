@@ -25,36 +25,13 @@ import Header from "@/template/header"
 import MainForm from "@/components/form/main-form"
 import { Button } from "@/components/button"
 
-// Definir interfaces para tipado fuerte basado en los datos reales
-interface Empleado {
-    id: number;
-    nombre: string;
-    apellido: string;
-    email: string;
-    telefono: string | null;
-    direccion: string | null;
-    fecha_nacimiento: string;
-    fecha_ingreso: string;
-    puesto: string;
-    departamento: string;
-    salario: number;
-    estado: string;
-    rfc: string;
-    curp: string;
-    nss: string;
-    cuenta_bancaria: string | null;
-    banco: string | null;
-    clabe: string | null;
-    usuario_id: number;
-    num_empleado: number;
-}
 
 interface EmpleadosResponse {
     totalRecords: number;
     totalPages: number;
     pageSize: number;
     page: number;
-    data: Empleado[];
+    data: any[];
 }
 
 interface Filtro {
@@ -81,7 +58,7 @@ interface FiltrosForm {
 
 export default function Empleados() {
     const dispatch = useAppDispatch();
-    const [empleados, setEmpleados] = useState<Empleado[]>([]);
+    const [empleados, setEmpleados] = useState<any[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -137,7 +114,7 @@ export default function Empleados() {
         fetchEmpleados();
     }, [fetchEmpleados]);
 
-    const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null);
+    const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<any | null>(null);
 
     const loadEmpleados = (data: FiltrosForm) => {
         const nuevosFiltros: any[] = [];
@@ -149,23 +126,23 @@ export default function Empleados() {
                     { Key: "Nombre", Value: data.search, Operator: "like" },
                     { Key: "ApellidoPaterno", Value: data.search, Operator: "like" },
                     { Key: "ApellidoMaterno", Value: data.search, Operator: "like" },
-                    { Key: "personal", Value: data.search, Operator: "like" },
+                    { Key: "Personal", Value: data.search, Operator: "like" },
                 ], OperadorLogico: "OR"
             } as any);
         }
 
         if (data.departamento) {
-            nuevosFiltros.push({ Key: "departamento", Value: data.departamento, Operator: "=" });
+            nuevosFiltros.push({ Key: "SucursalTrabajo", Value: data.departamento, Operator: "=" });
         }
 
         if (data.puesto) {
-            nuevosFiltros.push({ Key: "puesto", Value: data.puesto, Operator: "=" });
+            nuevosFiltros.push({ Key: "Puesto", Value: data.puesto, Operator: "=" });
         }
 
         if (data.estado) {
-            nuevosFiltros.push({ Key: "estado", Value: data.estado, Operator: "=" });
+            nuevosFiltros.push({ Key: "Estatus", Value: data.estado, Operator: "=" });
         }
-        
+
         setActiveFilters(prev => ({
             ...prev,
             FiltrosAnd: nuevosFiltrosAnd,
@@ -178,7 +155,7 @@ export default function Empleados() {
         setCurrentPage(1);
     };
 
-    const handleOpenModal = (modalName: string, empleado?: Empleado) => {
+    const handleOpenModal = (modalName: string, empleado?: any) => {
         if (modalName === 'detalles-empleado' && empleado) {
             setEmpleadoSeleccionado(empleado);
         }
@@ -273,7 +250,7 @@ export default function Empleados() {
                                     <Button
                                         onClick={fetchEmpleados}
                                         color="success"
-                                        size="small"    
+                                        size="small"
                                     >
                                         Reintentar
                                     </Button>
@@ -314,7 +291,7 @@ export default function Empleados() {
                     title="Detalles del Empleado"
                     maxWidth="lg"
                 >
-                    <ModalDetallesEmpleado selectedEmpleado={empleadoSeleccionado} />
+                    {empleadoSeleccionado && <ModalDetallesEmpleado selectedEmpleado={empleadoSeleccionado as any} />}
                 </Modal>
 
                 <Modal
