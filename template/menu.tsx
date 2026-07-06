@@ -97,7 +97,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
 
         const navigationMap: any = {
             admin: navigationAdmin,
-            user: navigationUser,
+            empleado: navigationUser,
             almacen: navigationAlmacen,
             seguridad: navigationAlmacen,
             ventas: navigationVentas,

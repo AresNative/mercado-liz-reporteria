@@ -35,6 +35,11 @@ export const navigationDefault = [
 ];
 export const navigationUser = [
   {
+    name: "Reporteria",
+    href: "/reporteria",
+    icon: ChartArea,
+  },
+  {
     name: "Proyectos",
     href: "/proyectos",
     icon: ClipboardList,
