@@ -52,8 +52,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return (
         <AuthController>
             <Header />
-            {userRole === 'admin' && children}
-            {userRole === 'pagos' && <PreNomina />}
+            {userRole === 'admin'  && children}
+            {userRole === 'rh' && children}
+            {userRole === 'nomina' && <PreNomina />}
             {userRole !== 'admin' && userRole !== 'pagos' && (
                 <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[var(--background)]">
                     <div className="text-center">

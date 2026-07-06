@@ -88,9 +88,34 @@ export default function Page() {
 
         try {
             const response_int = await getIntWithFilter({
-                table: "Art",
+                table: "Art INNER JOIN ListaPreciosDUnidad AS lpu ON art.Articulo = lpu.Articulo AND art.Unidad = lpu.Unidad AND lpu.Precio > 0 ",
                 filtros: {
-                    Selects: [],
+                    Selects: [
+                        { key: "art.Articulo" },
+                        { key: "art.Descripcion1" },
+                        { key: "art.Descripcion2" },
+                        { key: "art.NombreCorto" },
+                        { key: "art.Grupo" },
+                        { key: "art.Categoria" },
+                        { key: "art.Familia" },
+                        { key: "art.Linea" },
+                        { key: "art.Proveedor" },
+                        { key: "art.Fabricante" },
+                        { key: "art.Unidad" },
+                        { key: "art.UnidadCompra" },
+                        { key: "art.UnidadTraspaso" },
+                        { key: "art.Factor" },
+                        { key: "lpu.Precio" },
+                        { key: "art.CostoEstandar" },
+                        { key: "art.Impuesto1" },
+                        { key: "art.TipoImpuesto1" },
+                        { key: "art.Impuesto2" },
+                        { key: "art.TipoImpuesto2" },
+                        { key: "art.Estatus" },
+                        { key: "art.SeCompra" },
+                        { key: "art.SeVende" },
+                        { key: "art.TieneCaducidad" },
+                    ],
                     FiltrosAnd: [
                         { Filtros: activeFilters.Filtros, OperadorLogico: "OR" },
                         { Filtros: activeFilters.FiltrosOther, OperadorLogico: "AND" }

@@ -81,9 +81,9 @@ export const navigationRh = [
     icon: ChartArea,
   },
   {
-    name: "Nominas",
-    href: "/nominas",
-    icon: Clock10,
+    name: "Checador",
+    href: "/checador",
+    icon: Clock,
   },
   {
     name: "Empleados",
@@ -96,6 +96,30 @@ export const navigationRh = [
     icon: ClipboardList,
   },
 ];
+
+export const navigationNomina = [
+  {
+    name: "Reporteria",
+    href: "/reporteria",
+    icon: ChartArea,
+  },
+  {
+    name: "Checador",
+    href: "/checador",
+    icon: Clock,
+  },
+  {
+    name: "Empleados",
+    href: "/empleados",
+    icon: UsersRound,
+  },
+  {
+    name: "Proyectos",
+    href: "/proyectos",
+    icon: ClipboardList,
+  },
+];
+
 export const navigationAdmin = [
   {
     name: "Reporteria",

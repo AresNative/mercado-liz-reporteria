@@ -201,18 +201,42 @@ export default function GestionPedidos() {
             </span>;
         };
 
+        const renderFechaEntrega = () => {
+            if (!pedido.fecha_entrega) {
+                return <span className="text-gray-400 dark:text-gray-200">Sin programar</span>;
+            }
+            const fecha = new Date(pedido.fecha_entrega);
+            const fechaTexto = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const horaTexto = fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+            const esActivo = pedido.estado === 'nuevo' || pedido.estado === 'proceso' || pedido.estado === 'listo';
+            const colorHora = esActivo
+                ? pedido.urgencia === 'alta'
+                    ? 'text-red-600'
+                    : pedido.urgencia === 'media'
+                        ? 'text-amber-600'
+                        : 'text-gray-700 dark:text-gray-300'
+                : 'text-gray-500 dark:text-gray-200';
+
+            return (
+                <div className="flex flex-col leading-tight">
+                    <span className="text-xs text-gray-500 dark:text-white">{fechaTexto}</span>
+                    <span className={`font-semibold ${colorHora}`}>{horaTexto}</span>
+                </div>
+            );
+        };
+
         return {
             ID: [pedido.id],
             Cliente: [pedido.nombre || 'N/A', pedido.cliente_telefono],
             Servicio: [pedido.servicio],
             Estado: [getEstadoBadge(pedido.estado)],
-            Urgencia: pedido.fecha_entrega
-                ? <CountdownTimer endDate={new Date(pedido.fecha_entrega)} refrech={()=>{}} />
-                : <span className="text-gray-400">N/A</span>,
+            Creacion: [new Date(pedido.fecha_creacion).toLocaleDateString()],
+            Entrega: renderFechaEntrega(),
+            Urgencia: pedido.fecha_entrega && (pedido.estado === 'nuevo' || pedido.estado === 'proceso' || pedido.estado === 'listo')
+                ? <CountdownTimer endDate={new Date(pedido.fecha_entrega)} refrech={() => { }} />
+                : <span className="text-gray-400">—</span>,
             Total: [formatValue(pedido.total, 'currency')],
-            'Fecha Creación': [new Date(pedido.fecha_creacion).toLocaleDateString()],
-            'Fecha Entrega': [pedido.fecha_entrega ? new Date(pedido.fecha_entrega).toLocaleDateString() : 'N/A'],
-            Items: [pedido.items?.length || 0],
             // Guardamos el objeto original para referencia
             _original: pedido
         };
@@ -261,6 +285,15 @@ export default function GestionPedidos() {
                 filtros.Filtros = activeFilters.Filtros;
             }
 
+            // Ordenamos en el servidor por fecha de entrega (más próxima primero).
+            // Esto es indispensable porque los datos vienen paginados: si solo
+            // ordenáramos en el cliente, cada página mostraría un orden correcto
+            // "hacia adentro" pero los pedidos más urgentes podrían quedar
+            // repartidos en páginas distintas en vez de aparecer primero.
+            filtros.Order = activeFilters.OrderBy
+                ? [activeFilters.OrderBy]
+                : [{ Key: "listas.fecha_entrega", Direction: "ASC" }];
+
             const peticion = getWithFilter({
                 table: `listas left join clientes on listas.id_cliente = clientes.id`,
                 pageSize,
@@ -278,6 +311,10 @@ export default function GestionPedidos() {
 
                 const pedidosProcesados: Pedido[] = response.data.map(parseListaData);
 
+                // El servidor ya devuelve la página ordenada por fecha_entrega ASC
+                // (ver filtros.Order más arriba). Este sort adicional solo afina el
+                // orden dentro de la página actual (p.ej. tras una actualización por
+                // SignalR) y prioriza pedidos activos y urgentes sobre los demás.
                 const pedidosOrdenados = pedidosProcesados.sort((a, b) => {
                     const estadosActivos = ['nuevo', 'proceso', 'listo'];
                     const esAActivo = estadosActivos.includes(a.estado);
@@ -387,12 +424,81 @@ export default function GestionPedidos() {
         refrescarSilenciosamente();
     }, [refrescarSilenciosamente]);
 
-    const { isConnected } = usePedidosSignalR(
+    const { isConnected, notificarCambioLista } = usePedidosSignalR(
         handlePedidoActualizado,
         handleNuevoPedido,
         handlePedidoEliminado,
         handleRefrescarDatos
     );
+
+    // ── Auto-cancelación de pedidos vencidos ────────────────────────────────
+    // Un pedido "activo" (nuevo, en proceso o listo) cuya fecha_entrega ya
+    // pasó y que nadie marcó como entregado se considera vencido: se cancela
+    // automáticamente en la BD y se refleja en la tabla. Un ref evita mandar
+    // la misma petición dos veces si el intervalo dispara mientras la
+    // anterior sigue en curso.
+    const pedidosCancelandoRef = useRef<Set<number>>(new Set());
+
+    const cancelarPedidosVencidos = useCallback(async () => {
+        const ahora = Date.now();
+        const estadosActivos = ['nuevo', 'proceso', 'listo'];
+
+        const vencidos = pedidos.filter(p =>
+            estadosActivos.includes(p.estado) &&
+            !!p.fecha_entrega &&
+            new Date(p.fecha_entrega).getTime() < ahora &&
+            !pedidosCancelandoRef.current.has(p.id)
+        );
+
+        if (vencidos.length === 0) return;
+
+        vencidos.forEach(p => pedidosCancelandoRef.current.add(p.id));
+
+        await Promise.all(vencidos.map(async (pedido) => {
+            try {
+                await putGeneral({
+                    table: "listas",
+                    data: {
+                        Data: { estado: "cancelado", fecha_actualizacion: new Date().toISOString() },
+                        Filtros: [{ Key: "ID", Value: pedido.id, Operator: "=" }]
+                    }
+                }).unwrap();
+
+                setPedidos(prev => prev.map(p =>
+                    p.id === pedido.id
+                        ? { ...p, estado: 'cancelado', urgencia: 'baja', tiempo_restante: 0, fecha_actualizacion: new Date().toISOString() }
+                        : p
+                ));
+
+                if (pedidoSeleccionado?.id === pedido.id) {
+                    setPedidoSeleccionado(prev => prev ? { ...prev, estado: 'cancelado' } : prev);
+                }
+
+                if (isConnected) {
+                    await notificarCambioLista('EstadoActualizado', {
+                        pedidoId: pedido.id,
+                        nuevoEstado: 'cancelado',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+
+                console.log(`⏰ Pedido #${pedido.id} cancelado automáticamente: se pasó de su hora de entrega.`);
+            } catch (error) {
+                console.error(`Error cancelando automáticamente el pedido #${pedido.id} por tiempo vencido:`, error);
+            } finally {
+                pedidosCancelandoRef.current.delete(pedido.id);
+            }
+        }));
+    }, [pedidos, putGeneral, pedidoSeleccionado, isConnected, notificarCambioLista]);
+
+    // Revisamos cada vez que cambia la lista de pedidos (nueva carga, update
+    // por SignalR, etc.) y además con un intervalo fijo para detectar los
+    // que vencen simplemente porque pasó el tiempo, sin que nada más cambie.
+    useEffect(() => {
+        cancelarPedidosVencidos();
+        const intervalo = setInterval(cancelarPedidosVencidos, 30000);
+        return () => clearInterval(intervalo);
+    }, [cancelarPedidosVencidos]);
 
     // Manejo de filtros (MainForm)
     const loadFiltros = (data: any) => {

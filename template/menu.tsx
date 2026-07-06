@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Menu, LogOut, LogIn, UserPlus, X } from 'lucide-react';
 import { useLogoutUserMutation } from '@/hooks/api/auth';
 import { LogInField } from '@/utils/constants/forms/logIn';
-import { navigationAdmin, navigationAlmacen, navigationDefault, navigationRh, navigationUser, navigationVentas } from '@/utils/constants/router';
+import { navigationAdmin, navigationAlmacen, navigationDefault, navigationNomina, navigationRh, navigationUser, navigationVentas } from '@/utils/constants/router';
 import { getLocalStorageItem } from '@/utils/functions/local-storage';
 import { cn } from '@/utils/functions/cn';
 import { closeModalReducer, openAlertReducer, openModalReducer } from '@/hooks/reducers/drop-down';
@@ -102,6 +102,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
             seguridad: navigationAlmacen,
             ventas: navigationVentas,
             rh: navigationRh,
+            nomina: navigationNomina,
         };
         return navigationMap[rol] || navigationUser;
     };

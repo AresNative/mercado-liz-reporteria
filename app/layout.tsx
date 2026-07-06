@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+// @ts-ignore: allow importing global css in Next.js app directory
 import "./globals.css";
 import Providers from "@/hooks/provider";
 import { cn } from "@/utils/functions/cn";
