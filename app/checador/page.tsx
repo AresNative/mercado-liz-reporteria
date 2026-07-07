@@ -354,13 +354,7 @@ export default function Page() {
                             <li className="w-2/3 my-auto">
                                 <MainForm
                                     ref={formRef}
-                                    message_button={
-                                        isDetecting
-                                            ? "Detectando..."
-                                            : detectedStatus === "Salida"
-                                                ? "Registrar Salida"
-                                                : "Registrar Entrada"
-                                    }
+                                    message_button="Registrar"
                                     iconButton={
                                         isDetecting ? (
                                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
