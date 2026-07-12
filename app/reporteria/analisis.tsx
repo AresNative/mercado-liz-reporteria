@@ -807,21 +807,15 @@ export default function Analisis() {
         const { agregaciones, Order, Filtros: baseFiltros, selects, ...others } = finalFiltros;
 
         // Solo pedimos los campos usados para búsqueda, para mantener el payload liviano.
-        others.selects = (selects || []).filter((sel: any) => searchFields.includes(sel.Key));
-        const liveDateRange = debouncedFormValues.dateRange || formValues.dateRange || getDefaultDateRangeValue();
-        const liveAlmacenField = ALMACEN_FIELD_MAP[selectedReport];
-        const liveAndFiltros: Filtro[] = [
-            { Key: "FechaEmision", Operator: "BETWEEN", Value: liveDateRange },
-        ];
-        if (debouncedFormValues.almacen && liveAlmacenField) {
-            liveAndFiltros.push({ Key: liveAlmacenField, Operator: "=", Value: debouncedFormValues.almacen });
-        }
+        others.agregaciones = (selects || [])
+            .filter((sel: any) => searchFields.includes(sel.Key))
+            .map((sel: any) => ({ ...sel, Operation: 'DISTINCT' }));
 
         const searchQueryTerm = (debouncedFormValues.search || "").split(",").pop()?.trim() || "";
         const liveOrFiltros: Filtro[] = searchQueryTerm
-            ? searchFields.map((field) => ({ Key: field, Operator: "LIKE", Value: searchQueryTerm }))
+            ? [{ Key: "ART.Descripcion1", Operator: "LIKE", Value: searchQueryTerm }]
             : [];
-        others.FiltrosAnd = buildFiltrosAnd(baseFiltros || [], { Filtros: liveOrFiltros, FiltrosOther: liveAndFiltros } as ActiveFilters);
+        others.Filtros =   liveOrFiltros ;
         others.distinct = true;
 
         const payload: RequestPayload = {
