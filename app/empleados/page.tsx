@@ -83,7 +83,7 @@ export default function Empleados() {
 
         try {
             const response = await getWithFilter({
-                table: "personal",
+                table: "personal p INNER JOIN(SELECT DISTINCT eMail as eMailEmpresa, Nombre as NombreUsuario FROM usuario) u ON u.NombreUsuario LIKE '%' + p.Nombre  + '%'", // 
                 pageSize: pageSize,
                 page: currentPage,
                 filtros: {

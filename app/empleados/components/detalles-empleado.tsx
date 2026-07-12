@@ -233,6 +233,7 @@ export const ModalDetallesEmpleado = ({ selectedEmpleado }: { selectedEmpleado: 
                     <SectionTitle title="Información Personal" icon={User} />
 
                     <InfoItem icon={Mail} label="Email" value={empleado.eMail} />
+                    <InfoItem icon={Mail} label="Email de la Empresa" value={String(empleado.eMailEmpresa).toLowerCase()} />
                     <InfoItem icon={Phone} label="Teléfono" value={empleado.Telefono} />
                     <InfoItem icon={MapPin} label="Dirección" value={direccionCompleta} />
                     <InfoItem icon={Calendar} label="Fecha de Nacimiento" value={formatDate(empleado.FechaNacimiento)} />

@@ -6,6 +6,7 @@ import { RequestPayload, useManagmentRead } from "@/hooks/classes/api";
 import {
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from "react";
@@ -36,6 +37,7 @@ import KardexStats from "./components/kardex-stats";
 import ScoreCard from "./components/modal-scorecard";
 import { useAppDispatch } from "@/hooks/selector";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
+import { Field } from "@/utils/types/interfaces";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type REPORT =
     | "venta"
@@ -51,8 +53,19 @@ interface Filtro {
     Value: any;
     Operator: string;
 }
-interface ActiveFilters {
+// Grupo de filtros con su propio operador lógico, tal como lo espera
+// el backend en la propiedad `FiltrosAnd`: [{ Filtros, OperadorLogico }, ...]
+interface FiltroGrupo {
     Filtros: Filtro[];
+    OperadorLogico: "AND" | "OR";
+}
+interface ActiveFilters {
+    // Grupo OR: filtros que deben combinarse con "o" (p.ej. búsqueda de texto
+    // sobre varios campos: Articulo LIKE x OR Descripcion1 LIKE x OR ...).
+    Filtros: Filtro[];
+    // Grupo AND: filtros que deben combinarse con "y" (p.ej. rango de fechas,
+    // almacén). Se combinan además con los filtros base de cada reporte.
+    FiltrosOther: Filtro[];
     Selects: any[];
     OrderBy: any | null;
 }
@@ -276,10 +289,10 @@ const AGGREGATION_DEPENDENCIES: Record<string, string[]> = {
 };
 // Mapeo del campo Almacén según reporte
 const ALMACEN_FIELD_MAP: Record<REPORT, string> = {
-    venta: "ventad.Almacen",
-    compra: "comprad.Almacen",
-    merma: "inv.Sucursal",
-    inventario: "inv.Sucursal",
+    venta: "Sucursal.Nombre",
+    compra: "Sucursal.Nombre",
+    merma: "Sucursal.Nombre",
+    inventario: "Sucursal.Nombre",
     clientes: "",        // no aplica
     proveedores: "",     // no aplica
 };
@@ -293,13 +306,24 @@ const SEARCH_FIELDS_MAP: Record<REPORT, string[]> = {
     clientes: ["Cte.Nombre", "Cte.Codigo"],
     proveedores: ["Prov.Nombre", "Prov.Proveedor"],
 };
+// Cantidad máxima de sugerencias a mostrar en el campo de búsqueda
+const SUGGESTIONS_LIMIT = 50;
 const ALMACENES_OPCIONES = [
-    { value: "ALMVGPE", label: "Valle de Guadalupe" },
-    { value: "ALMMAYO", label: "Mayoreo" },
-    { value: "ALMTESTE", label: "Testerazo" },
-    { value: "ALMPALM", label: "Valle de las Palmas" },
+    { value: "Valle de Guadalupe", label: "Valle de Guadalupe" },
+    { value: "Mayoreo", label: "Mayoreo" },
+    { value: "Testerazo", label: "Testerazo" },
+    { value: "Valle de las Palmas", label: "Valle de las Palmas" },
 ];
 
+// Valor por defecto del rango de fechas: últimos 30 días.
+// Se usa tanto para el filtro inicial como para el valueDefined del formulario,
+// de forma que ambos permanezcan sincronizados.
+const getDefaultDateRangeValue = (): string => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    return `${start.toISOString().split("T")[0]} AND ${end.toISOString().split("T")[0]}`;
+};
 
 const getHiddenAggregations = (visibleKeys: string[], aggregations: any[] = []): Set<string> => {
     const hiddenAggregations = new Set<string>();
@@ -323,6 +347,20 @@ const getHiddenAggregations = (visibleKeys: string[], aggregations: any[] = []):
     return hiddenAggregations;
 };
 
+const buildFiltrosAnd = (baseFiltros: Filtro[] = [], activeFilters: ActiveFilters): FiltroGrupo[] => {
+    const grupoAnd: Filtro[] = [...baseFiltros, ...(activeFilters.FiltrosOther || [])];
+    const grupoOr: Filtro[] = activeFilters.Filtros || [];
+
+    const grupos: FiltroGrupo[] = [];
+    if (grupoAnd.length > 0) {
+        grupos.push({ Filtros: grupoAnd, OperadorLogico: "AND" });
+    }
+    if (grupoOr.length > 0) {
+        grupos.push({ Filtros: grupoOr, OperadorLogico: "OR" });
+    }
+    return grupos;
+};
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Analisis() {
     const [manager] = useManagmentRead();
@@ -338,13 +376,17 @@ export default function Analisis() {
     const [selectedReport, setSelectedReport] = useState<REPORT>("venta");
     const [tableLoading, setTableLoading] = useState(false);
     const [dataTable, setDataTable] = useState<any[]>([]);
-    const [dataStats, setDataStats] = useState<any[]>([]);
+    const [dataStats, setDataStats] = useState<any[]>([])
+    const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
     const [tableError, setTableError] = useState<string | null>(null);
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-        Filtros: [
+        // Grupo OR: se llena solo cuando el usuario busca texto.
+        Filtros: [],
+        // Grupo AND: fecha (por defecto últimos 30 días) + almacén cuando aplique.
+        FiltrosOther: [
             {
                 Key: "FechaEmision",
-                Value: `${new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split("T")[0]} AND ${new Date().toISOString().split("T")[0]}`,
+                Value: getDefaultDateRangeValue(),
                 Operator: "BETWEEN"
             },
         ],
@@ -355,6 +397,53 @@ export default function Analisis() {
                 Direction: "DESC"
             }
         ],
+    });
+    const formRef = useRef<{
+        getFormData: () => any;
+        submitForm: () => Promise<any>;
+        getLiveValues: () => any;
+    }>(null);
+    const [liveFormValues, setLiveFormValues] = useState<{
+        dateRange?: string;
+        almacen?: string;
+        search?: string;
+    }>({});
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const live = formRef.current?.getFormData?.() || {};
+            setLiveFormValues(prev => (
+                prev.dateRange === live.dateRange &&
+                    prev.almacen === live.almacen &&
+                    prev.search === live.search
+                    ? prev
+                    : { dateRange: live.dateRange, almacen: live.almacen, search: live.search }
+            ));
+        }, 250);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Debounce del snapshot en vivo antes de disparar la consulta de
+    // sugerencias, para no golpear el backend en cada tecla/cambio.
+    const [debouncedFormValues, setDebouncedFormValues] = useState<{
+        dateRange?: string;
+        almacen?: string;
+        search?: string;
+    }>({});
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            setDebouncedFormValues(liveFormValues);
+        }, 300);
+        return () => clearTimeout(timeout);
+    }, [liveFormValues]);
+
+    const [formValues, setFormValues] = useState<{
+        dateRange: string;
+        almacen: string;
+        search: string;
+    }>({
+        dateRange: getDefaultDateRangeValue(),
+        almacen: "",
+        search: "",
     });
     const [arrayDisplayModesByReport, setArrayDisplayModesByReport] = useState<Record<string, Record<string, ArrayColumnDisplay>>>({});
 
@@ -423,8 +512,8 @@ export default function Analisis() {
         [selectedReport]
     );
 
-    // ─── Fetch de tabla ──────────────────────────────────────────────────────
     const tableAbortRef = useRef<AbortController | null>(null);
+    const statsAbortRef = useRef<AbortController | null>(null);
 
     const fetchTableData = useCallback(async () => {
         tableAbortRef.current?.abort();
@@ -474,9 +563,10 @@ export default function Analisis() {
                 }
             });
         }
-        if (activeFilters.Filtros && activeFilters.Filtros.length > 0) {
-            finalFiltros.Filtros.push(...activeFilters.Filtros);
-        }
+        // ── Construir FiltrosAnd (grupo AND: base + fecha/almacén, grupo OR: búsqueda) ──
+        const baseFiltros: Filtro[] = finalFiltros.Filtros || [];
+        finalFiltros.FiltrosAnd = buildFiltrosAnd(baseFiltros, activeFilters);
+        delete finalFiltros.Filtros;
 
         // Ajustar según columnas sintéticas y sus modos
         for (const { syntheticKey, sourceFields } of SYNTHETIC_COLUMNS) {
@@ -606,7 +696,7 @@ export default function Analisis() {
                     Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
                     Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`=${item["Articulos"]}`] : [])],
                     Costo: [item.Costo, (item.Cantidad > 1) ? item["Total Costo"] ? [`=${formatValue(item["Total Costo"], "currency")}`] : [`=${formatValue(item["Total Mermas"], "currency")}`] : ""],
-                    Precio: [item.Precio, (item.Cantidad > 1) ? [`=${formatValue(item["Total Ventas"], "currency")}`]:""],
+                    Precio: [item.Precio, (item.Cantidad > 1) ? [`=${formatValue(item["Total Ventas"], "currency")}`] : ""],
                     ...rest,
                 };
 
@@ -641,31 +731,30 @@ export default function Analisis() {
     ]);
 
     const fetchStatsData = useCallback(async () => {
-        tableAbortRef.current?.abort();
-        tableAbortRef.current = new AbortController();
+        statsAbortRef.current?.abort();
+        statsAbortRef.current = new AbortController();
 
         const config = REPORT_CONFIGS[selectedReport];
         if (!config) {
-            setTableLoading(false);
             return;
         }
         let finalFiltros: any = config.filtros ? JSON.parse(JSON.stringify(config.filtros)) : {};
-        const { selects, Order, ...others } = finalFiltros;
-        // ── Inyectar filtro de fecha ────────────────────────────────────────
-        if (activeFilters.Filtros && activeFilters.Filtros.length > 0) {
-            others.Filtros.push(...activeFilters.Filtros);
-        }
+        const { selects, Order, Filtros: baseFiltros, ...others } = finalFiltros;
+        // ── Construir FiltrosAnd (grupo AND: base + fecha/almacén, grupo OR: búsqueda) ──
+        others.FiltrosAnd = buildFiltrosAnd(baseFiltros || [], activeFilters);
         const payload: RequestPayload = {
             table: config.table,
             filtros: others,
             page: currentPage,
             pageSize,
-            signal: tableAbortRef.current.signal,
+            signal: statsAbortRef.current.signal,
         };
 
         try {
             const { promise } = await manager.execute(payload);
-            const response: any = await safeCall(() => promise, `fetchTable/${selectedReport}`);
+            const response: any = await safeCall(() => promise, `fetchStats/${selectedReport}`);
+            if (statsAbortRef.current.signal.aborted) return;
+
             const formattedData = response.data.data.map((out: any) => {
                 const totalVentas = out["Total Ventas"];
                 const totalCosto = out["Total Costo"];
@@ -683,8 +772,6 @@ export default function Analisis() {
             setDataStats(formattedData)
         } catch (err: any) {
             if (err?.name === "AbortError") return;
-        } finally {
-            if (!tableAbortRef.current.signal.aborted) setTableLoading(false);
         }
     }, [
         selectedReport,
@@ -692,14 +779,120 @@ export default function Analisis() {
         pageSize,
         manager,
         activeFilters,
-        getCurrentVisibility,
-        getCurrentArrayDisplayModes,
     ]);
 
     useEffect(() => {
         fetchTableData();
-        fetchStatsData();
     }, [fetchTableData]);
+
+    useEffect(() => {
+        fetchStatsData();
+    }, [fetchStatsData]);
+
+    // ─── Sugerencias de búsqueda ─────────────────────────────────────────────
+    const suggestionsAbortRef = useRef<AbortController | null>(null);
+
+    const fetchSuggestions = useCallback(async () => {
+        suggestionsAbortRef.current?.abort();
+        suggestionsAbortRef.current = new AbortController();
+
+        const config = REPORT_CONFIGS[selectedReport];
+        const searchFields = SEARCH_FIELDS_MAP[selectedReport] || [];
+        if (!config || searchFields.length === 0) {
+            setSearchSuggestions([]);
+            return;
+        }
+
+        let finalFiltros: any = config.filtros ? JSON.parse(JSON.stringify(config.filtros)) : {};
+        const { agregaciones, Order, Filtros: baseFiltros, selects, ...others } = finalFiltros;
+
+        // Solo pedimos los campos usados para búsqueda, para mantener el payload liviano.
+        others.selects = (selects || []).filter((sel: any) => searchFields.includes(sel.Key));
+        const liveDateRange = debouncedFormValues.dateRange || formValues.dateRange || getDefaultDateRangeValue();
+        const liveAlmacenField = ALMACEN_FIELD_MAP[selectedReport];
+        const liveAndFiltros: Filtro[] = [
+            { Key: "FechaEmision", Operator: "BETWEEN", Value: liveDateRange },
+        ];
+        if (debouncedFormValues.almacen && liveAlmacenField) {
+            liveAndFiltros.push({ Key: liveAlmacenField, Operator: "=", Value: debouncedFormValues.almacen });
+        }
+
+        const searchQueryTerm = (debouncedFormValues.search || "").split(",").pop()?.trim() || "";
+        const liveOrFiltros: Filtro[] = searchQueryTerm
+            ? searchFields.map((field) => ({ Key: field, Operator: "LIKE", Value: searchQueryTerm }))
+            : [];
+        others.FiltrosAnd = buildFiltrosAnd(baseFiltros || [], { Filtros: liveOrFiltros, FiltrosOther: liveAndFiltros } as ActiveFilters);
+        others.distinct = true;
+
+        const payload: RequestPayload = {
+            table: config.table,
+            filtros: others,
+            page: 1,
+            pageSize: SUGGESTIONS_LIMIT,
+            signal: suggestionsAbortRef.current.signal,
+        };
+
+        try {
+            const { promise } = await manager.execute(payload);
+            const response: any = await safeCall(() => promise, `fetchSuggestions/${selectedReport}`);
+            if (suggestionsAbortRef.current.signal.aborted) return;
+
+            const valores = new Set<string>();
+            (response.data?.data || []).forEach((row: any) => {
+                Object.values(row).forEach((val: any) => {
+                    if (typeof val === "string" && val.trim() !== "") {
+                        valores.add(val.trim());
+                    }
+                });
+            });
+
+            setSearchSuggestions(Array.from(valores).sort().slice(0, SUGGESTIONS_LIMIT));
+        } catch (err: any) {
+            if (err?.name === "AbortError") return;
+        }
+    }, [selectedReport, debouncedFormValues, formValues.dateRange, manager]);
+
+    useEffect(() => {
+        fetchSuggestions();
+    }, [fetchSuggestions]);
+
+    const dataFormConfig: Field[] = useMemo(() => ([
+        {
+            require: false,
+            type: "Flex",
+            elements: [
+                {
+                    require: false,
+                    type: "DATE_RANGE",
+                    name: "dateRange",
+                    label: "Rango de fechas",
+                    icon: <Calendar className="size-4" />,
+                    valueDefined: formValues.dateRange,
+                },
+                {
+                    require: false,
+                    type: "SELECT",
+                    name: "almacen",
+                    label: "Almacén",
+                    placeholder: "Selecciona un almacén",
+                    icon: <Package className="size-4" />,
+                    options: ALMACENES_OPCIONES,
+                    valueDefined: formValues.almacen ? formValues.almacen : undefined,
+                },
+                {
+                    require: false,
+                    type: "SEARCH",
+                    name: "search",
+                    placeholder: "Escribe y presiona Enter para agregar (Artículo, código, proveedor, etc.)",
+                    label: "Búsqueda rápida (acumulable)",
+                    icon: <Search className="size-4" />,
+                    options: searchSuggestions,
+                    saveData: true,
+                    valueDefined: formValues.search,
+                },
+            ],
+        },
+    ]), [formValues, searchSuggestions]);
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
         <>
@@ -720,7 +913,7 @@ export default function Analisis() {
                     </dl>
                     <dl className="flex gap-2">
                         <Button
-                            onClick={() => fetchTableData()}
+                            onClick={() => { fetchTableData(); fetchStatsData(); }}
                             disabled={tableLoading}
                             color="second"
                             size="small">
@@ -752,7 +945,7 @@ export default function Analisis() {
                         <Button
                             color="success"
                             size="small"
-                            onClick={() => { setShowScoreCard(true);   dispatch(openModalReducer({ modalName: "scorecard" }))}}
+                            onClick={() => { setShowScoreCard(true); dispatch(openModalReducer({ modalName: "scorecard" })) }}
                         >
                             Score Card
                         </Button>
@@ -764,84 +957,74 @@ export default function Analisis() {
 
                     <MainForm
                         actionType=""
+                        ref={formRef}
                         flexDirection="flex-row"
-                        dataForm={[
-                            {
-                                require: false,
-                                type: "Flex",
-                                elements: [
-                                    {
-                                        require: false,
-                                        type: "DATE_RANGE",
-                                        name: "dateRange",
-                                        label: "Rango de fechas",
-                                        icon: <Calendar className="size-4" />
-                                    },
-                                    {
-                                        require: false,
-                                        type: "SELECT",
-                                        name: "almacen",
-                                        label: "Almacén",
-                                        placeholder: "Selecciona un almacén",
-                                        icon: <Package className="size-4" />,
-                                        options: ALMACENES_OPCIONES,
-                                    },
-                                    {
-                                        require: false,
-                                        type: "SEARCH",
-                                        name: "search",
-                                        placeholder: "Artículo, código, proveedor, etc.",
-                                        label: "Búsqueda rápida",
-                                        icon: <Search className="size-4" />,
-                                        options: [],
-                                    },
-                                ],
-                            },
-                        ]}
+                        dataForm={dataFormConfig}
                         message_button={"Filtrar"}
                         iconButton={<Filter className="mr-1 h-4 w-4" />}
+                        valueAssign={(row: any) => console.log(row)}
                         onSuccess={(rows: any) => {
                             const { almacen, search, dateRange } = rows;
-                            const nuevosFiltros: Filtro[] = [];
-                            
-                            if (dateRange) {
-                                nuevosFiltros.push({
+
+                            const effectiveDateRange = dateRange || formValues.dateRange || getDefaultDateRangeValue();
+
+                            // Grupo AND: fecha (siempre) + almacén (si se seleccionó),
+                            // usando el campo correcto según el reporte activo.
+                            const filtrosAnd: Filtro[] = [
+                                {
                                     Key: "FechaEmision",
                                     Operator: "BETWEEN",
-                                    Value: dateRange,
-                                });
-                            }
-                            // Filtro por almacén (si se seleccionó)
-                            if (almacen) {
-                                nuevosFiltros.push({
-                                    Key: "Almacen",
+                                    Value: effectiveDateRange,
+                                },
+                            ];
+                            const almacenField = ALMACEN_FIELD_MAP[selectedReport];
+                            if (almacen && almacenField) {
+                                filtrosAnd.push({
+                                    Key: almacenField,
                                     Operator: "=",
                                     Value: almacen,
                                 });
                             }
 
-                            // Filtro de búsqueda (si hay texto)
+                            const filtrosOr: Filtro[] = [];
                             if (search) {
-                                // Aplicamos LIKE a cada campo de búsqueda (se unirán con AND)
-                                SEARCH_FIELDS_MAP[selectedReport].forEach(field => {
-                                    nuevosFiltros.push({
-                                        Key: field,
-                                        Operator: "LIKE",
-                                        Value: `%${search}%`,
+                                const searchFields = SEARCH_FIELDS_MAP[selectedReport] || [];
+                                // Con `saveData` en el campo SEARCH, el usuario puede
+                                // acumular varios términos (tags) que llegan aquí como
+                                // un solo string separado por comas. Se generan filtros
+                                // OR para cada combinación campo × término, de forma
+                                // que el resultado incluya coincidencias con cualquiera
+                                // de los términos acumulados en cualquiera de los campos.
+                                const searchTerms = search
+                                    .split(",")
+                                    .map((term: string) => term.trim())
+                                    .filter(Boolean);
+                                searchTerms.forEach((term: string) => {
+                                    searchFields.forEach((field) => {
+                                        filtrosOr.push({
+                                            Key: field,
+                                            Operator: "LIKE",
+                                            Value: term,
+                                        });
                                     });
                                 });
                             }
 
-                            // Actualizar activeFilters con los nuevos filtros (reemplazamos los anteriores)
                             setActiveFilters(prev => ({
                                 ...prev,
-                                Filtros: nuevosFiltros,
+                                Filtros: filtrosOr,
+                                FiltrosOther: filtrosAnd,
                                 // Podríamos limpiar también Selects/OrderBy si se usaran, pero los dejamos como estaban
                             }));
 
+                            setFormValues({
+                                dateRange: effectiveDateRange,
+                                almacen: almacen || "",
+                                search: search || "",
+                            });
+
                             // Reiniciar a la primera página y recargar
                             setCurrentPage(1);
-                            fetchTableData();
                         }}
                     />
 

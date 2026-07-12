@@ -43,6 +43,7 @@ export interface Field {
   maxLength?: number; // For TEXT_AREA and INPUT
   minLength?: number; // For TEXT_AREA and INPUT
   valueDefined?: any;
+  saveData?: boolean; // For SEARCH: acumula selecciones como tags en vez de sobreescribir el valor
   horas?: boolean; // For DATE_RANGE
   href?: string;
   icon?: React.ReactNode;
