@@ -43,10 +43,11 @@ type REPORT =
     | "venta"
     | "compra"
     | "merma"
+    | "mermanoconocida"
     | "inventario"
-    | "clientes"
+    /*   | "clientes"
     | "proveedores"
-   /*  | "gastos" */;
+  | "gastos" */;
 
 interface Filtro {
     Key: string;
@@ -185,6 +186,38 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             ],
         },
     },
+    mermanoconocida: {
+        table: `INV AS inv INNER JOIN INVD AS invd ON inv.Mov = 'AJUSTE' AND invd.ID = inv.ID AND inv.Concepto = 'REPROCESO' INNER JOIN Art AS art ON art.Articulo = invd.Articulo  INNER JOIN Sucursal ON invd.Sucursal = Sucursal.Sucursal`,
+        filtros: {
+            selects: [
+                { Key: "art.Articulo" },
+                { Key: "art.Descripcion1", Alias: "Nombre" },
+                { Key: "inv.FechaEmision" },
+                { Key: "invd.Almacen" },
+                { Key: "inv.Sucursal" },
+                { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
+                { Key: "art.Categoria" },
+                { Key: "art.Grupo" },
+                { Key: "art.Linea" },
+                { Key: "art.Familia" },
+                { Key: "invd.Costo" },
+                { Key: "invd.Unidad" },
+            ],
+            agregaciones: [
+                { Key: "invd.Cantidad", Alias: "Cantidad", Operation: "SUM" },
+                { Key: "(invd.Costo * invd.Cantidad)", Alias: "Total Mermas", Operation: "SUM" },
+            ],
+            Filtros: [
+                { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+            ],
+            Order: [
+                {
+                    Key: "FechaEmision",
+                    Direction: "DESC"
+                }
+            ],
+        },
+    },
     inventario: {
         table: `INVD AS invd INNER JOIN inv AS inv ON inv.ID = invd.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo  INNER JOIN Sucursal ON invd.Sucursal = Sucursal.Sucursal`,
         filtros: {
@@ -219,7 +252,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             ],
         },
     },
-    clientes: { table: "Cte", filtros: {} },
+    /* clientes: { table: "Cte", filtros: {} },
     proveedores: {
         table: "Prov",
         filtros: {
@@ -232,7 +265,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             ],
         },
     },
-    /* gastos: {
+    gastos: {
         table: `gasto G INNER JOIN ( SELECT GD.ID AS GastoID, MAX(GD.Concepto) AS Concepto, SUM(GD.Precio * GD.Cantidad) AS TotalPrecio, SUM(GD.Cantidad) AS TotalCantidad, SUM(GD.Importe) AS TotalImporte, SUM(GD.Impuestos) AS TotalImpuestos FROM gastod GD GROUP BY GD.ID ) GD_Concepto ON G.ID = GD_Concepto.GastoID LEFT JOIN Prov P ON P.Proveedor = G.Acreedor LEFT JOIN ( SELECT CFDL.ModuloID, MIN(CFDL.UUID) AS MinUUID FROM CFDValidoMovLista CFDL WHERE CFDL.ModuloD = 'GAS' GROUP BY CFDL.ModuloID ) CFDL ON G.ID = CFDL.ModuloID LEFT JOIN CFDEgreso E ON E.UUID = CFDL.MinUUID`,
         filtros: {
             selects: [
@@ -292,9 +325,10 @@ const ALMACEN_FIELD_MAP: Record<REPORT, string> = {
     venta: "Sucursal.Nombre",
     compra: "Sucursal.Nombre",
     merma: "Sucursal.Nombre",
+    mermanoconocida: "Sucursal.Nombre",
     inventario: "Sucursal.Nombre",
-    clientes: "",        // no aplica
-    proveedores: "",     // no aplica
+    /* clientes: "",        // no aplica
+    proveedores: "",     // no aplica */
 };
 
 // Mapeo de campos para búsqueda (se usará con LIKE)
@@ -302,9 +336,10 @@ const SEARCH_FIELDS_MAP: Record<REPORT, string[]> = {
     venta: ["ART.Descripcion1", "ART.Articulo"],
     compra: ["ART.Descripcion1", "ART.Articulo", "P.Nombre"],
     merma: ["art.Descripcion1", "art.Articulo"],
+    mermanoconocida: ["art.Descripcion1", "art.Articulo"],
     inventario: ["art.Descripcion1", "art.Articulo"],
-    clientes: ["Cte.Nombre", "Cte.Codigo"],
-    proveedores: ["Prov.Nombre", "Prov.Proveedor"],
+    /* clientes: ["Cte.Nombre", "Cte.Codigo"],
+    proveedores: ["Prov.Nombre", "Prov.Proveedor"], */
 };
 // Cantidad máxima de sugerencias a mostrar en el campo de búsqueda
 const SUGGESTIONS_LIMIT = 50;
