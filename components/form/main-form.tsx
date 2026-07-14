@@ -36,6 +36,7 @@ import { usePostGeneralMutation, usePostImgMutation, usePutGeneralMutation } fro
 import { setLocalStorageItem } from "@/utils/functions/local-storage";
 import { cn } from "@/utils/functions/cn";
 import { usePostIntelisisMutation, usePutIntelisisMutation } from "@/hooks/api/api_int";
+import { RadioInputListComponent } from "./input-radio";
 
 export const MainForm = React.forwardRef(({
   message_button,
@@ -443,6 +444,8 @@ export function SwitchTypeInputRender(props: any) {
       return <TagInput {...props} />;
     case "RATING":
       return <Rating {...props} />;
+    case "RADIO":
+      return <RadioInputListComponent {...props} />;
     case "Flex":
       return <FlexComponent {...props} elements={props.cuestion.elements} />;
     case "H1":
