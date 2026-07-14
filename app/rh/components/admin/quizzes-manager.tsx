@@ -65,7 +65,6 @@ const PageQuizzes = () => {
                         Gestiona cuestionarios y preguntas
                     </p>
                 </div>
-
                 <div className="flex gap-2 flex-wrap">
                     <button
                         onClick={handleRefresh}
@@ -83,8 +82,7 @@ const PageQuizzes = () => {
                                 })
                             )
                         }
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
-                    >
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white">
                         <Plus className="w-4 h-4" />
                         Nuevo Cuestionario
                     </button>
@@ -178,8 +176,7 @@ const PageQuizzes = () => {
                                     })
                                 )
                             }
-                            className="flex items-center gap-2 px-2 py-2 rounded-lg border border-green-100 bg-green-100"
-                        >
+                            className="flex items-center gap-2 px-2 py-2 rounded-lg border border-green-100 bg-green-100">
                             <Plus className="w-4 h-4 stroke-green-500 " />
                             Agregar Preguntas
                         </button>
@@ -221,14 +218,12 @@ const PageQuizzes = () => {
                                 type: "SELECT",
                                 name: "videos_id",
                                 icon: <Video className="w-4 h-4 stroke-blue-400" />,
-                                options: 
+                                options:
                                     videos.map((video) => ({
-                                    value: String(video.id),
+                                        value: String(video.id),
                                         label: video.titulo,
-                                    
+
                                     })),
-                                
-                                
                             },
                         ]}
                         actionType="post-general"
@@ -236,7 +231,6 @@ const PageQuizzes = () => {
                     />
                 </div>
             </Modal>
-
             {/* MODAL PREGUNTAS */}
             <Modal
                 title="Nueva Pregunta"
