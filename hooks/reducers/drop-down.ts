@@ -1,4 +1,3 @@
-// drop-down.ts (slice actualizado)
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface ModalState {
@@ -18,6 +17,7 @@ interface BaseAlertProps {
 export interface DropDowState {
   alert: BaseAlertProps;
   modals: ModalState;
+  modalStack: string[]; // nuevo
   cuestionActivate: unknown;
 }
 
@@ -34,6 +34,7 @@ const initialAlertState: BaseAlertProps = {
 const initialState: DropDowState = {
   alert: initialAlertState,
   modals: {},
+  modalStack: [],
   cuestionActivate: null,
 };
 
@@ -51,28 +52,38 @@ export const dropDow = createSlice({
       state.alert = initialAlertState;
     },
     openModalReducer: (state, action: PayloadAction<{ modalName: string }>) => {
-      // Solo maneja modales, no afecta alertas
       const { modalName } = action.payload;
-      // Cierra otros modales antes de abrir uno nuevo
-      /* Object.keys(state.modals).forEach((key) => {
-        state.modals[key] = false;
-      }); */
-      state.modals[modalName] = true;
+      if (!state.modals[modalName]) {
+        state.modals[modalName] = true;
+        state.modalStack.push(modalName);
+      }
     },
     closeModalReducer: (
       state,
-      action: PayloadAction<{ modalName: string }>
+      action: PayloadAction<{ modalName: string }>,
     ) => {
       const { modalName } = action.payload;
-      console.log(modalName);
-      state.modals[modalName] = false;
+      if (state.modals[modalName]) {
+        state.modals[modalName] = false;
+        state.modalStack = state.modalStack.filter(
+          (name) => name !== modalName,
+        );
+      }
     },
     toggleModalReducer: (
       state,
-      action: PayloadAction<{ modalName: string }>
+      action: PayloadAction<{ modalName: string }>,
     ) => {
       const { modalName } = action.payload;
-      state.modals[modalName] = !state.modals[modalName];
+      if (state.modals[modalName]) {
+        state.modals[modalName] = false;
+        state.modalStack = state.modalStack.filter(
+          (name) => name !== modalName,
+        );
+      } else {
+        state.modals[modalName] = true;
+        state.modalStack.push(modalName);
+      }
     },
   },
 });

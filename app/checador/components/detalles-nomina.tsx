@@ -23,7 +23,7 @@ interface Response {
     data: any[];
 }
 
-export const DetallesPago = ({ selectedPago }: any) => {
+export const DetallesNomina = ({ selectedPago }: any) => {
     const [data, setData] = useState<any[]>([]);
     const [xml, setXml] = useState<any[]>([]);
     const [pagoDetails, setPagoDetails] = useState<any>({});

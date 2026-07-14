@@ -3,7 +3,7 @@ import { Eye, EyeOff, MoreVertical, Columns, SplitSquareHorizontal, AlignJustify
 import { useEffect, useRef, useState, useLayoutEffect } from "react";
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
-export type ArrayColumnDisplay = "first" | "second" | "third" | "both";
+export type ArrayColumnDisplay = "first" | "second" | "third" | "both" | "for";
 
 export interface ViewTRProps {
     setShowColumnMenu: (column: string | null) => void;
@@ -24,8 +24,9 @@ export interface ViewTRProps {
 
 const ARRAY_MODE_LABELS: Record<ArrayColumnDisplay, { label: string; icon: React.ReactNode }> = {
     first: { label: "Solo primero", icon: <AlignJustify className="h-3.5 w-3.5" /> },
-    second: { label: "Solo segundo", icon: <AlignJustify className="h-3.5 w-3.5 opacity-50" /> },
-    third: { label: "Solo tercero", icon: <AlignJustify className="h-3.5 w-3.5 opacity-50" /> },
+    second: { label: "Solo segundo", icon: <AlignJustify className="h-3.5 w-3.5 dark:text-white opacity-50" /> },
+    third: { label: "Solo tercero", icon: <AlignJustify className="h-3.5 w-3.5 dark:text-white opacity-50" /> },
+    for: { label: "Solo cuarto", icon: <AlignJustify className="h-3.5 w-3.5 dark:text-white opacity-50" /> },
     both: { label: "Mostrar ambos", icon: <SplitSquareHorizontal className="h-3.5 w-3.5" /> },
 };
 
@@ -158,8 +159,8 @@ export function ViewTR({
                 aria-label={allColumns ? "Gestionar columnas" : "Opciones de columna"}
             >
                 {allColumns
-                    ? <Columns className="h-4 w-4" />
-                    : <MoreVertical className="h-4 w-4" />}
+                    ? <Columns className="h-4 w-4 dark:text-white" />
+                    : <MoreVertical className="h-4 w-4 dark:text-white" />}
             </button>
 
             <AnimatePresence>

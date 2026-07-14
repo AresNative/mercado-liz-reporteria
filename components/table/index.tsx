@@ -370,6 +370,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             if (mode === "first") return String(value[0] ?? "");
             if (mode === "second") return String(value[1] ?? "");
             if (mode === "third") return String(value[2] ?? "");
+            if (mode === "for") return String(value[3] ?? "");
             return value.map(String).join(" / ");
         }
         if (typeof value === 'object' && 'puja' in value)
@@ -409,15 +410,19 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             if (mode === "first") return <span>{formatArrayValue(value[0])}</span>;
             if (mode === "second") return <span>{formatArrayValue(value[1])}</span>;
             if (mode === "third") return <span>{formatArrayValue(value[2])}</span>;
+            if (mode === "for") return <span>{formatArrayValue(value[3])}</span>;
             // "both": todos los valores presentes, value[0] con formatters
             return (
                 <div className="flex flex-col text-xs leading-tight">
                     <span>{formatArrayValue(value[0])}</span>
                     {value[1] != null && value[1] !== "" && (
-                        <span className="text-gray-400 dark:text-gray-500">{String(value[1])}</span>
+                        <span className="text-gray-400 dark:text-gray-300">{String(value[1])}</span>
                     )}
                     {value[2] != null && value[2] !== "" && (
-                        <span className="text-gray-400 dark:text-gray-500">{String(value[2])}</span>
+                        <span className="text-gray-400 dark:text-gray-300">{String(value[2])}</span>
+                    )}
+                    {value[3] != null && value[3] !== "" && (
+                        <span className="text-gray-400 dark:text-gray-300">{String(value[3])}</span>
                     )}
                 </div>
             );

@@ -30,6 +30,7 @@ import MainForm from "@/components/form/main-form"
 import { formatValue } from "@/utils/constants/format-values"
 import { ModalDetallesArticulo } from "./components/detalles-articulo";
 import { useGetWithFiltersMutation } from "@/hooks/api/api"
+import { ModalActualizarArticulo } from "./components/actualizar-articulo"
 interface Response {
     totalRecords: number;
     totalPages: number;
@@ -88,9 +89,35 @@ export default function Page() {
 
         try {
             const response_int = await getIntWithFilter({
-                table: "Art",
+                table: "Art AS art LEFT JOIN ( SELECT Articulo, Unidad, Precio, STRING_AGG(Lista, ', ') AS Listas FROM ListaPreciosDUnidad WHERE Precio > 0 GROUP BY Articulo, Unidad, Precio ) AS lpu ON art.Articulo = lpu.Articulo AND art.Unidad = lpu.Unidad",
                 filtros: {
-                    Selects: [],
+                    Selects: [
+                        { key: "art.Articulo" },
+                        { key: "art.Descripcion1" },
+                        { key: "art.Descripcion2" },
+                        { key: "art.NombreCorto" },
+                        { key: "art.Grupo" },
+                        { key: "art.Categoria" },
+                        { key: "art.Familia" },
+                        { key: "art.Linea" },
+                        { key: "art.Proveedor" },
+                        { key: "art.Fabricante" },
+                        { key: "art.Unidad" },
+                        { key: "art.UnidadCompra" },
+                        { key: "art.UnidadTraspaso" },
+                        { key: "art.Factor" },
+                        { key: "lpu.Precio" },
+                        { key: "lpu.Listas" },   /* <--- Campo actualizado (concatenado) */
+                        { key: "art.CostoEstandar" },
+                        { key: "art.Impuesto1" },
+                        { key: "art.TipoImpuesto1" },
+                        { key: "art.Impuesto2" },
+                        { key: "art.TipoImpuesto2" },
+                        { key: "art.Estatus" },
+                        { key: "art.SeCompra" },
+                        { key: "art.SeVende" },
+                        { key: "art.TieneCaducidad" }
+                    ],
                     FiltrosAnd: [
                         { Filtros: activeFilters.Filtros, OperadorLogico: "OR" },
                         { Filtros: activeFilters.FiltrosOther, OperadorLogico: "AND" }
@@ -121,7 +148,7 @@ export default function Page() {
                             UnidadCompra,
                             UnidadTraspaso,
                             Factor,
-                            PrecioLista,
+                            Precio,
                             CostoEstandar,
                             Impuesto1,
                             TipoImpuesto1,
@@ -198,7 +225,7 @@ export default function Page() {
                                 UnidadTraspaso ? `Traspaso: ${UnidadTraspaso}` : null
                             ].filter(Boolean),
                             Precio: [
-                                PrecioLista ? formatValue(PrecioLista, "currency") : null,
+                                Precio ? formatValue(Precio, "currency") : null,
                                 TipoImpuesto1 ? `${TipoImpuesto1} ${Impuesto1}%` : null,
                                 TipoImpuesto2 ? `${TipoImpuesto2} ${Impuesto2}%` : null
                             ].filter(Boolean),
@@ -386,7 +413,10 @@ export default function Page() {
                                                 {
                                                     label: 'Editar',
                                                     icon: <Edit size={16} />,
-                                                    onClick: () => targetRows.map(r => console.log(r)),
+                                                    onClick: () => {
+                                                        setArticuloSeleccionado(targetRows);
+                                                        dispatch(openModalReducer({ modalName: 'actualizar-articulo' }));
+                                                    },/*  targetRows.map(r => console.log(r)), */
                                                 },
                                             ]
                                         }}
@@ -426,6 +456,13 @@ export default function Page() {
                     maxWidth="4xl"
                 >
                     <ModalDetallesArticulo selectedArticulo={articuloSeleccionado} refetch={()=> fetchData()} />
+                </Modal>
+                <Modal
+                    modalName="actualizar-articulo"
+                    title="Actualizar Artículo"
+                    maxWidth="4xl"
+                >
+                    <ModalActualizarArticulo selectedArticulo={articuloSeleccionado} refetch={()=> fetchData()} />
                 </Modal>
             </main>
             <Footer />

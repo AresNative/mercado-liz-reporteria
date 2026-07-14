@@ -122,7 +122,7 @@ export const MainForm = React.forwardRef(({
   const [postGeneral] = usePostGeneralMutation();
   const [portInt] = usePostIntelisisMutation();
   const [putGeneral] = usePutGeneralMutation();
-  const [putInt] = usePutIntelisisMutation()
+  const [putInt] = usePutIntelisisMutation();
   const [postImg] = usePostImgMutation(); // Hook para subir imágenes
 
   async function getMutationFunction(actionType: string, data: FormData | any) {

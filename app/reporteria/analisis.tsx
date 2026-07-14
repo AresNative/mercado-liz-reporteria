@@ -6,6 +6,7 @@ import { RequestPayload, useManagmentRead } from "@/hooks/classes/api";
 import {
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from "react";
@@ -36,29 +37,38 @@ import KardexStats from "./components/kardex-stats";
 import ScoreCard from "./components/modal-scorecard";
 import { useAppDispatch } from "@/hooks/selector";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
-import { ModalReporting } from "./components/modal-reporting";
-
+import { Field } from "@/utils/types/interfaces";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type REPORT =
     | "venta"
     | "compra"
     | "merma"
+    | "mermanoconocida"
     | "inventario"
-    | "clientes"
+    /*   | "clientes"
     | "proveedores"
-   /*  | "gastos" */;
+  | "gastos" */;
 
 interface Filtro {
     Key: string;
     Value: any;
     Operator: string;
 }
-interface ActiveFilters {
+// Grupo de filtros con su propio operador lógico, tal como lo espera
+// el backend en la propiedad `FiltrosAnd`: [{ Filtros, OperadorLogico }, ...]
+interface FiltroGrupo {
     Filtros: Filtro[];
+    OperadorLogico: "AND" | "OR";
+}
+interface ActiveFilters {
+    // Grupo OR: filtros que deben combinarse con "o" (p.ej. búsqueda de texto
+    // sobre varios campos: Articulo LIKE x OR Descripcion1 LIKE x OR ...).
+    Filtros: Filtro[];
+    // Grupo AND: filtros que deben combinarse con "y" (p.ej. rango de fechas,
+    // almacén). Se combinan además con los filtros base de cada reporte.
+    FiltrosOther: Filtro[];
     Selects: any[];
     OrderBy: any | null;
-    sum: boolean;
-    distinct: boolean;
 }
 // ─── Configuración de reportes ─────────────────────────────────────────────────
 const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> = {
@@ -75,6 +85,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
                 { Key: "ART.Categoria" },
                 { Key: "ART.Grupo" },
+                { Key: "ART.Linea" },
                 { Key: "ART.Familia" },
                 { Key: "ventad.Precio" },
                 { Key: "ventad.Costo" },
@@ -85,7 +96,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "Total Ventas", Operation: "SUM" },
                 { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
                 { Key: "ventad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
-                { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Articulos Totales", Operation: "SUM" },
+                { Key: "(ventad.Cantidad * ventad.Factor)", Alias: "Articulos", Operation: "SUM" },
                 { Key: "venta.Cliente", Alias: "Clientes Distintos", Operation: "COUNT DISTINCT" },
                 { Key: "venta.ID", Alias: "Total Tikets", Operation: "COUNT DISTINCT" },
             ],
@@ -102,10 +113,9 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
         },
     },
     compra: {
-        table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN CB AS cb ON cb.Cuenta = art.Articulo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor INNER JOIN Sucursal ON comprad.Sucursal = Sucursal.Sucursal`,
+        table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor INNER JOIN Sucursal ON comprad.Sucursal = Sucursal.Sucursal`,
         filtros: {
             selects: [
-                { Key: "CB.Codigo" },
                 { Key: "P.Nombre", Alias: "Proveedor Nombre" },
                 { Key: "P.Proveedor" },
                 { Key: "ART.Fabricante" },
@@ -117,6 +127,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
                 { Key: "ART.Categoria" },
                 { Key: "ART.Grupo" },
+                { Key: "ART.Linea" },
                 { Key: "ART.Familia" },
                 { Key: "comprad.Unidad" },
                 { Key: "comprad.Factor" },
@@ -128,7 +139,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
                 { Key: "comprad.Costo", Alias: "Maximo Costo", Operation: "MAX" },
                 { Key: "comprad.Cantidad", Alias: "Cantidad", Operation: "SUM" },
                 { Key: "(comprad.Costo * comprad.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
-                { Key: "comprad.CantidadInventario", Alias: "Articulos Totales", Operation: "SUM" },
+                { Key: "comprad.CantidadInventario", Alias: "Articulos", Operation: "SUM" },
                 { Key: "compra.Proveedor", Alias: "Total Proveedores", Operation: "COUNT DISTINCT" },
             ],
             Filtros: [
@@ -144,13 +155,15 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
         },
     },
     merma: {
-        table: `INV AS inv INNER JOIN INVD AS invd ON invd.ID = inv.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
+        table: `INV AS inv INNER JOIN INVD AS invd ON inv.Mov = 'SALIDA DIVERSA' AND invd.ID = inv.ID AND inv.Concepto = 'SALIDA POR MERMAS' OR inv.Mov = 'MERMAS' AND invd.ID = inv.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo  INNER JOIN Sucursal ON invd.Sucursal = Sucursal.Sucursal`,
         filtros: {
             selects: [
                 { Key: "art.Articulo" },
                 { Key: "art.Descripcion1", Alias: "Nombre" },
                 { Key: "inv.FechaEmision" },
+                { Key: "invd.Almacen" },
                 { Key: "inv.Sucursal" },
+                { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
                 { Key: "art.Categoria" },
                 { Key: "art.Grupo" },
                 { Key: "art.Linea" },
@@ -161,11 +174,40 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             agregaciones: [
                 { Key: "invd.Cantidad", Alias: "Cantidad", Operation: "SUM" },
                 { Key: "(invd.Costo * invd.Cantidad)", Alias: "Total Mermas", Operation: "SUM" },
-                { Key: "invd.Cantidad", Alias: "Total Articulos Mermados", Operation: "SUM" },
             ],
             Filtros: [
-                { Key: "inv.Mov", Operator: "=", Value: "SALIDA DIVERSA" },
-                { Key: "inv.Concepto", Operator: "=", Value: "SALIDA POR MERMAS" },
+                { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
+            ],
+            Order: [
+                {
+                    Key: "FechaEmision",
+                    Direction: "DESC"
+                }
+            ],
+        },
+    },
+    mermanoconocida: {
+        table: `INV AS inv INNER JOIN INVD AS invd ON inv.Mov = 'AJUSTE' AND invd.ID = inv.ID AND inv.Concepto = 'REPROCESO' INNER JOIN Art AS art ON art.Articulo = invd.Articulo  INNER JOIN Sucursal ON invd.Sucursal = Sucursal.Sucursal`,
+        filtros: {
+            selects: [
+                { Key: "art.Articulo" },
+                { Key: "art.Descripcion1", Alias: "Nombre" },
+                { Key: "inv.FechaEmision" },
+                { Key: "invd.Almacen" },
+                { Key: "inv.Sucursal" },
+                { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
+                { Key: "art.Categoria" },
+                { Key: "art.Grupo" },
+                { Key: "art.Linea" },
+                { Key: "art.Familia" },
+                { Key: "invd.Costo" },
+                { Key: "invd.Unidad" },
+            ],
+            agregaciones: [
+                { Key: "invd.Cantidad", Alias: "Cantidad", Operation: "SUM" },
+                { Key: "(invd.Costo * invd.Cantidad)", Alias: "Total Mermas", Operation: "SUM" },
+            ],
+            Filtros: [
                 { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
             ],
             Order: [
@@ -177,13 +219,15 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
         },
     },
     inventario: {
-        table: `INVD AS invd INNER JOIN inv AS inv ON inv.ID = invd.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
+        table: `INVD AS invd INNER JOIN inv AS inv ON inv.ID = invd.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo  INNER JOIN Sucursal ON invd.Sucursal = Sucursal.Sucursal`,
         filtros: {
             selects: [
                 { Key: "art.Articulo" },
                 { Key: "art.Descripcion1", Alias: "Nombre" },
                 { Key: "inv.FechaEmision" },
+                { Key: "invd.Almacen" },
                 { Key: "inv.Sucursal" },
+                { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
                 { Key: "art.Categoria" },
                 { Key: "art.Grupo" },
                 { Key: "art.Linea" },
@@ -194,12 +238,11 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             ],
             agregaciones: [
                 { Key: "invd.Cantidad", Alias: "Cantidad", Operation: "SUM" },
-                { Key: "(invd.Costo * invd.Cantidad)", Alias: "Total Costo Inventario", Operation: "SUM" },
-                { Key: "invd.Cantidad", Alias: "Total Articulos Inventario", Operation: "SUM" },
+                { Key: "(invd.Costo * invd.Cantidad)", Alias: "Total Costo", Operation: "SUM" },
             ],
             Filtros: [
                 { Key: "inv.Estatus", Operator: "=", Value: CONFIG.STATUS.CONCLUIDO },
-                { Key: "inv.Mov", Operator: "<>", Value: "SALIDA DIVERSA" },
+                { Key: "inv.Mov", Operator: "NOT IN", Value: "SALIDA DIVERSA, MERMAS" },
             ],
             Order: [
                 {
@@ -209,7 +252,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             ],
         },
     },
-    clientes: { table: "Cte", filtros: {} },
+    /* clientes: { table: "Cte", filtros: {} },
     proveedores: {
         table: "Prov",
         filtros: {
@@ -222,7 +265,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             ],
         },
     },
-    /* gastos: {
+    gastos: {
         table: `gasto G INNER JOIN ( SELECT GD.ID AS GastoID, MAX(GD.Concepto) AS Concepto, SUM(GD.Precio * GD.Cantidad) AS TotalPrecio, SUM(GD.Cantidad) AS TotalCantidad, SUM(GD.Importe) AS TotalImporte, SUM(GD.Impuestos) AS TotalImpuestos FROM gastod GD GROUP BY GD.ID ) GD_Concepto ON G.ID = GD_Concepto.GastoID LEFT JOIN Prov P ON P.Proveedor = G.Acreedor LEFT JOIN ( SELECT CFDL.ModuloID, MIN(CFDL.UUID) AS MinUUID FROM CFDValidoMovLista CFDL WHERE CFDL.ModuloD = 'GAS' GROUP BY CFDL.ModuloID ) CFDL ON G.ID = CFDL.ModuloID LEFT JOIN CFDEgreso E ON E.UUID = CFDL.MinUUID`,
         filtros: {
             selects: [
@@ -261,7 +304,7 @@ const SYNTHETIC_COLUMNS: {
         { syntheticKey: "Proveedor", sourceFields: ["Proveedor", "Fabricante"] },
         { syntheticKey: "Categoria", sourceFields: ["Categoria", "Grupo", "Familia"] },
         { syntheticKey: "Unidad", sourceFields: ["Unidad", "Factor"] },
-        { syntheticKey: "Cantidad", sourceFields: ["Cantidad", "Articulos Totales"] },
+        { syntheticKey: "Cantidad", sourceFields: ["Cantidad", "Articulos"] },
         { syntheticKey: "Costo", sourceFields: ["Costo", "Total Costo"] },
         { syntheticKey: "Sucursal", sourceFields: ["Sucursal", "Nombre Sucursal", "Almacen"] },
     ];
@@ -272,19 +315,20 @@ const AGGREGATION_DEPENDENCIES: Record<string, string[]> = {
     "Total Mermas": ["Costo"],
     "Minimo Costo": ["Costo"],
     "Maximo Costo": ["Costo"],
-    "Articulos Totales": ["Cantidad"],
+    "Articulos": ["Cantidad"],
     "Total Articulos Mermados": ["Cantidad"],
     "Total Articulos Inventario": ["Cantidad"],
     // Agrega más según tus necesidades
 };
 // Mapeo del campo Almacén según reporte
 const ALMACEN_FIELD_MAP: Record<REPORT, string> = {
-    venta: "ventad.Almacen",
-    compra: "comprad.Almacen",
-    merma: "inv.Sucursal",
-    inventario: "inv.Sucursal",
-    clientes: "",        // no aplica
-    proveedores: "",     // no aplica
+    venta: "Sucursal.Nombre",
+    compra: "Sucursal.Nombre",
+    merma: "Sucursal.Nombre",
+    mermanoconocida: "Sucursal.Nombre",
+    inventario: "Sucursal.Nombre",
+    /* clientes: "",        // no aplica
+    proveedores: "",     // no aplica */
 };
 
 // Mapeo de campos para búsqueda (se usará con LIKE)
@@ -292,53 +336,28 @@ const SEARCH_FIELDS_MAP: Record<REPORT, string[]> = {
     venta: ["ART.Descripcion1", "ART.Articulo"],
     compra: ["ART.Descripcion1", "ART.Articulo", "P.Nombre"],
     merma: ["art.Descripcion1", "art.Articulo"],
+    mermanoconocida: ["art.Descripcion1", "art.Articulo"],
     inventario: ["art.Descripcion1", "art.Articulo"],
-    clientes: ["Cte.Nombre", "Cte.Codigo"],
-    proveedores: ["Prov.Nombre", "Prov.Proveedor"],
+    /* clientes: ["Cte.Nombre", "Cte.Codigo"],
+    proveedores: ["Prov.Nombre", "Prov.Proveedor"], */
 };
+// Cantidad máxima de sugerencias a mostrar en el campo de búsqueda
+const SUGGESTIONS_LIMIT = 50;
 const ALMACENES_OPCIONES = [
-    { value: "ALMVGPE", label: "Valle de Guadalupe" },
-    { value: "ALMMAYO", label: "Mayoreo" },
-    { value: "ALMTESTE", label: "Testerazo" },
-    { value: "ALMPALM", label: "Valle de las Palmas" },
+    { value: "Valle de Guadalupe", label: "Valle de Guadalupe" },
+    { value: "Mayoreo", label: "Mayoreo" },
+    { value: "Testerazo", label: "Testerazo" },
+    { value: "Valle de las Palmas", label: "Valle de las Palmas" },
 ];
 
-// ─── Inyección de filtro de fecha ─────────────────────────────────────────────
-const getDateNDaysAgo = (n: number): string => {
-    const date = new Date();
-    date.setDate(date.getDate() - n);
-    return date.toISOString().split("T")[0];
-};
-
-const injectDateFilter = (
-    report: REPORT,
-    filtrosOriginal: any,
-    from?: Date,
-    to?: Date
-): any => {
-    if (report === "clientes" || report === "proveedores") return filtrosOriginal;
-
-    const dateFieldMap: Partial<Record<REPORT, string>> = {
-        venta: "venta.FechaEmision",
-        compra: "compra.FechaEmision",
-        merma: "inv.FechaEmision",
-        inventario: "inv.FechaEmision",
-        /* gastos: "G.FechaEmision", */
-    };
-
-    const dateFieldKey = dateFieldMap[report];
-    if (!dateFieldKey) return filtrosOriginal;
-
-    const newFiltros = JSON.parse(JSON.stringify(filtrosOriginal));
-    if (!newFiltros.Filtros) newFiltros.Filtros = [];
-
-    const fromStr = from ? from.toISOString().split("T")[0] : getDateNDaysAgo(30);
-    const toStr = to ? to.toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
-
-    newFiltros.Filtros.push({ Key: dateFieldKey, Operator: ">=", Value: fromStr });
-    newFiltros.Filtros.push({ Key: dateFieldKey, Operator: "<=", Value: toStr });
-
-    return newFiltros;
+// Valor por defecto del rango de fechas: últimos 30 días.
+// Se usa tanto para el filtro inicial como para el valueDefined del formulario,
+// de forma que ambos permanezcan sincronizados.
+const getDefaultDateRangeValue = (): string => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    return `${start.toISOString().split("T")[0]} AND ${end.toISOString().split("T")[0]}`;
 };
 
 const getHiddenAggregations = (visibleKeys: string[], aggregations: any[] = []): Set<string> => {
@@ -363,6 +382,20 @@ const getHiddenAggregations = (visibleKeys: string[], aggregations: any[] = []):
     return hiddenAggregations;
 };
 
+const buildFiltrosAnd = (baseFiltros: Filtro[] = [], activeFilters: ActiveFilters): FiltroGrupo[] => {
+    const grupoAnd: Filtro[] = [...baseFiltros, ...(activeFilters.FiltrosOther || [])];
+    const grupoOr: Filtro[] = activeFilters.Filtros || [];
+
+    const grupos: FiltroGrupo[] = [];
+    if (grupoAnd.length > 0) {
+        grupos.push({ Filtros: grupoAnd, OperadorLogico: "AND" });
+    }
+    if (grupoOr.length > 0) {
+        grupos.push({ Filtros: grupoOr, OperadorLogico: "OR" });
+    }
+    return grupos;
+};
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Analisis() {
     const [manager] = useManagmentRead();
@@ -378,30 +411,74 @@ export default function Analisis() {
     const [selectedReport, setSelectedReport] = useState<REPORT>("venta");
     const [tableLoading, setTableLoading] = useState(false);
     const [dataTable, setDataTable] = useState<any[]>([]);
-    const [dataStats, setDataStats] = useState<any[]>([]);
+    const [dataStats, setDataStats] = useState<any[]>([])
+    const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
     const [tableError, setTableError] = useState<string | null>(null);
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-        Filtros: [
+        // Grupo OR: se llena solo cuando el usuario busca texto.
+        Filtros: [],
+        // Grupo AND: fecha (por defecto últimos 30 días) + almacén cuando aplique.
+        FiltrosOther: [
             {
-                Key: "",
-                Value: "",
-                Operator: "="
+                Key: "FechaEmision",
+                Value: getDefaultDateRangeValue(),
+                Operator: "BETWEEN"
             },
         ],
         Selects: [],
         OrderBy: [
             {
-                Key: "CXP.FechaEmision",
+                Key: "FechaEmision",
                 Direction: "DESC"
             }
         ],
-        sum: false,
-        distinct: false
     });
-    // Filtros
-    const [dateRange, setDateRange] = useState<DateRange>({
-        from: new Date(new Date().setDate(new Date().getDate() - 30)),
-        to: new Date(),
+    const formRef = useRef<{
+        getFormData: () => any;
+        submitForm: () => Promise<any>;
+        getLiveValues: () => any;
+    }>(null);
+    const [liveFormValues, setLiveFormValues] = useState<{
+        dateRange?: string;
+        almacen?: string;
+        search?: string;
+    }>({});
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const live = formRef.current?.getFormData?.() || {};
+            setLiveFormValues(prev => (
+                prev.dateRange === live.dateRange &&
+                    prev.almacen === live.almacen &&
+                    prev.search === live.search
+                    ? prev
+                    : { dateRange: live.dateRange, almacen: live.almacen, search: live.search }
+            ));
+        }, 250);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Debounce del snapshot en vivo antes de disparar la consulta de
+    // sugerencias, para no golpear el backend en cada tecla/cambio.
+    const [debouncedFormValues, setDebouncedFormValues] = useState<{
+        dateRange?: string;
+        almacen?: string;
+        search?: string;
+    }>({});
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            setDebouncedFormValues(liveFormValues);
+        }, 300);
+        return () => clearTimeout(timeout);
+    }, [liveFormValues]);
+
+    const [formValues, setFormValues] = useState<{
+        dateRange: string;
+        almacen: string;
+        search: string;
+    }>({
+        dateRange: getDefaultDateRangeValue(),
+        almacen: "",
+        search: "",
     });
     const [arrayDisplayModesByReport, setArrayDisplayModesByReport] = useState<Record<string, Record<string, ArrayColumnDisplay>>>({});
 
@@ -470,8 +547,8 @@ export default function Analisis() {
         [selectedReport]
     );
 
-    // ─── Fetch de tabla ──────────────────────────────────────────────────────
     const tableAbortRef = useRef<AbortController | null>(null);
+    const statsAbortRef = useRef<AbortController | null>(null);
 
     const fetchTableData = useCallback(async () => {
         tableAbortRef.current?.abort();
@@ -521,10 +598,10 @@ export default function Analisis() {
                 }
             });
         }
-        if (activeFilters.Filtros && activeFilters.Filtros.length > 0) {
-            if (!finalFiltros.Filtros) finalFiltros.Filtros = [];
-            finalFiltros.Filtros.push(...activeFilters.Filtros);
-        }
+        // ── Construir FiltrosAnd (grupo AND: base + fecha/almacén, grupo OR: búsqueda) ──
+        const baseFiltros: Filtro[] = finalFiltros.Filtros || [];
+        finalFiltros.FiltrosAnd = buildFiltrosAnd(baseFiltros, activeFilters);
+        delete finalFiltros.Filtros;
 
         // Ajustar según columnas sintéticas y sus modos
         for (const { syntheticKey, sourceFields } of SYNTHETIC_COLUMNS) {
@@ -583,9 +660,6 @@ export default function Analisis() {
             }
         }
 
-        // ── Inyectar filtro de fecha ────────────────────────────────────────
-        finalFiltros = injectDateFilter(selectedReport, finalFiltros, dateRange.from || undefined, dateRange.to || undefined);
-
         const payload: RequestPayload = {
             table: config.table,
             filtros: finalFiltros,
@@ -614,11 +688,12 @@ export default function Analisis() {
                     Codigo,
                     Categoria,
                     Grupo,
+                    Linea,
                     Familia,
                     Unidad,
                     Factor,
                     Cantidad,
-                    ["Articulos Totales"]: ArticulosTotales,
+                    Articulos,
                     ["Clientes Distintos"]: TotalClientes,
                     ["Total Tikets"]: TotalTikets,
                     Costo,
@@ -629,6 +704,7 @@ export default function Analisis() {
                     ["Proveedor Nombre"]: ProveedorNombre,
                     ["Maximo Costo"]: CostoMaximo,
                     ["Minimo Costo"]: CostoMinimo,
+                    ["Total Mermas"]: TotalMermas,
                     ...rest
                 } = item;
 
@@ -651,11 +727,11 @@ export default function Analisis() {
                     Articulo: [item.Nombre, item.Articulo, item.Codigo],
                     Proveedor: [item["Proveedor Nombre"], item.Proveedor, item.Fabricante],
                     Sucursal: [item['Nombre Sucursal'], item.Sucursal, item.Almacen],
-                    Categoria: [item.Categoria, item.Grupo, item.Familia],
+                    Categoria: [item.Categoria, item.Grupo, item.Linea, item.Familia],
                     Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
-                    Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`=${item["Articulos Totales"]}`] : [])],
-                    Costo: [item.Costo, formatValue(item["Total Costo"], "currency")],
-                    Precio: [item.Precio, formatValue(item["Total Ventas"], "currency")],
+                    Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`=${item["Articulos"]}`] : [])],
+                    Costo: [item.Costo, (item.Cantidad > 1) ? item["Total Costo"] ? [`=${formatValue(item["Total Costo"], "currency")}`] : [`=${formatValue(item["Total Mermas"], "currency")}`] : ""],
+                    Precio: [item.Precio, (item.Cantidad > 1) ? [`=${formatValue(item["Total Ventas"], "currency")}`] : ""],
                     ...rest,
                 };
 
@@ -684,36 +760,36 @@ export default function Analisis() {
         currentPage,
         pageSize,
         manager,
-        dateRange,
+        activeFilters,
         getCurrentVisibility,
         getCurrentArrayDisplayModes,
     ]);
 
     const fetchStatsData = useCallback(async () => {
-        tableAbortRef.current?.abort();
-        tableAbortRef.current = new AbortController();
+        statsAbortRef.current?.abort();
+        statsAbortRef.current = new AbortController();
 
         const config = REPORT_CONFIGS[selectedReport];
         if (!config) {
-            setTableLoading(false);
             return;
         }
         let finalFiltros: any = config.filtros ? JSON.parse(JSON.stringify(config.filtros)) : {};
-        const { selects, Order, ...others } = finalFiltros;
-        // ── Inyectar filtro de fecha ────────────────────────────────────────
-        finalFiltros = injectDateFilter(selectedReport, others, dateRange.from || undefined, dateRange.to || undefined);
-
+        const { selects, Order, Filtros: baseFiltros, ...others } = finalFiltros;
+        // ── Construir FiltrosAnd (grupo AND: base + fecha/almacén, grupo OR: búsqueda) ──
+        others.FiltrosAnd = buildFiltrosAnd(baseFiltros || [], activeFilters);
         const payload: RequestPayload = {
             table: config.table,
-            filtros: finalFiltros,
+            filtros: others,
             page: currentPage,
             pageSize,
-            signal: tableAbortRef.current.signal,
+            signal: statsAbortRef.current.signal,
         };
 
         try {
             const { promise } = await manager.execute(payload);
-            const response: any = await safeCall(() => promise, `fetchTable/${selectedReport}`);
+            const response: any = await safeCall(() => promise, `fetchStats/${selectedReport}`);
+            if (statsAbortRef.current.signal.aborted) return;
+
             const formattedData = response.data.data.map((out: any) => {
                 const totalVentas = out["Total Ventas"];
                 const totalCosto = out["Total Costo"];
@@ -731,23 +807,121 @@ export default function Analisis() {
             setDataStats(formattedData)
         } catch (err: any) {
             if (err?.name === "AbortError") return;
-        } finally {
-            if (!tableAbortRef.current.signal.aborted) setTableLoading(false);
         }
     }, [
         selectedReport,
         currentPage,
         pageSize,
         manager,
-        dateRange,
-        getCurrentVisibility,
-        getCurrentArrayDisplayModes,
+        activeFilters,
     ]);
 
     useEffect(() => {
         fetchTableData();
-        fetchStatsData();
     }, [fetchTableData]);
+
+    useEffect(() => {
+        fetchStatsData();
+    }, [fetchStatsData]);
+
+    // ─── Sugerencias de búsqueda ─────────────────────────────────────────────
+    const suggestionsAbortRef = useRef<AbortController | null>(null);
+
+    const fetchSuggestions = useCallback(async () => {
+        suggestionsAbortRef.current?.abort();
+        suggestionsAbortRef.current = new AbortController();
+
+        const config = REPORT_CONFIGS[selectedReport];
+        const searchFields = SEARCH_FIELDS_MAP[selectedReport] || [];
+        if (!config || searchFields.length === 0) {
+            setSearchSuggestions([]);
+            return;
+        }
+
+        let finalFiltros: any = config.filtros ? JSON.parse(JSON.stringify(config.filtros)) : {};
+        const { agregaciones, Order, Filtros: baseFiltros, selects, ...others } = finalFiltros;
+
+        // Solo pedimos los campos usados para búsqueda, para mantener el payload liviano.
+        others.agregaciones = (selects || [])
+            .filter((sel: any) => searchFields.includes(sel.Key))
+            .map((sel: any) => ({ ...sel, Operation: 'DISTINCT' }));
+
+        const searchQueryTerm = (debouncedFormValues.search || "").split(",").pop()?.trim() || "";
+        const liveOrFiltros: Filtro[] = searchQueryTerm
+            ? [{ Key: "ART.Descripcion1", Operator: "LIKE", Value: searchQueryTerm }]
+            : [];
+        others.Filtros =   liveOrFiltros ;
+        others.distinct = true;
+
+        const payload: RequestPayload = {
+            table: config.table,
+            filtros: others,
+            page: 1,
+            pageSize: SUGGESTIONS_LIMIT,
+            signal: suggestionsAbortRef.current.signal,
+        };
+
+        try {
+            const { promise } = await manager.execute(payload);
+            const response: any = await safeCall(() => promise, `fetchSuggestions/${selectedReport}`);
+            if (suggestionsAbortRef.current.signal.aborted) return;
+
+            const valores = new Set<string>();
+            (response.data?.data || []).forEach((row: any) => {
+                Object.values(row).forEach((val: any) => {
+                    if (typeof val === "string" && val.trim() !== "") {
+                        valores.add(val.trim());
+                    }
+                });
+            });
+
+            setSearchSuggestions(Array.from(valores).sort().slice(0, SUGGESTIONS_LIMIT));
+        } catch (err: any) {
+            if (err?.name === "AbortError") return;
+        }
+    }, [selectedReport, debouncedFormValues, formValues.dateRange, manager]);
+
+    useEffect(() => {
+        fetchSuggestions();
+    }, [fetchSuggestions]);
+
+    const dataFormConfig: Field[] = useMemo(() => ([
+        {
+            require: false,
+            type: "Flex",
+            elements: [
+                {
+                    require: false,
+                    type: "DATE_RANGE",
+                    name: "dateRange",
+                    label: "Rango de fechas",
+                    icon: <Calendar className="size-4" />,
+                    valueDefined: formValues.dateRange,
+                },
+                {
+                    require: false,
+                    type: "SELECT",
+                    name: "almacen",
+                    label: "Almacén",
+                    placeholder: "Selecciona un almacén",
+                    icon: <Package className="size-4" />,
+                    options: ALMACENES_OPCIONES,
+                    valueDefined: formValues.almacen ? formValues.almacen : undefined,
+                },
+                {
+                    require: false,
+                    type: "SEARCH",
+                    name: "search",
+                    placeholder: "Escribe y presiona Enter para agregar (Artículo, código, proveedor, etc.)",
+                    label: "Búsqueda rápida (acumulable)",
+                    icon: <Search className="size-4" />,
+                    options: searchSuggestions,
+                    saveData: true,
+                    valueDefined: formValues.search,
+                },
+            ],
+        },
+    ]), [formValues, searchSuggestions]);
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
         <>
@@ -768,7 +942,7 @@ export default function Analisis() {
                     </dl>
                     <dl className="flex gap-2">
                         <Button
-                            onClick={() => fetchTableData()}
+                            onClick={() => { fetchTableData(); fetchStatsData(); }}
                             disabled={tableLoading}
                             color="second"
                             size="small">
@@ -800,7 +974,7 @@ export default function Analisis() {
                         <Button
                             color="success"
                             size="small"
-                            onClick={() => { setShowScoreCard(true);   dispatch(openModalReducer({ modalName: "scorecard" }))}}
+                            onClick={() => { setShowScoreCard(true); dispatch(openModalReducer({ modalName: "scorecard" })) }}
                         >
                             Score Card
                         </Button>
@@ -812,80 +986,74 @@ export default function Analisis() {
 
                     <MainForm
                         actionType=""
+                        ref={formRef}
                         flexDirection="flex-row"
-                        dataForm={[
-                            {
-                                require: false,
-                                type: "Flex",
-                                elements: [
-                                    {
-                                        require: false,
-                                        type: "DATE_RANGE",
-                                        name: "dateRange",
-                                        label: "Rango de fechas",
-                                        icon: <Calendar className="size-4" />,
-                                        valueDefined: dateRange,
-                                    },
-                                    {
-                                        require: false,
-                                        type: "SELECT",
-                                        name: "almacen",
-                                        label: "Almacén",
-                                        placeholder: "Selecciona un almacén",
-                                        icon: <Package className="size-4" />,
-                                        options: ALMACENES_OPCIONES,
-                                    },
-                                    {
-                                        require: false,
-                                        type: "SEARCH",
-                                        name: "search",
-                                        placeholder: "Artículo, código, proveedor, etc.",
-                                        label: "Búsqueda rápida",
-                                        icon: <Search className="size-4" />,
-                                        options: [],
-                                    },
-                                ],
-                            },
-                        ]}
+                        dataForm={dataFormConfig}
                         message_button={"Filtrar"}
                         iconButton={<Filter className="mr-1 h-4 w-4" />}
+                        valueAssign={(row: any) => console.log(row)}
                         onSuccess={(rows: any) => {
-                            const { almacen, search } = rows;
-                            const nuevosFiltros: Filtro[] = [];
-                            if (rows.dateRange) {
-                                setDateRange(rows.dateRange)
-                            }
-                            // Filtro por almacén (si se seleccionó)
-                            if (almacen && ALMACEN_FIELD_MAP[selectedReport]) {
-                                nuevosFiltros.push({
-                                    Key: ALMACEN_FIELD_MAP[selectedReport],
+                            const { almacen, search, dateRange } = rows;
+
+                            const effectiveDateRange = dateRange || formValues.dateRange || getDefaultDateRangeValue();
+
+                            // Grupo AND: fecha (siempre) + almacén (si se seleccionó),
+                            // usando el campo correcto según el reporte activo.
+                            const filtrosAnd: Filtro[] = [
+                                {
+                                    Key: "FechaEmision",
+                                    Operator: "BETWEEN",
+                                    Value: effectiveDateRange,
+                                },
+                            ];
+                            const almacenField = ALMACEN_FIELD_MAP[selectedReport];
+                            if (almacen && almacenField) {
+                                filtrosAnd.push({
+                                    Key: almacenField,
                                     Operator: "=",
                                     Value: almacen,
                                 });
                             }
 
-                            // Filtro de búsqueda (si hay texto)
-                            if (search && SEARCH_FIELDS_MAP[selectedReport]?.length) {
-                                // Aplicamos LIKE a cada campo de búsqueda (se unirán con AND)
-                                SEARCH_FIELDS_MAP[selectedReport].forEach(field => {
-                                    nuevosFiltros.push({
-                                        Key: field,
-                                        Operator: "LIKE",
-                                        Value: `%${search}%`,
+                            const filtrosOr: Filtro[] = [];
+                            if (search) {
+                                const searchFields = SEARCH_FIELDS_MAP[selectedReport] || [];
+                                // Con `saveData` en el campo SEARCH, el usuario puede
+                                // acumular varios términos (tags) que llegan aquí como
+                                // un solo string separado por comas. Se generan filtros
+                                // OR para cada combinación campo × término, de forma
+                                // que el resultado incluya coincidencias con cualquiera
+                                // de los términos acumulados en cualquiera de los campos.
+                                const searchTerms = search
+                                    .split(",")
+                                    .map((term: string) => term.trim())
+                                    .filter(Boolean);
+                                searchTerms.forEach((term: string) => {
+                                    searchFields.forEach((field) => {
+                                        filtrosOr.push({
+                                            Key: field,
+                                            Operator: "LIKE",
+                                            Value: term,
+                                        });
                                     });
                                 });
                             }
 
-                            // Actualizar activeFilters con los nuevos filtros (reemplazamos los anteriores)
                             setActiveFilters(prev => ({
                                 ...prev,
-                                Filtros: nuevosFiltros,
+                                Filtros: filtrosOr,
+                                FiltrosOther: filtrosAnd,
                                 // Podríamos limpiar también Selects/OrderBy si se usaran, pero los dejamos como estaban
                             }));
 
+                            setFormValues({
+                                dateRange: effectiveDateRange,
+                                almacen: almacen || "",
+                                search: search || "",
+                            });
+
                             // Reiniciar a la primera página y recargar
                             setCurrentPage(1);
-                            fetchTableData();
                         }}
                     />
 

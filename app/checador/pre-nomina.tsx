@@ -28,7 +28,7 @@ import Footer from "@/template/footer"
 import Header from "@/template/header"
 import MainForm from "@/components/form/main-form"
 import { Button } from "@/components/button"
-import { DetallesPago } from "./components/detalles-nomina"
+import { DetallesNomina } from "./components/detalles-nomina"
 
 interface PagoResponse {
     totalRecords: number;
@@ -195,9 +195,9 @@ export function PreNomina() {
                 <article className="p-4">
                     <span className="mr-4 flex justify-between">
                         <label>
-                            <h2 className="text-lg font-semibold dark:text-white">Gestión de Transferencias</h2>
+                            <h2 className="text-lg font-semibold dark:text-white">Gestión de Nomina</h2>
                             <p className="text-sm text-gray-500">
-                                Mostrando {data.length} de {totalRecords} transferencias
+                                Mostrando {data.length} de {totalRecords} nomina
                             </p>
                         </label>
                     </span>
@@ -258,7 +258,7 @@ export function PreNomina() {
 
                     <section className="overflow-x-auto">
                         {isLoading ? (
-                            <LoadingSection message="Cargando transferencias..." />
+                            <LoadingSection message="Cargando nomina..." />
                         ) : error ? (
                             <div className="p-4 text-center">
                                 <p className="text-red-500 mb-2">{error}</p>
@@ -295,12 +295,12 @@ export function PreNomina() {
                             </dt>
                         ) : (
                             <div className="p-8 text-center">
-                                <p className="text-gray-500 mb-4">No se encontraron transferencias con los filtros aplicados.</p>
+                                <p className="text-gray-500 mb-4">No se encontraron nomina con los filtros aplicados.</p>
                                 <button
                                     onClick={limpiarFiltros}
                                     className="text-green-600 hover:text-green-800 underline"
                                 >
-                                    Ver todas las transferencias
+                                    Ver todas las nomina
                                 </button>
                             </div>
                         )}
@@ -308,14 +308,14 @@ export function PreNomina() {
                 </article>
             </div>
 
-            {/* Modales con nombres únicos para transferencias */}
+            {/* Modales con nombres únicos para nomina */}
             <Modal
                 modalName="detalles-transferencia"
                 title="Detalles de la Transferencia"
                 maxWidth="5xl"
             >
                 {pagoseleccionado ? (
-                    <DetallesPago selectedPago={pagoseleccionado} />
+                    <DetallesNomina selectedPago={pagoseleccionado} />
                 ) : (
                     <div className="p-4 text-center">
                         <p className="text-gray-500">No se ha seleccionado ninguna transferencia.</p>
@@ -388,10 +388,10 @@ export default function Page() {
             <main className="min-h-screen mx-auto p-4 md:p-6 text-gray-900 dark:text-white">
                 <header className="mb-8">
                     <h1 className="flex items-center text-2xl font-bold md:text-3xl">
-                        Boveda de transferencias
+                        Boveda de nomina
                     </h1>
                     <p className="mt-2 text-gray-600 dark:text-gray-100">
-                        Gestiona y visualiza todas las transferencias realizadas, con detalles completos de cada transacción. Utiliza los filtros para encontrar rápidamente la información que necesitas.
+                        Gestiona y visualiza todas las nomina realizadas, con detalles completos de cada transacción. Utiliza los filtros para encontrar rápidamente la información que necesitas.
                     </p>
                 </header>
                 <PreNomina />

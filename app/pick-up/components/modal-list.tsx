@@ -56,6 +56,7 @@ interface Pedido {
     array_lista: string;
     fecha_creacion: string;
     fecha_actualizacion: string;
+    fecha_entrega: string;
     estado: 'nuevo' | 'proceso' | 'listo' | 'entregado' | 'cancelado' | 'incompleto';
     es_publica: number;
     items: ListaItem[];
@@ -85,6 +86,26 @@ const ESTADO_META: Record<string, { label: string; color: string; bg: string; ri
     entregado: { label: 'Entregado', color: 'text-indigo-700', bg: 'bg-indigo-50', ring: 'ring-indigo-300' },
     cancelado: { label: 'Cancelado', color: 'text-red-700', bg: 'bg-red-50', ring: 'ring-red-300' },
     incompleto: { label: 'Incompleto', color: 'text-orange-700', bg: 'bg-orange-50', ring: 'ring-orange-300' },
+};
+
+// Misma regla de urgencia usada en la tabla principal (page.tsx), para que
+// el detalle del pedido muestre la hora de entrega y el nivel de urgencia
+// de forma consistente en toda la app.
+const calcularUrgencia = (fechaEntrega: string, estado: string): { urgencia: 'alta' | 'media' | 'baja', tiempo_restante: number } => {
+    if (estado !== 'nuevo' && estado !== 'proceso' && estado !== 'listo') {
+        return { urgencia: 'baja', tiempo_restante: 0 };
+    }
+    if (!fechaEntrega) return { urgencia: 'baja', tiempo_restante: 0 };
+
+    const ahora = new Date();
+    const entrega = new Date(fechaEntrega);
+    const minutosRestantes = Math.floor((entrega.getTime() - ahora.getTime()) / (1000 * 60));
+
+    let urgencia: 'alta' | 'media' | 'baja' = 'baja';
+    if (minutosRestantes <= 30) urgencia = 'alta';
+    else if (minutosRestantes <= 120) urgencia = 'media';
+
+    return { urgencia, tiempo_restante: minutosRestantes };
 };
 
 const calcularEstadoAutomatico = (items: ListaItem[], estadoActual: string): string | null => {
@@ -182,18 +203,22 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                 });
             }
         } catch (e) { items = []; }
+
+        const { urgencia, tiempo_restante } = calcularUrgencia(lista.fecha_entrega, lista.estado);
+
         return {
             id: lista.id, id_lista: lista.id, id_cliente: lista.id_cliente,
             usuario_id: lista.usuario_id, sucursal_id: lista.sucursal_id,
             nombre_lista: lista.nombre_lista, tipo_lista: lista.tipo_lista,
             servicio: lista.servicio, array_lista: lista.array_lista,
             fecha_creacion: lista.fecha_creacion, fecha_actualizacion: lista.fecha_actualizacion,
+            fecha_entrega: lista.fecha_entrega,
             estado: lista.estado, es_publica: lista.es_publica, items,
             cliente: lista.nombre ? { id: lista.id_cliente, nombre: lista.nombre, telefono: lista.telefono, email: lista.email, direccion: lista.direccion, ciudad: lista.ciudad, estado: lista.estado } : undefined,
             nombre: lista.nombre || `Cliente ${lista.id_cliente}`,
             cliente_telefono: lista.telefono || 'N/A', cliente_email: lista.email || 'N/A',
             total: subtotal, subtotal, descuentoTotal, servicioFee,
-            urgencia: 'baja', tiempo_restante: 0,
+            urgencia, tiempo_restante,
             firma: lista.firma
         };
     };
@@ -210,6 +235,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                         { key: "listas.id" }, { key: "listas.id_cliente" }, { key: "listas.nombre_lista" },
                         { key: "listas.tipo_lista" }, { key: "listas.servicio" }, { key: "listas.array_lista" },
                         { key: "listas.fecha_creacion" }, { key: "listas.fecha_actualizacion" },
+                        { key: "listas.fecha_entrega" },
                         { key: "listas.estado" }, { key: "clientes.nombre" }, { key: "clientes.telefono" },
                         { key: "clientes.email" }, { key: "clientes.direccion" },
                     ],
@@ -253,6 +279,20 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
             fetchPedidoDetalle();
         }
     }, [pedidoSeleccionado, isConnected, notificarCambioLista, onEstadoActualizado, fetchPedidoDetalle]);
+
+    // ── Auto-cancelación si ya pasó la hora de entrega ─────────────────────────
+    // Resguardo por si este modal se abre sin que la tabla principal (page.tsx)
+    // esté vigilando la lista completa: al cargar o refrescar el detalle,
+    // si el pedido sigue activo pero ya venció, se cancela automáticamente.
+    useEffect(() => {
+        if (!pedidoSeleccionado) return;
+        const activo = ['nuevo', 'proceso', 'listo'].includes(pedidoSeleccionado.estado);
+        const vencido = !!pedidoSeleccionado.fecha_entrega &&
+            new Date(pedidoSeleccionado.fecha_entrega).getTime() < Date.now();
+        if (activo && vencido) {
+            actualizarEstadoDB('cancelado', true);
+        }
+    }, [pedidoSeleccionado?.id, pedidoSeleccionado?.estado, pedidoSeleccionado?.fecha_entrega, actualizarEstadoDB]);
 
     // ── Guardar items y evaluar estado automático ──────────────────────────────
     const guardarItemsYEvaluarEstado = useCallback(async (itemsActualizados: ListaItem[]) => {
@@ -304,7 +344,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                 }
             ]
         };
-        
+
         try {
             await chatService.create(mensaje);
             // Abrir automáticamente el chat para que el operador vea la interacción
@@ -548,6 +588,26 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
         dispatch(openModalReducer({ modalName: `chat_${pedido.cliente_telefono}_${pedido.id}` }));
     };
 
+    // ── Presentación de la hora de entrega ──────────────────────────────────────
+    const esPedidoActivo = pedidoSeleccionado
+        ? ['nuevo', 'proceso', 'listo'].includes(pedidoSeleccionado.estado)
+        : false;
+
+    const urgenciaMeta: Record<'alta' | 'media' | 'baja', { label: string; color: string; bg: string }> = {
+        alta: { label: 'Urgente', color: 'text-red-700', bg: 'bg-red-50 ring-1 ring-red-300' },
+        media: { label: 'Próximo', color: 'text-amber-700', bg: 'bg-amber-50 ring-1 ring-amber-300' },
+        baja: { label: 'A tiempo', color: 'text-emerald-700', bg: 'bg-emerald-50 ring-1 ring-emerald-300' },
+    };
+
+    const formatTiempoRestante = (minutos: number) => {
+        const vencido = minutos < 0;
+        const abs = Math.abs(minutos);
+        const horas = Math.floor(abs / 60);
+        const mins = abs % 60;
+        const texto = horas > 0 ? `${horas}h ${mins}m` : `${mins}m`;
+        return vencido ? `Vencido hace ${texto}` : `En ${texto}`;
+    };
+
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
         <Modal
@@ -572,6 +632,12 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                             <p><span className="text-gray-500">Cliente:</span> <strong>{pedidoSeleccionado.nombre}</strong></p>
                             <p><span className="text-gray-500">Tipo:</span> {pedidoSeleccionado.tipo_lista}</p>
                             <p><span className="text-gray-500">Creado:</span> {formatDate(pedidoSeleccionado.fecha_creacion)}</p>
+                            <p>
+                                <span className="text-gray-500">Entrega:</span>{' '}
+                                {pedidoSeleccionado.fecha_entrega
+                                    ? <strong>{formatDate(pedidoSeleccionado.fecha_entrega)}</strong>
+                                    : <span className="text-gray-400">Sin programar</span>}
+                            </p>
                         </div>
                         <div className="space-y-2 text-sm dark:text-white">
                             <h3 className="font-semibold text-base border-b border-gray-200 pb-1.5">Estado y Servicio</h3>
@@ -587,6 +653,14 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                                     {ESTADO_META[pedidoSeleccionado.estado]?.label ?? pedidoSeleccionado.estado}
                                 </span>
                             </div>
+                            {esPedidoActivo && pedidoSeleccionado.fecha_entrega && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-500">Urgencia:</span>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${urgenciaMeta[pedidoSeleccionado.urgencia || 'baja'].bg} ${urgenciaMeta[pedidoSeleccionado.urgencia || 'baja'].color}`}>
+                                        {urgenciaMeta[pedidoSeleccionado.urgencia || 'baja'].label} · {formatTiempoRestante(pedidoSeleccionado.tiempo_restante || 0)}
+                                    </span>
+                                </div>
+                            )}
                             {pedidoSeleccionado.firma && (
                                 <div className="mt-2">
                                     <span className="text-xs text-gray-400">Firma registrada</span>
@@ -706,7 +780,7 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
                             )}
                             <div className="flex gap-2 flex-wrap">
                                 <button onClick={() => { generarPDF(pedidoSeleccionado); handleActualizarEstado('proceso') }} className="cursor-pointer px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1.5"><NotepadText className="size-3.5" /> PDF</button>
-                                {pedidoSeleccionado.estado !== 'entregado' &&  <button onClick={handleOpenSignaturePad} disabled={!['listo', 'proceso'].includes(pedidoSeleccionado.estado)} className="cursor-pointer px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40"><Signature className="size-3.5" /> Entregar</button>}
+                                {pedidoSeleccionado.estado !== 'entregado' && <button onClick={handleOpenSignaturePad} disabled={!['listo', 'proceso'].includes(pedidoSeleccionado.estado)} className="cursor-pointer px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40"><Signature className="size-3.5" /> Entregar</button>}
                                 <button onClick={() => handleOpenChat(pedidoSeleccionado)} className="cursor-pointer px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white transition-colors rounded-lg" title={`Abrir chat con ${pedidoSeleccionado.nombre || 'cliente'}`}><MessageCircle className="h-4 w-4" /></button>
                             </div>
                         </div>
