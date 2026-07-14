@@ -210,34 +210,6 @@ export default function BlogPage() {
                             </article>
                         ))}
                     </div>
-
-                    {/* Newsletter */}
-                    <div className="mt-20 bg-gradient-to-r from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 rounded-2xl p-8 md:p-12">
-                        <div className="max-w-2xl mx-auto text-center">
-                            <MessageSquare className="size-12 text-green-600 mx-auto mb-4" />
-                            <h3 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-200 mb-4">
-                                Suscríbete a nuestras novedades
-                            </h3>
-                            <p className="text-gray-600 dark:text-gray-300 mb-8">
-                                Recibe actualizaciones de apps, nuevos lanzamientos y parches directamente en tu correo
-                            </p>
-
-                            <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-                                <input
-                                    type="email"
-                                    placeholder="tu@email.com"
-                                    className="flex-1 px-6 py-3 rounded-full border-2 border-green-300 dark:border-green-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-green-500"
-                                />
-                                <button className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-semibold transition-colors">
-                                    Suscribirse
-                                </button>
-                            </div>
-
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-                                Sin spam. Puedes cancelar en cualquier momento.
-                            </p>
-                        </div>
-                    </div>
                 </div>
             </section>
 

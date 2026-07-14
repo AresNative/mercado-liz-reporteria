@@ -78,7 +78,7 @@ export default function PageID() {
                         </div>
 
                         {/* Descripción con componente Details */}
-                        <Details title="Descripción completa">
+                        <Details title="Descripción completa" type="form">
                             <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
                                 {app.descripcion}
                             </p>
