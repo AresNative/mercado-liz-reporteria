@@ -14,6 +14,7 @@ import {
     useGetWithFiltersMutation,
     usePostGeneralMutation,
 } from "@/hooks/api/api";
+import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
 
 import { LoadingSection } from "@/template/loading-screen";
 
@@ -22,7 +23,6 @@ import DynamicTable from "@/components/table";
 import { Modal } from "@/components/modal";
 import MainForm from "@/components/form/main-form";
 import { Button } from "@/components/button";
-import { DetallesNomina } from "./components/detalles-nomina";
 import Segment from "@/components/segment";
 import { PreNomina } from "./pre-nomina";
 
@@ -84,12 +84,24 @@ interface ChecadorFormData {
     [key: string]: unknown;
 }
 
+/** Directorio de empleados, obtenido de la tabla `Personal` en Intelisis
+ *  (Selects acotados a lo que necesitamos: identificar, nombrar y validar
+ *  que el empleado siga activo). */
+interface EmpleadoInfo {
+    personal: string;
+    nombreCompleto: string;
+    departamento?: string;
+    puesto?: string;
+    estatus?: string;
+}
+
 const CATEGORIAS: Categoria[] = ["Checador", "Pre-Nomina"];
 
 const MODAL_DETALLES_CHECADOR = "detalles-checador";
 const MODAL_CHAT_GENERAL = "chat-general";
 
 const TABLE_CHECADOR = "Checador";
+const TABLE_PERSONAL = "Personal";
 
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 const getCurrentTimeString = () => new Date().toTimeString().split(" ")[0];
@@ -108,6 +120,83 @@ export default function Page() {
     // Hooks de API
     const [getWithFilter] = useGetWithFiltersMutation();
     const [postGeneral] = usePostGeneralMutation();
+    const [getWithFilterIntelisis] = useGetWithFiltersIntelisisMutation();
+
+    // ─── Directorio de empleados (tabla Personal en Intelisis) ────────────────
+    // Se usa para: autocompletar el campo de ID con nombre/depto, validar que
+    // el empleado exista y esté "ALTA" antes de registrar, y mostrar nombres
+    // en vez de solo el ID en la tabla de checadas.
+    const [empleadosMap, setEmpleadosMap] = useState<Record<string, EmpleadoInfo>>({});
+    const [empleadosLoading, setEmpleadosLoading] = useState(true);
+
+    const fetchEmpleados = useCallback(async () => {
+        setEmpleadosLoading(true);
+        try {
+            const response = await getWithFilterIntelisis({
+                table: TABLE_PERSONAL,
+                filtros: {
+                    Selects: [
+                        { Key: "Personal" },
+                        { Key: "Nombre" },
+                        { Key: "ApellidoPaterno" },
+                        { Key: "ApellidoMaterno" },
+                        { Key: "Departamento" },
+                        { Key: "Puesto" },
+                        { Key: "Estatus" },
+                    ],
+                    FiltrosAnd: [
+                        {
+                            Filtros: [
+                                { Key: "Tipo", Value: "Empleado", Operator: "=" },
+                                { Key: "Estatus", Value: "ALTA", Operator: "=" },
+                            ],
+                            OperadorLogico: "AND",
+                        },
+                    ],
+                },
+                pageSize: 1000,
+                page: 1,
+            });
+
+            if ("data" in response) {
+                const empleadosData = (response.data as any).data as any[];
+                const map: Record<string, EmpleadoInfo> = {};
+                empleadosData.forEach((emp) => {
+                    const nombreCompleto = [emp.Nombre, emp.ApellidoPaterno, emp.ApellidoMaterno]
+                        .filter(Boolean)
+                        .join(" ");
+                    map[emp.Personal] = {
+                        personal: emp.Personal,
+                        nombreCompleto: nombreCompleto || emp.Personal,
+                        departamento: emp.Departamento || undefined,
+                        puesto: emp.Puesto || undefined,
+                        estatus: emp.Estatus,
+                    };
+                });
+                setEmpleadosMap(map);
+            }
+        } catch (err) {
+            console.error("Error obteniendo directorio de personal:", err);
+        } finally {
+            setEmpleadosLoading(false);
+        }
+    }, [getWithFilterIntelisis]);
+
+    useEffect(() => {
+        fetchEmpleados();
+    }, [fetchEmpleados]);
+
+    // Opciones para el campo SEARCH: "código · Nombre Completo (Departamento)".
+    const employeeOptions = useMemo(
+        () =>
+            Object.values(empleadosMap)
+                .sort((a, b) => a.nombreCompleto.localeCompare(b.nombreCompleto))
+                .map((emp) => ({
+                    value: emp.personal,
+                    label: `${emp.personal} · ${emp.nombreCompleto}${emp.departamento ? ` (${emp.departamento})` : ""}`,
+                })),
+        [empleadosMap]
+    );
 
     // Estado para el modal de detalles
     const [selectedChecador, setSelectedChecador] = useState<ChecadorRow | null>(null);
@@ -138,11 +227,28 @@ export default function Page() {
     );
     const detectarSiguienteEstado = useCallback(
         async (empleadoId: string): Promise<EstadoChecador | null> => {
-            if (!empleadoId || empleadoId.trim() === "") {
+            const idLimpio = empleadoId?.trim();
+            if (!idLimpio) {
                 setDetectedStatus(null);
                 setDetectionMessage("");
                 return null;
             }
+
+            // Validar contra el directorio de Personal (Intelisis) antes de
+            // consultar el checador: evita registrar checadas de IDs que no
+            // existen o que pertenecen a empleados dados de baja.
+            const empleado = empleadosMap[idLimpio];
+            if (!empleado) {
+                setDetectedStatus(null);
+                setDetectionMessage(
+                    empleadosLoading
+                        ? "⏳ Cargando directorio de empleados, intenta de nuevo en un momento..."
+                        : "⚠️ Empleado no encontrado o dado de baja. Verifica el número."
+                );
+                return null;
+            }
+
+            const etiquetaEmpleado = `${empleado.nombreCompleto}${empleado.departamento ? ` (${empleado.departamento})` : ""}`;
 
             setIsDetecting(true);
             try {
@@ -155,7 +261,7 @@ export default function Page() {
                                 Filtros: [
                                     {
                                         Key: "empleado_id",
-                                        Value: empleadoId,
+                                        Value: idLimpio,
                                         Operator: "=",
                                     },
                                 ],
@@ -175,27 +281,24 @@ export default function Page() {
                 if ("data" in response && response.data.data.length > 0) {
                     const ultimo = response.data.data[0];
                     const fechaHoy = getTodayDateString() + "T00:00:00";
-                    
+
                     if (ultimo.fecha === fechaHoy) {
-                        console.log(ultimo.estado, ultimo.estado === "Entrada");
-                        
                         if (ultimo.estado === "Entrada") {
                             nuevoEstado = "Salida";
-                            mensaje = "🟢 Último registro: ENTRADA → Registrar SALIDA";
+                            mensaje = `🟢 ${etiquetaEmpleado}: último registro ENTRADA → Registrar SALIDA`;
                         } else {
                             nuevoEstado = "Entrada";
-                            mensaje = "🔵 Último registro: SALIDA → Registrar ENTRADA";
+                            mensaje = `🔵 ${etiquetaEmpleado}: último registro SALIDA → Registrar ENTRADA`;
                         }
                     } else {
                         nuevoEstado = "Entrada";
-                        mensaje = "🔵 Sin registro hoy → Registrar ENTRADA";
+                        mensaje = `🔵 ${etiquetaEmpleado}: sin registro hoy → Registrar ENTRADA`;
                     }
                 } else {
                     nuevoEstado = "Entrada";
-                    mensaje = "🔵 Primer registro → Registrar ENTRADA";
+                    mensaje = `🔵 ${etiquetaEmpleado}: primer registro → Registrar ENTRADA`;
                 }
-                console.log(nuevoEstado);
-                
+
                 setDetectedStatus(nuevoEstado);
                 setDetectionMessage(mensaje);
                 return nuevoEstado;
@@ -208,7 +311,7 @@ export default function Page() {
                 setIsDetecting(false);
             }
         },
-        [getWithFilter]
+        [getWithFilter, empleadosMap, empleadosLoading]
     );
 
     // Obtener registros de checador (para la tabla)
@@ -239,12 +342,17 @@ export default function Page() {
 
             if ("data" in response) {
                 const checadorData = response.data as ChecadorResponse;
-                const formatted: ChecadorRow[] = checadorData.data.map((item) => ({
-                    empleado: item.empleado_id,
-                    hora: item.hora.slice(0,5),
-                    estado: item.estado,
-                    fecha: item.fecha,
-                }));
+                const formatted: ChecadorRow[] = checadorData.data.map((item) => {
+                    const empleado = empleadosMap[item.empleado_id];
+                    return {
+                        empleado: empleado
+                            ? `${item.empleado_id} · ${empleado.nombreCompleto}`
+                            : item.empleado_id,
+                        hora: item.hora.slice(0, 5),
+                        estado: item.estado,
+                        fecha: item.fecha,
+                    };
+                });
                 setData(formatted);
                 setTotalPages(checadorData.totalPages);
             } else {
@@ -256,7 +364,7 @@ export default function Page() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, activeFilters, pageSize, getWithFilter]);
+    }, [currentPage, activeFilters, pageSize, getWithFilter, empleadosMap]);
 
     useEffect(() => {
         fetchData();
@@ -289,7 +397,7 @@ export default function Page() {
         const estado = await detectarSiguienteEstado(empleadoId);
 
         if (!estado) {
-            setError("No se pudo determinar el estado. Intenta nuevamente.");
+            setError("No se pudo registrar: verifica que el número de empleado exista y esté activo (ALTA).");
             return false;
         }
 
@@ -372,10 +480,13 @@ export default function Page() {
                                     dataForm={[
                                         {
                                             name: "empleado_id",
-                                            type: "INPUT",
-                                            label: "ID de empleado",
+                                            type: "SEARCH",
+                                            label: "Empleado",
                                             icon: <User className="size-4" />,
-                                            placeholder: "Ingresa tu ID...",
+                                            placeholder: empleadosLoading
+                                                ? "Cargando directorio..."
+                                                : "Busca por número o nombre...",
+                                            options: employeeOptions,
                                             require: true,
                                         },
                                     ]}
@@ -402,9 +513,6 @@ export default function Page() {
                                     <>
                                         <DynamicTable
                                             data={data}
-                                            onRowClick={(row: ChecadorRow) =>
-                                                handleOpenModal(MODAL_DETALLES_CHECADOR, row)
-                                            }
                                             contextMenuItems={(row: ChecadorRow) => [
                                                 {
                                                     label: "Copiar ID",
@@ -412,12 +520,6 @@ export default function Page() {
                                                     onClick: () =>
                                                         row.ID?.[0] !== undefined &&
                                                         handleCopyId(row.ID[0]),
-                                                },
-                                                {
-                                                    label: "Ver detalles",
-                                                    icon: <FileText size={16} />,
-                                                    onClick: () =>
-                                                        handleOpenModal(MODAL_DETALLES_CHECADOR, row),
                                                 },
                                             ]}
                                         />
@@ -434,20 +536,7 @@ export default function Page() {
                             </li>
                         </ul>
 
-                        {/* Modales */}
-                        <Modal
-                            modalName={MODAL_DETALLES_CHECADOR}
-                            title="Detalles del registro"
-                            maxWidth="5xl"
-                        >
-                            {selectedChecador ? (
-                                <DetallesNomina selectedPago={selectedChecador} />
-                            ) : (
-                                <div className="p-4 text-center text-gray-500">
-                                    No se ha seleccionado ningún registro.
-                                </div>
-                            )}
-                        </Modal>
+                      
 
                         <Modal modalName={MODAL_CHAT_GENERAL} title="Chat General" maxWidth="xl">
                             <></>
