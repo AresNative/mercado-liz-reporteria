@@ -19,6 +19,7 @@ export type FieldType =
   | "LINK"
   | "RATING"
   | "TAG_INPUT"
+  | "RADIO"
   | "H1";
 
 export interface SelectOption {
@@ -46,6 +47,7 @@ export interface Field {
   horas?: boolean; // For DATE_RANGE
   href?: string;
   icon?: React.ReactNode;
+  radioGroupName?: string;
 }
 
 export interface MainFormProps {

@@ -6,7 +6,7 @@ import { RefreshCw, Video, Pencil, Trash2, Plus, Link, Type, LayoutDashboard, } 
 import { useAppDispatch } from "@/hooks/selector";
 import { Modal } from "@/components/modal";
 import { MainForm } from "@/components/form/main-form";
-import { openModalReducer } from "@/hooks/reducers/drop-down";
+import { openAlertReducer, openModalReducer } from "@/hooks/reducers/drop-down";
 import Pagination from "@/components/pagination";
 import { useDeleteGeneralMutation, useGetWithFiltersMutation, usePutGeneralMutation } from "@/hooks/api/api";
 
@@ -103,20 +103,34 @@ const PageVideos = () => {
         }
     };
     const eliminarVideo = async (id: number) => {
-        if (!window.confirm("¿Deseas eliminar este video?")) return;
         try {
             await deleteGeneral({
                 table: "videos",
                 column: "id",
                 id,
             }).unwrap();
-
             await loadVideos();
-
-            alert("Video eliminado correctamente");
+            // Si tienes alerta de éxito
+            dispatch(
+                openAlertReducer({
+                    type: "success",
+                    icon: "archivo",
+                    title: "Video eliminado",
+                    message: "El video se eliminó correctamente.",
+                    duration: 2500,
+                })
+            );
         } catch (error) {
             console.error(error);
-            alert("Error al eliminar el video");
+            dispatch(
+                openAlertReducer({
+                    type: "error",
+                    icon: "alert",
+                    title: "Error",
+                    message: "No fue posible eliminar el video.",
+                    duration: 3000,
+                })
+            );
         }
     };
     useEffect(() => {
@@ -205,7 +219,18 @@ const PageVideos = () => {
 
                                     <div className="flex items-center gap-2">
                                         <button
-                                            onClick={() => eliminarVideo(item.id)}
+                                            onClick={() =>
+                                                dispatch(
+                                                    openAlertReducer({
+                                                        type: "warning",
+                                                        icon: "alert",
+                                                        title: "Eliminar video",
+                                                        message: "¿Deseas eliminar este video? Esta acción no se puede deshacer.",
+                                                        buttonText: "Eliminar",
+                                                        action: () => eliminarVideo(item.id),
+                                                    })
+                                                )
+                                            }
                                             className="p-2 rounded-lg border border-red-400 text-red-300 hover:bg-red-500"
                                         >
                                             <Trash2 className="w-4 h-4" />
