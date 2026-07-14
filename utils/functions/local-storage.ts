@@ -28,3 +28,13 @@ export const removeFromLocalStorage = (key: string) => {
     console.log(`Error removing ${key} from localStorage:`, error);
   }
 };
+
+export const clearLocalStorage = () => {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      localStorage.clear();
+    }
+  } catch (error) {
+    console.log(`Clear all localStorage:`, error);
+  }
+};
