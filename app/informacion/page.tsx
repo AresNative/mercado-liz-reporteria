@@ -71,7 +71,7 @@ export default function BlogPage() {
             </header>
 
             {/* Categorías con Segment */}
-            <section className="py-8 px-4 bg-linear-to-r from-green-50 to-blue-50 dark:bg-gray-900/50">
+            <section className="py-8 px-4  bg-linear-to-r from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 text-green-800 dark:text-green-200">
                 <div className="max-w-6xl mx-auto flex flex-wrap gap-2 justify-center">
                     <Segment
                         items={allCategories.map(cat => ({ value: cat, label: cat }))}

@@ -47,15 +47,15 @@ export default function PageID() {
                         </a>
 
                         {/* Contador de oferta (opcional) */}
-                        <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-center">
-                            <p className="text-sm text-gray-600 dark:text-gray-400">Oferta termina en:</p>
+                        <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-200 rounded-lg text-center">
+                            <p className="text-sm text-gray-600 dark:text-gray-800">Oferta termina en:</p>
                             <CountdownTimer endDate={expiryDate} refrech={() => console.log("Oferta expirada")} />
                         </div>
                     </div>
 
                     {/* Columna derecha: detalles */}
                     <div className="md:col-span-2 space-y-6">
-                        <h1 className="text-4xl font-bold">{app.nombre}</h1>
+                        <h1 className="text-4xl font-bold dark:text-white">{app.nombre}</h1>
                         <Badge color="blue" text={app.category} />
 
                         {/* Tarjetas de resumen con componente Card */}

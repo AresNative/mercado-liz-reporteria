@@ -9,8 +9,7 @@ import { formatValue } from "@/utils/constants/format-values";
 import { Button } from "@/components/button";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
 import { useAppDispatch } from "@/hooks/selector";
-import { FirestoreService } from "@/hooks/use-firebase";
-import { Message } from "./modal-chat";
+import { sendNotificationMessage } from "@/hooks/reducers/chat-actions";
 
 interface ListaItem {
     id: string;
@@ -88,9 +87,6 @@ const ESTADO_META: Record<string, { label: string; color: string; bg: string; ri
     incompleto: { label: 'Incompleto', color: 'text-orange-700', bg: 'bg-orange-50', ring: 'ring-orange-300' },
 };
 
-// Misma regla de urgencia usada en la tabla principal (page.tsx), para que
-// el detalle del pedido muestre la hora de entrega y el nivel de urgencia
-// de forma consistente en toda la app.
 const calcularUrgencia = (fechaEntrega: string, estado: string): { urgencia: 'alta' | 'media' | 'baja', tiempo_restante: number } => {
     if (estado !== 'nuevo' && estado !== 'proceso' && estado !== 'listo') {
         return { urgencia: 'baja', tiempo_restante: 0 };
@@ -281,9 +277,6 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
     }, [pedidoSeleccionado, isConnected, notificarCambioLista, onEstadoActualizado, fetchPedidoDetalle]);
 
     // ── Auto-cancelación si ya pasó la hora de entrega ─────────────────────────
-    // Resguardo por si este modal se abre sin que la tabla principal (page.tsx)
-    // esté vigilando la lista completa: al cargar o refrescar el detalle,
-    // si el pedido sigue activo pero ya venció, se cancela automáticamente.
     useEffect(() => {
         if (!pedidoSeleccionado) return;
         const activo = ['nuevo', 'proceso', 'listo'].includes(pedidoSeleccionado.estado);
@@ -315,44 +308,27 @@ export const ModalList = ({ pedidoId, onEstadoActualizado, onItemActualizado }: 
         }
     }, [pedidoSeleccionado, putGeneral, actualizarEstadoDB]);
 
-    // ── Enviar notificación al chat del cliente (Firestore) ────────────────────
+    // ── Enviar notificación al chat del cliente (usando Server Action) ──────────
     const enviarNotificacionNoEncontrado = useCallback(async (item: ListaItem) => {
         if (!pedidoSeleccionado) return;
         const telefono = pedidoSeleccionado.cliente_telefono;
         if (!telefono || telefono === 'N/A') return;
 
-        const path = `chats/${telefono}/${pedidoSeleccionado.id}/`;
-        const chatService = new FirestoreService<Message>(path);
-
-        const mensaje: Omit<Message, 'id'> = {
-            text: `⚠️ El producto "${item.nombre}" no se encuentra disponible en nuestro inventario. ¿Deseas reemplazarlo por otro similar o eliminarlo de tu pedido?`,
-            userId: 'unknown',
-            userName: 'Soporte',
-            timestamp: Date.now(),
-            actions: [
-                {
-                    label: 'Reemplazar',
-                    action: 'replace',
-                    productId: item.id,
-                    productName: item.nombre
-                },
-                {
-                    label: 'Eliminar',
-                    action: 'remove',
-                    productId: item.id,
-                    productName: item.nombre
-                }
-            ]
-        };
+        const chatId = `${telefono}_${pedidoSeleccionado.id}`;
+        const mensaje = `⚠️ El producto "${item.nombre}" no se encuentra disponible en nuestro inventario. ¿Deseas reemplazarlo por otro similar o eliminarlo de tu pedido?`;
+        const actions = [
+            { label: 'Reemplazar', action: 'replace' as const, productId: item.id, productName: item.nombre },
+            { label: 'Eliminar', action: 'remove' as const, productId: item.id, productName: item.nombre },
+        ];
 
         try {
-            await chatService.create(mensaje);
-            // Abrir automáticamente el chat para que el operador vea la interacción
-            //dispatch(openModalReducer({ modalName: `chat_${telefono}_${pedidoSeleccionado.id}` }));
+            await sendNotificationMessage(chatId, mensaje, 'unknown', 'Soporte', actions);
+            // Opcional: abrir automáticamente el chat
+            // dispatch(openModalReducer({ modalName: `chat_${telefono}_${pedidoSeleccionado.id}` }));
         } catch (error) {
-            console.error("Error enviando notificación a Firestore:", error);
+            console.error("Error enviando notificación:", error);
         }
-    }, [pedidoSeleccionado, dispatch]);
+    }, [pedidoSeleccionado]);
 
     // ── Toggle no encontrado (con notificación) ────────────────────────────────
     const handleToggleNoEncontrado = useCallback(async (listaId: number, itemId: string, noEncontrado: boolean) => {
