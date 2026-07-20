@@ -132,6 +132,11 @@ export const navigationAdmin = [
     icon: ChartArea,
   },
   {
+    name: "Actividad y Proyectos",
+    href: "/actividad-proyectos",
+    icon: ChartColumnStacked,
+  },
+  {
     name: "Proyectos",
     href: "/proyectos",
     icon: ClipboardList,
