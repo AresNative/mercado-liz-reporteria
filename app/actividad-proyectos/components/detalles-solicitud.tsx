@@ -1,3 +1,5 @@
+"use client";
+
 import { CountdownTimer } from "@/components/counter-down";
 import Details from "@/components/details";
 import { formatDateToISO, formatValue } from "@/utils/constants/format-values";

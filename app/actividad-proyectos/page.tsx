@@ -2,7 +2,11 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useAppDispatch } from "@/hooks/selector";
-import { closeModalReducer, openModalReducer } from "@/hooks/reducers/drop-down";
+import {
+    closeModalReducer,
+    openModalReducer,
+    openAlertReducer,
+} from "@/hooks/reducers/drop-down";
 import {
     useGetWithFiltersMutation,
     usePostGeneralMutation,
@@ -26,22 +30,24 @@ import {
     Edit,
     Trash2,
     Clock,
-    Calendar,
 } from "lucide-react";
 import DynamicChart from "@/components/dynamic-chart";
 import { DetallesActividad } from "./components/detalles-actividad";
 import { DetallesSolicitud } from "./components/detalles-solicitud";
-import { formConfigActividad } from "./registro-actividad/form-config";
-import { columnConfigActividad, columnConfigSolicitud } from "./registro-actividad/tabla-config";
-import { formConfigSolicitud } from "./solicitud-proyectos/form-config";
 import { CountdownTimer } from "@/components/counter-down";
 
-type Seccion = "actividad" | "solicitudes";
+// Importaciones centralizadas
+import {
+    TABLAS,
+    formConfigActividad,
+    formConfigSolicitud,
+    columnConfigActividad,
+    columnConfigSolicitud,
+    filtrosActividad,
+    filtrosSolicitud,
+} from "./config";
 
-const TABLAS = {
-    actividad: "actividad_diaria",
-    solicitudes: "solicitud_proyectos",
-};
+type Seccion = "actividad" | "solicitudes";
 
 export default function ActividadProyectosPage() {
     const dispatch = useAppDispatch();
@@ -53,30 +59,29 @@ export default function ActividadProyectosPage() {
     const [pageSize, setPageSize] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
+    const [proyectosOptions, setProyectosOptions] = useState<
+        { value: string; label: string }[]
+    >([]);
+    const [cargandoProyectos, setCargandoProyectos] = useState(false);
 
-    // Filtros activos
     const [activeFilters, setActiveFilters] = useState<any>({
         Filtros: [],
         FiltrosAnd: [],
     });
 
-    // Opciones de proyectos para el campo SEARCH en actividad
-    const [proyectosOptions, setProyectosOptions] = useState<{ value: string; label: string }[]>([]);
-    const [cargandoProyectos, setCargandoProyectos] = useState(false);
+    const [selectedActividad, setSelectedActividad] = useState<any>(null);
+    const [selectedSolicitud, setSelectedSolicitud] = useState<any>(null);
+    const [modalEditando, setModalEditando] = useState(false);
+    const [itemAEditar, setItemAEditar] = useState<any>(null);
+
+    const formRegistroRef = useRef<any>(null);
+    const formEdicionRef = useRef<any>(null);
+    const contextRowRef = useRef<any>(null);
 
     const [getWithFilter] = useGetWithFiltersMutation();
     const [postGeneral] = usePostGeneralMutation();
     const [putGeneral] = usePutGeneralMutation();
     const [deleteGeneral] = useDeleteGeneralMutation();
-
-    const formRegistroRef = useRef<any>(null);
-    const formEdicionRef = useRef<any>(null);
-
-    // Estados para modales
-    const [selectedActividad, setSelectedActividad] = useState<any>(null);
-    const [selectedSolicitud, setSelectedSolicitud] = useState<any>(null);
-    const [modalEditando, setModalEditando] = useState(false);
-    const [itemAEditar, setItemAEditar] = useState<any>(null);
 
     // ─── Carga de datos ──────────────────────────────────────────────────────
     const fetchData = useCallback(async () => {
@@ -108,12 +113,21 @@ export default function ActividadProyectosPage() {
             }
         } catch (err: any) {
             setError(err.message || "Error al cargar los datos");
+            dispatch(
+                openAlertReducer({
+                    type: "error",
+                    title: "Error",
+                    message: "No se pudieron cargar los datos",
+                    icon: "alert",
+                    duration: 5000,
+                })
+            );
         } finally {
             setLoading(false);
         }
-    }, [seccion, activeFilters, currentPage, pageSize, getWithFilter]);
+    }, [seccion, activeFilters, currentPage, pageSize, getWithFilter, dispatch]);
 
-    // ─── Carga de opciones de proyectos (únicos desde actividad_diaria) ────
+    // ─── Carga de opciones de proyectos ─────────────────────────────────────
     const cargarProyectos = useCallback(async () => {
         if (seccion !== "actividad") return;
         setCargandoProyectos(true);
@@ -127,18 +141,16 @@ export default function ActividadProyectosPage() {
                     Order: [{ Key: "proyecto", Direction: "ASC" }],
                 },
                 page: 1,
-                pageSize: 1000, // traer todos los proyectos únicos
+                pageSize: 1000,
             });
             if ("data" in response) {
                 const proyectos = response.data.data
                     .map((item: any) => item.proyecto)
                     .filter(Boolean)
-                    .map((nombre: string) => ({
-                        value: nombre,
-                        label: nombre,
-                    }));
-                // Eliminar duplicados (por si acaso)
-                const unique:any = Array.from(new Map(proyectos.map((p: any) => [p.value, p])).values());
+                    .map((nombre: string) => ({ value: nombre, label: nombre }));
+                const unique: any[] = Array.from(
+                    new Map(proyectos.map((p:any) => [p.value, p])).values()
+                );
                 setProyectosOptions(unique);
             }
         } catch (err) {
@@ -168,10 +180,9 @@ export default function ActividadProyectosPage() {
             const series = [
                 {
                     name: "Horas",
-                    data: categories.map((cat, idx) => ({
+                    data: categories.map((cat) => ({
                         x: cat,
                         y: proyectoMap.get(cat) || 0,
-                        order: idx + 1,
                     })),
                 },
             ];
@@ -186,10 +197,9 @@ export default function ActividadProyectosPage() {
             const series = [
                 {
                     name: "Cantidad",
-                    data: categories.map((cat, idx) => ({
+                    data: categories.map((cat) => ({
                         x: cat,
                         y: estadoMap.get(cat) || 0,
-                        order: idx + 1,
                     })),
                 },
             ];
@@ -200,8 +210,17 @@ export default function ActividadProyectosPage() {
     // ─── Manejadores de éxito ──────────────────────────────────────────────
     const handleRegistroSuccess = async () => {
         await fetchData();
-        await cargarProyectos(); // actualizar lista de proyectos
+        await cargarProyectos();
         formRegistroRef.current?.reset?.();
+        dispatch(
+            openAlertReducer({
+                type: "success",
+                title: "Éxito",
+                message: "Actividad registrada correctamente",
+                icon: "archivo",
+                duration: 3000,
+            })
+        );
     };
 
     const handleSolicitudSuccess = async () => {
@@ -209,12 +228,22 @@ export default function ActividadProyectosPage() {
         dispatch(closeModalReducer({ modalName: "form-solicitud" }));
         setModalEditando(false);
         setItemAEditar(null);
+        dispatch(
+            openAlertReducer({
+                type: "success",
+                title: modalEditando ? "Actualizado" : "Creado",
+                message: modalEditando ? "Solicitud actualizada" : "Solicitud creada",
+                icon: "archivo",
+                duration: 3000,
+            })
+        );
     };
 
     // ─── Eliminar registro ──────────────────────────────────────────────────
     const handleDelete = useCallback(
         async (id: number, tabla: string) => {
-            if (!confirm(`¿Estás seguro de eliminar este registro (ID: ${id})?`)) return;
+            if (!confirm(`¿Estás seguro de eliminar este registro (ID: ${id})?`))
+                return;
             try {
                 await deleteGeneral({
                     table: tabla,
@@ -222,12 +251,29 @@ export default function ActividadProyectosPage() {
                 }).unwrap();
                 await fetchData();
                 if (tabla === TABLAS.actividad) await cargarProyectos();
+                dispatch(
+                    openAlertReducer({
+                        type: "success",
+                        title: "Eliminado",
+                        message: "Registro eliminado correctamente",
+                        icon: "archivo",
+                        duration: 3000,
+                    })
+                );
             } catch (err: any) {
                 console.error("Error al eliminar:", err);
-                alert("No se pudo eliminar el registro.");
+                dispatch(
+                    openAlertReducer({
+                        type: "error",
+                        title: "Error",
+                        message: "No se pudo eliminar el registro",
+                        icon: "alert",
+                        duration: 5000,
+                    })
+                );
             }
         },
-        [deleteGeneral, fetchData, cargarProyectos]
+        [deleteGeneral, fetchData, cargarProyectos, dispatch]
     );
 
     // ─── Abrir modal de edición ────────────────────────────────────────────
@@ -238,9 +284,6 @@ export default function ActividadProyectosPage() {
             setSelectedSolicitud(row);
             dispatch(openModalReducer({ modalName: "form-solicitud" }));
         } else {
-            // Para actividad, usamos el mismo modal de creación pero con valores precargados
-            // Como el formulario de actividad está en la misma página, podemos usar un modal independiente
-            // o simplemente precargar en el formulario inline. Por simplicidad, usaremos un modal.
             setSelectedActividad(row);
             dispatch(openModalReducer({ modalName: "form-actividad" }));
         }
@@ -265,6 +308,15 @@ export default function ActividadProyectosPage() {
         }
         setActiveFilters((prev: any) => ({ ...prev, FiltrosAnd: filtrosAnd }));
         setCurrentPage(1);
+        dispatch(
+            openAlertReducer({
+                type: "info",
+                title: "Filtros aplicados",
+                message: "Los filtros se han aplicado correctamente",
+                icon: "archivo",
+                duration: 2000,
+            })
+        );
     };
 
     // ─── Abrir modales de detalle ──────────────────────────────────────────
@@ -279,8 +331,6 @@ export default function ActividadProyectosPage() {
     };
 
     // ─── Menú contextual ──────────────────────────────────────────────────
-    const contextRowRef = useRef<any>(null);
-
     const getContextMenuItems = useCallback((): ContextMenuItem[] => {
         const baseItems: ContextMenuItem[] = [
             {
@@ -296,6 +346,15 @@ export default function ActividadProyectosPage() {
                 onClick: () => {
                     if (contextRowRef.current?.id) {
                         navigator.clipboard.writeText(String(contextRowRef.current.id));
+                        dispatch(
+                            openAlertReducer({
+                                type: "success",
+                                title: "Copiado",
+                                message: "ID copiado al portapapeles",
+                                icon: "archivo",
+                                duration: 1500,
+                            })
+                        );
                     }
                 },
             },
@@ -317,7 +376,6 @@ export default function ActividadProyectosPage() {
                 },
             },
         ];
-
         if (seccion === "solicitudes") {
             return [
                 ...baseItems,
@@ -325,13 +383,14 @@ export default function ActividadProyectosPage() {
                     label: "Cambiar estado",
                     icon: <Clock size={16} />,
                     onClick: () => {
+                        // Aquí puedes implementar la lógica para cambiar estado
                         console.log("Cambiar estado de", contextRowRef.current?.id);
                     },
                 },
             ];
         }
         return baseItems;
-    }, [seccion, handleDelete, openEditModal]);
+    }, [seccion, handleDelete, openEditModal, dispatch]);
 
     // ─── Render ─────────────────────────────────────────────────────────────
     return (
@@ -356,7 +415,9 @@ export default function ActividadProyectosPage() {
             {data.length > 0 && (
                 <section className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                     <h2 className="text-lg font-semibold mb-2">
-                        {seccion === "actividad" ? "Horas por proyecto" : "Distribución de solicitudes"}
+                        {seccion === "actividad"
+                            ? "Horas por proyecto"
+                            : "Distribución de solicitudes"}
                     </h2>
                     <DynamicChart
                         type={stats.tipo}
@@ -422,7 +483,9 @@ export default function ActividadProyectosPage() {
                                         const endDate = new Date(row.fecha_fin);
                                         return {
                                             ...row,
-                                            tiempo_restante: <CountdownTimer endDate={endDate} refrech={() => { }} />,
+                                            tiempo_restante: (
+                                                <CountdownTimer endDate={endDate} refrech={() => { }} />
+                                            ),
                                         };
                                     }
                                     return row;
@@ -430,7 +493,9 @@ export default function ActividadProyectosPage() {
                                 loading={loading}
                                 onRowClick={handleRowClick}
                                 visibleColumns={
-                                    seccion === "actividad" ? columnConfigActividad : columnConfigSolicitud
+                                    seccion === "actividad"
+                                        ? columnConfigActividad
+                                        : columnConfigSolicitud
                                 }
                             />
                         </ContextMenu>
@@ -453,13 +518,28 @@ export default function ActividadProyectosPage() {
 
             {/* ─── Modales ─── */}
             <Modal modalName="detalle-actividad" title="Detalle de actividad" maxWidth="2xl">
-                {selectedActividad && <DetallesActividad data={selectedActividad} />}
+                {selectedActividad && (
+                    <DetallesActividad
+                        data={selectedActividad}
+                        onEdit={() => {
+                            dispatch(closeModalReducer({ modalName: "detalle-actividad" }));
+                            openEditModal(selectedActividad);
+                        }}
+                        onDelete={() => {
+                            if (selectedActividad?.id) {
+                                handleDelete(selectedActividad.id, TABLAS.actividad);
+                                dispatch(closeModalReducer({ modalName: "detalle-actividad" }));
+                            }
+                        }}
+                    />
+                )}
             </Modal>
+
             <Modal modalName="detalle-solicitud" title="Detalle de solicitud" maxWidth="2xl">
                 {selectedSolicitud && <DetallesSolicitud data={selectedSolicitud} />}
             </Modal>
 
-            {/* Modal para editar actividad (reutiliza el mismo formulario) */}
+            {/* Modal para editar actividad */}
             <Modal modalName="form-actividad" title="Editar actividad" maxWidth="2xl">
                 <MainForm
                     key={itemAEditar?.id || "edit"}
@@ -491,7 +571,11 @@ export default function ActividadProyectosPage() {
                     table={TABLAS.solicitudes}
                     onSuccess={handleSolicitudSuccess}
                     dataForm={formConfigSolicitud}
-                    aditionalData={modalEditando ? { id: itemAEditar?.id } : { solicitante: "Usuario actual" }}
+                    aditionalData={
+                        modalEditando
+                            ? { id: itemAEditar?.id }
+                            : { solicitante: "Usuario actual" }
+                    }
                     valueAssign={modalEditando ? itemAEditar : undefined}
                     flexDirection="flex-col"
                 />
@@ -514,54 +598,3 @@ export default function ActividadProyectosPage() {
         </main>
     );
 }
-
-// ─── Configuración de filtros ──────────────────────────────────────────────
-const filtrosActividad = [
-    {
-        type: "Flex",
-        require: false,
-        elements: [
-            {
-                type: "DATE_RANGE",
-                name: "fecha",
-                label: "Rango de fechas",
-                icon: <Calendar className="h-4 w-4" />,
-                require: false,
-            },
-            {
-                type: "INPUT",
-                name: "proyecto",
-                label: "Proyecto",
-                placeholder: "Nombre del proyecto",
-                require: false,
-            },
-        ],
-    },
-];
-
-const filtrosSolicitud = [
-    {
-        type: "Flex",
-        require: false,
-        elements: [
-            {
-                type: "DATE_RANGE",
-                name: "fecha",
-                label: "Rango de fechas",
-                icon: <Calendar className="h-4 w-4" />,
-                require: false,
-            },
-            {
-                type: "SELECT",
-                name: "estado",
-                label: "Estado",
-                options: [
-                    { value: "pendiente", label: "Pendiente" },
-                    { value: "aprobado", label: "Aprobado" },
-                    { value: "rechazado", label: "Rechazado" },
-                ],
-                require: false,
-            },
-        ],
-    },
-];
