@@ -39,14 +39,6 @@ export default function RootLayout({
           <Modal modalName="terminos-condiciones" title="Detalle de solicitud" maxWidth="2xl">
             <TerminosCondicionesModal
               showAcceptButton={true}
-              onAccept={() => {
-                // Marcar como aceptado en el estado del formulario
-                console.log("Términos aceptados");
-              }}
-              onReject={() => {
-                console.log("Términos rechazados");
-                // Podrías redirigir o mostrar un mensaje
-              }}
             />
           </Modal>
         </Providers>
