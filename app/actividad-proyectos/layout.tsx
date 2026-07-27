@@ -51,7 +51,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return (
         <AuthController>
             <Header />
-            {userRole === 'admin'  && children}
+                {children}
             <Footer />
         </AuthController>
     );
