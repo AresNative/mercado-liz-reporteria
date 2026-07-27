@@ -82,8 +82,6 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
         };
         updateCurrentUser();
 
-        const interval = setInterval(fetchUsers, 30000);
-        return () => clearInterval(interval);
     }, [userId]);
 
     // Obtener mensajes (polling)
@@ -106,8 +104,6 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
         };
 
         fetchMessages();
-        const interval = setInterval(fetchMessages, 500); // Polling cada 5s
-        return () => clearInterval(interval);
     }, [telefonoClient, pedido]);
 
     // Scroll automático
