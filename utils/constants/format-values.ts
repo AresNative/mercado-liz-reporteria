@@ -78,11 +78,6 @@ export const formatDateDisplay = (date: Date | null): string => {
   }); */
 };
 
-
-// Helpers de tiempo para Actividades.
-// Centraliza la conversión horas/minutos <-> texto y decimal, para que
-// tabla, detalle y agrupaciones muestren siempre el mismo formato.
-
 /** Convierte horas + minutos a un total en minutos (soporta datos viejos sin `minutos`). */
 export function toTotalMinutos(horas: any, minutos: any = 0): number {
     const h = Number(horas) || 0;

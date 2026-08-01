@@ -1,3 +1,4 @@
+import { formatDateDisplay } from "@/utils/constants/format-values";
 import { InputFormProps } from "@/utils/types/interfaces";
 import { CalendarRange } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
@@ -30,12 +31,13 @@ export function DateRangeComponent(props: InputFormProps) {
     const [showInterviewDatePicker, setShowInterviewDatePicker] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    // Actualiza el valor del formulario cuando cambia el estado local
     useEffect(() => {
         if (cuestion.multiple) {
             const data = formData as RangeDateData;
             let value = '';
             if (data.interviewDateStart && data.interviewDateEnd) {
-                value = `${data.interviewDateStart} - ${data.interviewDateEnd}`;
+                value = `${data.interviewDateStart} AND ${data.interviewDateEnd}`;
             } else if (data.interviewDateStart) {
                 value = data.interviewDateStart;
             } else if (data.interviewDateEnd) {
@@ -46,34 +48,50 @@ export function DateRangeComponent(props: InputFormProps) {
             const data = formData as SingleDateData;
             props.setValue(cuestion.name, data.interviewDate);
         }
-    }, [formData, cuestion.multiple]);
+    }, [formData, cuestion.multiple, cuestion.name, props]);
 
+    // Cierra el selector al hacer clic fuera
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setShowInterviewDatePicker(false);
             }
         };
-
         document.addEventListener('mousedown', handleClickOutside);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
 
-    const inputValue = cuestion.multiple
-        ? (() => {
+    // Función para formatear una fecha ISO (YYYY-MM-DD) a formato legible
+    const formatDate = (dateString: string): string => {
+        if (!dateString) return '';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '';
+            return formatDateDisplay(date);
+        } catch {
+            return '';
+        }
+    };
+
+    // Valor que se muestra en el input (con formato legible)
+    const inputValue = (() => {
+        if (cuestion.multiple) {
             const data = formData as RangeDateData;
             if (data.interviewDateStart && data.interviewDateEnd) {
-                return `${data.interviewDateStart} - ${data.interviewDateEnd}`;
+                return `${formatDate(data.interviewDateStart)} AND ${formatDate(data.interviewDateEnd)}`;
             } else if (data.interviewDateStart) {
-                return data.interviewDateStart;
+                return formatDate(data.interviewDateStart);
             } else if (data.interviewDateEnd) {
-                return data.interviewDateEnd;
+                return formatDate(data.interviewDateEnd);
             }
             return '';
-        })()
-        : (formData as SingleDateData).interviewDate;
+        } else {
+            const data = formData as SingleDateData;
+            return formatDate(data.interviewDate);
+        }
+    })();
 
     return (
         <div className="flex flex-col" ref={dropdownRef}>
@@ -88,16 +106,16 @@ export function DateRangeComponent(props: InputFormProps) {
                     value={inputValue}
                     onClick={() => setShowInterviewDatePicker(true)}
                     readOnly
-                    className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 px-4 py-2 border focus:ring-green-500 focus:border-green-900 w-full sm:text-sm rounded-md focus:outline-none text-gray-600 dark:text-white cursor-pointer"
+                    className="bg-white dark:bg-gray-900 dark:text-white border-gray-300 dark:border-gray-800 py-2 px-4 w-full rounded-md focus:outline-none border focus:border-green-500 focus:ring-green-500 cursor-pointer"
                     placeholder={cuestion.multiple ? "Seleccionar fechas" : "Seleccionar fecha"}
                 />
                 {showInterviewDatePicker && (
-                    <div className="z-10 mt-1 w-full bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 border rounded-md shadow-lg">
-                        <div className="p-2">
-                            {cuestion.multiple ? (
-                                <div className="grid grid-cols-2 gap-4 dark:text-white">
+                    <div className="absolute z-50 mt-1 p-3 bg-white dark:bg-gray-900 dark:text-white border border-gray-300 dark:border-gray-800 rounded shadow-lg w-full">
+                        {cuestion.multiple ? (
+                            <>
+                                <div className="flex flex-col gap-2">
                                     <div>
-                                        <p className="mb-1 font-semibold">Fecha inicial</p>
+                                        <label className="block text-sm font-medium">Desde:</label>
                                         <input
                                             type="date"
                                             value={(formData as RangeDateData).interviewDateStart}
@@ -107,11 +125,11 @@ export function DateRangeComponent(props: InputFormProps) {
                                                     interviewDateStart: e.target.value,
                                                 })
                                             }
-                                            className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 w-full px-2 py-1 border rounded-md"
+                                            className="w-full border border-gray-300 dark:border-gray-800 rounded p-1 bg-white dark:bg-gray-800"
                                         />
                                     </div>
                                     <div>
-                                        <p className="mb-1 font-semibold">Fecha final</p>
+                                        <label className="block text-sm font-medium">Hasta:</label>
                                         <input
                                             type="date"
                                             value={(formData as RangeDateData).interviewDateEnd}
@@ -121,31 +139,40 @@ export function DateRangeComponent(props: InputFormProps) {
                                                     interviewDateEnd: e.target.value,
                                                 })
                                             }
-                                            className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 w-full px-2 py-1 border rounded-md"
+                                            className="w-full border border-gray-300 dark:border-gray-800 rounded p-1 bg-white dark:bg-gray-800"
                                         />
                                     </div>
                                 </div>
-                            ) : (
+                                <button
+                                    type="button"
+                                    className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                    onClick={() => setShowInterviewDatePicker(false)}
+                                >
+                                    Aplicar
+                                </button>
+                            </>
+                        ) : (
+                            <>
                                 <div>
-                                    <p className="mb-1 font-semibold">Seleccionar fecha</p>
+                                    <label className="block text-sm font-medium">Fecha:</label>
                                     <input
                                         type="date"
                                         value={(formData as SingleDateData).interviewDate}
                                         onChange={(e) =>
                                             setFormData({ interviewDate: e.target.value })
                                         }
-                                        className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 w-full px-2 py-1 border rounded-md"
+                                        className="w-full border border-gray-300 dark:border-gray-800 rounded p-1 bg-white dark:bg-gray-800"
                                     />
                                 </div>
-                            )}
-                            <button
-                                type="button"
-                                className="mt-4 w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                                onClick={() => setShowInterviewDatePicker(false)}
-                            >
-                                Aceptar
-                            </button>
-                        </div>
+                                <button
+                                    type="button"
+                                    className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                    onClick={() => setShowInterviewDatePicker(false)}
+                                >
+                                    Aplicar
+                                </button>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

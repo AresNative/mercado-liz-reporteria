@@ -27,82 +27,81 @@ export const formConfigActividad = (
   proyectosOptions: { value: string; label: string }[] = [],
   loading = false
 ): Field[] => [
-  {
-    type: "Flex",
-    require: false,
-    elements: [
-      {
-        type: "SEARCH",
-        name: "proyecto",
-        label: "Proyecto (selecciona o escribe uno nuevo)",
-        icon: <Briefcase className="h-4 w-4" />,
-        placeholder: loading
-          ? "Cargando proyectos..."
-          : "Busca o escribe el nombre del proyecto",
-        options: proyectosOptions,
-        saveData: true,
-        require: false,
-      },
-      {
-        type: "INPUT",
-        name: "tarea",
-        label: "Tarea",
-        icon: <FileText className="h-4 w-4" />,
-        placeholder: "Descripción corta de la tarea",
-        require: true,
-      },
-    ],
-  },
-  {
-    type: "TEXT_AREA",
-    name: "descripcion",
-    label: "Descripción detallada",
-    placeholder: "Explica lo que hiciste...",
-    require: true,
-  },
-  {
-    type: "Flex",
-    require: false,
-    elements: [
-      {
-        type: "DATE",
-        name: "fecha",
-        label: "Fecha",
-        icon: <Calendar className="h-4 w-4" />,
-        valueDefined: new Date().toISOString().split("T")[0],
-        require: true,
-      },
-      {
-        type: "NUMBER",
-        name: "horas",
-        label: "Horas completas",
-        icon: <Clock className="h-4 w-4" />,
-        placeholder: "Ej: 2",
-        require: true,
-        minLength: 0,
-      },
-      {
-        type: "NUMBER",
-        name: "minutos",
-        label: "Minutos adicionales",
-        icon: <Clock className="h-4 w-4" />,
-        options: MINUTOS_OPTIONS,
-        valueDefined: "0",
-        placeholder: "00 min",
-        require: false,
-        minLength: 0,
-      },
-    ],
-  },
-  {
-    type: "INPUT",
-    name: "responsable",
-    label: "Responsable (tu nombre)",
-    icon: <User className="h-4 w-4" />,
-    placeholder: "Nombre del desarrollador",
-    require: true,
-  },
-];
+    {
+      type: "Flex",
+      require: false,
+      elements: [
+        {
+          type: "SEARCH",
+          name: "proyecto",
+          label: "Proyecto (selecciona o escribe uno nuevo)",
+          icon: <Briefcase className="h-4 w-4" />,
+          placeholder: loading
+            ? "Cargando proyectos..."
+            : "Busca o escribe el nombre del proyecto",
+          options: proyectosOptions,
+          saveData: true,
+          require: false,
+        },
+        {
+          type: "INPUT",
+          name: "tarea",
+          label: "Tarea",
+          icon: <FileText className="h-4 w-4" />,
+          placeholder: "Descripción corta de la tarea",
+          require: true,
+        },
+      ],
+    },
+    {
+      type: "TEXT_AREA",
+      name: "descripcion",
+      label: "Descripción detallada",
+      placeholder: "Explica lo que hiciste...",
+      require: true,
+    },
+    {
+      type: "Flex",
+      require: false,
+      elements: [
+        {
+          type: "DATE",
+          name: "fecha",
+          label: "Fecha",
+          icon: <Calendar className="h-4 w-4" />,
+          require: true,
+        },
+        {
+          type: "NUMBER",
+          name: "horas",
+          label: "Horas completas",
+          icon: <Clock className="h-4 w-4" />,
+          placeholder: "Ej: 2",
+          require: true,
+          minLength: 0,
+        },
+        {
+          type: "NUMBER",
+          name: "minutos",
+          label: "Minutos adicionales",
+          icon: <Clock className="h-4 w-4" />,
+          options: MINUTOS_OPTIONS,
+          valueDefined: "0",
+          placeholder: "00 min",
+          require: false,
+          minLength: 0,
+        },
+      ],
+    },
+    {
+      type: "INPUT",
+      name: "responsable",
+      label: "Responsable (tu nombre)",
+      icon: <User className="h-4 w-4" />,
+      placeholder: "Nombre del desarrollador",
+      require: true,
+    },
+  ];
 
 // ─── Formulario de solicitud ──────────────────────────────────────────────
 export const formConfigSolicitud: Field[] = [
@@ -202,29 +201,40 @@ export const columnConfigSolicitud: Record<string, boolean> = {
   fecha_creacion: false,
 };
 
-// ─── Filtros ────────────────────────────────────────────────────────────────
-export const filtrosActividad = [
-  {
-    type: "Flex",
-    require: false,
-    elements: [
-      {
-        type: "DATE_RANGE",
-        name: "fecha",
-        label: "Rango de fechas",
-        icon: <Calendar className="h-4 w-4" />,
-        require: false,
-      },
-      {
-        type: "INPUT",
-        name: "proyecto",
-        label: "Proyecto",
-        placeholder: "Nombre del proyecto",
-        require: false,
-      },
-    ],
-  },
-];
+// ─── Filtros (mejorados) ──────────────────────────────────────────────────
+export const filtrosActividad = (
+  proyectosOptions: { value: string; label: string }[] = []
+): Field[] => [
+    {
+      type: "Flex",
+      require: false,
+      elements: [
+        {
+          type: "DATE_RANGE",
+          name: "fecha",
+          label: "Rango de fechas",
+          icon: <Calendar className="h-4 w-4" />,
+          require: false,
+        },
+        {
+          type: "SELECT",
+          name: "proyecto",
+          label: "Proyecto",
+          icon: <Briefcase className="h-4 w-4" />,
+          options: proyectosOptions,
+          require: false,
+        },
+        {
+          type: "INPUT",
+          name: "responsable",
+          label: "Responsable",
+          icon: <User className="h-4 w-4" />,
+          placeholder: "Nombre del responsable",
+          require: false,
+        },
+      ],
+    },
+  ];
 
 export const filtrosSolicitud = [
   {
