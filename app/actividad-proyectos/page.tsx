@@ -92,8 +92,6 @@ export default function ActividadProyectosPage() {
     const contextRowRef = useRef<any>(null);
 
     const [getWithFilter] = useGetWithFiltersMutation();
-    const [postGeneral] = usePostGeneralMutation();
-    const [putGeneral] = usePutGeneralMutation();
     const [deleteGeneral] = useDeleteGeneralMutation();
 
     // ─── Carga de datos de la tabla (paginada) ──────────────────────────────
@@ -547,8 +545,8 @@ export default function ActividadProyectosPage() {
                         </Button>
                     </div>
                     {showStats && (
-                        <BentoGrid cols={1} className="p-0">
-                            <BentoItem colSpan={1} className="border-0 shadow-none bg-transparent">
+                        <BentoGrid cols={2} className="p-0">
+                            <BentoItem colSpan={1} className="h-full items-center">
                                 {statsLoading ? (
                                     <div className="h-60 flex items-center justify-center text-gray-400">
                                         Cargando estadísticas...
@@ -558,9 +556,14 @@ export default function ActividadProyectosPage() {
                                         type={stats.tipo}
                                         categories={stats.categories}
                                         data={stats.series}
-                                        height={250}
                                     />
                                 )}
+                            </BentoItem>
+                            <BentoItem colSpan={1} className="h-full items-center">
+                                <DynamicTable
+                                    data={resumenProyectos}
+                                    loading={loading}
+                                />
                             </BentoItem>
                         </BentoGrid>
                     )}
@@ -568,45 +571,7 @@ export default function ActividadProyectosPage() {
             )}
 
             {/* ─── Resumen por proyecto (solo actividad) ────────────────────────── */}
-            {seccion === "actividad" && resumenProyectos.length > 0 && (
-                <section className="mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-lg font-semibold flex items-center gap-2">
-                            <List className="h-5 w-5" />
-                            Resumen por proyecto
-                        </h2>
-                        <Button
-                            size="small"
-                            color="second"
-                            onClick={() => setShowResumen(!showResumen)}
-                        >
-                            {showResumen ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </Button>
-                    </div>
-                    {showResumen && (
-                        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gray-50 dark:bg-gray-900">
-                                    <tr>
-                                        <th className="text-left py-2 px-3 font-medium">Proyecto</th>
-                                        <th className="text-right py-2 px-3 font-medium">Horas totales</th>
-                                        <th className="text-right py-2 px-3 font-medium">Tareas</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {resumenProyectos.map((row) => (
-                                        <tr key={row.proyecto} className="border-b border-gray-100 dark:border-gray-800">
-                                            <td className="py-2 px-3">{row.proyecto}</td>
-                                            <td className="text-right py-2 px-3">{row.totalHoras.toFixed(2)}h</td>
-                                            <td className="text-right py-2 px-3">{row.cantidadTareas}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </section>
-            )}
+           
 
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm p-4">
                 {/* ─── Formulario de filtros ─── */}

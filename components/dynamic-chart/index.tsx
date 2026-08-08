@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { ApexOptions } from "apexcharts";
-import { formatValue } from "@/utils/constants/format-values";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -16,18 +15,37 @@ interface DynamicChartProps {
     categories: string[];
     data: ChartData[];
     height?: string | number;
+    /** Función para formatear los valores (ej: (val) => '$' + val.toFixed(2)) */
+    formatValue?: (value: number) => string;
+    /** Prefijo para los valores (ej: "$") */
+    valuePrefix?: string;
+    /** Sufijo para los valores (ej: "%") */
+    valueSuffix?: string;
+    /** Número de decimales a mostrar (por defecto 2) */
+    decimalPlaces?: number;
 }
 
 const DynamicChart: React.FC<DynamicChartProps> = ({
     type,
     categories,
     data,
-    height = 350,
+    height = 450,
+    formatValue,
+    valuePrefix = "",
+    valueSuffix = "",
+    decimalPlaces = 2,
 }) => {
+    // Función de formateo por defecto
+    const defaultFormatter = (value: number): string => {
+        if (formatValue) return formatValue(value);
+        // Si hay prefijo o sufijo, los aplicamos
+        const formatted = value.toFixed(decimalPlaces);
+        return `${valuePrefix}${formatted}${valueSuffix}`;
+    };
+
     // Transforma cada serie a un arreglo de números en el orden de 'categories'
     const seriesData = data.map((serie) => {
         const firstItem = serie.data[0];
-        // Si el primer elemento es un número, asumimos que ya están en orden
         if (typeof firstItem === "number") {
             return {
                 name: serie.name,
@@ -46,7 +64,6 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
         };
     });
 
-    // Para gráficos de tipo pie, usamos la primera serie como valores
     const pieSeries = seriesData.length > 0 ? seriesData[0].data : [];
 
     // Opciones comunes
@@ -56,12 +73,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
         },
         dataLabels: {
             enabled: true,
-            formatter: (value: number) => formatValue(value, "currency"),
-        },
-        tooltip: {
-            y: {
-                formatter: (value) => formatValue(value, "currency"),
-            },
+            formatter: (val: number) => defaultFormatter(val),
         },
         legend: { position: "top", horizontalAlign: "left" },
         grid: {
@@ -80,6 +92,11 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                 },
             },
         ],
+        tooltip: {
+            y: {
+                formatter: (val: number) => defaultFormatter(val),
+            },
+        },
     };
 
     // Opciones específicas para gráficos de ejes (bar, line, area)
@@ -88,19 +105,23 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
         chart: {
             ...baseOptions.chart,
             type: type as "bar" | "line" | "area",
+            stacked: true,
         },
         xaxis: {
             type: "category",
             categories: categories,
         },
         yaxis: {
-            decimalsInFloat: 2,
+            decimalsInFloat: decimalPlaces,
             axisBorder: { show: true, color: "#fff" },
             axisTicks: { show: true, color: "#fff" },
             floating: false,
             forceNiceScale: true,
             tickAmount: 3,
-            labels: { style: { fontSize: "12px" } },
+            labels: {
+                style: { fontSize: "12px" },
+                formatter: (val: number) => defaultFormatter(val),
+            },
         },
     };
 
@@ -115,9 +136,12 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
             type: "gradient",
             gradient: { shadeIntensity: 0, opacityFrom: 2, opacityTo: 1 },
         },
+        dataLabels: {
+            formatter: (val: number) => defaultFormatter(val),
+        },
         tooltip: {
             y: {
-                formatter: (value) => formatValue(value, "currency"),
+                formatter: (val: number) => defaultFormatter(val),
             },
         },
     };

@@ -20,6 +20,7 @@ import Details from "@/components/details";
 import { sendWhatsAppMessage } from "@/hooks/classes/send-whats";
 import DynamicChart from "@/components/dynamic-chart";
 import TreemapChart from "@/components/term-grafic";
+import { formatValue } from "@/utils/constants/format-values";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -637,6 +638,7 @@ const ScoreCard = ({ open }: { open: boolean }) => {
                     type={effective.chartType as "bar" | "line" | "area" | "pie"}
                     categories={categories}
                     data={chartData}
+                    formatValue={(val) => formatValue(val, "currency")}
                     height={400}
                 />
             );
@@ -762,6 +764,8 @@ const ScoreCard = ({ open }: { open: boolean }) => {
                     type={(effective.chartType === "treemap" ? "bar" : effective.chartType) as any}
                     categories={categories}
                     data={series}
+                    formatValue={(val) => formatValue(val, "currency")}
+                    valuePrefix="$"
                     height={380}
                 />
             );

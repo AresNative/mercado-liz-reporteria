@@ -9,7 +9,7 @@
         "@reduxjs/toolkit": "^2.11.2",
         "@vercel/functions": "^3.7.5",
         "@vercel/speed-insights": "^1.3.1",
-        "apexcharts": "^5.3.6",
+        "apexcharts": "^6.7.0",
         "clsx": "^2.1.1",
         "file-saver": "^2.0.5",
         "firebase": "^12.7.0",
@@ -473,7 +473,7 @@
 
     "ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
 
-    "apexcharts": ["apexcharts@5.11.0", "", {}, "sha512-iIXnZ1DhndVgY4G5fmAbyUtGBTR5j4LlMEb561eAd4+wkJB7wJXXKLMr9u+4V5aQEPXeVYWgkAbuw9Y1z6MIrg=="],
+    "apexcharts": ["apexcharts@6.7.0", "", {}, "sha512-1Z8AACzw2W2I/JOLh2jHVVHWYtOIf1Yr9/A99r1+YJwb31V2Wmi4fzfscWOJAAf47nW4qRWvLm+ZLEm0GeiqjQ=="],
 
     "argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 
