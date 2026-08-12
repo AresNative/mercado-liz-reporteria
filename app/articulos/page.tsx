@@ -271,9 +271,9 @@ export default function Page() {
         const filtrosOther: any[] = [];
 
         if (data.search) {
-            filtrosOr.push( { Key: "Articulo", Value: data.search, Operator: "like" },);
-            filtrosOr.push({ Key: "Descripcion1", Value: data.search, Operator: "like" },);
-            filtrosOr.push({ Key: "Descripcion2", Value: data.search, Operator: "like" },);
+            filtrosOr.push( { Key: "art.Articulo", Value: data.search, Operator: "like" },);
+            filtrosOr.push({ Key: "art.Descripcion1", Value: data.search, Operator: "like" },);
+            filtrosOr.push({ Key: "art.Descripcion2", Value: data.search, Operator: "like" },);
         }
 
         if (data.estatus) {
@@ -416,7 +416,7 @@ export default function Page() {
                                                     onClick: () => {
                                                         setArticuloSeleccionado(targetRows);
                                                         dispatch(openModalReducer({ modalName: 'actualizar-articulo' }));
-                                                    },/*  targetRows.map(r => console.log(r)), */
+                                                    },
                                                 },
                                             ]
                                         }}

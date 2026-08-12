@@ -18,9 +18,9 @@ import Pagination from "@/components/pagination";
 import { Button } from "@/components/button";
 import { safeCall } from "@/hooks/use-debounce";
 import { cn } from "@/utils/functions/cn";
-import { sendWhatsAppMessage } from "./hooks/send-whats";
 import { BodyRequest, ParamsRequest, ApiResponse, FilterFormData, WhatsAppFormData } from "./constants/types";
 import DetailsVenta from "./components/details-venta";
+import { sendWhatsAppMessage } from "@/hooks/classes/send-whats";
 
 // Constantes
 const OPERATORS = [
@@ -418,10 +418,10 @@ export default function ReportingPage() {
 
         try {
             const messageBody = prepareWhatsAppMessage(formData, data);
-            await sendWhatsAppMessage({
-                to: `${formData.phoneNumber}`,
-                body: messageBody
-            });
+            await sendWhatsAppMessage(
+                formData.phoneNumber,
+                messageBody
+            );
 
             showNotification('success', 'Mensaje enviado exitosamente');
             dispatch(closeModalReducer({ modalName: "whatsapp-modal" }));

@@ -43,7 +43,7 @@ type REPORT =
     | "venta"
     | "compra"
     | "merma"
-    | "mermanoconocida"
+    | "merma no conocida"
     | "inventario"
     /*   | "clientes"
     | "proveedores"
@@ -186,7 +186,7 @@ const REPORT_CONFIGS: Record<REPORT, Pick<RequestPayload, "table" | "filtros">> 
             ],
         },
     },
-    mermanoconocida: {
+    ['merma no conocida']: {
         table: `INV AS inv INNER JOIN INVD AS invd ON inv.Mov = 'AJUSTE' AND invd.ID = inv.ID AND inv.Concepto = 'REPROCESO' INNER JOIN Art AS art ON art.Articulo = invd.Articulo  INNER JOIN Sucursal ON invd.Sucursal = Sucursal.Sucursal`,
         filtros: {
             selects: [
@@ -325,7 +325,7 @@ const ALMACEN_FIELD_MAP: Record<REPORT, string> = {
     venta: "Sucursal.Nombre",
     compra: "Sucursal.Nombre",
     merma: "Sucursal.Nombre",
-    mermanoconocida: "Sucursal.Nombre",
+    "merma no conocida": "Sucursal.Nombre",
     inventario: "Sucursal.Nombre",
     /* clientes: "",        // no aplica
     proveedores: "",     // no aplica */
@@ -336,7 +336,7 @@ const SEARCH_FIELDS_MAP: Record<REPORT, string[]> = {
     venta: ["ART.Descripcion1", "ART.Articulo"],
     compra: ["ART.Descripcion1", "ART.Articulo", "P.Nombre"],
     merma: ["art.Descripcion1", "art.Articulo"],
-    mermanoconocida: ["art.Descripcion1", "art.Articulo"],
+    "merma no conocida": ["art.Descripcion1", "art.Articulo"],
     inventario: ["art.Descripcion1", "art.Articulo"],
     /* clientes: ["Cte.Nombre", "Cte.Codigo"],
     proveedores: ["Prov.Nombre", "Prov.Proveedor"], */

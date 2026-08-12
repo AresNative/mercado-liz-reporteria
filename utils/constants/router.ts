@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Wrench,
   Clock,
+  School,
 } from "lucide-react";
 
 export const navigationDefault = [
@@ -91,6 +92,11 @@ export const navigationRh = [
     icon: Clock,
   },
   {
+    name: "Capacitaciones",
+    href: "/rh",
+    icon: School,
+  },
+  {
     name: "Empleados",
     href: "/empleados",
     icon: UsersRound,
@@ -132,6 +138,11 @@ export const navigationAdmin = [
     icon: ChartArea,
   },
   {
+    name: "Actividad y Proyectos",
+    href: "/actividad-proyectos",
+    icon: ChartColumnStacked,
+  },
+  {
     name: "Proyectos",
     href: "/proyectos",
     icon: ClipboardList,
@@ -155,6 +166,11 @@ export const navigationAdmin = [
     name: "Checador",
     href: "/checador",
     icon: Clock,
+  },
+  {
+    name: "Capacitaciones",
+    href: "/rh",
+    icon: School,
   },
   {
     name: "Boveda Movimientos",

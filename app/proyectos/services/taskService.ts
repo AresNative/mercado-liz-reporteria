@@ -25,7 +25,8 @@ export interface Task {
 
 export function useTaskService(sprintId: number) {
   // Obtener tareas del sprint
-  const [getData, { data: tasksData = [] }] = useGetWithFiltersMutation();
+  const [getData, { data: tasksData = [], isLoading }] =
+    useGetWithFiltersMutation();
 
   useEffect(() => {
     if (!sprintId) return;
@@ -36,9 +37,7 @@ export function useTaskService(sprintId: number) {
       page: 1,
       pageSize: 100,
       filtros: {
-        Filtros: [
-          { key: "sprint_id", operator: "=", value: sprintId },
-        ],
+        Filtros: [{ key: "sprint_id", operator: "=", value: sprintId }],
         order: [{ key: "orden", direction: "desc" }],
       },
       signal: undefined,
@@ -99,8 +98,11 @@ export function useTaskService(sprintId: number) {
         await putTaskEstado({
           table: "tareas", // o "tareas" según tu BD
           data: {
-            Data: { estado: estado, fecha_actualizacion: new Date().toISOString() },
-            Filtros: [{ Key: "id", Value: taskId, Operator: "=" }]
+            Data: {
+              estado: estado,
+              fecha_actualizacion: new Date().toISOString(),
+            },
+            Filtros: [{ Key: "id", Value: taskId, Operator: "=" }],
           },
         }).unwrap();
         // Actualización optimista (opcional, ya se hará con el refetch)
@@ -143,7 +145,6 @@ export function useTaskService(sprintId: number) {
           id: taskId,
         }).unwrap();
       } catch (error) {
-        
         await deleteTaskMutation({
           table: "comentarios",
           column: "tarea_id",
@@ -164,5 +165,6 @@ export function useTaskService(sprintId: number) {
     updateTaskEstado,
     updateTaskOrder,
     deleteTask,
+    isLoading,
   };
 }

@@ -1,192 +1,342 @@
 "use client"
-// diferencias entre XML y Movimientos
+
 import {
-    Clock,
-    Copy,
-    DollarSign,
-    FileText,
+    Calendar,
+    Eye,
     Filter,
-    LucideFileText,
-    MessageCircle,
-    Plus,
     RefreshCw,
     Search,
-    User
 } from "lucide-react"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 
 import { openModalReducer } from "@/hooks/reducers/drop-down"
 import { useAppDispatch } from "@/hooks/selector"
 import { useGetWithFiltersMutation } from "@/hooks/api/api"
+import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int"
 
 import { LoadingSection } from "@/template/loading-screen"
 
 import Pagination from "@/components/pagination"
 import DynamicTable from "@/components/table"
 import { Modal } from "@/components/modal"
-import Footer from "@/template/footer"
-import Header from "@/template/header"
 import MainForm from "@/components/form/main-form"
 import { Button } from "@/components/button"
-import { DetallesNomina } from "./components/detalles-nomina"
+import { DetallesPreNomina, ResumenEmpleado, DiaAsistencia } from "./components/detalles-nomina"
 
-interface PagoResponse {
-    totalRecords: number;
-    totalPages: number;
-    pageSize: number;
-    page: number;
-    data: any[];
+// ─────────────────────────────────────────────
+// Tipos
+// ─────────────────────────────────────────────
+
+interface EmpleadoNomina {
+    personal: string;
+    nombreCompleto: string;
+    departamento?: string;
+    puesto?: string;
+    jornada?: string;
+    periodoTipo?: string;
+    sueldoDiario: number;
 }
 
-interface Filtro {
-    Key: string;
-    Value: any;
-    Operator: string;
+interface ChecadorEntry {
+    empleado_id: string;
+    hora: string;
+    estado: string;
+    fecha: string; // "YYYY-MM-DDT00:00:00"
 }
 
-interface ActiveFilters {
-    Filtros: Filtro[];
-    Selects: any[];
-    OrderBy: any | null;
-    sum: boolean;
-    distinct: boolean;
-}
+const HORA_ESPERADA_POR_JORNADA: Record<string, string> = {
+    MATUTINO: "08:00:00",
+    VESPERTINO: "14:00:00",
+    NOCTURNO: "20:00:00",
+    MIXTO: "08:00:00",
+};
+const TOLERANCIA_MINUTOS = 10;
+const esDiaLaboral = (fecha: Date) => fecha.getDay() !== 0; // asume domingo como descanso
 
-interface FiltrosForm {
-    search: any;
-    sucursal: string;
-    date: string;
-}
+const TABLE_CHECADOR = "Checador";
+const TABLE_PERSONAL = "Personal";
+const CHECADOR_PAGE_SIZE = 3000;
+const EMPLEADOS_PAGE_SIZE = 1000;
+
+const MODAL_DETALLES_PRE_NOMINA = "detalles-pre-nomina";
+const MODAL_CHAT_PRE_NOMINA = "chat-pre-nomina";
+
+const pad2 = (n: number) => n.toString().padStart(2, "0");
+const toISODate = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+// Semana actual (lunes a domingo) como rango por defecto del período de nómina.
+const getCurrentWeekRange = (): string => {
+    const hoy = new Date();
+    const diaSemana = hoy.getDay(); // 0 = domingo
+    const offsetLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
+    const lunes = new Date(hoy);
+    lunes.setDate(hoy.getDate() + offsetLunes);
+    const domingo = new Date(lunes);
+    domingo.setDate(lunes.getDate() + 6);
+    return `${toISODate(lunes)} AND ${toISODate(domingo)}`;
+};
+
+const getHoraEsperada = (jornada?: string) =>
+    HORA_ESPERADA_POR_JORNADA[(jornada || "").toUpperCase()] || "08:00:00";
+
+// Suma minutos a una hora "HH:MM:SS" (comparación lexicográfica válida entre
+// horas con el mismo formato de ancho fijo).
+const addMinutes = (hhmmss: string, minutos: number): string => {
+    const [h, m, s] = hhmmss.split(":").map(Number);
+    const total = h * 60 + m + minutos;
+    const hh = Math.floor(total / 60) % 24;
+    const mm = total % 60;
+    return `${pad2(hh)}:${pad2(mm)}:${pad2(s || 0)}`;
+};
+
+const formatMoney = (n: number) =>
+    n.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 
 export function PreNomina() {
     const dispatch = useAppDispatch();
 
-    const [data, setData] = useState<any[]>([]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalRecords, setTotalRecords] = useState(0);
-    const [pageSize, setPageSize] = useState(10);
+    const [getWithFilter] = useGetWithFiltersMutation();
+    const [getWithFilterIntelisis] = useGetWithFiltersIntelisisMutation();
+
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [getWithFilter] = useGetWithFiltersMutation();
 
-    const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-        Filtros: [],
-        Selects: [],
-        OrderBy: [
-            {
-                Key: "Fecha",
-                Direction: "DESC"
-            }
-        ],
-        sum: false,
-        distinct: false
-    });
+    const [periodo, setPeriodo] = useState<string>(getCurrentWeekRange());
+    const [searchTerm, setSearchTerm] = useState<string>("");
 
-    const fetchData = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
+    const [empleados, setEmpleados] = useState<EmpleadoNomina[]>([]);
+    const [checadas, setChecadas] = useState<ChecadorEntry[]>([]);
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+
+    const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<ResumenEmpleado | null>(null);
+
+    // ─── Directorio de empleados activos (Personal, Intelisis) ─────────────────
+    const fetchEmpleados = useCallback(async () => {
         try {
-            const response = await getWithFilter({
-                table: "pagos INNER JOIN proveedores as prov ON prov.id = pagos.proveedor_id",
+            const response = await getWithFilterIntelisis({
+                table: TABLE_PERSONAL,
                 filtros: {
                     Selects: [
-                        { Key: "pagos.id" },
-                        { Key: "prov.clave", Alias: "Proveedor" },
-                        { Key: "prov.nombre", Alias: "Nombre" },
-                        { Key: "monto" },
-                        { Key: "fecha" },
-                        { Key: "metodo_pago" },
+                        { Key: "Personal" },
+                        { Key: "Nombre" },
+                        { Key: "ApellidoPaterno" },
+                        { Key: "ApellidoMaterno" },
+                        { Key: "Departamento" },
+                        { Key: "Puesto" },
+                        { Key: "Jornada" },
+                        { Key: "PeriodoTipo" },
+                        { Key: "SueldoDiario" },
                     ],
-                    FiltrosAnd: [{
-                        Filtros: activeFilters.Filtros,
-                        OperadorLogico: "OR"
-                    }],
-                    Order: activeFilters.OrderBy ? activeFilters.OrderBy : []
+                    FiltrosAnd: [
+                        {
+                            Filtros: [
+                                { Key: "Tipo", Value: "Empleado", Operator: "=" },
+                                { Key: "Estatus", Value: "ALTA", Operator: "=" },
+                            ],
+                            OperadorLogico: "AND",
+                        },
+                    ],
                 },
-                pageSize: pageSize,
-                page: currentPage,
+                pageSize: EMPLEADOS_PAGE_SIZE,
+                page: 1,
             });
 
-            if ('data' in response) {
-                const pagoData = response.data as PagoResponse;
-                const formattedData = pagoData.data.map((item) => ({
-                    ID: item.id,
-                    FechaEmision: item.Fecha || "N/A",
-                    Proveedor: [item.proveedor_id, item.Nombre],
-                    Monto: item.monto,
-                    'Metodo Pago': item.metodo_pago,
+            if ("data" in response) {
+                const rows = (response.data as any).data as any[];
+                const parsed: EmpleadoNomina[] = rows.map((emp) => ({
+                    personal: emp.Personal,
+                    nombreCompleto: [emp.Nombre, emp.ApellidoPaterno, emp.ApellidoMaterno]
+                        .filter(Boolean)
+                        .join(" "),
+                    departamento: emp.Departamento || undefined,
+                    puesto: emp.Puesto || undefined,
+                    jornada: emp.Jornada || undefined,
+                    periodoTipo: emp.PeriodoTipo || undefined,
+                    // SueldoDiario llega desde Intelisis como { source, parsedValue }.
+                    sueldoDiario: emp.SueldoDiario?.parsedValue ?? Number(emp.SueldoDiario) ?? 0,
                 }));
-                setData(formattedData);
-                setTotalPages(pagoData.totalPages);
-                setTotalRecords(pagoData.totalRecords);
-            } else if ('error' in response) {
-                throw new Error('Error en la respuesta del servidor');
+                setEmpleados(parsed);
             }
         } catch (err) {
-            console.error("Error fetching pago:", err);
-            setError("No se pudieron cargar los pago. Intente nuevamente.");
+            console.error("Error obteniendo el directorio de empleados:", err);
+            setError("No se pudo cargar el directorio de empleados.");
+        }
+    }, [getWithFilterIntelisis]);
+
+    // ─── Checadas del período (Checador, base propia) ──────────────────────────
+    const fetchChecadas = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const response = await getWithFilter({
+                table: TABLE_CHECADOR,
+                filtros: {
+                    Selects: [
+                        { Key: "empleado_id" },
+                        { Key: "hora" },
+                        { Key: "estado" },
+                        { Key: "fecha" },
+                    ],
+                    FiltrosAnd: [
+                        {
+                            Filtros: [{ Key: "fecha", Value: periodo, Operator: "BETWEEN" }],
+                            OperadorLogico: "AND",
+                        },
+                    ],
+                    Order: [{ Key: "fecha", Direction: "ASC" }],
+                },
+                pageSize: CHECADOR_PAGE_SIZE,
+                page: 1,
+            });
+
+            if ("data" in response) {
+                setChecadas((response.data as any).data as ChecadorEntry[]);
+            } else {
+                throw new Error("Error en la respuesta del servidor");
+            }
+        } catch (err) {
+            console.error("Error obteniendo checadas:", err);
+            setError("No se pudieron cargar las checadas del período. Intente nuevamente.");
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, activeFilters, pageSize, getWithFilter]);
+    }, [getWithFilter, periodo]);
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        fetchEmpleados();
+    }, [fetchEmpleados]);
 
-    const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
+    useEffect(() => {
+        fetchChecadas();
+    }, [fetchChecadas]);
 
-    const loadPago = (data: FiltrosForm) => {
-        const nuevosFiltrosAnd: any[] = [];
+    // ─── Cálculo de asistencia por empleado (sueldo diario, retardos, faltas) ──
+    const resumen: ResumenEmpleado[] = useMemo(() => {
+        const [inicioStr, finStr] = periodo.split(" AND ").map((s) => s.trim());
+        if (!inicioStr || !finStr) return [];
+        const inicio = new Date(`${inicioStr}T00:00:00`);
+        const fin = new Date(`${finStr}T00:00:00`);
 
-        if (data.search) {
-            nuevosFiltrosAnd.push({ Key: "Proveedor", Value: data.search, Operator: "LIKE" });
-            nuevosFiltrosAnd.push({ Key: "Nombre", Value: data.search, Operator: "LIKE" });
-            const searchStr = data.search.toString().trim();
-            if (/^\d+$/.test(searchStr)) {
-                nuevosFiltrosAnd.push({ Key: "ID", Value: searchStr, Operator: "=" });
-                nuevosFiltrosAnd.push({ Key: "Monto", Value: searchStr, Operator: "=" });
-            }
+        // Días del período considerados laborales (excluye domingo por defecto).
+        const diasDelPeriodo: string[] = [];
+        for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+            if (esDiaLaboral(d)) diasDelPeriodo.push(toISODate(new Date(d)));
         }
-        if (data.date) {
-            nuevosFiltrosAnd.push({
-                Key: "FechaEmision",
-                Value: data.date,
-                Operator: data.date.includes("AND") ? "BETWEEN" : "="
+
+        // Agrupar checadas por empleado y por día.
+        const porEmpleado = new Map<string, Map<string, ChecadorEntry[]>>();
+        checadas.forEach((c) => {
+            const dia = c.fecha.split("T")[0];
+            if (!porEmpleado.has(c.empleado_id)) porEmpleado.set(c.empleado_id, new Map());
+            const porDia = porEmpleado.get(c.empleado_id)!;
+            if (!porDia.has(dia)) porDia.set(dia, []);
+            porDia.get(dia)!.push(c);
+        });
+
+        return empleados.map((emp) => {
+            const porDia = porEmpleado.get(emp.personal) || new Map<string, ChecadorEntry[]>();
+            const horaEsperada = getHoraEsperada(emp.jornada);
+            const horaLimite = addMinutes(horaEsperada, TOLERANCIA_MINUTOS);
+
+            let retardos = 0;
+            let faltas = 0;
+            let diasTrabajados = 0;
+
+            const dias: DiaAsistencia[] = diasDelPeriodo.map((fecha) => {
+                const registrosDia = (porDia.get(fecha) || [])
+                    .slice()
+                    .sort((a, b) => a.hora.localeCompare(b.hora));
+                const entradas = registrosDia.filter((r) => r.estado === "Entrada");
+                const salidas = registrosDia.filter((r) => r.estado === "Salida");
+                const horaEntrada = entradas[0]?.hora ?? null;
+                const horaSalida = salidas[salidas.length - 1]?.hora ?? null;
+
+                let estado: DiaAsistencia["estado"];
+                if (!horaEntrada) {
+                    estado = "Falta";
+                    faltas += 1;
+                } else {
+                    diasTrabajados += 1;
+                    estado = horaEntrada > horaLimite ? "Retardo" : "A tiempo";
+                    if (estado === "Retardo") retardos += 1;
+                }
+
+                return { fecha, horaEntrada, horaSalida, estado };
             });
-        }
 
-        setCurrentPage(1); // <-- reinicia la página al filtrar
-        setActiveFilters(prev => ({
-            ...prev,
-            Filtros: nuevosFiltrosAnd
-        }));
-    };
+            const diasEsperados = diasDelPeriodo.length;
+            const sueldoEstimado = Math.max(0, diasEsperados - faltas) * emp.sueldoDiario;
 
-    const limpiarFiltros = () => {
-        setActiveFilters(prev => ({ ...prev, Filtros: [] }));
-        setCurrentPage(1);
-    };
+            return {
+                ...emp,
+                diasEsperados,
+                diasTrabajados,
+                retardos,
+                faltas,
+                sueldoEstimado,
+                dias,
+            };
+        });
+    }, [empleados, checadas, periodo]);
 
-    const handleOpenModal = (modalName: string, pago?: any) => {
-        if (modalName === 'detalles-transferencia' && pago) {
-            setPagoseleccionado(pago);
+    // ─── Filtro de búsqueda (cliente) + paginación local ───────────────────────
+    const resumenFiltrado = useMemo(() => {
+        if (!searchTerm) return resumen;
+        const término = searchTerm.toLowerCase();
+        return resumen.filter(
+            (r) =>
+                r.nombreCompleto.toLowerCase().includes(término) ||
+                r.personal.toLowerCase().includes(término) ||
+                (r.departamento || "").toLowerCase().includes(término)
+        );
+    }, [resumen, searchTerm]);
+
+    const totalPagesLocal = Math.max(1, Math.ceil(resumenFiltrado.length / pageSize));
+    const paginaActual = Math.min(currentPage, totalPagesLocal);
+    const resumenPagina = resumenFiltrado.slice(
+        (paginaActual - 1) * pageSize,
+        paginaActual * pageSize
+    );
+
+    // Sugerencias del campo de búsqueda: directorio de empleados activos.
+    const empleadoOptions = useMemo(
+        () =>
+            empleados
+                .slice()
+                .sort((a, b) => a.nombreCompleto.localeCompare(b.nombreCompleto))
+                .map((emp) => ({
+                    value: emp.personal,
+                    label: `${emp.personal} · ${emp.nombreCompleto}${emp.departamento ? ` (${emp.departamento})` : ""}`,
+                })),
+        [empleados]
+    );
+
+    // Totales del período, para el resumen general.
+    const totales = useMemo(
+        () =>
+            resumenFiltrado.reduce(
+                (acc, r) => ({
+                    retardos: acc.retardos + r.retardos,
+                    faltas: acc.faltas + r.faltas,
+                    nomina: acc.nomina + r.sueldoEstimado,
+                }),
+                { retardos: 0, faltas: 0, nomina: 0 }
+            ),
+        [resumenFiltrado]
+    );
+
+    const handleOpenModal = (modalName: string, resumenEmp?: ResumenEmpleado) => {
+        if (modalName === MODAL_DETALLES_PRE_NOMINA && resumenEmp) {
+            setEmpleadoSeleccionado(resumenEmp);
         }
         dispatch(openModalReducer({ modalName }));
     };
 
     const handleRefetchAll = () => {
-        fetchData();
-    };
-
-    const handleCopyId = async (id: number) => {
-        try {
-            await navigator.clipboard.writeText(String(id));
-        } catch (err) {
-            console.error("No se pudo copiar al portapapeles:", err);
-        }
+        fetchEmpleados();
+        fetchChecadas();
     };
 
     return (
@@ -195,37 +345,45 @@ export function PreNomina() {
                 <article className="p-4">
                     <span className="mr-4 flex justify-between">
                         <label>
-                            <h2 className="text-lg font-semibold dark:text-white">Gestión de Nomina</h2>
+                            <h2 className="text-lg font-semibold dark:text-white">Pre-Nómina</h2>
                             <p className="text-sm text-gray-500">
-                                Mostrando {data.length} de {totalRecords} nomina
+                                Sueldo diario, retardos y faltas estimados a partir del checador.
                             </p>
                         </label>
                     </span>
+
                     <dt className="relative flex flex-col gap-2">
                         <MainForm
                             message_button={"Filtrar"}
-                            onSuccess={loadPago}
                             iconButton={<Filter className="mr-1 size-4" />}
                             actionType={""}
                             flexDirection="flex-row"
+                            onSuccess={(rows: any) => {
+                                setPeriodo(rows.periodo || getCurrentWeekRange());
+                                setSearchTerm(rows.search || "");
+                                setCurrentPage(1);
+                            }}
                             dataForm={[
                                 {
                                     type: "Flex",
                                     require: false,
                                     elements: [
                                         {
-                                            name: "search",
-                                            type: "SEARCH",
-                                            label: "Busqueda rapida",
-                                            icon: <Search className="size-4" />,
-                                            placeholder: "Buscar por proveedor, importe, ID...",
-                                            require: true,
+                                            name: "periodo",
+                                            type: "DATE_RANGE",
+                                            label: "Período de nómina",
+                                            icon: <Calendar className="size-4" />,
+                                            valueDefined: periodo,
+                                            require: false,
                                         },
                                         {
-                                            name: "date",
-                                            type: "DATE_RANGE",
-                                            label: "Fecha de Puesto",
-                                            icon: <Clock className="size-4" />,
+                                            name: "search",
+                                            type: "SEARCH",
+                                            label: "Buscar empleado",
+                                            icon: <Search className="size-4" />,
+                                            placeholder: "Nombre, número o departamento...",
+                                            options: empleadoOptions,
+                                            valueDefined: searchTerm,
                                             require: false,
                                         },
                                     ],
@@ -233,74 +391,104 @@ export function PreNomina() {
                             ]}
                         />
                         <dl className="flex gap-2 ml-auto">
-                            <Button
-                                onClick={() => handleOpenModal('chat-transferencia')}
-                                color="info"
-                            >
-                                Chat <MessageCircle className="size-4" />
-                            </Button>
-
-                            <Button
-                                onClick={() => handleOpenModal('nueva-transferencia')}
-                                color="success"
-                            >
-                                Nueva transferencia <Plus className="size-4" />
-                            </Button>
-
-                            <Button
-                                onClick={handleRefetchAll}
-                                color="success"
-                            >
+                            <Button onClick={handleRefetchAll} color="success">
                                 Actualizar <RefreshCw className="size-4" />
                             </Button>
                         </dl>
                     </dt>
 
+                    {/* Resumen del período */}
+                    <section className="grid grid-cols-2 md:grid-cols-4 gap-4 my-4">
+                        <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
+                            <span className="text-xs text-gray-500">Empleados</span>
+                            <p className="text-lg font-semibold dark:text-white">{resumenFiltrado.length}</p>
+                        </div>
+                        <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
+                            <span className="text-xs text-gray-500">Retardos</span>
+                            <p className="text-lg font-semibold text-amber-600 dark:text-amber-400">
+                                {totales.retardos}
+                            </p>
+                        </div>
+                        <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
+                            <span className="text-xs text-gray-500">Faltas</span>
+                            <p className="text-lg font-semibold text-red-600 dark:text-red-400">
+                                {totales.faltas}
+                            </p>
+                        </div>
+                        <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
+                            <span className="text-xs text-gray-500">Nómina estimada</span>
+                            <p className="text-lg font-semibold dark:text-white">
+                                {formatMoney(totales.nomina)}
+                            </p>
+                        </div>
+                    </section>
+
                     <section className="overflow-x-auto">
                         {isLoading ? (
-                            <LoadingSection message="Cargando nomina..." />
+                            <LoadingSection message="Cargando pre-nómina..." />
                         ) : error ? (
                             <div className="p-4 text-center">
                                 <p className="text-red-500 mb-2">{error}</p>
-                                <Button onClick={fetchData} color="success">
+                                <Button onClick={handleRefetchAll} color="success">
                                     Reintentar
                                 </Button>
                             </div>
-                        ) : data.length > 0 ? (
+                        ) : resumenPagina.length > 0 ? (
                             <dt className="flex flex-col gap-2">
                                 <DynamicTable
-                                    data={data}
-                                    onRowClick={(data) => handleOpenModal('detalles-transferencia', data.ID)}
-                                    contextMenuItems={(row) => [
+                                    data={resumenPagina.map((r) => ({
+                                        Empleado: [r.personal, r.nombreCompleto],
+                                        Departamento: r.departamento || "—",
+                                        "Sueldo Diario": formatMoney(r.sueldoDiario),
+                                        "Días Trabajados": `${r.diasTrabajados}/${r.diasEsperados}`,
+                                        Retardos: r.retardos,
+                                        Faltas: r.faltas,
+                                        "Sueldo Estimado": formatMoney(r.sueldoEstimado),
+                                    }))}
+                                    onRowClick={(row: any) => {
+                                        const empleado = resumenFiltrado.find(
+                                            (r) => r.personal === row.Empleado?.[0]
+                                        );
+                                        if (empleado) handleOpenModal(MODAL_DETALLES_PRE_NOMINA, empleado);
+                                    }}
+                                    contextMenuItems={(row: any) => [
                                         {
-                                            label: 'Copiar',
-                                            icon: <Copy size={16} />,
-                                            onClick: () => handleCopyId(row.ID),
-                                        },
-                                        {
-                                            label: 'Ver detalles',
-                                            icon: <FileText size={16} />,
-                                            onClick: () => handleOpenModal('detalles-transferencia', row.ID),
+                                            label: "Ver detalles",
+                                            icon: <Eye size={16} />,
+                                            onClick: () => {
+                                                const empleado = resumenFiltrado.find(
+                                                    (r) => r.personal === row.Empleado?.[0]
+                                                );
+                                                if (empleado) handleOpenModal(MODAL_DETALLES_PRE_NOMINA, empleado);
+                                            },
                                         },
                                     ]}
                                 />
                                 <Pagination
-                                    currentPage={currentPage}
+                                    currentPage={paginaActual}
                                     loading={isLoading}
                                     setCurrentPage={setCurrentPage}
                                     currentPageSize={pageSize}
-                                    onPageSizeChange={setPageSize}
-                                    totalPages={totalPages}
+                                    onPageSizeChange={(newSize) => {
+                                        setPageSize(newSize);
+                                        setCurrentPage(1);
+                                    }}
+                                    totalPages={totalPagesLocal}
                                 />
                             </dt>
                         ) : (
                             <div className="p-8 text-center">
-                                <p className="text-gray-500 mb-4">No se encontraron nomina con los filtros aplicados.</p>
+                                <p className="text-gray-500 mb-4">
+                                    No se encontraron empleados con los filtros aplicados.
+                                </p>
                                 <button
-                                    onClick={limpiarFiltros}
+                                    onClick={() => {
+                                        setSearchTerm("");
+                                        setCurrentPage(1);
+                                    }}
                                     className="text-green-600 hover:text-green-800 underline"
                                 >
-                                    Ver todas las nomina
+                                    Ver todos los empleados
                                 </button>
                             </div>
                         )}
@@ -308,90 +496,39 @@ export function PreNomina() {
                 </article>
             </div>
 
-            {/* Modales con nombres únicos para nomina */}
             <Modal
-                modalName="detalles-transferencia"
-                title="Detalles de la Transferencia"
+                modalName={MODAL_DETALLES_PRE_NOMINA}
+                title="Detalle de asistencia"
                 maxWidth="5xl"
             >
-                {pagoseleccionado ? (
-                    <DetallesNomina selectedPago={pagoseleccionado} />
+                {empleadoSeleccionado ? (
+                    <DetallesPreNomina resumen={empleadoSeleccionado} periodo={periodo} />
                 ) : (
-                    <div className="p-4 text-center">
-                        <p className="text-gray-500">No se ha seleccionado ninguna transferencia.</p>
+                    <div className="p-4 text-center text-gray-500">
+                        No se ha seleccionado ningún empleado.
                     </div>
                 )}
             </Modal>
 
-            <Modal
-                modalName="nueva-transferencia"
-                title="Agregar nueva transferencia"
-                maxWidth="2xl"
-            >
-                <MainForm
-                    message_button={"Registrar"}
-                    onSuccess={fetchData} // <-- ahora refresca la tabla al registrar
-                    iconButton={<Plus className="size-4" />}
-                    actionType={"post-general"}
-                    table="pagos"
-                    dataForm={[
-                        {
-                            type: "Flex",
-                            require: false,
-                            elements: [
-                                {
-                                    name: "proveedor_id",
-                                    type: "SEARCH",
-                                    label: "Proveedor",
-                                    icon: <User className="size-4" />,
-                                    placeholder: "PR-0000000",
-                                    options: [{ value: "", label: "" }],
-                                    require: true,
-                                },
-                                {
-                                    name: "monto",
-                                    type: "NUMBER",
-                                    label: "Monto de pago",
-                                    icon: <DollarSign className="size-4" />,
-                                    placeholder: "$0,000.00",
-                                    minLength: 0,
-                                    require: true,
-                                },
-                            ],
-                        },
-                        {
-                            name: "file",
-                            type: "FILE",
-                            label: "Documento",
-                            icon: <LucideFileText className="size-4" />,
-                            require: false,
-                        },
-                    ]}
-                />
-            </Modal>
-
-            <Modal
-                modalName="chat-transferencia"
-                title="Chat General"
-                maxWidth="xl"
-            >
+            <Modal modalName={MODAL_CHAT_PRE_NOMINA} title="Chat General" maxWidth="xl">
                 <></>
             </Modal>
         </>
     );
 }
 
-// Página completa para el rol "pagos"
+// Página completa para el rol "nómina"
 export default function Page() {
     return (
         <>
             <main className="min-h-screen mx-auto p-4 md:p-6 text-gray-900 dark:text-white">
                 <header className="mb-8">
                     <h1 className="flex items-center text-2xl font-bold md:text-3xl">
-                        Boveda de nomina
+                        Pre-Nómina
                     </h1>
                     <p className="mt-2 text-gray-600 dark:text-gray-100">
-                        Gestiona y visualiza todas las nomina realizadas, con detalles completos de cada transacción. Utiliza los filtros para encontrar rápidamente la información que necesitas.
+                        Estimación de sueldo diario, retardos y faltas por período, calculada a
+                        partir del checador y del directorio de empleados activos.
                     </p>
                 </header>
                 <PreNomina />

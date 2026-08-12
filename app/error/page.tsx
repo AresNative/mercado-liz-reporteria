@@ -59,7 +59,7 @@ export default function Page() {
         Selects: [],
         OrderBy: [{
             Key: "ID",
-            Direction: "DESC"
+            Direction: "ASC"
         }],
         sum: false,
         distinct: false

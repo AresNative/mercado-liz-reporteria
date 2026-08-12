@@ -77,3 +77,44 @@ export const formatDateDisplay = (date: Date | null): string => {
     year: "numeric",
   }); */
 };
+
+/** Convierte horas + minutos a un total en minutos (soporta datos viejos sin `minutos`). */
+export function toTotalMinutos(horas: any, minutos: any = 0): number {
+    const h = Number(horas) || 0;
+    const m = Number(minutos) || 0;
+    return Math.round(h * 60 + m);
+}
+
+/** Da formato "2h 30m" (u "45m" si no hay horas completas). */
+export function formatDuracion(horas: any, minutos: any = 0): string {
+    const totalMin = toTotalMinutos(horas, minutos);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+}
+
+/** Total en horas decimales, útil para sumas/promedios (ej. 2h 30m -> 2.5). */
+export function toDecimalHoras(horas: any, minutos: any = 0): number {
+    return Math.round((toTotalMinutos(horas, minutos) / 60) * 100) / 100;
+}
+
+/** Suma un arreglo de actividades y regresa el total ya formateado + decimal. */
+export function sumarDuraciones(actividades: { horas?: any; minutos?: any }[]) {
+    const totalMinutos = actividades.reduce(
+        (acc, a) => acc + toTotalMinutos(a.horas, a.minutos),
+        0
+    );
+    return {
+        totalMinutos,
+        totalHoras: Math.floor(totalMinutos / 60),
+        totalMinutosRestantes: totalMinutos % 60,
+        totalDecimal: Math.round((totalMinutos / 60) * 100) / 100,
+        label: totalMinutos === 0
+            ? "0m"
+            : totalMinutos % 60 === 0
+                ? `${Math.floor(totalMinutos / 60)}h`
+                : `${Math.floor(totalMinutos / 60)}h ${totalMinutos % 60}m`,
+    };
+}
