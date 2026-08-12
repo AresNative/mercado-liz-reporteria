@@ -21,17 +21,10 @@ interface Empleado {
 
 const EmployeesManager = () => {
     const dispatch = useAppDispatch();
-
     const [loading, setLoading] = useState(false);
     const [employees, setEmployees] = useState<Empleado[]>([]);
-    const [selectedEmpleado, setSelectedEmpleado] =
-        useState<Empleado | null>(null);
-    /* 
-    ! hay que cambiar el compoente de paginacion por  Pagination de 'components\pagination\index.tsx' se volio a crear un componente ya existente
-    ! la seccion de 'SUCURSAL' deberia de aplicarse desde un main-form 'components\form\main-form.tsx' para poder aplicar diversos filtros
-    ! no es necesario aplicar employees.map si utilizas el componente DynamicTable 'components\table\index.tsx' que ya tiene la estructura de tabla y paginacion integrada, solo hay que pasarle los datos y configuraciones necesarias
-    ! de no querer usar DynamicTable usa Card 'components\card\index.tsx' o BentoGrid 'components\bento-grid\index.tsx' para mostrar mejor estructurada la pantalla y la informacion
-    */
+    const [selectedEmpleado, setSelectedEmpleado] = useState<Empleado | null>(null);
+
     // SUCURSAL
     const [sucursal, setSucursal] = useState("sucursales");
 
@@ -41,8 +34,7 @@ const EmployeesManager = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
 
-    const [getWithFilter] =
-        useGetWithFiltersIntelisisMutation();
+    const [getWithFilter] = useGetWithFiltersIntelisisMutation();
 
     const loadEmployees = async () => {
         try {
@@ -93,7 +85,6 @@ const EmployeesManager = () => {
 
     const handleOpenEmployee = (employee: Empleado) => {
         setSelectedEmpleado(employee);
-
         dispatch(
             openModalReducer({
                 modalName: "detalles-empleado",
@@ -121,7 +112,7 @@ const EmployeesManager = () => {
                         Gestión de Empleados
                     </h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Administración de empleados
+                        Visualiza el rendimiento de los empleados y sus capacitaciones
                     </p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
@@ -144,10 +135,10 @@ const EmployeesManager = () => {
                     >
                         <option value="sucursales">Todas las Sucursales </option>
                         <option value="0">Administracion </option>
-                        <option value="1"> Valle de Guadalupe</option>
+                        <option value="1">Valle de Guadalupe</option>
                         <option value="2">Testerazo</option>
-                        <option value="3"> Palmas </option>
-                        <option value="4"> Mayoreo</option>
+                        <option value="3">Palmas </option>
+                        <option value="4">Mayoreo</option>
                     </select>
                 </div>
             </div>

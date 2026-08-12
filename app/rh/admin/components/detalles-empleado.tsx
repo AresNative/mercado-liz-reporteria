@@ -72,10 +72,10 @@ export const ModalDetallesEmpleado = ({ selectedEmpleado }: any) => {
         className?: string;
     }) => (
         <div className={`flex items-start space-x-3 ${className}`}>
-            <Icon className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
+            <Icon className="h-5 w-5 text-gray-400 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-500">{label}</p>
-                <p className="text-sm text-gray-900 mt-1 break-words">
+                <p className="text-sm text-gray-900 mt-1 wrap-break-word">
                     {value || "No especificado"}
                 </p>
             </div>
