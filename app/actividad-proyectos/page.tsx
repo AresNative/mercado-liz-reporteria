@@ -9,8 +9,6 @@ import {
 } from "@/hooks/reducers/drop-down";
 import {
     useGetWithFiltersMutation,
-    usePostGeneralMutation,
-    usePutGeneralMutation,
     useDeleteGeneralMutation,
 } from "@/hooks/api/api";
 import Segment from "@/components/segment";
