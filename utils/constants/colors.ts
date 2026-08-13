@@ -49,6 +49,11 @@ export const colorClasses = {
     text: "text-gray-900 dark:text-white",
     ring: "ring-gray-300/10",
   },
+  ship: {
+    bg: "bg-gray-200 dark:bg-gray-700 dark:text-white",
+    text: "text-gray-600",
+    ring: "ring-gray-500/10",
+  },
 };
 export const buttonClasses = {
   success: {
@@ -94,6 +99,13 @@ export const buttonClasses = {
     text: "text-gray-600",
     ring: "ring-gray-500/10",
   },
+  ship: {
+    bg: "bg-gray-200 dark:bg-gray-700 dark:text-white border border-gray-200 dark:border-gray-700 rounded-md",
+    hover:
+      "hover:bg-gray-100 hover:dark:bg-gray-700 hover:text-gray-300 hover:border-gray-300 hover:dark:border-gray-600",
+    text: "text-gray-600",
+    ring: "ring-gray-500/10",
+  }
 };
 export const alertClasses = {
   success: {
@@ -138,6 +150,12 @@ export const alertClasses = {
     text: "text-gray-600",
     ring: "ring-gray-500/10",
   },
+  ship: {
+    bg: "bg-gray-200 dark:bg-gray-700 dark:text-white",
+    hover: "hover:bg-gray-100 hover:dark:bg-gray-700 hover:text-gray-300 hover:border-gray-300 hover:dark:border-gray-600",
+    text: "text-gray-600",
+    ring: "ring-gray-500/10",
+  }
 }; // Añadido para evitar modificaciones si usas TypeScript
 
 export const colorBorderClasses = {

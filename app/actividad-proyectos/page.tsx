@@ -331,7 +331,8 @@ export default function ActividadProyectosPage() {
             try {
                 await deleteGeneral({
                     table: tabla,
-                    filtros: [{ Key: "id", Value: id, Operator: "=" }],
+                    column: "id",
+                    id
                 }).unwrap();
                 await fetchData();
                 await fetchStats();
@@ -666,6 +667,8 @@ export default function ActividadProyectosPage() {
                         }}
                         onDelete={() => {
                             if (selectedActividad?.id) {
+                                console.log(selectedActividad.id);
+                                
                                 handleDelete(selectedActividad.id, TABLAS.actividad);
                                 dispatch(closeModalReducer({ modalName: "detalle-actividad" }));
                             }

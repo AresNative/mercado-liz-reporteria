@@ -73,6 +73,23 @@ const PageAreas = () => {
                                 {area.nombre}
                             </button>
                         ))}
+                        {/**
+                            Como mejora a este componente, se puede usar el segment 
+
+                            <Segment
+                                items={[
+                                    { value: "actividad", label: "Registro de Actividad" },
+                                    { value: "solicitudes", label: "Solicitud de Proyectos" },
+                                ]}
+                                value={seccion}
+                                onValueChange={(val) => {
+                                    setSeccion(val as Seccion);
+                                    setCurrentPage(1);
+                                    setActiveFilters({ Filtros: [], FiltrosAnd: [] });
+                                    setStatsData([]);
+                                }}
+                            />
+                        **/}
                     </div>
                     {/* CONTENIDO */}
                     <div className="mt-4">

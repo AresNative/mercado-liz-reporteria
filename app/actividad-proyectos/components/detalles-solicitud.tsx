@@ -3,6 +3,7 @@
 import { CountdownTimer } from "@/components/counter-down";
 import Details from "@/components/details";
 import { formatDateToISO, formatValue } from "@/utils/constants/format-values";
+import { FormattedText } from "@/components/formatted";
 
 export function DetallesSolicitud({ data }: { data: any }) {
     return (
@@ -33,11 +34,11 @@ export function DetallesSolicitud({ data }: { data: any }) {
                 </div>
                 <div className="col-span-2">
                     <span className="text-sm text-gray-500">Descripción</span>
-                    <p className="whitespace-pre-wrap">{data.descripcion}</p>
+                    <FormattedText text={data.descripcion} className="text-gray-800 dark:text-gray-100" />
                 </div>
                 <div className="col-span-2">
                     <span className="text-sm text-gray-500">Justificación</span>
-                    <p className="whitespace-pre-wrap">{data.justificacion}</p>
+                    <FormattedText text={data.justificacion} className="text-gray-800 dark:text-gray-100" />
                 </div>
                 {data.presupuesto && (
                     <div>

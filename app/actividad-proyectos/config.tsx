@@ -58,6 +58,8 @@ export const formConfigActividad = (
       name: "descripcion",
       label: "Descripción detallada",
       placeholder: "Explica lo que hiciste...",
+      minLength: 10,
+      maxLength: 500,
       require: true,
     },
     {

@@ -3,6 +3,7 @@
 import { formatDateToISO, formatDuracion } from "@/utils/constants/format-values";
 import { Button } from "@/components/button";
 import { Edit, Trash2, Calendar, Clock, User, Briefcase, FileText } from "lucide-react";
+import { FormattedText } from "@/components/formatted";
 
 interface DetallesActividadProps {
     data: any;
@@ -76,7 +77,7 @@ export function DetallesActividad({ data, onEdit, onDelete }: DetallesActividadP
                         <FileText className="h-5 w-5 text-gray-500 mt-0.5" />
                         <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Descripción</p>
-                            <p className="whitespace-pre-wrap">{data.descripcion}</p>
+                            <FormattedText text={data.descripcion} className="text-gray-800 dark:text-gray-100" />
                         </div>
                     </div>
                 </div>
