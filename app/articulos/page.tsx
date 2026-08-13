@@ -89,7 +89,7 @@ export default function Page() {
 
         try {
             const response_int = await getIntWithFilter({
-                table: "Art AS art LEFT JOIN ( SELECT Articulo, Unidad, Precio, STRING_AGG(Lista, ', ') AS Listas FROM ListaPreciosDUnidad WHERE Precio > 0 GROUP BY Articulo, Unidad, Precio ) AS lpu ON art.Articulo = lpu.Articulo AND art.Unidad = lpu.Unidad",
+                table: "Art AS art", //  LEFT JOIN ( SELECT Articulo, Unidad, Precio, STRING_AGG(Lista, ', ') AS Listas FROM ListaPreciosDUnidad WHERE Precio > 0 GROUP BY Articulo, Unidad, Precio ) AS lpu ON art.Articulo = lpu.Articulo AND art.Unidad = lpu.Unidad
                 filtros: {
                     Selects: [
                         { key: "art.Articulo" },
@@ -106,8 +106,8 @@ export default function Page() {
                         { key: "art.UnidadCompra" },
                         { key: "art.UnidadTraspaso" },
                         { key: "art.Factor" },
-                        { key: "lpu.Precio" },
-                        { key: "lpu.Listas" },   /* <--- Campo actualizado (concatenado) */
+                        /* { key: "lpu.Precio" },
+                        { key: "lpu.Listas" }, */   /* <--- Campo actualizado (concatenado) */
                         { key: "art.CostoEstandar" },
                         { key: "art.Impuesto1" },
                         { key: "art.TipoImpuesto1" },
