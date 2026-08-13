@@ -33,7 +33,7 @@ import {
     EyeOff,
     BarChart3,
 } from "lucide-react";
-import DynamicChart from "@/components/dynamic-chart";
+import DynamicChart from "@/components/charts/dynamic";
 import { DetallesActividad } from "./components/detalles-actividad";
 import { DetallesSolicitud } from "./components/detalles-solicitud";
 import { CountdownTimer } from "@/components/counter-down";

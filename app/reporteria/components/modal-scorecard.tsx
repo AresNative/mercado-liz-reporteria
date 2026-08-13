@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import Details from "@/components/details";
 import { sendWhatsAppMessage } from "@/hooks/classes/send-whats";
-import DynamicChart from "@/components/dynamic-chart";
-import TreemapChart from "@/components/term-grafic";
+import DynamicChart from "@/components/charts/dynamic";
+import TreemapChart from "@/components/charts/term";
 import { formatValue } from "@/utils/constants/format-values";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────

@@ -33,7 +33,7 @@ import {
     ChevronLeft,
     ChevronRight,
 } from "lucide-react";
-import TreemapChart from "@/components/term-grafic";
+import TreemapChart from "@/components/charts/term";
 import { formatValue } from "@/utils/constants/format-values";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
