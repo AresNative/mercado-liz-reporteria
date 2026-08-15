@@ -198,9 +198,11 @@ const DateRangePicker = ({ value, onChange, onApply, loading, extraActions }: {
 
 // ─── ScoreCard ────────────────────────────────────────────────────────────────
 
-const ScoreCard = ({ open }: { open: boolean }) => {
-    if (!open) return null;
-
+// El montaje condicional ("¿se abrió o no?") ahora lo decide el padre
+// (page.tsx, vía useModalTrigger). Aquí ya no hace falta un early-return
+// antes de los hooks: <Modal modalName="scorecard" /> se encarga de la
+// visibilidad/animación por su cuenta a través de redux.
+const ScoreCard = () => {
     const [manager] = useManagmentRead();
     const controllersRef = useRef<Map<string, AbortController>>(new Map());
 
@@ -416,7 +418,7 @@ const ScoreCard = ({ open }: { open: boolean }) => {
     }, [fetchData]);
 
     useEffect(() => {
-        if (open) {
+        if (open()) {
             fetchComparisonData();
             fetchData(ALL_QUERY_KEYS.filter(k => k !== "PERIODOS_SEMANA"), debouncedDateRange);
         }
@@ -529,8 +531,8 @@ const ScoreCard = ({ open }: { open: boolean }) => {
         const queryFilters = filters[key] || [];
         const pending = pendingFilter[key] || {};
         const allColumns = [
-            ...(QUERY_CONFIGS[key]?.selects || []).map(s => ({ key: s.Alias || s.Key, label: s.Alias || s.Key })),
-            ...(QUERY_CONFIGS[key]?.agregaciones || []).map(a => ({ key: a.Alias || a.Key, label: a.Alias || a.Key })),
+            ...(QUERY_CONFIGS[key]?.selects || []).map((s:any) => ({ key: s.Alias || s.Key, label: s.Alias || s.Key })),
+            ...(QUERY_CONFIGS[key]?.agregaciones || []).map((a:any) => ({ key: a.Alias || a.Key, label: a.Alias || a.Key })),
         ];
 
         return (

@@ -1,14 +1,15 @@
 import { Modal } from "@/components/modal";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DateRange } from "../types/filter";
-import { QUERY_CONFIGS } from "../utils/config-constants";
-import { SearchColumn } from "../types/config";
-import { ReportType } from "../types/consultas";
 import { RequestPayload, useManagmentRead } from "@/hooks/classes/api";
-import { FilterBuilder } from "../utils/filter-class";
 import DynamicTable from "@/components/table";
-import { ALMACENES_OPCIONES } from "../utils/almacenes-constants";
-import { TIME_RANGES } from "../utils/consultas-constants";
+import {
+    type REPORT,
+    type Filtro,
+    type FiltroGrupo,
+    REPORT_CONFIGS,
+    ALMACEN_FIELD_MAP,
+    ALMACENES_OPCIONES,
+} from "../utils/report-utils";
 import { BentoGrid, BentoItem } from "@/components/bento-grid";
 import Card from "@/components/card";
 import Details from "@/components/details";
@@ -35,12 +36,18 @@ import {
 } from "lucide-react";
 import TreemapChart from "@/components/charts/term";
 import { formatValue } from "@/utils/constants/format-values";
+import { TIME_RANGES } from "../utils/config-constants";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-const dummySearchColumn: SearchColumn = {
-    key: "", label: "", icon: () => null, color: "", tableField: "", table: ""
-};
+// Este modal solo tiene sentido para el reporte de ventas: usa columnas
+// como ventad.Precio / venta.ID que no existen en compra/merma/inventario.
+const REPORT_APLICABLE: REPORT = "venta";
+
+interface DateRange {
+    from: Date | null;
+    to: Date | null;
+}
 
 type ViewTab = "branches" | "hours" | "prediction" | "daily";
 type SortDir = "asc" | "desc";
@@ -55,6 +62,31 @@ const dateToInput = (d: Date | null): string => {
 const inputToDate = (s: string): Date | null => {
     if (!s) return null;
     return new Date(`${s}T00:00:00`);
+};
+
+// Sustituye al antiguo FilterBuilder (que dependía de módulos que ya no
+// existen en el proyecto): arma el grupo AND de fecha + almacén con los
+// mismos tipos (Filtro/FiltroGrupo) que ya usa report-utils.ts.
+const buildDateAlmacenFiltros = (
+    dateRange: DateRange,
+    almacenFilter: string
+): FiltroGrupo[] => {
+    const filtros: Filtro[] = [];
+    if (dateRange.from && dateRange.to) {
+        filtros.push({
+            Key: "FechaEmision",
+            Operator: "BETWEEN",
+            Value: `${dateToInput(dateRange.from)} AND ${dateToInput(dateRange.to)}`,
+        });
+    }
+    if (almacenFilter) {
+        filtros.push({
+            Key: ALMACEN_FIELD_MAP[REPORT_APLICABLE],
+            Operator: "=",
+            Value: almacenFilter,
+        });
+    }
+    return filtros.length > 0 ? [{ Filtros: filtros, OperadorLogico: "AND" }] : [];
 };
 
 // ─── SummaryCards ─────────────────────────────────────────────────────────────
@@ -288,7 +320,7 @@ const DailyTrends = ({ data, year, onYearChange, branch, onBranchChange, loading
         { totalVentas: 0, totalTikets: 0, Costos: 0 }
     );
     console.log(data);
-    
+
     const promedioTicket = totals.totalTikets > 0 ? totals.totalVentas / totals.totalTikets : 0;
     const promedioClientes = data.length > 0 ? totals.Costos / data.length : 0;
     const currentYear = new Date().getFullYear();
@@ -446,9 +478,11 @@ const DateRangePicker = ({ value, onChange, onApply, loading }: {
 
 // ─── Modal principal ──────────────────────────────────────────────────────────
 
-export const ModalReporting = ({ open, reportType }: { open: boolean; reportType: ReportType }) => {
-    if (!open) return null;
-
+// El montaje condicional ("¿se abrió o no?") ahora lo decide el padre
+// (page.tsx, vía useModalTrigger). Aquí ya no hace falta un early-return
+// antes de los hooks: <Modal modalName="reporting" /> se encarga de la
+// visibilidad/animación por su cuenta a través de redux.
+export const ModalReporting = ({ reportType }: { reportType: REPORT }) => {
     const [manager] = useManagmentRead();
 
     const [dateRange, setDateRange] = useState<DateRange>({
@@ -485,18 +519,14 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
 
     // ── Fetch por hora ────────────────────────────────────────────────────────
     const fetchStatsForHourData = useCallback(async () => {
-        if (!QUERY_CONFIGS[reportType] || reportType !== "ventas") return;
+        if (reportType !== REPORT_APLICABLE) return;
         statsAbortRef.current?.abort();
         setStatsError(null); setStatsLoading(true);
         const controller = new AbortController();
         statsAbortRef.current = controller;
         try {
-            const queryConfig = QUERY_CONFIGS[reportType];
-            const builder = new FilterBuilder({
-                quickMode: true, filterGroups: [], searchTerm: "", searchColumn: dummySearchColumn,
-                almacenFilter: "", dateRange, reportType, searchApplied: false, includeSearchTerm: false,
-            });
-            const { filtrosAnd: baseFiltrosAnd, filtrosOr } = builder.build();
+            const queryConfig = REPORT_CONFIGS[reportType];
+            const baseFiltrosAnd = buildDateAlmacenFiltros(dateRange, "");
 
             const promesas = TIME_RANGES.map(async rango => {
                 const payload: RequestPayload = {
@@ -511,7 +541,6 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
                             ...baseFiltrosAnd,
                             { Filtros: [{ Key: "venta.FechaRegistro", Operator: "TIME_BETWEEN", Value: rango.value }], OperadorLogico: "AND" as const },
                         ],
-                        ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
                     },
                     signal: controller.signal,
                 };
@@ -540,19 +569,15 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
 
     // ── Fetch por sucursal ────────────────────────────────────────────────────
     const fetchBranchTotals = useCallback(async () => {
-        if (!QUERY_CONFIGS[reportType] || reportType !== "ventas") return;
+        if (reportType !== REPORT_APLICABLE) return;
         branchAbortRef.current?.abort();
         setBranchTotalsError(null); setBranchTotalsLoading(true);
         const controller = new AbortController();
         branchAbortRef.current = controller;
         try {
-            const queryConfig = QUERY_CONFIGS[reportType];
+            const queryConfig = REPORT_CONFIGS[reportType];
             const promesas = ALMACENES_OPCIONES.map(async almacen => {
-                const builder = new FilterBuilder({
-                    quickMode: true, filterGroups: [], searchTerm: "", searchColumn: dummySearchColumn,
-                    almacenFilter: almacen.value, dateRange, reportType, searchApplied: false, includeSearchTerm: false,
-                });
-                const { filtrosAnd, filtrosOr } = builder.build();
+                const filtrosAnd = buildDateAlmacenFiltros(dateRange, almacen.value);
                 const payload: RequestPayload = {
                     table: queryConfig.table,
                     filtros: {
@@ -562,7 +587,6 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
                             { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
                         ],
                         FiltrosAnd: filtrosAnd,
-                        ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
                     },
                     signal: controller.signal,
                 };
@@ -591,14 +615,14 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
 
     // ── Fetch diario ──────────────────────────────────────────────────────────
     const fetchDailyData = useCallback(async (year: number, branchCode: string) => {
-        if (!QUERY_CONFIGS[reportType] || reportType !== "ventas") return;
+        if (reportType !== REPORT_APLICABLE) return;
         dailyAbortRef.current?.abort();
         setDailyError(null);
         setDailyLoading(true);
         const controller = new AbortController();
         dailyAbortRef.current = controller;
         try {
-            const queryConfig = QUERY_CONFIGS[reportType];
+            const queryConfig = REPORT_CONFIGS[reportType];
             const days: Date[] = [];
             // Generar lista de días del año (sin horas)
             const startDate = new Date(year, 0, 1);
@@ -611,23 +635,15 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
                 // Periodo fijo del día: desde las 00:00:00.000 hasta las 23:59:59.999
                 const dayStart = new Date(day);
                 dayStart.setUTCHours(0, 0, 0, 0); // Establece las 00:00 en tiempo universal
-  // 00:00:00.000
+                // 00:00:00.000
 
                 const dayEnd = new Date(day);
                 dayEnd.setUTCHours(23, 59, 59, 999); // 23:59:59.999   
 
-                const builder = new FilterBuilder({
-                    quickMode: true,
-                    filterGroups: [],
-                    searchTerm: "",
-                    searchColumn: dummySearchColumn,
-                    almacenFilter: branchCode === "all" ? "" : branchCode,
-                    dateRange: { from: dayStart, to: dayEnd },
-                    reportType,
-                    searchApplied: false,
-                    includeSearchTerm: false,
-                });
-                const { filtrosAnd, filtrosOr } = builder.build();
+                const filtrosAnd = buildDateAlmacenFiltros(
+                    { from: dayStart, to: dayEnd },
+                    branchCode === "all" ? "" : branchCode
+                );
                 const payload: RequestPayload = {
                     table: queryConfig.table,
                     filtros: {
@@ -638,7 +654,6 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
                             { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "Costos", Operation: "SUM" },
                         ],
                         FiltrosAnd: filtrosAnd,
-                        ...(filtrosOr.length > 0 && { FiltrosOr: filtrosOr }),
                     },
                     signal: controller.signal,
                 };
@@ -650,7 +665,7 @@ export const ModalReporting = ({ open, reportType }: { open: boolean; reportType
                 const totalTikets = d2.totalTikets || 0;
                 return {
                     fecha: dateToInput(day),
-                    totalVentas,    
+                    totalVentas,
                     totalCosto: d2.totalCosto || 0,
                     totalTikets,
                     Costos: d2.Costos || 0,

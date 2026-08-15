@@ -2,7 +2,6 @@
 import { getLocalStorageItem } from "@/utils/functions/local-storage";
 import { getCookieinPage } from "@/utils/functions/cookies";
 import AuthController from "@/components/auth/controller";
-import Analisis from "./analisis";
 import { useEffect, useState } from "react";
 
 const USER_DATA_KEY = "userData";
@@ -52,8 +51,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return (
         <AuthController>
             {userRole !== 'admin' && children}
-            {userRole === 'admin' && <Analisis />}
-            {!userRole && (
+            {!userRole ? (
                 <div className="min-h-screen flex items-center justify-center bg-gray-50">
                     <div className="text-center">
                         <h1 className="text-2xl font-bold text-gray-900 mb-4">
@@ -70,7 +68,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         </a>
                     </div>
                 </div>
-            )}
+            ) : (children)}
         </AuthController>
     );
 };

@@ -1,461 +1,59 @@
-import {
-  Building,
-  DollarSign,
-  Filter,
-  Package,
-  ShoppingCart,
-  Users,
-} from "lucide-react";
-import { QueryConfig, SearchColumn } from "../types/config";
-import { ReportType } from "../types/consultas";
+// utils/config-constants.ts
 
-// Constantes y configuración
-export const CONFIG: any = {
-  PAGE_SIZE: 10,
-  PAGE_SIZE_OPTIONS: [10, 25, 50, 100],
-  STATUS: { CONCLUIDO: "CONCLUIDO" },
-  MARGIN_WARNING: 20,
-  MARGIN_CRITICAL: 10,
-  REPORT_TYPES: {
-    VENTAS: "ventas",
-    COMPRAS: "compras",
-    MERMAS: "mermas",
-    COMPARACION: "comparacion",
-  } as const,
-} as const;
+// ─── Configuración general ──────────────────────────────────────────────────
 
-// Configuración de columnas de búsqueda por tipo de reporte
-export const SEARCH_COLUMNS_CONFIG: Record<ReportType, SearchColumn[]> = {
-  ventas: [
-    {
-      key: "articulo",
-      label: "Artículo",
-      icon: Package,
-      color: "text-blue-500",
-      tableField: "Descripcion1",
-      prefix: "ART.",
-      table: "ART",
-    },
-    {
-      key: "cliente",
-      label: "Cliente",
-      icon: Users,
-      color: "text-green-500",
-      tableField: "Nombre",
-      prefix: "C.",
-      table: "C",
-    },
-    {
-      key: "categoria",
-      label: "Categoría",
-      icon: Filter,
-      color: "text-purple-500",
-      tableField: "Categoria",
-      prefix: "ART.",
-      table: "ART",
-    },
-    {
-      key: "codigo",
-      label: "Código",
-      icon: DollarSign,
-      color: "text-yellow-500",
-      tableField: "Codigo",
-      prefix: "ventad.",
-      table: "cb",
-    },
-  ],
-  compras: [
-    {
-      key: "articulo",
-      label: "Artículo",
-      icon: Package,
-      color: "text-blue-500",
-      tableField: "Descripcion1",
-      prefix: "ART.",
-      table: "ART",
-    },
-    {
-      key: "proveedor",
-      label: "Proveedor",
-      icon: ShoppingCart,
-      color: "text-orange-500",
-      tableField: "Nombre",
-      prefix: "P.",
-      table: "P",
-    },
-    {
-      key: "fabricante",
-      label: "Fabricante",
-      icon: Building,
-      color: "text-red-500",
-      tableField: "Fabricante",
-      prefix: "ART.",
-      table: "ART",
-    },
-    {
-      key: "codigo",
-      label: "Código",
-      icon: DollarSign,
-      color: "text-yellow-500",
-      tableField: "Codigo",
-      prefix: "comprad.",
-      table: "cb",
-    },
-  ],
-  mermas: [
-    {
-      key: "articulo",
-      label: "Artículo",
-      icon: Package,
-      color: "text-blue-500",
-      tableField: "Descripcion1",
-      prefix: "art.",
-      table: "art",
-    },
-    {
-      key: "concepto",
-      label: "Concepto",
-      icon: Filter,
-      color: "text-purple-500",
-      tableField: "Concepto",
-      prefix: "inv.",
-      table: "inv",
-    },
-    {
-      key: "categoria",
-      label: "Categoría",
-      icon: Filter,
-      color: "text-indigo-500",
-      tableField: "Categoria",
-      prefix: "art.",
-      table: "art",
-    },
-    {
-      key: "codigo",
-      label: "Código",
-      icon: DollarSign,
-      color: "text-yellow-500",
-      tableField: "Codigo",
-      prefix: "invd.",
-      table: "cb",
-    },
-  ],
-  inventario: [
-    {
-      key: "articulo",
-      label: "Artículo",
-      icon: Package,
-      color: "text-blue-500",
-      tableField: "Descripcion1",
-      prefix: "art.",
-      table: "art",
-    },
-    {
-      key: "descripcion",
-      label: "Descripción",
-      icon: Filter,
-      color: "text-purple-500",
-      tableField: "Descripcion1",
-      prefix: "art.",
-      table: "art",
-    },
-  ],
-  comparacion: [
-    {
-      key: "articulo",
-      label: "Artículo",
-      icon: Package,
-      color: "text-blue-500",
-      tableField: "Descripcion1",
-      prefix: "ART.",
-      table: "ART",
-    },
-    {
-      key: "categoria",
-      label: "Categoría",
-      icon: Filter,
-      color: "text-purple-500",
-      tableField: "Categoria",
-      prefix: "ART.",
-      table: "ART",
-    },
-    {
-      key: "fabricante",
-      label: "Fabricante",
-      icon: Building,
-      color: "text-red-500",
-      tableField: "Fabricante",
-      prefix: "ART.",
-      table: "ART",
-    },
-    {
-      key: "codigo",
-      label: "Código",
-      icon: DollarSign,
-      color: "text-yellow-500",
-      tableField: "Codigo",
-      prefix: "ventad.",
-      table: "cb",
-    },
-  ],
-};
-
-// Configuración de consultas por tipo de reporte
-export const QUERY_CONFIGS: Record<ReportType, QueryConfig> = {
-  ventas: {
-    table: `VENTA AS venta INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo INNER JOIN Cte AS C ON venta.Cliente = C.Cliente`,
-    selects: [
-      { Key: "ventad.Codigo" },
-      { Key: "C.Nombre", Alias: "Cliente" },
-      { Key: "ventad.Articulo" },
-      { Key: "ART.Descripcion1", Alias: "Nombre" },
-      { Key: "ART.Categoria" },
-      { Key: "ART.Grupo" },
-      { Key: "ventad.Cantidad" },
-      { Key: "ventad.Unidad" },
-      { Key: "ventad.Factor" },
-      { Key: "ventad.Precio", Alias: "Precio unitario" },
-      { Key: "ventad.Costo", Alias: "Costo unitario" },
-      { Key: "ventad.Almacen" },
-      { Key: "venta.FechaEmision" },
-    ],
-    agregaciones: [
-      {
-        Key: "(ventad.Precio * ventad.Cantidad)",
-        Alias: "totalVentas",
-        Operation: "SUM",
-      },
-      {
-        Key: "(ventad.Costo * ventad.Cantidad)",
-        Alias: "totalCosto",
-        Operation: "SUM",
-      },
-      {
-        Key: "(ventad.Cantidad * ART.Factor)",
-        Alias: "totalArticulos",
-        Operation: "SUM",
-      },
-      {
-        Key: "venta.Cliente",
-        Alias: "totalClientes",
-        Operation: "COUNT DISTINCT",
-      },
-      { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
-    ],
-    fechaField: "venta.FechaEmision",
-    searchColumns: SEARCH_COLUMNS_CONFIG.ventas,
-  },
-  compras: {
-    table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN CB AS cb ON cb.Cuenta = art.Articulo AND cb.Codigo = comprad.Codigo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
-    selects: [
-      { Key: "CB.Codigo" },
-      { Key: "P.Nombre", Alias: "Proveedor" },
-      { Key: "ART.Fabricante" },
-      { Key: "comprad.Articulo" },
-      { Key: "ART.Descripcion1", Alias: "Nombre" },
-      { Key: "ART.Categoria" },
-      { Key: "ART.Grupo" },
-      { Key: "comprad.Cantidad" },
-      { Key: "comprad.Unidad" },
-      { Key: "comprad.Factor" },
-      { Key: "comprad.CantidadInventario" },
-      { Key: "comprad.DescuentoLinea", Alias: "Descuento" },
-      { Key: "comprad.Costo", Alias: "CostoUnitario" },
-      { Key: "comprad.Almacen" },
-      { Key: "compra.FechaEmision" },
-    ],
-    agregaciones: [
-      {
-        Key: "(comprad.Costo * comprad.Cantidad)",
-        Alias: "totalCosto",
-        Operation: "SUM",
-      },
-      {
-        Key: "comprad.CantidadInventario",
-        Alias: "totalArticulos",
-        Operation: "SUM",
-      },
-      {
-        Key: "compra.Proveedor",
-        Alias: "totalProveedores",
-        Operation: "COUNT DISTINCT",
-      },
-      { Key: "comprad.Costo", Alias: "minimoCosto", Operation: "MIN" },
-      { Key: "comprad.Costo", Alias: "maximoCosto", Operation: "MAX" },
-    ],
-    fechaField: "compra.FechaEmision",
-    searchColumns: SEARCH_COLUMNS_CONFIG.compras,
-  },
-  mermas: {
-    table: `INV AS inv INNER JOIN INVD AS invd ON invd.ID = inv.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
-    selects: [
-      { Key: "art.Articulo" },
-      { Key: "art.Descripcion1", Alias: "Nombre" },
-      { Key: "art.Categoria" },
-      { Key: "art.Grupo" },
-      { Key: "art.Linea" },
-      { Key: "art.Familia" },
-      { Key: "inv.Concepto" },
-      { Key: "invd.Cantidad" },
-      { Key: "invd.Costo" },
-      { Key: "invd.Unidad" },
-      { Key: "inv.Sucursal" },
-      { Key: "inv.movid" },
-      { Key: "inv.estatus" },
-      { Key: "inv.FechaEmision" },
-    ],
-    agregaciones: [
-      {
-        Key: "(invd.Costo * invd.Cantidad)",
-        Alias: "totalCosto",
-        Operation: "SUM",
-      },
-      { Key: "invd.Cantidad", Alias: "totalArticulos", Operation: "SUM" },
-    ],
-    fechaField: "inv.FechaEmision",
-    searchColumns: SEARCH_COLUMNS_CONFIG.mermas,
-  },
-  inventario: {
-    table: `INVD AS invd INNER JOIN inv AS inv ON inv.ID = invd.ID LEFT JOIN Art AS art ON art.Articulo = invd.Articulo`,
-    selects: [
-      { Key: "art.Articulo" },
-      { Key: "art.Descripcion1", Alias: "Nombre" },
-      { Key: "art.Categoria" },
-      { Key: "art.Grupo" },
-      { Key: "art.Linea" },
-      { Key: "art.Familia" },
-      { Key: "inv.Concepto" },
-      { Key: "invd.Costo" },
-      { Key: "invd.Unidad" },
-      { Key: "invd.Cantidad" },
-      { Key: "inv.Sucursal" },
-      { Key: "inv.movid" },
-      { Key: "inv.estatus" },
-      { Key: "inv.FechaEmision" },
-    ],
-    agregaciones: [
-      {
-        Key: "(invd.Costo * invd.Cantidad)",
-        Alias: "totalCosto",
-        Operation: "SUM",
-      },
-      { Key: "invd.Cantidad", Alias: "totalArticulos", Operation: "SUM" },
-    ],
-    fechaField: "inv.FechaEmision",
-    searchColumns: SEARCH_COLUMNS_CONFIG.inventario,
-  },
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // COMPARACION
-  // La tabla/selects sirven para la vista detallada (usa ventas como base).
-  // Las estadísticas se obtienen con COMPARISON_QUERY_CONFIGS (3 queries paralelas).
-  // ─────────────────────────────────────────────────────────────────────────────
-  comparacion: {
-    table: `VENTA AS venta INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID INNER JOIN ART AS ART ON ART.Articulo = ventad.Articulo LEFT JOIN Cte AS C ON venta.Cliente = C.Cliente`,
-    selects: [
-      { Key: "venta.FechaEmision" },
-      { Key: "ventad.Articulo" },
-      { Key: "ART.Descripcion1", Alias: "Nombre" },
-      { Key: "ART.Categoria" },
-      { Key: "ART.Grupo" },
-      { Key: "ART.Linea" },
-      { Key: "ART.Familia" },
-      { Key: "ART.Fabricante" },
-      { Key: "C.Nombre", Alias: "Cliente" },
-      { Key: "ventad.Almacen" },
-      { Key: "ventad.Cantidad" },
-      { Key: "ventad.Precio", Alias: "PrecioVenta" },
-      { Key: "ventad.Costo", Alias: "CostoVenta" },
-    ],
-    // Usadas solo como fallback; las stats reales vienen de COMPARISON_QUERY_CONFIGS
-    agregaciones: [
-      {
-        Key: "(ventad.Precio * ventad.Cantidad)",
-        Alias: "totalVentas",
-        Operation: "SUM",
-      },
-      {
-        Key: "(ventad.Costo * ventad.Cantidad)",
-        Alias: "totalCosto",
-        Operation: "SUM",
-      },
-      {
-        Key: "ventad.Articulo",
-        Alias: "totalArticulos",
-        Operation: "COUNT DISTINCT",
-      },
-      { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
-    ],
-    fechaField: "venta.FechaEmision",
-    searchColumns: SEARCH_COLUMNS_CONFIG.comparacion,
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPARISON_QUERY_CONFIGS
-// Tres consultas totalmente independientes que se lanzan en paralelo.
-// Sus resultados se fusionan en processComparisonStats() en page.tsx.
-// ─────────────────────────────────────────────────────────────────────────────
-export const COMPARISON_QUERY_CONFIGS = {
-  ventas: {
-    table: `VENTA AS venta INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID INNER JOIN ART AS ART ON ART.Articulo = ventad.Articulo`,
-    agregaciones: [
-      {
-        Key: "(ventad.Precio * ventad.Cantidad)",
-        Alias: "totalVentas",
-        Operation: "SUM",
-      },
-      {
-        Key: "(ventad.Costo * ventad.Cantidad)",
-        Alias: "totalCostoVentas",
-        Operation: "SUM",
-      },
-      { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
-      {
-        Key: "ventad.Articulo",
-        Alias: "totalArticulosVendidos",
-        Operation: "COUNT DISTINCT",
-      },
-    ],
-    fechaField: "venta.FechaEmision",
-  },
-  compras: {
-    table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON ART.Articulo = comprad.Articulo`,
-    agregaciones: [
-      {
-        Key: "(comprad.Costo * comprad.Cantidad)",
-        Alias: "totalCompras",
-        Operation: "SUM",
-      },
-      {
-        Key: "compra.Proveedor",
-        Alias: "totalProveedores",
-        Operation: "COUNT DISTINCT",
-      },
-      {
-        Key: "comprad.Articulo",
-        Alias: "totalArticulosComprados",
-        Operation: "COUNT DISTINCT",
-      },
-    ],
-    fechaField: "compra.FechaEmision",
-  },
-  mermas: {
-    table: `INV AS inv INNER JOIN INVD AS invd ON invd.ID = inv.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
-    agregaciones: [
-      {
-        Key: "(invd.Costo * invd.Cantidad)",
-        Alias: "totalMermas",
-        Operation: "SUM",
-      },
-      {
-        Key: "invd.Articulo",
-        Alias: "totalArticulosMerma",
-        Operation: "COUNT DISTINCT",
-      },
-    ],
-    fechaField: "inv.FechaEmision",
+export const CONFIG = {
+  PAGE_SIZE: 50,
+  PAGE_SIZE_OPTIONS: [10, 25, 50, 100, 250],
+  STATUS: {
+    CONCLUIDO: "CONCLUIDO",
+    PROCESAR: "PROCESAR",
+    CANCELADO: "CANCELADO",
   },
 } as const;
 
-export type ComparisonQueryKey = keyof typeof COMPARISON_QUERY_CONFIGS;
+// ─── Configuración de consultas (usado en modal-reporting original) ────────
+
+// Nota: En la versión refactorizada de modal-reporting, estas constantes ya no se usan,
+// pero se mantienen por si otros módulos las requieren.
+export const QUERY_CONFIGS = {
+  ventas: {
+    table: `VENTA AS venta INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo INNER JOIN Sucursal ON ventad.Sucursal = Sucursal.Sucursal`,
+  },
+  compras: {
+    table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor INNER JOIN Sucursal ON comprad.Sucursal = Sucursal.Sucursal`,
+  },
+  mermas: {
+    table: `INV AS inv INNER JOIN INVD AS invd ON inv.Mov = 'SALIDA DIVERSA' AND invd.ID = inv.ID AND inv.Concepto = 'SALIDA POR MERMAS' OR inv.Mov = 'MERMAS' AND invd.ID = inv.ID INNER JOIN Art AS art ON art.Articulo = invd.Articulo  INNER JOIN Sucursal ON invd.Sucursal = Sucursal.Sucursal`,
+  },
+  // ... otros si se necesitan
+};
+
+// ─── Rangos horarios (usado en modal-reporting original) ──────────────────
+
+export const TIME_RANGES = [
+  { hora: "00:00", value: "00:00-00:59" },
+  { hora: "01:00", value: "01:00-01:59" },
+  { hora: "02:00", value: "02:00-02:59" },
+  { hora: "03:00", value: "03:00-03:59" },
+  { hora: "04:00", value: "04:00-04:59" },
+  { hora: "05:00", value: "05:00-05:59" },
+  { hora: "06:00", value: "06:00-06:59" },
+  { hora: "07:00", value: "07:00-07:59" },
+  { hora: "08:00", value: "08:00-08:59" },
+  { hora: "09:00", value: "09:00-09:59" },
+  { hora: "10:00", value: "10:00-10:59" },
+  { hora: "11:00", value: "11:00-11:59" },
+  { hora: "12:00", value: "12:00-12:59" },
+  { hora: "13:00", value: "13:00-13:59" },
+  { hora: "14:00", value: "14:00-14:59" },
+  { hora: "15:00", value: "15:00-15:59" },
+  { hora: "16:00", value: "16:00-16:59" },
+  { hora: "17:00", value: "17:00-17:59" },
+  { hora: "18:00", value: "18:00-18:59" },
+  { hora: "19:00", value: "19:00-19:59" },
+  { hora: "20:00", value: "20:00-20:59" },
+  { hora: "21:00", value: "21:00-21:59" },
+  { hora: "22:00", value: "22:00-22:59" },
+  { hora: "23:00", value: "23:00-23:59" },
+];
