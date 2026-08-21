@@ -5,7 +5,6 @@ import { useManagmentRead } from "@/hooks/classes/api";
 import Footer from "@/template/footer";
 import Header from "@/template/header";
 import { useEffect, useState } from "react";
-import { TableData } from "../reporteria/page";
 import Pagination from "@/components/pagination";
 
 const pageRedes = () => {
@@ -15,7 +14,7 @@ const pageRedes = () => {
     const [pageSize, setPageSize] = useState(10)
     const [totalPages, setTotalPages] = useState(1)
 
-    const [redes, setRedes] = useState <TableData[]>([])
+    const [redes, setRedes] = useState<any[]>([])
 
     async function getDataWeb() {
         const payload: RequestPayload = {

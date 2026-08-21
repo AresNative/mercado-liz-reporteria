@@ -1,6 +1,6 @@
-import { QueryConfig } from "../types/config";
 
-export const QUERY_CONFIGS: Record<string, QueryConfig> = {
+
+export const QUERY_CONFIGS: Record<string, any> = {
   PERIODOS_SEMANA: {
     table: `VENTA AS venta INNER JOIN VENTAD AS ventad ON ventad.ID = venta.ID INNER JOIN ART AS ART ON ventad.Articulo = ART.Articulo INNER JOIN Cte AS C ON venta.Cliente = C.Cliente`,
     selects: [

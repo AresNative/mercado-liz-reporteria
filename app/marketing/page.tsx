@@ -9,7 +9,6 @@ import { useEffect, useState } from "react";
 import ModalRedes from "./components/modal-redes";
 import { useAppDispatch } from "@/hooks/selector";
 import { openModalReducer } from "@/hooks/reducers/drop-down";
-import { TableData } from "../reporteria/page";
 import { RefreshCw } from "lucide-react";
 
 const pageRedes = () => {
@@ -19,7 +18,7 @@ const pageRedes = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [loading, setLoading] = useState(false);
-    const [redes, setRedes] = useState<TableData[]>([]);
+    const [redes, setRedes] = useState<any[]>([]);
 
     async function getDataWeb() {
         setLoading(true);
