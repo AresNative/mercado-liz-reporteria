@@ -1,131 +1,102 @@
 import Link from "next/link";
+import MainForm from '@/components/form/main-form';
+import { useState, useEffect } from 'react';
+import { Menu, LogOut, LogIn, UserPlus, X } from 'lucide-react';
+import { useLogoutUserMutation } from '@/hooks/api/auth';
+import { LogInField } from '@/utils/constants/forms/logIn';
+import { navigationAdmin, navigationAlmacen, navigationDefault, navigationNomina, navigationRh, navigationUser, navigationVentas } from '@/utils/constants/router';
+import { getLocalStorageItem } from '@/utils/functions/local-storage';
+import { cn } from '@/utils/functions/cn';
+import { closeModalReducer, openAlertReducer, openModalReducer } from '@/hooks/reducers/drop-down';
+import { useAppDispatch } from '@/hooks/selector';
+import { Modal } from '@/components/modal';
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Menu, LogOut, LogIn, UserPlus, X } from "lucide-react";
-import { useLogoutUserMutation } from "@/hooks/api/auth";
-import { useAppDispatch } from "@/hooks/selector";
-import { closeModalReducer, openAlertReducer, openModalReducer } from "@/hooks/reducers/drop-down";
-import MainForm from "@/components/form/main-form";
-import { Modal } from "@/components/modal";
-import { SwitchToggle } from "@/components/switch-mode";
+import { SwitchToggle } from '@/components/switch-mode';
 import Badge from "@/components/badge";
-import { LogInField } from "@/utils/constants/forms/logIn";
-import {
-    navigationAdmin,
-    navigationAlmacen,
-    navigationDefault,
-    navigationNomina,
-    navigationRh,
-    navigationUser,
-    navigationVentas,
-} from "@/utils/constants/router";
-import { getLocalStorageItem, setLocalStorageItem } from "@/utils/functions/local-storage";
-import { cn } from "@/utils/functions/cn";
 
-// Constantes para claves de localStorage
-const STORAGE_KEYS = {
-    USER_DATA: "userData",
-    USER_CREDENTIALS: "userCredentials",
-    USER_ROL: "user-rol",
-    USER_ID: "user-id",
-    TOKEN: "token",
-} as const;
-
-// Tipos
-interface UserData {
-    rol: string | null;
-    id: string | null;
-    token: string | null;
-}
-
-interface UserCredentials {
-    email: string | null;
-    password: string | null;
-}
-
+const USER_DATA_KEY = "userData";
 interface MenuProps {
     isScrolled?: boolean;
 }
 
-// Hook personalizado para manejar autenticación
-function useAuth() {
-    const [userData, setUserData] = useState<UserData>({
+const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
+    const navigation = useRouter();
+    const pathname = usePathname();
+    const [logoutProcess] = useLogoutUserMutation();
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    const dispatch = useAppDispatch();
+    // Estado para almacenar los datos del usuario
+    const [userData, setUserData] = useState<{
+        rol: string | null;
+        id: string | null;
+        token: string | null;
+    }>({
         rol: null,
         id: null,
         token: null,
     });
-    const [userCredentials, setUserCredentials] = useState<UserCredentials>({
+
+    const [userCredentials, setUserCredentials] = useState<{
+        email: string | null;
+        password: string | null;
+    }>({
         email: null,
-        password: null,
+        password: null
     });
-
-    // Cargar datos al montar
+    // Obtener datos de localStorage solo en el cliente
     useEffect(() => {
-        setUserData(getLocalStorageItem(STORAGE_KEYS.USER_DATA));
-        setUserCredentials(getLocalStorageItem(STORAGE_KEYS.USER_CREDENTIALS));
+        setUserData(getLocalStorageItem(USER_DATA_KEY));
+        setUserCredentials(getLocalStorageItem("userCredentials"));
     }, []);
 
-    const clearUserData = useCallback(() => {
-        setUserData({ rol: null, id: null, token: null });
-        setUserCredentials({ email: null, password: null });
-    }, []);
-
-    return { userData, userCredentials, setUserData, clearUserData };
-}
-
-// Hook para bloquear/desbloquear scroll del body
-function useLockScroll(active: boolean) {
     useEffect(() => {
-        if (active) {
-            document.body.style.overflow = "hidden";
+        if (menuOpen || loginModalOpen) {
+            document.body.style.overflow = 'hidden';
+            if (menuOpen) {
+                // Enfocar el menú al abrir para accesibilidad
+                setTimeout(() => {
+                    const menu = document.querySelector('aside');
+                    menu?.focus();
+                }, 100);
+            }
         } else {
-            document.body.style.overflow = "auto";
+            document.body.style.overflow = 'auto';
         }
+
         return () => {
-            document.body.style.overflow = "auto";
+            document.body.style.overflow = 'auto';
         };
-    }, [active]);
-}
+    }, [menuOpen, loginModalOpen]);
 
-// Hook para manejar el foco al abrir/cerrar menú
-function useFocusManagement(menuOpen: boolean, menuRef: React.RefObject<HTMLElement | null>) {
-    const previousFocusRef = useRef<HTMLElement | null>(null);
 
-    useEffect(() => {
-        if (menuOpen) {
-            previousFocusRef.current = document.activeElement as HTMLElement;
-            const timer = setTimeout(() => {
-                menuRef.current?.focus();
-            }, 100);
-            return () => clearTimeout(timer);
-        } else {
-            previousFocusRef.current?.focus();
+    const handleLogout = async () => {
+        try {
+            await logoutProcess(null);
+            setMenuOpen(false);
+            dispatch(
+                openAlertReducer({
+                    title: "Sesion cerrada",
+                    message: "Vuelve pronto!",
+                    type: "info",
+                    icon: "alert",
+                    duration: 4000
+                })
+            );
+            // Actualizar estado después de logout
+            setUserData({ rol: null, id: null, token: null });
+            navigation.push("/");
+        } catch (error) {
+            console.error("Logout failed:", error);
         }
-    }, [menuOpen, menuRef]);
-}
+    };
 
-const AppMenu: React.FC<MenuProps> = ({ isScrolled = false }) => {
-    const router = useRouter();
-    const pathname = usePathname();
-    const dispatch = useAppDispatch();
-    const [logoutProcess] = useLogoutUserMutation();
-    const [menuOpen, setMenuOpen] = useState(false);
-    const menuRef = useRef<HTMLElement>(null);
-
-    const { userData, userCredentials, setUserData, clearUserData } = useAuth();
-
-    // Bloquear scroll cuando el menú está abierto
-    useLockScroll(menuOpen);
-
-    // Manejo de foco en el menú
-    useFocusManagement(menuOpen, menuRef);
-
-    // Obtener elementos de navegación según rol (memorizado)
-    const navigationItems = useMemo(() => {
-        const rol = userData.rol;
+    const navigationItems = () => {
+        const rol = userData && userData.rol;
         if (!rol) return navigationDefault;
 
-        const navigationMap: Record<string, any[]> = {
+        const navigationMap: any = {
             admin: navigationAdmin,
             empleado: navigationUser,
             almacen: navigationAlmacen,
@@ -135,99 +106,44 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled = false }) => {
             nomina: navigationNomina,
         };
         return navigationMap[rol] || navigationUser;
-    }, [userData.rol]);
-
-    // Cerrar sesión
-    const handleLogout = useCallback(async () => {
-        try {
-            await logoutProcess(null);
-            clearUserData();
-            setMenuOpen(false);
-            dispatch(
-                openAlertReducer({
-                    title: "Sesión cerrada",
-                    message: "Vuelve pronto!",
-                    type: "info",
-                    icon: "alert",
-                    duration: 4000,
-                })
-            );
-            router.push("/");
-        } catch (error) {
-            console.error("Logout failed:", error);
-            dispatch(
-                openAlertReducer({
-                    title: "Error al cerrar sesión",
-                    message: "Inténtalo nuevamente",
-                    type: "error",
-                    icon: "alert",
-                    duration: 4000,
-                })
-            );
-        }
-    }, [logoutProcess, clearUserData, dispatch, router]);
-
-    // Abrir modal de login
-    const openLoginModal = useCallback(() => {
-        dispatch(openModalReducer({ modalName: "login-modal" }));
-    }, [dispatch]);
-
-    // Cerrar menú
-    const closeMenu = useCallback(() => setMenuOpen(false), []);
+    };
 
     return (
-        <section className="relative">
-            {/* Botón abrir menú */}
+        <section className='relative'>
             <button
                 onClick={() => setMenuOpen(true)}
-                className={cn(
-                    isScrolled ? "top-2" : "top-4",
-                    "right-4 z-30 p-2 rounded-full cursor-pointer"
-                )}
+                className={cn(isScrolled ? "top-2" : "top-4", " right-4 z-30 p-2 rounded-full cursor-pointer")}
                 aria-label="Abrir menú"
-                aria-haspopup="true"
-                aria-expanded={menuOpen}
             >
-                <Menu
-                    className={cn(isScrolled ? "text-green-700" : "text-white")}
-                    size={24}
-                />
+                <Menu className={cn(isScrolled ? "text-green-700" : "text-white")} size={24} />
             </button>
 
             {/* Menú lateral */}
             <aside
-                ref={menuRef}
-                className={cn(
+                className={cn(isScrolled ?? "absolute",
                     "fixed inset-y-0 right-0 z-50 w-64 bg-[var(--background)] shadow-xl transform transition-transform duration-300 ease-in-out",
                     menuOpen ? "translate-x-0" : "translate-x-full overflow-hidden"
-                )}
-                aria-hidden={!menuOpen}
-                tabIndex={menuOpen ? 0 : -1}
-                role="dialog"
-                aria-label="Menú de navegación"
+                )} aria-hidden={!menuOpen}
             >
-                {/* Cabecera del menú */}
                 <header className="bg-gradient-to-r from-green-600 to-green-800 text-white p-4 flex flex-row-reverse gap-2 w-full">
                     <button
-                        onClick={closeMenu}
-                        className="cursor-pointer p-1 text-white hover:bg-white/20 rounded-full focus:outline-none focus:ring-2 focus:ring-white"
+                        onClick={() => setMenuOpen(false)}
+                        className="cursor-pointer hidden size-4 text-white hover:bg-white/20 rounded-full"
                         aria-label="Cerrar menú"
                     >
-                        <X size={20} />
+                        <X className='size-4' />
                     </button>
-
-                    {userData.token ? (
+                    {userData && userData.token ? (
                         <section className="relative flex flex-col gap-2 w-full">
-                            <span className="text-xs truncate">{userCredentials.email}</span>
+                            <span className='text-xs'>
+                                {userCredentials.email}
+                            </span>
                             <section className="absolute -bottom-7 -right-2">
-                                <Badge
-                                    color={userData.rol === "admin" ? "blue" : "pink"}
-                                    text={userData.rol || ""}
-                                />
+                                <Badge color={userData.rol === "admin" ? "blue" : "pink"} text={userData.rol || ""} />
                             </section>
                             <button
                                 onClick={handleLogout}
-                                className="text-center cursor-pointer flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2 hover:bg-gray-100 transition-colors"
+                                className="text-center cursor-pointer flex items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
                             >
                                 <LogOut size={18} /> Cerrar Sesión
                             </button>
@@ -235,15 +151,15 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled = false }) => {
                     ) : (
                         <section className="space-y-3 w-full">
                             <button
-                                onClick={openLoginModal}
-                                className="flex cursor-pointer items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2 hover:bg-gray-100 transition-colors"
+                                onClick={() => dispatch(openModalReducer({ modalName: "login-modal" }))}
+                                className="flex cursor-pointer items-center justify-center w-full py-2 px-4 bg-white text-green-700 font-semibold rounded-lg gap-2"
                             >
                                 <LogIn size={18} /> Iniciar Sesión
                             </button>
                             <Link
                                 href="/register"
-                                onClick={closeMenu}
-                                className="flex items-center justify-center w-full py-2 px-4 border border-white text-white font-semibold rounded-lg gap-2 hover:bg-white/10 transition-colors"
+                                onClick={() => setMenuOpen(false)}
+                                className="flex items-center justify-center w-full py-2 px-4 border border-white text-white font-semibold rounded-lg gap-2"
                             >
                                 <UserPlus size={18} /> Registrarse
                             </Link>
@@ -251,18 +167,15 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled = false }) => {
                     )}
                 </header>
 
-                {/* Navegación */}
                 <nav className="p-2">
                     <ul className="space-y-1">
-                        {navigationItems.map((item) => {
+                        {navigationItems().map((item: any) => {
                             const Icon = item.icon;
-                            if (!Icon) return null;
                             const isActive = pathname === item.href;
                             return (
                                 <li key={item.href}>
                                     <Link
-                                        href={item.href}
-                                        onClick={closeMenu}
+                                        href={item.href || undefined}
                                         className={cn(
                                             "flex items-center p-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-green-700 transition-colors",
                                             isActive && "bg-green-100 dark:bg-green-800 font-semibold"
@@ -273,27 +186,26 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled = false }) => {
                                         <span className="font-medium">{item.name}</span>
                                     </Link>
                                 </li>
-                            );
+                            )
                         })}
-                        <li className="flex items-center rounded-lg text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-green-700 transition-colors">
+                        <li className='flex items-center rounded-lg text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-green-700 transition-colors'>
                             <SwitchToggle />
                         </li>
                     </ul>
                 </nav>
             </aside>
 
-            {/* Fondo oscuro (overlay) */}
+            {/* Fondo oscuro */}
             {menuOpen && (
                 <button
-                    className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm cursor-pointer"
-                    onClick={closeMenu}
+                    className="fixed cursor-pointer inset-0 z-40 bg-black/50  backdrop-blur-sm"
+                    onClick={() => setMenuOpen(false)}
                     aria-label="Cerrar menú"
                     tabIndex={-1}
                 />
             )}
 
-            {/* Modal de inicio de sesión - USO DE MAINFORM SIN MODIFICAR */}
-            <Modal title="Iniciar Sesión" modalName={"login-modal"} maxWidth="sm">
+            <Modal title="Iniciar Sesión" modalName={"login-modal"} maxWidth='sm'>
                 <MainForm
                     actionType="post-login"
                     dataForm={LogInField()}
@@ -302,13 +214,14 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled = false }) => {
                         try {
                             // Actualizar datos de usuario después de login exitoso
                             setUserData({
-                                rol: getLocalStorageItem(STORAGE_KEYS.USER_ROL),
-                                id: getLocalStorageItem(STORAGE_KEYS.USER_ID),
-                                token: getLocalStorageItem(STORAGE_KEYS.TOKEN),
+                                rol: getLocalStorageItem("user-rol"),
+                                id: getLocalStorageItem("user-id"),
+                                token: getLocalStorageItem("token"),
                             });
+                            setLoginModalOpen(false);
                             setMenuOpen(false);
                             dispatch(closeModalReducer({ modalName: "login-modal" }));
-                            router.push("/reporteria");
+                            navigation.push("/reporteria");
                         } catch {
                             dispatch(
                                 openAlertReducer({
@@ -316,16 +229,17 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled = false }) => {
                                     message: "Credenciales invalidas",
                                     type: "error",
                                     icon: "alert",
-                                    duration: 4000,
+                                    duration: 4000
                                 })
                             );
-                            router.push("/");
+                            navigation.push("/");
                         }
                     }}
                 />
-            </Modal>
+            </ Modal>
         </section>
     );
 };
 
 export default AppMenu;
+
