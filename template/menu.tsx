@@ -112,7 +112,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
         <section className='relative'>
             <button
                 onClick={() => setMenuOpen(true)}
-                className={cn(isScrolled ? "top-2" : "top-4", " right-4 z-30 p-2 rounded-full cursor-pointer")}
+                className={cn(isScrolled ? "top-2" : "top-4", " right-4 z-50 p-2 rounded-full cursor-pointer")}
                 aria-label="Abrir menú"
             >
                 <Menu className={cn(isScrolled ? "text-green-700" : "text-white")} size={24} />

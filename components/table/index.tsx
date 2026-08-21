@@ -120,7 +120,7 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
 }) => {
     const tableRef = useRef<HTMLDivElement>(null);
     const exportMenuRef = useRef<HTMLDivElement>(null);
-
+    const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [selectedRowsData, setSelectedRowsData] = useState<Map<string, any>>(new Map());
@@ -618,62 +618,67 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
             {/* ── Tabla ─────────────────────────────────────────────────────── */}
             <section className="mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 shadow-sm rounded-lg">
                 <div className="overflow-x-auto">
-                    <table className="w-full relative">
-                        <thead className="bg-gray-50 dark:bg-gray-900">
+                    <table className="w-full relative border-separate border-spacing-0">
+                        <thead className="sticky top-0 z-20 bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-700/80 shadow-sm">
                             <tr>
                                 {/* Checkbox global */}
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 tracking-wider border-b-2 border-gray-200 dark:border-gray-600 bg-inherit">
                                     <input
                                         type="checkbox"
-                                        className="border-gray-300 dark:border-gray-700 text-blue-600"
+                                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-500 text-blue-600 focus:ring-2 focus:ring-blue-500/50 transition-all"
                                         checked={allCurrentPageSelected}
                                         onChange={selectAllRows}
                                     />
                                 </th>
 
-                                {columns.map(column => visibleColumns[column] && (
-                                    <th
-                                        key={column}
-                                        className="relative px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400"
-                                    >
-                                        <div className="flex relative justify-between items-center gap-1">
-                                            <button
-                                                onClick={() => toggleSort(column)}
-                                                className={cn(
-                                                    "flex items-center gap-0.5  min-w-25 hover:text-gray-900 dark:hover:text-white transition-colors rounded px-0.5",
-                                                    sortColumn === column
-                                                        ? "text-blue-600 dark:text-blue-400 font-semibold"
-                                                        : "text-gray-500 dark:text-gray-400"
-                                                )}
-                                                title={`Ordenar por ${column}`}
+                                {columns.map(
+                                    (column) =>
+                                        visibleColumns[column] && (
+                                            <th
+                                                key={column}
+                                                className="relative px-3 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-200 border-b-2 border-gray-200 dark:border-gray-600 bg-inherit cursor-default"
+                                                onMouseEnter={() => setHoveredColumn(column)}
+                                                onMouseLeave={() => setHoveredColumn(null)}
                                             >
-                                                <span className="tracking-wider w-fit text-left">
-                                                    {column.replace('Proveedor_', 'Prov. ')}
-                                                </span>
-                                                <SortIcon
-                                                    column={column}
-                                                    sortColumn={sortColumn}
-                                                    sortDirection={sortDirection}
-                                                />
-                                            </button>
+                                                <div className="flex relative justify-between items-center gap-1">
+                                                    <button
+                                                        onClick={() => toggleSort(column)}
+                                                        className={cn(
+                                                            "flex items-center gap-0.5 min-w-25 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 rounded px-1 py-1",
+                                                            sortColumn === column
+                                                                ? "text-blue-700 dark:text-blue-300 font-semibold"
+                                                                : "text-gray-600 dark:text-gray-400"
+                                                        )}
+                                                        title={`Ordenar por ${column}`}
+                                                    >
+                                                        <span className="tracking-wider w-fit text-left">
+                                                            {column.replace("Proveedor_", "Prov. ")}
+                                                        </span>
+                                                        <SortIcon
+                                                            column={column}
+                                                            sortColumn={sortColumn}
+                                                            sortDirection={sortDirection}
+                                                        />
+                                                    </button>
 
-                                            <ViewTR
-                                                setShowColumnMenu={setShowColumnMenu}
-                                                column={column}
-                                                toggleColumn={toggleColumn}
-                                                showColumnMenu={showColumnMenu}
-                                                visibleColumns={visibleColumns}
-                                                isArrayColumn={Array.isArray(displayData[0]?.[column])}
-                                                arrayDisplayMode={arrayDisplayModes[column] ?? "both"}
-                                                onArrayDisplayChange={handleArrayDisplayChange}
-                                            />
-                                        </div>
-                                    </th>
-                                ))}
+                                                    <ViewTR
+                                                        setShowColumnMenu={setShowColumnMenu}
+                                                        column={column}
+                                                        toggleColumn={toggleColumn}
+                                                        showColumnMenu={showColumnMenu}
+                                                        visibleColumns={visibleColumns}
+                                                        isArrayColumn={Array.isArray(displayData[0]?.[column])}
+                                                        arrayDisplayMode={arrayDisplayModes[column] ?? "both"}
+                                                        onArrayDisplayChange={handleArrayDisplayChange}
+                                                    />
+                                                </div>
+                                            </th>
+                                        )
+                                )}
                             </tr>
                         </thead>
 
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                             <AnimatePresence>
                                 {filteredAndSortedData.map((item, index) => {
                                     const rowId = getRowId(item);
@@ -686,43 +691,60 @@ const DynamicTable: React.FC<DynamicTableProps> = ({
                                             role="row"
                                             aria-selected={isSelected}
                                             className={cn(
-                                                "transition-colors",
+                                                "transition-colors duration-150 ease-in-out",
                                                 onRowClick && "cursor-pointer",
-                                                "hover:bg-gray-50 dark:hover:bg-gray-800/40",
-                                                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset",
-                                                isSelected && "bg-blue-50 dark:bg-blue-900/20"
+                                                // Hover de fila (horizontal) con gradiente azul-índigo
+                                                "hover:bg-gradient-to-r hover:from-blue-200/70 hover:to-indigo-200/70 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30",
+                                                // Fila seleccionada
+                                                isSelected && "bg-blue-100/70 dark:bg-blue-900/40",
+                                                // Zebra
+                                                index % 2 === 0
+                                                    ? "bg-white dark:bg-gray-900/50"
+                                                    : "bg-gray-50/80 dark:bg-gray-800/30",
+                                                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
                                             )}
                                             onClick={() => onRowClick?.(item)}
-                                            onContextMenu={e => openCtxMenu(e, item)}
-                                            onKeyDown={e => handleRowKeyDown(e, item, index)}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            transition={{ duration: 0.12 }}
+                                            onContextMenu={(e) => openCtxMenu(e, item)}
+                                            onKeyDown={(e) => handleRowKeyDown(e, item, index)}
+                                            initial={{ opacity: 0, y: -4 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 4 }}
+                                            transition={{ duration: 0.15, ease: "easeOut" }}
                                         >
                                             <td className="px-4 py-3 w-40">
                                                 <input
                                                     type="checkbox"
-                                                    className="rounded border-gray-300 text-blue-600"
+                                                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-500 text-blue-600 focus:ring-2 focus:ring-blue-500/50 transition-all"
                                                     checked={isSelected}
                                                     onChange={() => toggleRowSelection(rowId, item)}
-                                                    onClick={e => e.stopPropagation()}
+                                                    onClick={(e) => e.stopPropagation()}
                                                 />
                                             </td>
 
-                                            {columns.map(column => visibleColumns[column] && (
-                                                <td
-                                                    key={`${column}`}
-                                                    className={cn(
-                                                        "px-2 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white",
-                                                        // Resaltar la columna actualmente ordenada
-                                                        sortColumn === column &&
-                                                        "bg-blue-50/40 dark:bg-blue-900/10"
-                                                    )}
-                                                >
-                                                    {formatCellValue(column, item[column])}
-                                                </td>
-                                            ))}
+                                            {columns.map((column) => {
+                                                if (!visibleColumns[column]) return null;
+                                                const isColumnHovered = hoveredColumn === column;
+                                                const isSorted = sortColumn === column;
+                                                return (
+                                                    <td
+                                                        key={column}
+                                                        className={cn(
+                                                            "px-3 py-3 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200 max-w-2xl overflow-hidden text-ellipsis",
+                                                            // Resaltado de columna ordenada (siempre visible)
+                                                            isSorted &&
+                                                            "bg-blue-50/60 dark:bg-blue-900/30 border-l-2 border-blue-400 dark:border-blue-500",
+                                                            // Resaltado de columna por hover (vertical) - solo si no está ordenada
+                                                            isColumnHovered &&
+                                                            !isSorted &&
+                                                            "bg-emerald-100/60 dark:bg-amber-900/20"
+                                                        )}
+                                                        onMouseEnter={() => setHoveredColumn(column)}
+                                                        onMouseLeave={() => setHoveredColumn(null)}
+                                                    >
+                                                        {formatCellValue(column, item[column])}
+                                                    </td>
+                                                );
+                                            })}
                                         </motion.tr>
                                     );
                                 })}

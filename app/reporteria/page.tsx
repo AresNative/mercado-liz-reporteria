@@ -643,7 +643,7 @@ export default function Analisis() {
                             size="small"
                             onClick={reportingModal.open}
                         >
-                            Exportar
+                            Desgloce
                         </Button>
                         <Button
                             color="success"
