@@ -67,6 +67,11 @@ export const navigationVentas = [
     href: "/proyectos",
     icon: ClipboardList,
   },
+  {
+    name: "Marketing",
+    href: "/marketing",
+    icon: ChartColumnStacked,
+  },
 ];
 export const navigationAlmacen = [
   {
@@ -176,6 +181,11 @@ export const navigationAdmin = [
     name: "Boveda Movimientos",
     href: "/boveda-movimientos",
     icon: Vault,
+  },
+  {
+    name: "Marketing",
+    href: "/marketing",
+    icon: ChartColumnStacked,
   },
   {
     name: "Errores intelisis",

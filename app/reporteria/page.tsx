@@ -393,7 +393,7 @@ export default function Analisis() {
                     FechaEmision: item.FechaEmision,
                     Articulo: [item.Nombre, item.Articulo, item.Codigo],
                     Proveedor: [item["Proveedor Nombre"], item.Proveedor, item.Fabricante],
-                    Sucursal: [item['Nombre Sucursal'], item.Sucursal, item.Almacen],
+                    Sucursal: [item['Nombre Sucursal'], item.Almacen, item.Sucursal],
                     Categoria: [item.Categoria, item.Grupo, item.Linea, item.Familia],
                     Unidad: [item.Unidad, ...(item.Factor > 1 ? [`x${item.Factor}`] : [])],
                     Cantidad: [item.Cantidad, ...(item.Factor > 1 ? [`=${item["Articulos"]}`] : [])],
@@ -654,7 +654,7 @@ export default function Analisis() {
                         </Button>
                     </li>
                 </ul>
-                <KardexStats dataStats={dataStats} show={showStats} />
+                <KardexStats dataStats={dataStats} isLoading={tableLoading} show={showStats} />
 
                 <div className="relative flex flex-col rounded-xl border gap-3 border-gray-200 bg-white shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
 
