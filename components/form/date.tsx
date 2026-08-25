@@ -20,13 +20,34 @@ const DATE_PERIODS = [
 ];
 
 
+function parseValueDefined(valueDefined: unknown): DateRange | null {
+    if (typeof valueDefined !== "string" || !valueDefined.trim()) return null;
+
+    const [fromStr, toStr] = valueDefined.split(" AND ").map((s) => s.trim());
+    const from = fromStr ? new Date(fromStr) : null;
+    const to = toStr ? new Date(toStr) : from;
+
+    if ((from && isNaN(from.getTime())) || (to && isNaN(to.getTime()))) return null;
+    if (!from && !to) return null;
+
+    return { from, to };
+}
+
+const DEFAULT_RANGE: DateRange = {
+    from: new Date(new Date().setDate(new Date().getDate() - 30)),
+    to: new Date(),
+};
+
 export function DateRangeComponent(props: InputFormProps) {
     const { cuestion } = props;
 
-    const [formData, setFormData] = useState<DateRange>({
-        from: new Date(new Date().setDate(new Date().getDate() - 30)),
-        to: new Date(),
-    });
+    // Antes esto ignoraba por completo cuestion.valueDefined y siempre
+    // arrancaba en "últimos 30 días", aunque el padre (page.tsx) pidiera
+    // otro rango por defecto, así el input mostraba fechas que no eran
+    // las que realmente se estaban usando para filtrar.
+    const [formData, setFormData] = useState<DateRange>(
+        () => parseValueDefined(cuestion.valueDefined) || DEFAULT_RANGE
+    );
 
     const [showInterviewDatePicker, setShowInterviewDatePicker] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -48,21 +69,21 @@ export function DateRangeComponent(props: InputFormProps) {
             from = new Date(today.getFullYear(), 0, 1);
             to = new Date(today.getFullYear(), 11, 31);
         }
-    setFormData({ from, to });
-    setShowInterviewDatePicker(false);
+        setFormData({ from, to });
+        setShowInterviewDatePicker(false);
     };
 
     useEffect(() => {
-            const data = formData;
-            let value = '';
-            if (data.from && data.to) {
-                value = `${data.from.toISOString().split("T")[0]} AND ${data.to.toISOString().split("T")[0]}`;
-            } else if (data.from) {
-                value = data.from.toISOString().split("T")[0];
-            } else if (data.to) {
-                value = data.to.toISOString().split("T")[0];
-            }
-            props.setValue(cuestion.name, value);
+        const data = formData;
+        let value = '';
+        if (data.from && data.to) {
+            value = `${data.from.toISOString().split("T")[0]} AND ${data.to.toISOString().split("T")[0]}`;
+        } else if (data.from) {
+            value = data.from.toISOString().split("T")[0];
+        } else if (data.to) {
+            value = data.to.toISOString().split("T")[0];
+        }
+        props.setValue(cuestion.name, value);
     }, [formData]);
 
     useEffect(() => {
@@ -77,18 +98,18 @@ export function DateRangeComponent(props: InputFormProps) {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
-    
-    const inputValue =  (() => {
-            const data = formData;
-            if (data.from && data.to) {
-                return `${formatDateDisplay(data.from)} AND ${formatDateDisplay(data.to)}`;
-            } else if (data.from) {
-                return formatDateDisplay(data.from);
-            } else if (data.to) {
-                return formatDateDisplay(data.to);
-            }
-            return '';
-        })();
+
+    const inputValue = (() => {
+        const data = formData;
+        if (data.from && data.to) {
+            return `${formatDateDisplay(data.from)} AND ${formatDateDisplay(data.to)}`;
+        } else if (data.from) {
+            return formatDateDisplay(data.from);
+        } else if (data.to) {
+            return formatDateDisplay(data.to);
+        }
+        return '';
+    })();
 
     return (
         <div className="flex flex-col" ref={dropdownRef}>

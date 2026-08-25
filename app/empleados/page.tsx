@@ -207,6 +207,7 @@ export default function Empleados() {
                                                 icon: <Search className="size-4" />,
                                                 placeholder: "Busar por nombre, apellidos, num. personal...",
                                                 require: true,
+                                                saveData: true,
                                             },
                                             {
                                                 name: "departamento",

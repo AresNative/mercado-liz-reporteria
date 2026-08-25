@@ -110,6 +110,7 @@ export default function Analisis() {
         almacen?: string;
         search?: string;
     }>({});
+
     useEffect(() => {
         const interval = setInterval(() => {
             const live = formRef.current?.getFormData?.() || {};
@@ -514,10 +515,23 @@ export default function Analisis() {
             .map((sel: any) => ({ ...sel, Operation: 'DISTINCT' }));
 
         const searchQueryTerm = (debouncedFormValues.search || "").split(",").pop()?.trim() || "";
+
+        // Antes esto comparaba siempre contra "ART.Descripcion1" sin importar
+        // el reporte activo. Para reportes cuyo campo de búsqueda es otro
+        // (proveedor, cliente, código, etc.) el filtro no coincidía con nada
+        // de lo que realmente se pedía en `agregaciones`. Igual que en el
+        // submit principal (más abajo, en `onSuccess`), hay que armar un OR
+        // contra TODOS los campos de búsqueda del reporte activo.
         const liveOrFiltros: Filtro[] = searchQueryTerm
-            ? [{ Key: "ART.Descripcion1", Operator: "LIKE", Value: searchQueryTerm }]
+            ? searchFields.map((field) => ({ Key: field, Operator: "LIKE", Value: searchQueryTerm }))
             : [];
         others.Filtros = liveOrFiltros;
+
+        // Antes las sugerencias ignoraban por completo la fecha y el almacén
+        // seleccionados (a diferencia de fetchTableData/fetchStatsData, que sí
+        // usan buildFiltrosAnd). Esto hacía que se sugirieran valores que no
+        // existen dentro del rango/almacén que el usuario ya está filtrando.
+        others.FiltrosAnd = buildFiltrosAnd(baseFiltros || [], activeFilters);
         others.distinct = true;
 
         const payload: RequestPayload = {
@@ -546,7 +560,7 @@ export default function Analisis() {
         } catch (err: any) {
             if (err?.name === "AbortError") return;
         }
-    }, [selectedReport, debouncedFormValues, formValues.dateRange, manager]);
+    }, [selectedReport, debouncedFormValues, activeFilters, manager]);
 
     useEffect(() => {
         fetchSuggestions();

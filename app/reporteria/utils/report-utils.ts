@@ -331,7 +331,8 @@ export const buildFiltrosAnd = (
     ...(activeFilters.FiltrosOther || []),
   ];
   const grupoOr: Filtro[] = activeFilters.Filtros || [];
-
+  console.log(activeFilters);
+  
   const grupos: FiltroGrupo[] = [];
   if (grupoAnd.length > 0) {
     grupos.push({ Filtros: grupoAnd, OperadorLogico: "AND" });

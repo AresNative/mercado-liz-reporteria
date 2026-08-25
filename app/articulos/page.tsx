@@ -267,6 +267,8 @@ export default function Page() {
     }, [fetchData]);
 
     const loadFiltros = (data: FiltrosForm) => {
+        console.log(data);
+        
         const filtrosOr: any[] = [];
         const filtrosOther: any[] = [];
 

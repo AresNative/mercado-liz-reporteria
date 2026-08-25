@@ -12,6 +12,7 @@ interface ExtendedSearchableSelectProps extends SearchableSelectProps {
 
 export function SearchComponent(props: ExtendedSearchableSelectProps) {
     const { cuestion, isLoading = false } = props;
+    const isMulti = cuestion.saveData ?? false;
     const dispatch = useAppDispatch();
     const skillsRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -22,7 +23,6 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
     const [formData, setFormData] = useState<{ skills: string[] }>({ skills: [] });
     const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
-    // Filtrado de opciones (solo si no está cargando)
     const filteredOptions = useMemo(() => {
         if (isLoading || !cuestion.options) return [];
         return cuestion.options.filter((skill: any) => {
@@ -35,19 +35,27 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
         });
     }, [cuestion.options, searchTerm, isLoading]);
 
-    // Sincronización con react-hook-form
+    // --- Efecto para sincronizar con el formulario (modo múltiple y respaldo) ---
     const saveData = useCallback(() => {
-        if (cuestion.saveData && formData.skills.length) {
-            props.setValue(cuestion.name, formData.skills.join(", "));
+        if (isMulti) {
+            // Importante: sincronizar también cuando skills.length === 0, si no,
+            // al quitar el último tag el formulario se queda con el valor
+            // anterior y el filtro "fantasma" se sigue aplicando.
+            props.setValue(cuestion.name, formData.skills.length ? formData.skills.join(", ") : "");
         } else {
-            props.setValue(cuestion.name, selectedValue);
+            // En modo único, el valor ya se actualiza directamente, pero lo dejamos como respaldo
+            props.setValue(cuestion.name, selectedValue || "");
         }
-    }, [cuestion.saveData, formData.skills, cuestion.name, props.setValue, selectedValue]);
+    }, [isMulti, formData.skills, cuestion.name, props.setValue, selectedValue]);
 
-    // Inicialización desde valueDefined
+    useEffect(() => {
+        saveData();
+    }, [saveData]);
+
+    // --- Inicialización desde valueDefined ---
     useEffect(() => {
         if (cuestion.valueDefined) {
-            if (cuestion.saveData) {
+            if (isMulti) {
                 try {
                     const skillsArray =
                         typeof cuestion.valueDefined === "string"
@@ -71,13 +79,11 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
                         : cuestion.valueDefined.toString();
                 setSelectedValue(defaultValue);
                 setSearchTerm(defaultValue);
+                // <-- Actualizar inmediatamente el formulario en modo único
+                props.setValue(cuestion.name, defaultValue);
             }
         }
-    }, [cuestion.valueDefined, cuestion.saveData]);
-
-    useEffect(() => {
-        saveData();
-    }, [saveData]);
+    }, [cuestion.valueDefined, isMulti, props.setValue, cuestion.name]);
 
     // Cerrar dropdown al hacer clic fuera
     useEffect(() => {
@@ -95,7 +101,7 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
     const handleSelect = useCallback(
         (skill: string) => {
             if (isLoading) return;
-            if (cuestion.saveData) {
+            if (isMulti) {
                 if (skill.trim() !== "" && !formData.skills.includes(skill.trim())) {
                     setFormData((prev) => ({
                         ...prev,
@@ -108,11 +114,13 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
                 setSelectedValue(skill);
                 setSearchTerm(skill);
                 setShowSkillsDropdown(false);
+                // <-- Actualizar el formulario inmediatamente en modo único
+                props.setValue(cuestion.name, skill);
                 triggerFormSubmit();
             }
             setHighlightedIndex(-1);
         },
-        [cuestion.saveData, formData.skills, isLoading]
+        [isMulti, formData.skills, isLoading, props.setValue, cuestion.name]
     );
 
     const handleRemoveSkill = useCallback(
@@ -132,6 +140,7 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
         setSelectedValue("");
         setSearchTerm("");
         inputRef.current?.focus();
+        // <-- Limpiar el formulario inmediatamente en modo único
         props.setValue(cuestion.name, "");
     }, [cuestion.name, props.setValue, isLoading]);
 
@@ -168,16 +177,29 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
 
             if (event.key === "Enter") {
                 event.preventDefault();
-                if (cuestion.saveData && searchTerm.trim() !== "") {
-                    if (!formData.skills.includes(searchTerm.trim())) {
+                if (isMulti && searchTerm.trim() !== "") {
+                    const term = searchTerm.trim();
+                    const updatedSkills = formData.skills.includes(term)
+                        ? formData.skills
+                        : [...formData.skills, term];
+
+                    if (updatedSkills !== formData.skills) {
                         setFormData((prev) => ({
                             ...prev,
-                            skills: [...prev.skills, searchTerm.trim()],
+                            skills: updatedSkills,
                         }));
                     }
+
+                    // triggerFormSubmit() dispara el submit de forma síncrona, en el
+                    // mismo tick. No podemos esperar al useEffect de saveData() (que
+                    // corre después del próximo render) para escribir el valor en el
+                    // formulario, o el submit saldría con el término anterior y no
+                    // con el que el usuario acaba de escribir.
+                    props.setValue(cuestion.name, updatedSkills.join(", "));
                     setSearchTerm("");
                     triggerFormSubmit();
-                } else if (!cuestion.saveData && searchTerm.trim() !== "") {
+                } else if (!isMulti && searchTerm.trim() !== "") {
+                    // <-- Al presionar Enter en modo único, seleccionar el texto escrito (si no hay opción resaltada)
                     handleSelect(searchTerm.trim());
                 }
                 setShowSkillsDropdown(false);
@@ -191,7 +213,7 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
                 inputRef.current?.blur();
             }
         },
-        [showSkillsDropdown, filteredOptions, highlightedIndex, handleSelect, cuestion.saveData, searchTerm, formData.skills, isLoading]
+        [showSkillsDropdown, filteredOptions, highlightedIndex, handleSelect, isMulti, searchTerm, formData.skills, isLoading, props.setValue, cuestion.name]
     );
 
     const handleInputChange = useCallback(
@@ -204,11 +226,25 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
             if (cuestion.options) {
                 dispatch(searchData(value));
             }
-            if (!cuestion.saveData && value !== selectedValue) {
+            if (isMulti) {
+                // page.tsx arma las sugerencias tomando el último segmento
+                // separado por comas del valor del campo como el término que
+                // se está escribiendo (aún no confirmado con Enter). Si no lo
+                // escribimos aquí en cada tecla, ese último segmento nunca
+                // cambia y las sugerencias se quedan congeladas después de la
+                // primera búsqueda.
+                const preview = value.trim()
+                    ? [...formData.skills, value].join(", ")
+                    : formData.skills.join(", ");
+                props.setValue(cuestion.name, preview);
+            }
+            if (!isMulti && value !== selectedValue) {
                 setSelectedValue("");
+                // <-- Si el usuario escribe algo diferente, limpiamos el valor del formulario
+                props.setValue(cuestion.name, "");
             }
         },
-        [cuestion.options, dispatch, cuestion.saveData, selectedValue, isLoading]
+        [cuestion.options, dispatch, isMulti, selectedValue, isLoading, props.setValue, cuestion.name, formData.skills]
     );
 
     const getOptionLabel = (option: any): string => {
@@ -222,11 +258,11 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
             : option.toString();
     };
 
-    // --- Renderizado de badges en modo múltiple (respetando la interfaz de Badge) ---
+    // --- Renderizado de badges (modo múltiple) ---
     const renderBadges = () => {
-        if (!cuestion.saveData) return null;
+        if (!isMulti) return null;
         return (
-            <div className="flex flex-wrap items-center gap-1 flex-1">
+            <>
                 {formData.skills.map((skill) => (
                     <div key={skill} className="flex items-center gap-0.5">
                         <Badge text={skill} color="green" />
@@ -244,23 +280,7 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
                         </button>
                     </div>
                 ))}
-                <input
-                    ref={inputRef}
-                    type="text"
-                    placeholder={formData.skills.length === 0 ? cuestion.placeholder : ""}
-                    value={searchTerm}
-                    className="bg-transparent border-none outline-none flex-1 min-w-[80px] p-0 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-70 disabled:cursor-not-allowed"
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    onFocus={() => !isLoading && setShowSkillsDropdown(true)}
-                    disabled={isLoading}
-                    aria-label={cuestion.label}
-                    role="combobox"
-                    aria-expanded={showSkillsDropdown}
-                    aria-controls="skills-listbox"
-                    aria-autocomplete="list"
-                />
-            </div>
+            </>
         );
     };
 
@@ -278,77 +298,86 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
             </label>
 
             <div className="relative flex-1">
+                {/* Contenedor unificado */}
+                <div
+                    className={`
+                        bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 
+                        rounded-md px-3 py-2 flex items-center gap-2 
+                        focus-within:border-green-500 transition-all min-h-[42px] 
+                        ${isLoading ? "opacity-70 pointer-events-none" : "cursor-text"}
+                    `}
+                    onClick={() => !isLoading && inputRef.current?.focus()}
+                >
+                    {/* Ícono de búsqueda solo en modo único */}
+                    {!isMulti && (
+                        <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    )}
 
-                {cuestion.saveData ? (
-                    // Modo múltiple: contenedor con badges y input
-                    <div
-                        className={`
-                                bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-md px-3 py-2 flex flex-wrap items-center gap-1 focus-within:border-green-500  transition-all min-h-[42px] cursor-text
-                                ${isLoading ? "opacity-70 pointer-events-none" : ""}
-                                `}
-                        onClick={() => !isLoading && inputRef.current?.focus()}
-                    >
-                        {renderBadges()}
-                    </div>
-                ) : (
-                    // Modo único: input con botón de limpiar o spinner
-                    <div className="relative">
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            placeholder={isLoading ? "Cargando..." : cuestion.placeholder}
-                            value={searchTerm}
-                                className={`
-                                    bg-white dark:bg-gray-900 dark:text-white border-gray-300 dark:border-gray-800 
-                                    pl-10 pr-8 w-full rounded-md focus:outline-none border focus:border-green-500 focus:ring-green-500 transition-all 
-                                    ${isLoading ? "opacity-70 cursor-not-allowed" : ""}
-                                    `}
-                            onChange={handleInputChange}
-                            onKeyDown={handleKeyDown}
-                            onFocus={() => !isLoading && setShowSkillsDropdown(true)}
-                            disabled={isLoading}
-                            aria-label={cuestion.label}
-                            role="combobox"
-                            aria-expanded={showSkillsDropdown}
-                            aria-controls="skills-listbox"
-                            aria-autocomplete="list"
-                        />
-                        {isLoading && (
-                            <LoaderCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500 animate-spin" />
-                        )}
-                        {!isLoading && selectedValue && (
-                            <button
-                                type="button"
-                                onClick={handleClear}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 rounded-full p-0.5"
-                                aria-label="Limpiar selección"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        )}
-                    </div>
-                )}
+                    {/* Badges (modo múltiple) */}
+                    {renderBadges()}
 
-                {/* Dropdown de opciones */}
+                    {/* Input común */}
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        placeholder={
+                            isLoading
+                                ? "Cargando..."
+                                : isMulti && formData.skills.length > 0
+                                    ? ""
+                                    : cuestion.placeholder
+                        }
+                        value={searchTerm}
+                        className="bg-transparent border-none outline-none flex-1 min-w-[80px] p-0 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
+                        onFocus={() => !isLoading && setShowSkillsDropdown(true)}
+                        disabled={isLoading}
+                        aria-label={cuestion.label}
+                        role="combobox"
+                        aria-expanded={showSkillsDropdown}
+                        aria-controls="skills-listbox"
+                        aria-autocomplete="list"
+                    />
+
+                    {/* Botón de limpiar (solo modo único y cuando hay valor) */}
+                    {!isMulti && !isLoading && selectedValue && (
+                        <button
+                            type="button"
+                            onClick={handleClear}
+                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 rounded-full p-0.5 flex-shrink-0"
+                            aria-label="Limpiar selección"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    )}
+
+                    {/* Spinner de carga (solo modo único) */}
+                    {isLoading && !isMulti && (
+                        <LoaderCircle className="w-5 h-5 text-green-500 animate-spin flex-shrink-0" />
+                    )}
+                </div>
+
+                {/* Dropdown de opciones (común) */}
                 {cuestion.options && showSkillsDropdown && (
                     <div
                         id="skills-listbox"
                         role="listbox"
                         className="absolute z-30 w-full bg-white dark:bg-zinc-800 
-                        border border-gray-200 dark:border-zinc-700 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                        border border-gray-200 dark:border-zinc-700 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1"
                     >
                         {isLoading ? (
-                            <div className="flex items-center justify-center text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 py-3">
                                 <LoaderCircle className="w-5 h-5 animate-spin text-green-500" />
                                 <span>Cargando opciones...</span>
                             </div>
                         ) : filteredOptions.length > 0 ? (
-                            <ul >
+                            <ul>
                                 {filteredOptions.map((skill: any, index: number) => {
                                     const label = getOptionLabel(skill);
                                     const value = getOptionValue(skill);
                                     const isHighlighted = index === highlightedIndex;
-                                    const isSelected = cuestion.saveData
+                                    const isSelected = isMulti
                                         ? formData.skills.includes(value)
                                         : selectedValue === value;
 
@@ -358,10 +387,10 @@ export function SearchComponent(props: ExtendedSearchableSelectProps) {
                                             role="option"
                                             aria-selected={isSelected}
                                             className={`px-4 py-2 cursor-pointer transition-colors flex items-center justify-between ${isHighlighted
-                                                    ? "bg-green-100 dark:bg-green-900/40"
-                                                    : isSelected
-                                                        ? "bg-green-50 dark:bg-green-900/20"
-                                                        : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                                ? "bg-green-100 dark:bg-green-900/40"
+                                                : isSelected
+                                                    ? "bg-green-50 dark:bg-green-900/20"
+                                                    : "hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                                 }`}
                                             onClick={() => handleSelect(value)}
                                             onMouseEnter={() => setHighlightedIndex(index)}
