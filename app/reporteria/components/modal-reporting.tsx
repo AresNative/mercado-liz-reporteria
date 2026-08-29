@@ -64,19 +64,34 @@ const inputToDate = (s: string): Date | null => {
     return new Date(`${s}T00:00:00`);
 };
 
-// Sustituye al antiguo FilterBuilder (que dependía de módulos que ya no
-// existen en el proyecto): arma el grupo AND de fecha + almacén con los
-// mismos tipos (Filtro/FiltroGrupo) que ya usa report-utils.ts.
+// Formatea una fecha a "YYYY-MM-DD" en hora local (evita el corrimiento de
+// día que produce toISOString() al convertir a UTC).
+const toDateOnly = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+};
+
 const buildDateAlmacenFiltros = (
-    dateRange: DateRange,
+    range: { from: Date | string | null; to?: Date | string | null } | null,
     almacenFilter: string
 ): FiltroGrupo[] => {
     const filtros: Filtro[] = [];
-    if (dateRange.from && dateRange.to) {
+
+    const asDate = (v: Date | string | null | undefined): Date | null => {
+        if (!v) return null;
+        return typeof v === "string" ? new Date(v) : v;
+    };
+
+    const fromDate = asDate(range?.from);
+    const toDate = asDate(range?.to) || fromDate;
+
+    if (fromDate) {
         filtros.push({
             Key: "FechaEmision",
             Operator: "BETWEEN",
-            Value: `${dateToInput(dateRange.from)} AND ${dateToInput(dateRange.to)}`,
+            Value: `${toDateOnly(fromDate)} AND ${toDateOnly(toDate as Date)}`,
         });
     }
     if (almacenFilter) {
@@ -88,6 +103,103 @@ const buildDateAlmacenFiltros = (
     }
     return filtros.length > 0 ? [{ Filtros: filtros, OperadorLogico: "AND" }] : [];
 };
+
+const buildBaseFiltrosGrupo = (queryConfig: any): FiltroGrupo[] => {
+    const base = queryConfig.filtros?.Filtros || [];
+    return base.length > 0 ? [{ Filtros: base, OperadorLogico: "AND" }] : [];
+};
+
+const linearRegression = (values: number[]): { slope: number; intercept: number } => {
+    const n = values.length;
+    if (n < 2) return { slope: 0, intercept: values[0] || 0 };
+    const xMean = (n - 1) / 2;
+    const yMean = values.reduce((a, b) => a + b, 0) / n;
+    let num = 0;
+    let den = 0;
+    values.forEach((y, x) => {
+        num += (x - xMean) * (y - yMean);
+        den += (x - xMean) ** 2;
+    });
+    const slope = den === 0 ? 0 : num / den;
+    const intercept = yMean - slope * xMean;
+    return { slope, intercept };
+};
+
+const stdDev = (values: number[]): number => {
+    const n = values.length;
+    if (n < 2) return 0;
+    const mean = values.reduce((a, b) => a + b, 0) / n;
+    const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+    return Math.sqrt(variance);
+};
+
+// ─── MetricsGrid ────────────────────────────────────────────────────────────
+// Grid compacto de métricas inspirado en KardexStats (components/kardex-stats):
+// celdas blancas en fila con ícono + tono de color, en vez de tarjetas Card
+// sueltas. Se usa para unificar la lectura visual de resúmenes numéricos
+// dentro de este modal (branches, tendencia diaria) con el resto de la app.
+const METRIC_TONE = {
+    good: { text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-900/30" },
+    warn: { text: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-900/30" },
+    bad: { text: "text-rose-600 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-900/30" },
+} as const;
+
+function marginTone(value: number): "good" | "warn" | "bad" {
+    if (Number.isNaN(value)) return "good";
+    if (value >= 30) return "good";
+    if (value >= 15) return "warn";
+    return "bad";
+}
+
+interface Metric {
+    key: string;
+    value: string;
+    icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+    principal?: boolean;
+    tone?: "good" | "warn" | "bad";
+}
+
+const MetricsGrid = ({ metrics }: { metrics: Metric[] }) => (
+    <div
+        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-100 dark:bg-gray-800"
+        role="region"
+        aria-label="Resumen de métricas"
+    >
+        <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y divide-gray-200/50 dark:divide-gray-700/50">
+            {metrics.map(({ key, value, icon: Icon, principal, tone }) => {
+                const accent = tone ? METRIC_TONE[tone] : null;
+                return (
+                    <div
+                        key={key}
+                        className={`
+                            bg-white dark:bg-gray-900
+                            px-2 sm:px-3 md:px-4
+                            flex items-center gap-2 sm:gap-3
+                            ${principal ? "py-2 sm:py-3 md:py-3.5" : "py-1.5 sm:py-2 md:py-2.5"}
+                            transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50
+                        `}
+                    >
+                        <div className={`shrink-0 rounded-md p-1 sm:p-1.5 ${accent ? accent.bg : "bg-slate-100 dark:bg-slate-800"}`}>
+                            <Icon
+                                size={principal ? 14 : 12}
+                                strokeWidth={2}
+                                className={accent ? accent.text : "text-slate-400 dark:text-slate-500"}
+                            />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className={`uppercase tracking-wide text-gray-400 dark:text-gray-500 font-medium leading-none ${principal ? "text-[9px] sm:text-[10px] md:text-[11px]" : "text-[8px] sm:text-[9px] md:text-[10px]"}`}>
+                                {key}
+                            </div>
+                            <div className={`font-semibold tabular-nums leading-none truncate ${principal ? "text-xs sm:text-sm md:text-base" : "text-[10px] sm:text-xs md:text-sm"} ${accent ? accent.text : "text-gray-900 dark:text-white"}`}>
+                                {value}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    </div>
+);
 
 // ─── SummaryCards ─────────────────────────────────────────────────────────────
 
@@ -105,14 +217,15 @@ const SummaryCards = ({ data }: { data: any[] }) => {
     const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card title="Ventas Totales" value={`$${fmt(totals.totalVentas)}`} icon={<DollarSign className="h-6 w-6 text-white" />} />
-            <Card title="Utilidad Total" value={`$${fmt(totals.totalUtilidad)}`}
-                subText={`${((totals.totalUtilidad / (totals.totalVentas || 1)) * 100).toFixed(1)}%`}
-                icon={<TrendingUp className="h-6 w-6 text-white" />} />
-            <Card title="Margen Promedio" value={`${margen.toFixed(2)}%`} icon={<Percent className="h-6 w-6 text-white" />} />
-            <Card title="Total Tickets" value={totals.totalTikets.toString()} icon={<Receipt className="h-6 w-6 text-white" />} />
-        </div>
+        <MetricsGrid
+            metrics={[
+                { key: "Ventas Totales", value: `$${fmt(totals.totalVentas)}`, icon: DollarSign, principal: true },
+                { key: "Utilidad Total", value: `$${fmt(totals.totalUtilidad)}`, icon: TrendingUp, principal: true, tone: totals.totalUtilidad >= 0 ? "good" : "bad" },
+                { key: "Margen Promedio", value: `${margen.toFixed(2)}%`, icon: Percent, principal: true, tone: marginTone(margen) },
+                { key: "Total Tickets", value: totals.totalTikets.toLocaleString(), icon: Receipt, principal: true },
+                { key: "Costo Total", value: `$${fmt(totals.totalCosto)}`, icon: ShoppingCart },
+            ]}
+        />
     );
 };
 
@@ -220,23 +333,82 @@ const HourlyStats = ({ data }: { data: any[] }) => {
 
 // ─── SalesPrediction ──────────────────────────────────────────────────────────
 
-const SalesPrediction = ({ historicalData }: { historicalData: any[] }) => {
+// Antes recibía `statsForHour` (ventas agregadas por hora-del-día en todo
+// el rango) como si fuera una serie cronológica, y usaba factores de
+// crecimiento y márgenes fijos (1.02/1.15/1.45, 32.5%/33.2%/34.1%) sin
+// relación con los datos reales. Ahora recibe la serie diaria real
+// (dailyData) y proyecta con una regresión lineal simple sobre los
+// últimos días con actividad; el rango de confianza sale de la
+// volatilidad observada (desviación estándar) en vez de un % arbitrario.
+const SalesPrediction = ({ dailyData }: { dailyData: any[] }) => {
     const [selectedPeriod, setSelectedPeriod] = useState<"day" | "week" | "month">("week");
-    const n = historicalData.length || 1;
-    const avgDailySales = historicalData.reduce((acc, i) => acc + i.totalVentas, 0) / n;
-    const avgTickets = historicalData.reduce((acc, i) => acc + i.totalTikets, 0) / n;
-    const growthFactors = { day: 1.02, week: 1.15, month: 1.45 };
 
-    const predictions = {
-        day: { ventas: avgDailySales * growthFactors.day, tickets: Math.round(avgTickets * growthFactors.day), margen: 32.5, rango: { min: avgDailySales * growthFactors.day * 0.92, max: avgDailySales * growthFactors.day * 1.08 } },
-        week: { ventas: avgDailySales * 7 * growthFactors.week, tickets: Math.round(avgTickets * 7 * growthFactors.week), margen: 33.2, rango: { min: avgDailySales * 7 * growthFactors.week * 0.9, max: avgDailySales * 7 * growthFactors.week * 1.1 } },
-        month: { ventas: avgDailySales * 30 * growthFactors.month, tickets: Math.round(avgTickets * 30 * growthFactors.month), margen: 34.1, rango: { min: avgDailySales * 30 * growthFactors.month * 0.85, max: avgDailySales * 30 * growthFactors.month * 1.15 } },
+    // Serie cronológica de días con actividad, más recientes al final.
+    const activeSeries = [...dailyData]
+        .filter(d => d.totalTikets > 0)
+        .sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+    // Ventana de análisis: hasta los últimos 60 días con ventas, para que
+    // la tendencia refleje el comportamiento reciente sin depender de
+    // todo el histórico anual.
+    const WINDOW = 60;
+    const window = activeSeries.slice(-WINDOW);
+    const n = window.length;
+
+    const ventasSeries = window.map(d => d.totalVentas);
+    const ticketsSeries = window.map(d => d.totalTikets);
+    const margenSeries = window.map(d => d.margen ?? 0);
+
+    const avgDailySales = n ? ventasSeries.reduce((a, b) => a + b, 0) / n : 0;
+    const avgTickets = n ? ticketsSeries.reduce((a, b) => a + b, 0) / n : 0;
+    const avgMargen = n ? margenSeries.reduce((a, b) => a + b, 0) / n : 0;
+
+    const { slope } = linearRegression(ventasSeries);
+    const volatility = stdDev(ventasSeries);
+
+    // Proyección: suma de los próximos `horizon` puntos siguiendo la
+    // tendencia observada (intercept implícito = avgDailySales, ya que
+    // linearRegression está centrada en la media de la ventana).
+    const project = (horizon: number, growthCapPct = 0.5) => {
+        // El crecimiento por día se limita a ±growthCapPct del promedio
+        // diario para evitar que una racha corta extrapole valores
+        // absurdos en meses.
+        const cappedSlope = Math.max(-avgDailySales * growthCapPct, Math.min(avgDailySales * growthCapPct, slope));
+        let total = 0;
+        for (let i = 1; i <= horizon; i++) {
+            total += Math.max(0, avgDailySales + cappedSlope * i);
+        }
+        return total;
     };
 
-    const pred = predictions[selectedPeriod];
-    const prev = selectedPeriod === "day" ? avgDailySales : selectedPeriod === "week" ? avgDailySales * 7 : avgDailySales * 30;
-    const trend = ((pred.ventas - prev) / (prev || 1)) * 100;
+    const horizonDays = { day: 1, week: 7, month: 30 };
+    const h = horizonDays[selectedPeriod];
+    const projectedVentas = n ? project(h) : 0;
+    const projectedTickets = Math.round(avgTickets * h);
+    // Margen relativo del rango de confianza: coeficiente de variación de
+    // la ventana (volatilidad / promedio), acotado entre 5% y 30%.
+    const cv = avgDailySales ? Math.min(0.3, Math.max(0.05, volatility / avgDailySales)) : 0.1;
+
+    const pred = {
+        ventas: projectedVentas,
+        tickets: projectedTickets,
+        margen: avgMargen,
+        rango: { min: projectedVentas * (1 - cv), max: projectedVentas * (1 + cv) },
+    };
+
+    const baseline = avgDailySales * h;
+    const trend = baseline ? ((pred.ventas - baseline) / baseline) * 100 : 0;
     const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    if (n < 3) {
+        return (
+            <Card title="Predicción de Ventas" icon={<Sparkles className="h-6 w-6 text-white" />} value="">
+                <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                    No hay suficientes días con ventas en el histórico para calcular una proyección confiable.
+                </div>
+            </Card>
+        );
+    }
 
     return (
         <Card title="Predicción de Ventas" icon={<Sparkles className="h-6 w-6 text-white" />} value="">
@@ -278,7 +450,7 @@ const SalesPrediction = ({ historicalData }: { historicalData: any[] }) => {
 
                 <div className="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400">
                     <AlertCircle className="h-3 w-3 shrink-0 mt-0.5" />
-                    Basado en {historicalData.length} períodos históricos. La precisión puede variar.
+                    Basado en {n} días con ventas (tendencia: {slope >= 0 ? "+" : ""}{fmt(slope)}/día). La precisión puede variar.
                 </div>
 
                 <Details title="Recomendaciones" type="form">
@@ -315,14 +487,28 @@ const DailyTrends = ({ data, year, onYearChange, branch, onBranchChange, loading
     branch: string; onBranchChange: (b: string) => void;
     loading: boolean; onRefresh: () => void;
 }) => {
-    const totals = data.reduce(
-        (acc, d) => ({ totalVentas: acc.totalVentas + d.totalVentas, totalTikets: acc.totalTikets + d.totalTikets, Costos: acc.Costos + d.Costos }),
-        { totalVentas: 0, totalTikets: 0, Costos: 0 }
-    );
-    console.log(data);
+    // Días con al menos una venta: evita que días sin actividad diluyan
+    // los promedios (ticket promedio, clientes/día, margen).
+    const activeDays = data.filter(d => d.totalTikets > 0);
 
+    const totals = data.reduce(
+        (acc, d) => ({
+            totalVentas: acc.totalVentas + d.totalVentas,
+            totalCosto: acc.totalCosto + d.totalCosto,
+            totalTikets: acc.totalTikets + d.totalTikets,
+            totalClientes: acc.totalClientes + (d.totalClientes || 0),
+        }),
+        { totalVentas: 0, totalCosto: 0, totalTikets: 0, totalClientes: 0 }
+    );
+
+    const utilidad = totals.totalVentas - totals.totalCosto;
+    const margen = totals.totalVentas ? (utilidad / totals.totalVentas) * 100 : 0;
     const promedioTicket = totals.totalTikets > 0 ? totals.totalVentas / totals.totalTikets : 0;
-    const promedioClientes = data.length > 0 ? totals.Costos / data.length : 0;
+    // Antes: `totals.Costos / data.length` — dividía el costo total entre
+    // días y lo mostraba como "clientes/día". Ahora usa el conteo real de
+    // clientes distintos (venta.Cliente) obtenido del backend, promediado
+    // solo sobre los días con actividad.
+    const promedioClientes = activeDays.length > 0 ? totals.totalClientes / activeDays.length : 0;
     const currentYear = new Date().getFullYear();
     const yearOptions = Array.from({ length: currentYear - 2019 + 2 }, (_, i) => 2020 + i);
     const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -365,15 +551,21 @@ const DailyTrends = ({ data, year, onYearChange, branch, onBranchChange, loading
                 </button>
             </div>
 
-            {/* Tarjetas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card title="Ventas Anuales" value={`$${fmt(totals.totalVentas)}`} icon={<DollarSign className="h-6 w-6 text-white" />} />
-                <Card title="Total Tickets" value={totals.totalTikets.toLocaleString()} icon={<Receipt className="h-6 w-6 text-white" />} />
-                <Card title="Costos" value={`$${fmt(totals.Costos)}`} icon={<ShoppingCart className="h-6 w-6 text-white" />} />
-                <Card title="Ticket Promedio" value={`$${fmt(promedioTicket)}`}
-                    subText={`${formatValue(promedioClientes, "number")} clientes/día`}
-                    icon={<TrendingUp className="h-6 w-6 text-white" />} />
-            </div>
+            {/* Resumen: grid compacto estilo KardexStats en vez de tarjetas
+                bento sueltas — mismas métricas visibles de un vistazo, con
+                el margen (antes ausente aquí) y "clientes/día" ya corregido. */}
+            <MetricsGrid
+                metrics={[
+                    { key: "Ventas Anuales", value: `$${fmt(totals.totalVentas)}`, icon: DollarSign, principal: true },
+                    { key: "Utilidad", value: `$${fmt(utilidad)}`, icon: TrendingUp, principal: true, tone: utilidad >= 0 ? "good" : "bad" },
+                    { key: "Margen", value: `${margen.toFixed(2)}%`, icon: Percent, principal: true, tone: marginTone(margen) },
+                    { key: "Total Tickets", value: totals.totalTikets.toLocaleString(), icon: Receipt, principal: true },
+                    { key: "Costo Total", value: `$${fmt(totals.totalCosto)}`, icon: ShoppingCart },
+                    { key: "Ticket Promedio", value: `$${fmt(promedioTicket)}`, icon: TrendingUp },
+                    { key: "Clientes/Día", value: formatValue(promedioClientes, "number"), icon: Store },
+                    { key: "Días con Ventas", value: `${activeDays.length}/${data.length}`, icon: Calendar },
+                ]}
+            />
 
             <Details title="Evolución Diaria" type="form">
                 {loading ? (
@@ -526,10 +718,11 @@ export const ModalReporting = ({ reportType }: { reportType: REPORT }) => {
         statsAbortRef.current = controller;
         try {
             const queryConfig = REPORT_CONFIGS[reportType];
+            const baseFiltrosGrupo = buildBaseFiltrosGrupo(queryConfig);
             const baseFiltrosAnd = buildDateAlmacenFiltros(dateRange, "");
 
             const promesas = TIME_RANGES.map(async rango => {
-                const payload: RequestPayload = {
+                const payload: any = {
                     table: queryConfig.table,
                     filtros: {
                         agregaciones: [
@@ -538,6 +731,7 @@ export const ModalReporting = ({ reportType }: { reportType: REPORT }) => {
                             { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
                         ],
                         FiltrosAnd: [
+                            ...baseFiltrosGrupo,
                             ...baseFiltrosAnd,
                             { Filtros: [{ Key: "venta.FechaRegistro", Operator: "TIME_BETWEEN", Value: rango.value }], OperadorLogico: "AND" as const },
                         ],
@@ -576,6 +770,7 @@ export const ModalReporting = ({ reportType }: { reportType: REPORT }) => {
         branchAbortRef.current = controller;
         try {
             const queryConfig = REPORT_CONFIGS[reportType];
+            const baseFiltrosGrupo = buildBaseFiltrosGrupo(queryConfig);
             const promesas = ALMACENES_OPCIONES.map(async almacen => {
                 const filtrosAnd = buildDateAlmacenFiltros(dateRange, almacen.value);
                 const payload: RequestPayload = {
@@ -586,7 +781,7 @@ export const ModalReporting = ({ reportType }: { reportType: REPORT }) => {
                             { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
                             { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
                         ],
-                        FiltrosAnd: filtrosAnd,
+                        FiltrosAnd: [...baseFiltrosGrupo, ...filtrosAnd],
                     },
                     signal: controller.signal,
                 };
@@ -623,37 +818,33 @@ export const ModalReporting = ({ reportType }: { reportType: REPORT }) => {
         dailyAbortRef.current = controller;
         try {
             const queryConfig = REPORT_CONFIGS[reportType];
+            const baseFiltrosGrupo = buildBaseFiltrosGrupo(queryConfig);
             const days: Date[] = [];
-            // Generar lista de días del año (sin horas)
+            // Generar lista de días del año (sin horas). No se generan días
+            // futuros más allá de hoy para no lanzar consultas inútiles.
             const startDate = new Date(year, 0, 1);
             const endDate = new Date(year, 11, 31);
-            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+            for (let d = new Date(startDate); d <= endDate && d <= today; d.setDate(d.getDate() + 1)) {
                 days.push(new Date(d.getFullYear(), d.getMonth(), d.getDate())); // solo fecha, sin hora
             }
 
-            const promises = days.map(async day => {
-                // Periodo fijo del día: desde las 00:00:00.000 hasta las 23:59:59.999
-                const dayStart = new Date(day);
-                dayStart.setUTCHours(0, 0, 0, 0); // Establece las 00:00 en tiempo universal
-                // 00:00:00.000
-
-                const dayEnd = new Date(day);
-                dayEnd.setUTCHours(23, 59, 59, 999); // 23:59:59.999   
-
+            const fetchDay = async (day: Date) => {
                 const filtrosAnd = buildDateAlmacenFiltros(
-                    { from: dayStart, to: dayEnd },
+                    { from: day, to: day },
                     branchCode === "all" ? "" : branchCode
                 );
-                const payload: RequestPayload = {
+                const payload: any = {
                     table: queryConfig.table,
                     filtros: {
                         agregaciones: [
                             { Key: "(ventad.Precio * ventad.Cantidad)", Alias: "totalVentas", Operation: "SUM" },
                             { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "totalCosto", Operation: "SUM" },
                             { Key: "venta.ID", Alias: "totalTikets", Operation: "COUNT DISTINCT" },
-                            { Key: "(ventad.Costo * ventad.Cantidad)", Alias: "Costos", Operation: "SUM" },
+                            { Key: "venta.Cliente", Alias: "totalClientes", Operation: "COUNT DISTINCT" },
                         ],
-                        FiltrosAnd: filtrosAnd,
+                        FiltrosAnd: [...baseFiltrosGrupo, ...filtrosAnd],
                     },
                     signal: controller.signal,
                 };
@@ -662,19 +853,33 @@ export const ModalReporting = ({ reportType }: { reportType: REPORT }) => {
                 if (response.error?.name === "AbortError" || response.error) return null;
                 const d2 = response.data?.data?.[0] || {};
                 const totalVentas = d2.totalVentas || 0;
+                const totalCosto = d2.totalCosto || 0;
                 const totalTikets = d2.totalTikets || 0;
                 return {
                     fecha: dateToInput(day),
                     totalVentas,
-                    totalCosto: d2.totalCosto || 0,
+                    totalCosto,
                     totalTikets,
-                    Costos: d2.Costos || 0,
-                    utilidad: totalVentas - (d2.totalCosto || 0),
+                    totalClientes: d2.totalClientes || 0,
+                    utilidad: totalVentas - totalCosto,
+                    margen: totalVentas ? ((totalVentas - totalCosto) / totalVentas) * 100 : 0,
                     ticketPromedio: totalTikets ? totalVentas / totalTikets : 0,
                 };
-            });
-            const resultados = await Promise.all(promises);
-            setDailyData(resultados.filter(Boolean));
+            };
+
+            // Se lanzan en lotes en vez de las N peticiones simultáneas
+            // (hasta 365) que hacía la versión anterior, para no saturar
+            // el backend cuando se selecciona un año completo.
+            const BATCH_SIZE = 20;
+            const resultados: any[] = [];
+            for (let i = 0; i < days.length; i += BATCH_SIZE) {
+                if (controller.signal.aborted) break;
+                const batch = days.slice(i, i + BATCH_SIZE);
+                const batchResults = await Promise.all(batch.map(fetchDay));
+                resultados.push(...batchResults.filter(Boolean));
+            }
+            if (controller.signal.aborted) return;
+            setDailyData(resultados);
         } catch (err: any) {
             if (err?.name !== "AbortError" && !err?.message?.includes("aborted")) {
                 setDailyError(err?.message || "Error al cargar datos diarios");
@@ -731,24 +936,29 @@ export const ModalReporting = ({ reportType }: { reportType: REPORT }) => {
             <div className="text-center py-8 text-gray-400">No hay datos disponibles</div>
         ),
 
-        prediction: branchTotalsLoading || statsLoading ? (
+        // Antes dependía de branchTotals + statsForHour (distribución por
+        // hora del día en el rango elegido), que no es una serie
+        // cronológica y por eso no podía sustentar una proyección real.
+        // Ahora usa dailyData (serie diaria del año seleccionado en la
+        // pestaña "Tendencia Diaria"), que sí tiene orden temporal.
+        prediction: dailyLoading ? (
             <div className="flex items-center justify-center gap-2 py-12 text-gray-400">
                 <RefreshCw className="h-4 w-4 animate-spin" /> Cargando datos para predicción...
             </div>
-        ) : branchTotals.length > 0 && statsForHour.length > 0 ? (
+        ) : dailyData.filter(d => d.totalTikets > 0).length >= 3 ? (
             <div className="space-y-6">
-                <SalesPrediction historicalData={statsForHour} />
+                <SalesPrediction dailyData={dailyData} />
                 <Details title="Factores de Predicción" type="form">
                     <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
-                        <p>• Datos históricos de {statsForHour.length} períodos analizados</p>
-                        <p>• Tendencia de {branchTotals.length} sucursales incluidas</p>
-                        <p>• Estacionalidad por hora del día</p>
-                        <p>• Márgenes de utilidad promedio</p>
+                        <p>• Regresión lineal sobre los últimos {Math.min(60, dailyData.filter(d => d.totalTikets > 0).length)} días con ventas de {selectedYear}</p>
+                        <p>• Crecimiento diario acotado a ±50% del promedio para evitar extrapolaciones extremas</p>
+                        <p>• Rango de confianza basado en la volatilidad (desviación estándar) real de la serie</p>
+                        <p>• Cambia de sucursal o año en la pestaña "Tendencia Diaria" para recalcular</p>
                     </div>
                 </Details>
             </div>
         ) : (
-            <div className="text-center py-8 text-gray-400">No hay suficientes datos para predicciones</div>
+            <div className="text-center py-8 text-gray-400">No hay suficientes días con ventas en {selectedYear} para calcular una predicción</div>
         ),
 
         daily: dailyError ? (

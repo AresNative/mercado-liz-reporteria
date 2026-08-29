@@ -323,7 +323,7 @@ export const getDefaultDateRangeValue = (): string => {
 };
 
 export const buildFiltrosAnd = (
-  baseFiltros: Filtro[] = [],
+  baseFiltros: any,
   activeFilters: ActiveFilters,
 ): FiltroGrupo[] => {
   const grupoAnd: Filtro[] = [
