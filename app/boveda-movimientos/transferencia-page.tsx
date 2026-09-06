@@ -45,7 +45,8 @@ interface Filtro {
 }
 
 interface ActiveFilters {
-    Filtros: Filtro[];
+    Filtros: Filtro[]; // Grupo OR: búsqueda rápida
+    FiltrosOther: Filtro[]; // Grupo AND: fecha (y cualquier otro filtro exacto)
     Selects: any[];
     OrderBy: any | null;
     sum: boolean;
@@ -72,6 +73,7 @@ export function TransferenciaContent() {
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [],
+        FiltrosOther: [],
         Selects: [],
         OrderBy: [
             {
@@ -99,10 +101,14 @@ export function TransferenciaContent() {
                         { Key: "fecha" },
                         { Key: "metodo_pago" },
                     ],
-                    FiltrosAnd: [{
-                        Filtros: activeFilters.Filtros,
-                        OperadorLogico: "OR"
-                    }],
+                    FiltrosAnd: [
+                        ...(activeFilters.FiltrosOther.length
+                            ? [{ Filtros: activeFilters.FiltrosOther, OperadorLogico: "AND" as const }]
+                            : []),
+                        ...(activeFilters.Filtros.length
+                            ? [{ Filtros: activeFilters.Filtros, OperadorLogico: "OR" as const }]
+                            : []),
+                    ],
                     Order: activeFilters.OrderBy ? activeFilters.OrderBy : []
                 },
                 pageSize: pageSize,
@@ -139,19 +145,20 @@ export function TransferenciaContent() {
     const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
 
     const loadPago = (data: FiltrosForm) => {
-        const nuevosFiltrosAnd: any[] = [];
-
+        const busqueda: Filtro[] = [];
         if (data.search) {
-            nuevosFiltrosAnd.push({ Key: "Proveedor", Value: data.search, Operator: "LIKE" });
-            nuevosFiltrosAnd.push({ Key: "Nombre", Value: data.search, Operator: "LIKE" });
+            busqueda.push({ Key: "Proveedor", Value: data.search, Operator: "LIKE" });
+            busqueda.push({ Key: "Nombre", Value: data.search, Operator: "LIKE" });
             const searchStr = data.search.toString().trim();
             if (/^\d+$/.test(searchStr)) {
-                nuevosFiltrosAnd.push({ Key: "ID", Value: searchStr, Operator: "=" });
-                nuevosFiltrosAnd.push({ Key: "Monto", Value: searchStr, Operator: "=" });
+                busqueda.push({ Key: "ID", Value: searchStr, Operator: "=" });
+                busqueda.push({ Key: "Monto", Value: searchStr, Operator: "=" });
             }
         }
+
+        const otros: Filtro[] = [];
         if (data.date) {
-            nuevosFiltrosAnd.push({
+            otros.push({
                 Key: "FechaEmision",
                 Value: data.date,
                 Operator: data.date.includes("AND") ? "BETWEEN" : "="
@@ -161,12 +168,13 @@ export function TransferenciaContent() {
         setCurrentPage(1); // <-- reinicia la página al filtrar
         setActiveFilters(prev => ({
             ...prev,
-            Filtros: nuevosFiltrosAnd
+            Filtros: busqueda,
+            FiltrosOther: otros,
         }));
     };
 
     const limpiarFiltros = () => {
-        setActiveFilters(prev => ({ ...prev, Filtros: [] }));
+        setActiveFilters(prev => ({ ...prev, Filtros: [], FiltrosOther: [] }));
         setCurrentPage(1);
     };
 
@@ -193,7 +201,7 @@ export function TransferenciaContent() {
         <>
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm">
                 <article className="p-4">
-                    <span className="mr-4 flex justify-between">
+                    <span className="mb-3 flex flex-col sm:flex-row sm:justify-between gap-2">
                         <label>
                             <h2 className="text-lg font-semibold dark:text-white">Gestión de Transferencias</h2>
                             <p className="text-sm text-gray-500">
@@ -232,7 +240,7 @@ export function TransferenciaContent() {
                                 },
                             ]}
                         />
-                        <dl className="flex gap-2 ml-auto">
+                        <dl className="flex flex-wrap gap-2 sm:ml-auto">
                             <Button
                                 onClick={() => handleOpenModal('chat-transferencia')}
                                 color="info"

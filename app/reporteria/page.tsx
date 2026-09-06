@@ -3,7 +3,8 @@
 
 import Footer from "@/template/footer";
 import Header from "@/template/header";
-import { RequestPayload, useManagmentRead } from "@/hooks/classes/api";
+import { RequestPayload } from "@/hooks/classes/api";
+import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
 import {
     useCallback,
     useEffect,
@@ -16,7 +17,6 @@ import Pagination from "@/components/pagination";
 import { formatValue } from "@/utils/constants/format-values";
 import {
     RefreshCw,
-    Loader2,
     Search,
     Calendar,
     Eye,
@@ -26,7 +26,6 @@ import {
     Filter,
 } from "lucide-react";
 import { Button } from "@/components/button";
-import { safeCall } from "@/hooks/use-debounce";
 import MainForm from "@/components/form/main-form";
 import { ArrayColumnDisplay } from "@/components/table/toggle-view";
 import KardexStats from "./components/kardex-stats";
@@ -46,9 +45,11 @@ import {
     getDefaultDateRangeValue,
     getHiddenAggregations,
     buildFiltrosAnd,
+    SUGGESTIONS_LIMIT,
 } from "./utils/report-utils";
 import { useForm } from "react-hook-form";
-import { useSuggestions } from "./utils/use-suggestions"; // <-- NUEVO HOOK
+import { safeCall, useDebounce } from "@/hooks/use-debounce";
+import { ApiResponse } from "@/utils/types/consultas";
 
 const ScoreCard = dynamic(() => import("./components/modal-scorecard"), {
     ssr: false,
@@ -59,7 +60,7 @@ const ModalReporting = dynamic(
 );
 
 export default function Analisis() {
-    const [manager] = useManagmentRead();
+    const [getData] = useGetWithFiltersIntelisisMutation();
     const { watch } = useForm();
 
     const scoreCardModal = useModalTrigger("scorecard");
@@ -73,9 +74,13 @@ export default function Analisis() {
     const [showStats, setShowStats] = useState(true);
     const [selectedReport, setSelectedReport] = useState<REPORT>("venta");
     const [tableLoading, setTableLoading] = useState(false);
+    const [statsLoading, setStatsLoading] = useState(false);
     const [dataTable, setDataTable] = useState<any[]>([]);
     const [dataStats, setDataStats] = useState<any[]>([]);
     const [tableError, setTableError] = useState<string | null>(null);
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
         Filtros: [],
         FiltrosOther: [
@@ -93,11 +98,13 @@ export default function Analisis() {
             },
         ],
     });
+
     const formRef = useRef<{
         getFormData: () => any;
         submitForm: () => Promise<any>;
         getLiveValues: () => any;
     }>(null);
+
     const [formValues, setFormValues] = useState<{
         dateRange: string;
         almacen: string;
@@ -107,19 +114,92 @@ export default function Analisis() {
         almacen: "",
         search: "",
     });
+
     const [arrayDisplayModesByReport, setArrayDisplayModesByReport] = useState<
         Record<string, Record<string, ArrayColumnDisplay>>
     >({});
 
-    // --- Sugerencias en tiempo real usando el nuevo hook ---
-    const searchValue = watch("search"); // valor en vivo del campo
-    const searchSuggestions = useSuggestions(
-        selectedReport,
-        searchValue || "",
-        activeFilters
-    );
+    // Controladores para abortar peticiones en curso
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const suggestionsAbortRef = useRef<AbortController | null>(null);
 
-    // Funciones de acceso y mutación para modos de visualización de arrays
+    // --- Sugerencias locales (reemplazo de useSuggestions) ---
+    const searchValue = watch("search") || "";
+    const debouncedSearch = useDebounce(searchValue, 300);
+
+    const fetchSuggestions = useCallback(async () => {
+        const trimmed = debouncedSearch.trim();
+        if (!trimmed) {
+            setSuggestions([]);
+            return;
+        }
+
+        // Cancelar petición anterior
+        suggestionsAbortRef.current?.abort();
+        const controller = new AbortController();
+        suggestionsAbortRef.current = controller;
+
+        setSuggestionsLoading(true);
+        try {
+            const config = REPORT_CONFIGS[selectedReport];
+            const searchFields = SEARCH_FIELDS_MAP[selectedReport] || [];
+            if (!config || searchFields.length === 0) {
+                setSuggestions([]);
+                return;
+            }
+
+            const baseFiltros = config.filtros?.Filtros || [];
+            const filtrosAnd = buildFiltrosAnd(baseFiltros, activeFilters);
+
+            const agregaciones = searchFields.map((field) => ({
+                Key: field,
+                Operation: "DISTINCT",
+                Alias: field.split(".").pop() || field,
+            }));
+
+            const payload = {
+                table: config.table,
+                filtros: {
+                    agregaciones,
+                    FiltrosAnd: filtrosAnd,
+                },
+                page: 1,
+                pageSize: SUGGESTIONS_LIMIT,
+                signal: controller.signal,
+            };
+
+            const response = (await getData(payload).unwrap()) as ApiResponse;
+            if (controller.signal.aborted) return;
+
+            // Extraer valores únicos de todas las columnas devueltas
+            const values = new Set<string>();
+            (response.data?.data || []).forEach((row: any) => {
+                Object.values(row).forEach((val: any) => {
+                    if (typeof val === "string" && val.trim() !== "") {
+                        values.add(val.trim());
+                    }
+                });
+            });
+
+            setSuggestions(Array.from(values));
+        } catch (err: any) {
+            if (err?.name === "AbortError") return;
+            // Silenciar otros errores
+        } finally {
+            if (!controller.signal.aborted) {
+                setSuggestionsLoading(false);
+            }
+        }
+    }, [selectedReport, debouncedSearch, activeFilters, getData]);
+
+    useEffect(() => {
+        fetchSuggestions();
+        return () => {
+            suggestionsAbortRef.current?.abort();
+        };
+    }, [fetchSuggestions]);
+
+    // --- Funciones de acceso y mutación para modos de visualización ---
     const getCurrentArrayDisplayModes = useCallback(
         (report: REPORT = selectedReport): Record<string, ArrayColumnDisplay> => {
             return arrayDisplayModesByReport[report] || {};
@@ -140,7 +220,7 @@ export default function Analisis() {
         [selectedReport]
     );
 
-    // --- Columnas visibles: mapa report → visibilidad ---
+    // --- Columnas visibles ---
     const [visibleColumnsByReport, setVisibleColumnsByReport] = useState<
         Record<string, Record<string, boolean>>
     >({});
@@ -186,11 +266,12 @@ export default function Analisis() {
         [selectedReport]
     );
 
-    // --- Fetch de datos de tabla ---
-    const tableAbortRef = useRef<AbortController | null>(null);
+    // --- Fetch de tabla ---
     const fetchTableData = useCallback(async () => {
-        tableAbortRef.current?.abort();
-        tableAbortRef.current = new AbortController();
+        // Cancelar petición anterior
+        abortControllerRef.current?.abort();
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
 
         setTableError(null);
         setTableLoading(true);
@@ -215,7 +296,7 @@ export default function Analisis() {
             ? JSON.parse(JSON.stringify(finalFiltros.Order))
             : null;
 
-        // Calcular campos requeridos según visibilidad y modos
+        // Calcular campos requeridos
         const allSelectAliases = new Set<string>();
         (config.filtros?.selects || []).forEach((sel: any) => {
             const alias = sel.Alias || sel.Key.split(".").pop() || sel.Key;
@@ -239,12 +320,11 @@ export default function Analisis() {
             });
         }
 
-        // Construir FiltrosAnd (grupo AND: base + fecha/almacén, grupo OR: búsqueda)
         const baseFiltros: Filtro[] = finalFiltros.Filtros || [];
         finalFiltros.FiltrosAnd = buildFiltrosAnd(baseFiltros, activeFilters);
         delete finalFiltros.Filtros;
 
-        // Ajustar según columnas sintéticas y sus modos
+        // Ajustar columnas sintéticas
         for (const { syntheticKey, sourceFields } of SYNTHETIC_COLUMNS) {
             const isVisible =
                 visibleKeys.length === 0 || visibleKeys.includes(syntheticKey);
@@ -263,7 +343,6 @@ export default function Analisis() {
             }
         }
 
-        // Filtrar selects
         if (finalFiltros.selects) {
             finalFiltros.selects = finalFiltros.selects.filter((sel: any) => {
                 const alias = sel.Alias || sel.Key.split(".").pop() || sel.Key;
@@ -271,7 +350,6 @@ export default function Analisis() {
             });
         }
 
-        // Filtrar agregaciones
         if (finalFiltros.agregaciones) {
             const hiddenAggregations = getHiddenAggregations(
                 visibleKeys,
@@ -285,7 +363,6 @@ export default function Analisis() {
             });
         }
 
-        // Asegurar FechaEmision si hay Order
         if (orderConfig && orderConfig.length > 0) {
             const hasFechaEmision = (finalFiltros.selects || []).some((sel: any) => {
                 const key = sel.Key || "";
@@ -301,16 +378,13 @@ export default function Analisis() {
             filtros: finalFiltros,
             page: currentPage,
             pageSize,
-            signal: tableAbortRef.current.signal,
+            signal: controller.signal,
         };
-
+        console.log(payload);
+        
         try {
-            const { promise } = await manager.execute(payload);
-            const response: any = await safeCall(
-                () => promise,
-                `fetchTable/${selectedReport}`
-            );
-            if (tableAbortRef.current.signal.aborted) return;
+            const response:any = (await getData(payload).unwrap()) as ApiResponse;
+            if (controller.signal.aborted) return;
 
             const activeVisible = visibleKeys.length > 0 ? new Set(visibleKeys) : null;
 
@@ -405,7 +479,8 @@ export default function Analisis() {
                         Object.entries(nonEmptyFull).filter(([key]) => activeVisible.has(key))
                     );
                 }) || [];
-
+            console.log(formattedData);
+                
             setDataTable(formattedData);
             setTotalPages(response.data?.totalPages);
             setTotalRecords(
@@ -415,26 +490,33 @@ export default function Analisis() {
             if (err?.name === "AbortError") return;
             setTableError(err?.message || "Error al cargar los datos");
         } finally {
-            if (!tableAbortRef.current.signal.aborted) setTableLoading(false);
+            if (!controller.signal.aborted) {
+                setTableLoading(false);
+            }
         }
     }, [
         selectedReport,
         currentPage,
         pageSize,
-        manager,
+        getData,
         activeFilters,
         getCurrentVisibility,
         getCurrentArrayDisplayModes,
     ]);
 
     // --- Fetch de estadísticas ---
-    const statsAbortRef = useRef<AbortController | null>(null);
     const fetchStatsData = useCallback(async () => {
-        statsAbortRef.current?.abort();
-        statsAbortRef.current = new AbortController();
+        // Cancelar petición anterior (usamos el mismo controller que fetchTableData o uno nuevo)
+        abortControllerRef.current?.abort();
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
 
+        setStatsLoading(true);
         const config = REPORT_CONFIGS[selectedReport];
-        if (!config) return;
+        if (!config) {
+            setStatsLoading(false);
+            return;
+        }
 
         let finalFiltros: any = config.filtros
             ? JSON.parse(JSON.stringify(config.filtros))
@@ -447,16 +529,12 @@ export default function Analisis() {
             filtros: others,
             page: currentPage,
             pageSize,
-            signal: statsAbortRef.current.signal,
+            signal: controller.signal,
         };
 
         try {
-            const { promise } = await manager.execute(payload);
-            const response: any = await safeCall(
-                () => promise,
-                `fetchStats/${selectedReport}`
-            );
-            if (statsAbortRef.current.signal.aborted) return;
+            const response:any = (await getData(payload).unwrap()) as ApiResponse;
+            if (controller.signal.aborted) return;
 
             const formattedData = response.data.data.map((out: any) => {
                 const totalVentas = out["Total Ventas"];
@@ -477,8 +555,13 @@ export default function Analisis() {
             setDataStats(formattedData);
         } catch (err: any) {
             if (err?.name === "AbortError") return;
+            // Silenciar errores de stats (no críticos)
+        } finally {
+            if (!controller.signal.aborted) {
+                setStatsLoading(false);
+            }
         }
-    }, [selectedReport, currentPage, pageSize, activeFilters, manager]);
+    }, [selectedReport, currentPage, pageSize, activeFilters, getData]);
 
     // Efectos para cargar datos al cambiar dependencias
     useEffect(() => {
@@ -489,7 +572,7 @@ export default function Analisis() {
         fetchStatsData();
     }, [fetchStatsData]);
 
-    // --- Configuración del formulario de filtros ---
+    // --- Configuración del formulario ---
     const dataFormConfig: Field[] = useMemo(
         () => [
             {
@@ -522,14 +605,26 @@ export default function Analisis() {
                             "Escribe y presiona Enter para agregar (Artículo, código, proveedor, etc.)",
                         label: "Búsqueda rápida (acumulable)",
                         icon: <Search className="size-4" />,
-                        options: searchSuggestions, // <-- sugerencias en vivo
+                        options: suggestions,
                         saveData: true,
                         valueDefined: formValues.search,
+                        loading: suggestionsLoading,
                     },
                 ],
             },
         ],
-        [formValues, searchSuggestions]
+        [formValues, suggestions, suggestionsLoading]
+    );
+
+    // --- Cambio de reporte con refetch ---
+    const handleReportChange = useCallback(
+        (report: REPORT) => {
+            setSelectedReport(report);
+            setCurrentPage(1);
+            setFormValues((prev) => ({ ...prev, search: "" }));
+            // Los efectos se encargarán de recargar
+        },
+        []
     );
 
     // --- Render ---
@@ -537,7 +632,6 @@ export default function Analisis() {
         <>
             <Header />
             <section className="p-3 md:p-4 min-h-[70vh]">
-                {/* Header de página */}
                 <dt className="flex justify-between items-center mb-4">
                     <dl className="flex items-center gap-3">
                         <h1 className="text-2xl font-bold dark:text-white">Análisis</h1>
@@ -559,12 +653,12 @@ export default function Analisis() {
                                 fetchTableData();
                                 fetchStatsData();
                             }}
-                            disabled={tableLoading}
+                            disabled={tableLoading || statsLoading}
                             color="second"
                             size="small"
                         >
                             <RefreshCw
-                                className={`w-3.5 h-3.5 ${tableLoading ? "animate-spin" : ""
+                                className={`w-3.5 h-3.5 ${tableLoading || statsLoading ? "animate-spin" : ""
                                     }`}
                             />
                             <span className="hidden sm:inline">Recargar</span>
@@ -572,7 +666,6 @@ export default function Analisis() {
                     </dl>
                 </dt>
 
-                {/* Selector de reporte */}
                 <ul className="mb-4 flex items-center justify-between">
                     <li className="flex flex-wrap gap-2">
                         {REPORT_KEYS.map((report) => (
@@ -580,7 +673,7 @@ export default function Analisis() {
                                 key={report}
                                 color={selectedReport === report ? "completed" : "success"}
                                 size="small"
-                                onClick={() => setSelectedReport(report)}
+                                onClick={() => handleReportChange(report)}
                             >
                                 {report.charAt(0).toUpperCase() + report.slice(1)}
                             </Button>
@@ -598,7 +691,7 @@ export default function Analisis() {
 
                 <KardexStats
                     dataStats={dataStats}
-                    isLoading={tableLoading}
+                    isLoading={statsLoading}
                     show={showStats}
                 />
 
@@ -665,7 +758,6 @@ export default function Analisis() {
                         }}
                     />
 
-                    {/* Error de tabla */}
                     {tableError && (
                         <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -676,7 +768,6 @@ export default function Analisis() {
                         </div>
                     )}
 
-                    {/* Tabla */}
                     <DynamicTable
                         data={dataTable}
                         loading={tableLoading}

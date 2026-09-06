@@ -7,6 +7,7 @@ import {
 } from "@/hooks/classes/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { QUERY_CONFIGS, QUERY_CHART_META, type SupportedChartType } from "../utils/config-scorecard";
+import { ALMACENES_OPCIONES } from "../utils/report-utils";
 import { BentoGrid, BentoItem } from "@/components/bento-grid";
 import DynamicTable from "@/components/table";
 import Pagination from "@/components/pagination";
@@ -17,10 +18,11 @@ import {
     ChevronsUpDown, Calendar,
 } from "lucide-react";
 import Details from "@/components/details";
-import { sendWhatsAppMessage } from "@/hooks/classes/send-whats";
+import { sendWhatsAppReportToMany } from "@/hooks/classes/send-whats";
 import DynamicChart from "@/components/charts/dynamic";
 import TreemapChart from "@/components/charts/term";
 import { formatValue } from "@/utils/constants/format-values";
+import { useDebounce } from "@/hooks/use-debounce";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -75,15 +77,8 @@ const dateToInput = (d: Date): string => {
 const inputToDate = (s: string): Date => new Date(`${s}T00:00:00`);
 
 // ─── Otros helpers ────────────────────────────────────────────────────────────
-
-function useDebounce<T>(value: T, delay: number): T {
-    const [debounced, setDebounced] = useState(value);
-    useEffect(() => {
-        const h = setTimeout(() => setDebounced(value), delay);
-        return () => clearTimeout(h);
-    }, [value, delay]);
-    return debounced;
-}
+// (useDebounce ahora se importa de "@/hooks/use-debounce" — antes se
+// reimplementaba aquí mismo, duplicando el hook compartido de la app.)
 
 const getPageSize = (key: QueryKey): number => (key === "80-20" ? 20 : 10);
 
@@ -222,9 +217,27 @@ const ScoreCard = () => {
     const [showChartConfig, setShowChartConfig] = useState<Record<string, boolean>>({});
     const [chartOverrides, setChartOverrides] = useState<Record<string, ChartOverride>>({});
     const [pendingFilter, setPendingFilter] = useState<Record<string, Partial<FilterEntry>>>({});
+    // Antes no existían: "búsqueda rápida" y "almacén" se podían agregar
+    // solo a través del constructor genérico de filtros (campo/operador/
+    // valor), lo cual es poco práctico para lo que en el resto de la app
+    // (report-utils.ts) ya es un input de texto simple + un <select>. Se
+    // guardan por QueryKey porque cada tarjeta de ScoreCard es una consulta
+    // independiente.
+    const [quickSearch, setQuickSearch] = useState<Record<QueryKey, string>>({} as Record<QueryKey, string>);
+    const [almacenSelected, setAlmacenSelected] = useState<Record<QueryKey, string>>({} as Record<QueryKey, string>);
+    const debouncedQuickSearch = useDebounce(quickSearch, 400);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [refreshProgress, setRefreshProgress] = useState({ current: 0, total: 0 });
     const [whatsappStatus, setWhatsappStatus] = useState<{ sending: boolean; lastResult: string | null }>({ sending: false, lastResult: null });
+    // Antes: sendWhatsAppMessage("+526462895421", ...) mandaba SIEMPRE al
+    // mismo número hardcodeado en el código. La lista de destinatarios del
+    // reporte de estatus ahora sale de una variable de entorno pública
+    // (coma-separada) para poder cambiarla sin tocar código; si no está
+    // configurada, cae de vuelta al número que ya se usaba.
+    const SCORECARD_REPORT_RECIPIENTS = (process.env.NEXT_PUBLIC_SCORECARD_WHATSAPP_NUMBERS || "+526462895421")
+        .split(",")
+        .map((n) => n.trim())
+        .filter(Boolean);
 
     const [comparisonData, setComparisonData] = useState<{ period1Data: any[]; period2Data: any[]; loading: boolean; error: string | null; }>({
         period1Data: [], period2Data: [], loading: false, error: null
@@ -348,11 +361,37 @@ const ScoreCard = () => {
                         OperadorLogico: "AND" as const,
                         Filtros: [{ Key: config.fechaField, Operator: "BETWEEN", Value: `${range.start} AND ${range.end}` }],
                     }];
+
+                    // Almacén (AND): solo si esta consulta declaró
+                    // `sucursalField` en config-scorecard.ts (varias
+                    // consultas de ScoreCard no unen la tabla Sucursal
+                    // todavía, así que no todas pueden filtrarse por
+                    // almacén — ver nota en ese archivo).
+                    const almacenValue = (customFilters ? undefined : almacenSelected[key]);
+                    if (config.sucursalField && almacenValue) {
+                        filtrosAnd.push({
+                            OperadorLogico: "AND" as const,
+                            Filtros: [{ Key: config.sucursalField, Operator: "=", Value: almacenValue }],
+                        });
+                    }
+
                     const qFilters = activeFilters[key];
                     if (qFilters?.length) {
                         filtrosAnd.push({
                             OperadorLogico: "AND" as const,
                             Filtros: qFilters.map(f => ({ Key: f.field, Operator: f.operator, Value: f.value })),
+                        });
+                    }
+
+                    // Búsqueda rápida (OR): antes `config.searchColumns`
+                    // existía pero siempre estaba vacío y nunca se leía en
+                    // ningún lado — la búsqueda rápida simplemente no
+                    // existía en ScoreCard.
+                    const searchTerm = (customFilters ? undefined : debouncedQuickSearch[key])?.trim();
+                    if (searchTerm && config.searchColumns?.length) {
+                        filtrosAnd.push({
+                            OperadorLogico: "OR" as const,
+                            Filtros: config.searchColumns.map((col: string) => ({ Key: col, Operator: "LIKE", Value: searchTerm })),
                         });
                     }
 
@@ -364,7 +403,14 @@ const ScoreCard = () => {
                         signal: controller.signal,
                     };
 
-                    const { promise } = manager.execute<any>(payload);
+                    // Se pasa `key` como clave lógica: si esta misma tarjeta
+                    // dispara otra consulta antes de que responda la
+                    // anterior (p. ej. el usuario teclea rápido en
+                    // "Búsqueda rápida"), el manager cancela la petición
+                    // vieja de verdad en vez de solo llevar un
+                    // AbortController local que nunca llegaba a la petición
+                    // real (ver hooks/classes/request-manager.ts).
+                    const { promise } = manager.execute<any>(payload, key);
                     const response = await promise;
                     if (response.error) throw response.error;
                     setRefreshProgress(prev => ({ ...prev, current: idx + 1 }));
@@ -388,10 +434,44 @@ const ScoreCard = () => {
             setIsRefreshing(false);
             setRefreshProgress({ current: 0, total: 0 });
         },
-        [manager, debouncedDateRange, filters]
+        [manager, debouncedDateRange, filters, debouncedQuickSearch, almacenSelected]
     );
 
+    // Vuelve a pedir solo las tarjetas cuya búsqueda rápida cambió (ya
+    // debounced), en vez de refrescar todo el ScoreCard cada vez que el
+    // usuario teclea en cualquier tarjeta.
+    const prevQuickSearchRef = useRef<Record<QueryKey, string>>({} as Record<QueryKey, string>);
+    useEffect(() => {
+        const prev = prevQuickSearchRef.current;
+        const changedKeys = (Object.keys(debouncedQuickSearch) as QueryKey[]).filter(
+            (k) => (debouncedQuickSearch[k] || "") !== (prev[k] || ""),
+        );
+        prevQuickSearchRef.current = debouncedQuickSearch;
+        if (changedKeys.length && open()) fetchData(changedKeys);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedQuickSearch]);
+
+    // Mismo patrón para el selector de Almacén (no lleva debounce porque es
+    // un <select>, no texto libre).
+    const prevAlmacenRef = useRef<Record<QueryKey, string>>({} as Record<QueryKey, string>);
+    useEffect(() => {
+        const prev = prevAlmacenRef.current;
+        const changedKeys = (Object.keys(almacenSelected) as QueryKey[]).filter(
+            (k) => (almacenSelected[k] || "") !== (prev[k] || ""),
+        );
+        prevAlmacenRef.current = almacenSelected;
+        if (changedKeys.length && open()) fetchData(changedKeys);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [almacenSelected]);
+
     // ── Acciones ───────────────────────────────────────────────────────────────
+
+    const setQuickSearchFor = useCallback((key: QueryKey, value: string) => {
+        setQuickSearch(prev => ({ ...prev, [key]: value }));
+    }, []);
+    const setAlmacenFor = useCallback((key: QueryKey, value: string) => {
+        setAlmacenSelected(prev => ({ ...prev, [key]: value }));
+    }, []);
 
     const toggleFilters = useCallback((key: QueryKey) => setShowFilters(p => ({ ...p, [key]: !p[key] })), []);
     const toggleChartConfig = useCallback((key: QueryKey) => setShowChartConfig(p => ({ ...p, [key]: !p[key] })), []);
@@ -444,10 +524,14 @@ const ScoreCard = () => {
             return `• ${QUERY_DISPLAY_CONFIG[key]?.title || key}: ${registros} registros${totalVentas}`;
         }).join("\n");
 
-        const result = await sendWhatsAppMessage("+526462895421",
+        const summaryResult = await sendWhatsAppReportToMany(
+            SCORECARD_REPORT_RECIPIENTS,
             `📊 *Reporte ScoreCard*\n🗓️ Período: ${dateRange.start} al ${dateRange.end}\n\n${summary}\n\n🕐 ${new Date().toLocaleString("es-MX")}`
         );
-        setWhatsappStatus({ sending: false, lastResult: result.success ? "✅ Enviado" : `❌ Error: ${result.error}` });
+        const lastResult = summaryResult.failed === 0
+            ? `✅ Enviado a ${summaryResult.sent} número${summaryResult.sent === 1 ? "" : "s"}`
+            : `⚠️ ${summaryResult.sent}/${summaryResult.total} enviados — falló: ${summaryResult.results.filter(r => !r.success).map(r => r.phoneNumber).join(", ")}`;
+        setWhatsappStatus({ sending: false, lastResult });
         setTimeout(() => setWhatsappStatus(p => ({ ...p, lastResult: null })), 5000);
     }, [queriesState, dateRange]);
 
@@ -530,9 +614,10 @@ const ScoreCard = () => {
     const renderFiltersPanel = (key: QueryKey) => {
         const queryFilters = filters[key] || [];
         const pending = pendingFilter[key] || {};
+        const config = QUERY_CONFIGS[key];
         const allColumns = [
-            ...(QUERY_CONFIGS[key]?.selects || []).map((s:any) => ({ key: s.Alias || s.Key, label: s.Alias || s.Key })),
-            ...(QUERY_CONFIGS[key]?.agregaciones || []).map((a:any) => ({ key: a.Alias || a.Key, label: a.Alias || a.Key })),
+            ...(config?.selects || []).map((s: any) => ({ key: s.Alias || s.Key, label: s.Alias || s.Key })),
+            ...(config?.agregaciones || []).map((a: any) => ({ key: a.Alias || a.Key, label: a.Alias || a.Key })),
         ];
 
         return (
@@ -548,6 +633,36 @@ const ScoreCard = () => {
                         <button onClick={() => toggleFilters(key)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
                     </div>
                 </div>
+
+                {/* Búsqueda rápida + Almacén: antes no existían en este modal
+                    (searchColumns estaba scaffoldeado pero vacío y nunca se
+                    leía; no había ningún control de almacén). Se aplican
+                    solas (con debounce) sin necesitar el botón "Aplicar". */}
+                {(config?.searchColumns?.length > 0 || config?.sucursalField) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-2.5">
+                        {config?.searchColumns?.length > 0 && (
+                            <input
+                                type="text"
+                                placeholder="Búsqueda rápida..."
+                                value={quickSearch[key] || ""}
+                                onChange={(e) => setQuickSearchFor(key, e.target.value)}
+                                className="px-2 py-1 border rounded text-xs dark:bg-gray-700 dark:border-gray-600"
+                            />
+                        )}
+                        {config?.sucursalField && (
+                            <select
+                                value={almacenSelected[key] || ""}
+                                onChange={(e) => setAlmacenFor(key, e.target.value)}
+                                className="px-2 py-1 border rounded text-xs dark:bg-gray-700 dark:border-gray-600"
+                            >
+                                <option value="">Todos los almacenes</option>
+                                {ALMACENES_OPCIONES.map((op) => (
+                                    <option key={op.value} value={op.value}>{op.label}</option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+                )}
 
                 {/* Filtros activos */}
                 {queryFilters.length > 0 && (

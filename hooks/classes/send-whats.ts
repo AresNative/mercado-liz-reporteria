@@ -15,6 +15,19 @@ interface MessageResult {
   code?: number;
 }
 
+// Resultado por destinatario, para saber exactamente a quién sí y a quién
+// no le llegó el reporte (necesario cuando se manda a una lista).
+export interface BulkMessageResult extends MessageResult {
+  phoneNumber: string;
+}
+
+export interface BulkSendSummary {
+  total: number;
+  sent: number;
+  failed: number;
+  results: BulkMessageResult[];
+}
+
 class WhatsAppService {
   private client: ReturnType<typeof twilio>;
   private fromNumber: string;
@@ -112,4 +125,54 @@ export const sendWhatsAppMessage = async (
 ): Promise<MessageResult> => {
   const service = new WhatsAppService();
   return service.sendMessage(phoneNumber, messageBody, template);
+};
+
+export const sendWhatsAppReportToMany = async (
+  phoneNumbers: string[],
+  messageBody?: string,
+  template?: MessageTemplate,
+  concurrency = 5,
+): Promise<BulkSendSummary> => {
+  const uniqueNumbers = Array.from(
+    new Set(
+      phoneNumbers.map((n) => n?.trim()).filter((n): n is string => Boolean(n)),
+    ),
+  );
+
+  const service = new WhatsAppService();
+  const results: BulkMessageResult[] = new Array(uniqueNumbers.length);
+
+  for (let i = 0; i < uniqueNumbers.length; i += concurrency) {
+    const batch = uniqueNumbers.slice(i, i + concurrency);
+    const batchResults = await Promise.all(
+      batch.map(async (phoneNumber) => {
+        try {
+          const result = await service.sendMessage(
+            phoneNumber,
+            messageBody,
+            template,
+          );
+          return { ...result, phoneNumber } as BulkMessageResult;
+        } catch (error: any) {
+          return {
+            success: false,
+            phoneNumber,
+            error: error?.message || "Error desconocido al enviar",
+          } as BulkMessageResult;
+        }
+      }),
+    );
+    batchResults.forEach((r, idx) => {
+      results[i + idx] = r;
+    });
+  }
+
+  const sent = results.filter((r) => r.success).length;
+
+  return {
+    total: results.length,
+    sent,
+    failed: results.length - sent,
+    results,
+  };
 };

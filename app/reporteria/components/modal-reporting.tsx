@@ -783,7 +783,6 @@ export const ModalReporting = ({ reportType }: { reportType: REPORT }) => {
                         ],
                         FiltrosAnd: [...baseFiltrosGrupo, ...filtrosAnd],
                     },
-                    signal: controller.signal,
                 };
                 const { promise } = manager.execute(payload);
                 const response = await promise;

@@ -59,7 +59,8 @@ interface Filtro {
 }
 
 interface ActiveFilters {
-    Filtros: Filtro[];
+    Filtros: Filtro[]; // Grupo OR: búsqueda rápida (coincide con cualquiera)
+    FiltrosOther: Filtro[]; // Grupo AND: sucursal, fecha (deben cumplirse todos)
     Selects: any[];
     OrderBy: any | null;
     sum: boolean;
@@ -73,6 +74,18 @@ interface FiltrosForm {
 }
 
 const allCategories: string[] = ["Pagos", "Transferencias"];
+
+// Filtros base que SIEMPRE deben cumplirse (solo pagos concluidos de tipo
+// "Entrada Compra"). Antes vivían dentro de `activeFilters.Filtros` y
+// `loadPago` los sobrescribía por completo al aplicar cualquier filtro del
+// usuario (búsqueda/sucursal/fecha), exponiendo movimientos que no debían
+// verse aquí. Ahora quedan separados y se agregan siempre como su propio
+// grupo AND, sin depender de lo que el usuario filtre.
+const BASE_FILTROS: Filtro[] = [
+    { Key: "CXP.MOV", Value: "Pago", Operator: "=" },
+    { Key: "CXP.Origen", Value: "Entrada Compra", Operator: "=" },
+    { Key: "CXP.Estatus", Value: "CONCLUIDO", Operator: "=" },
+];
 
 export default function Page() {
     const dispatch = useAppDispatch();
@@ -88,21 +101,8 @@ export default function Page() {
     const [getWithFilter] = useGetWithFiltersIntelisisMutation();
 
     const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-        Filtros: [
-            {
-                Key: "CXP.MOV",
-                Value: "Pago",
-                Operator: "="
-            }, {
-                Key: "CXP.Origen",
-                Value: "Entrada Compra",
-                Operator: "="
-            }, {
-                Key: "CXP.Estatus",
-                Value: "CONCLUIDO",
-                Operator: "="
-            },
-        ],
+        Filtros: [],
+        FiltrosOther: [],
         Selects: [],
         OrderBy: [
             {
@@ -135,10 +135,15 @@ export default function Page() {
                         { Key: "CXP.IEPSFiscal" },
                         { Key: "CXP.FechaEmision" },
                     ],
-                    FiltrosAnd: [{
-                        Filtros: activeFilters.Filtros,
-                        OperadorLogico: "OR"
-                    }],
+                    FiltrosAnd: [
+                        { Filtros: BASE_FILTROS, OperadorLogico: "AND" },
+                        ...(activeFilters.FiltrosOther.length
+                            ? [{ Filtros: activeFilters.FiltrosOther, OperadorLogico: "AND" as const }]
+                            : []),
+                        ...(activeFilters.Filtros.length
+                            ? [{ Filtros: activeFilters.Filtros, OperadorLogico: "OR" as const }]
+                            : []),
+                    ],
                     Order: activeFilters.OrderBy ? activeFilters.OrderBy : []
                 },
                 pageSize: pageSize,
@@ -178,20 +183,26 @@ export default function Page() {
     const [pagoseleccionado, setPagoseleccionado] = useState<any | null>(null);
 
     const loadPago = (data: FiltrosForm) => {
-        const nuevosFiltrosAnd: any[] = [];
-
+        // Grupo OR: cualquier campo de búsqueda rápida que coincida.
+        const busqueda: Filtro[] = [];
         if (data.search) {
-            nuevosFiltrosAnd.push({ Key: "CXP.Proveedor", Value: data.search, Operator: "LIKE" });
-            nuevosFiltrosAnd.push({ Key: "Prov.Nombre", Value: data.search, Operator: "LIKE" });
+            busqueda.push({ Key: "CXP.Proveedor", Value: data.search, Operator: "LIKE" });
+            busqueda.push({ Key: "Prov.Nombre", Value: data.search, Operator: "LIKE" });
             const searchStr = data.search.toString().trim();
             if (/^\d+$/.test(searchStr)) {
-                nuevosFiltrosAnd.push({ Key: "CXP.ID", Value: searchStr, Operator: "=" });
-                nuevosFiltrosAnd.push({ Key: "Importe", Value: searchStr, Operator: "=" });
+                busqueda.push({ Key: "CXP.ID", Value: searchStr, Operator: "=" });
+                busqueda.push({ Key: "Importe", Value: searchStr, Operator: "=" });
             }
         }
-        if (data.sucursal) nuevosFiltrosAnd.push({ Key: "CXP.Sucursal", Value: data.sucursal, Operator: "LIKE" });
+
+        // Grupo AND: sucursal y fecha deben cumplirse ambos si están presentes.
+        // Antes vivían en el mismo arreglo que la búsqueda con OperadorLogico
+        // "OR", así que una fecha amplia "ganaba" y volvía irrelevante el
+        // filtro de sucursal (y la búsqueda).
+        const otros: Filtro[] = [];
+        if (data.sucursal) otros.push({ Key: "CXP.Sucursal", Value: data.sucursal, Operator: "LIKE" });
         if (data.date) {
-            nuevosFiltrosAnd.push({
+            otros.push({
                 Key: "FechaEmision",
                 Value: data.date,
                 Operator: data.date.includes("AND") ? "BETWEEN" : "="
@@ -201,12 +212,13 @@ export default function Page() {
         setCurrentPage(1);
         setActiveFilters(prev => ({
             ...prev,
-            Filtros: nuevosFiltrosAnd
+            Filtros: busqueda,
+            FiltrosOther: otros,
         }));
     };
 
     const limpiarFiltros = () => {
-        setActiveFilters(prev => ({ ...prev, Filtros: [] }));
+        setActiveFilters(prev => ({ ...prev, Filtros: [], FiltrosOther: [] }));
         setCurrentPage(1);
     };
 
@@ -236,7 +248,7 @@ export default function Page() {
                     <h1 className="flex items-center text-2xl font-bold md:text-3xl dark:text-white">
                         Boveda de pagos
                     </h1>
-                    <label className="flex gap-2 content-between">
+                    <label className="flex flex-col md:flex-row md:items-center gap-2 md:justify-between">
                         <p className="mt-2 text-gray-600 dark:text-gray-200">
                             Gestiona y visualiza todos los pagos realizados, con detalles completos de cada transacción. Utiliza los filtros para encontrar rápidamente la información que necesitas.
                         </p>
@@ -253,174 +265,174 @@ export default function Page() {
 
                 {/* Contenido condicional */}
                 {selectedCategory === "Pagos" ? (
-                <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm">
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm">
                         <article className="p-4">
-                            <span className="mr-4 flex justify-between">
+                            <span className="mb-3 flex flex-col sm:flex-row sm:justify-between gap-2">
                                 <label>
                                     <h2 className="text-lg font-semibold dark:text-white">Gestión de Pagos</h2>
                                     <p className="text-sm text-gray-500">
                                         Mostrando {data.length} de {totalRecords} pagos
                                     </p>
                                 </label>
-                            
+
                             </span>
-                                    {/* Filtros y tabla de pagos */}
-                                    <dt className="relative flex flex-col gap-2">
-                                        <MainForm
-                                            message_button={"Filtrar"}
-                                            onSuccess={loadPago}
-                                            iconButton={<Filter className="mr-1 size-4" />}
-                                            actionType={""}
-                                            flexDirection="flex-row"
-                                            dataForm={[
+                            {/* Filtros y tabla de pagos */}
+                            <dt className="relative flex flex-col gap-2">
+                                <MainForm
+                                    message_button={"Filtrar"}
+                                    onSuccess={loadPago}
+                                    iconButton={<Filter className="mr-1 size-4" />}
+                                    actionType={""}
+                                    flexDirection="flex-row"
+                                    dataForm={[
+                                        {
+                                            type: "Flex",
+                                            require: false,
+                                            elements: [
                                                 {
-                                                    type: "Flex",
-                                                    require: false,
-                                                    elements: [
-                                                        {
-                                                            name: "search",
-                                                            type: "SEARCH",
-                                                            label: "Busqueda rapida",
-                                                            icon: <Search className="size-4" />,
-                                                            placeholder: "Buscar por proveedor, importe, ID...",
-                                                            require: true,
-                                                        },
-                                                        {
-                                                            name: "sucursal",
-                                                            type: "SELECT",
-                                                            label: "Selecciona la sucursal",
-                                                            icon: <Building className="size-4" />,
-                                                            options: [
-                                                                { label: "Mayoreo", value: "4" },
-                                                                { label: "Guadalupe", value: "1" },
-                                                                { label: "Testerazo", value: "2" },
-                                                                { label: "Palmas", value: "3" },
-                                                            ],
-                                                            placeholder: "Todas las sucursales",
-                                                            require: false,
-                                                        },
-                                                        {
-                                                            name: "date",
-                                                            type: "DATE_RANGE",
-                                                            label: "Fecha de Puesto",
-                                                            icon: <Clock className="size-4" />,
-                                                            require: false,
-                                                        },
+                                                    name: "search",
+                                                    type: "SEARCH",
+                                                    label: "Busqueda rapida",
+                                                    icon: <Search className="size-4" />,
+                                                    placeholder: "Buscar por proveedor, importe, ID...",
+                                                    require: true,
+                                                },
+                                                {
+                                                    name: "sucursal",
+                                                    type: "SELECT",
+                                                    label: "Selecciona la sucursal",
+                                                    icon: <Building className="size-4" />,
+                                                    options: [
+                                                        { label: "Mayoreo", value: "4" },
+                                                        { label: "Guadalupe", value: "1" },
+                                                        { label: "Testerazo", value: "2" },
+                                                        { label: "Palmas", value: "3" },
                                                     ],
+                                                    placeholder: "Todas las sucursales",
+                                                    require: false,
+                                                },
+                                                {
+                                                    name: "date",
+                                                    type: "DATE_RANGE",
+                                                    label: "Fecha de Puesto",
+                                                    icon: <Clock className="size-4" />,
+                                                    require: false,
+                                                },
+                                            ],
+                                        },
+                                    ]}
+                                />
+                                <dl className="flex flex-wrap gap-2 sm:ml-auto">
+                                    <Button
+                                        onClick={() => handleOpenModal('nuevo-pago')}
+                                        color="success"
+                                    >
+                                        Nuevo pago <Plus className="size-4" />
+                                    </Button>
+
+                                    <Button
+                                        onClick={() => handleOpenModal('chat-general')}
+                                        color="info"
+                                    >
+                                        Chat <MessageCircle className="size-4" />
+                                    </Button>
+
+                                    <Button
+                                        onClick={limpiarFiltros}
+                                        color="success"
+                                    >
+                                        Limpiar
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleRefetchAll}
+                                        color="success"
+                                    >
+                                        Actualizar <RefreshCw className="size-4" />
+                                    </Button>
+                                </dl>
+                            </dt>
+
+                            <section className="overflow-x-auto">
+                                {isLoading ? (
+                                    <LoadingSection message="Cargando pago..." />
+                                ) : error ? (
+                                    <div className="p-4 text-center">
+                                        <p className="text-red-500 mb-2">{error}</p>
+                                        <Button onClick={fetchData} color="success">
+                                            Reintentar
+                                        </Button>
+                                    </div>
+                                ) : data.length > 0 ? (
+                                    <dt className="flex flex-col gap-2">
+                                        <DynamicTable
+                                            data={data}
+                                            onRowClick={(data) => handleOpenModal('detalles-pago', data.ID[0])}
+                                            contextMenuItems={(row) => [
+                                                {
+                                                    label: 'Copiar',
+                                                    icon: <Copy size={16} />,
+                                                    onClick: () => handleCopyId(row.ID[0]),
+                                                },
+                                                {
+                                                    label: 'Ver detalles',
+                                                    icon: <FileText size={16} />,
+                                                    onClick: () => handleOpenModal('detalles-pago', row.ID[0]),
                                                 },
                                             ]}
                                         />
-                                        <dl className="flex gap-2 ml-auto">
-                                            <Button
-                                                onClick={() => handleOpenModal('nuevo-pago')}
-                                                color="success"
-                                            >
-                                                Nuevo pago <Plus className="size-4" />
-                                            </Button>
-
-                                            <Button
-                                                onClick={() => handleOpenModal('chat-general')}
-                                                color="info"
-                                            >
-                                                Chat <MessageCircle className="size-4" />
-                                            </Button>
-
-                                            <Button
-                                                onClick={limpiarFiltros}
-                                                color="success"
-                                            >
-                                                Limpiar
-                                            </Button>
-
-                                            <Button
-                                                onClick={handleRefetchAll}
-                                                color="success"
-                                            >
-                                                Actualizar <RefreshCw className="size-4" />
-                                            </Button>
-                                        </dl>
+                                        <Pagination
+                                            currentPage={currentPage}
+                                            loading={isLoading}
+                                            setCurrentPage={setCurrentPage}
+                                            currentPageSize={pageSize}
+                                            onPageSizeChange={setPageSize}
+                                            totalPages={totalPages}
+                                        />
                                     </dt>
+                                ) : (
+                                    <div className="p-8 text-center">
+                                        <p className="text-gray-500 mb-4">No se encontraron pago con los filtros aplicados.</p>
+                                        <button
+                                            onClick={limpiarFiltros}
+                                            className="text-green-600 hover:text-green-800 underline"
+                                        >
+                                            Ver todos los pago
+                                        </button>
+                                    </div>
+                                )}
+                            </section>
 
-                                    <section className="overflow-x-auto">
-                                        {isLoading ? (
-                                            <LoadingSection message="Cargando pago..." />
-                                        ) : error ? (
-                                            <div className="p-4 text-center">
-                                                <p className="text-red-500 mb-2">{error}</p>
-                                                <Button onClick={fetchData} color="success">
-                                                    Reintentar
-                                                </Button>
-                                            </div>
-                                        ) : data.length > 0 ? (
-                                            <dt className="flex flex-col gap-2">
-                                                <DynamicTable
-                                                    data={data}
-                                                    onRowClick={(data) => handleOpenModal('detalles-pago', data.ID[0])}
-                                                    contextMenuItems={(row) => [
-                                                        {
-                                                            label: 'Copiar',
-                                                            icon: <Copy size={16} />,
-                                                            onClick: () => handleCopyId(row.ID[0]),
-                                                        },
-                                                        {
-                                                            label: 'Ver detalles',
-                                                            icon: <FileText size={16} />,
-                                                            onClick: () => handleOpenModal('detalles-pago', row.ID[0]),
-                                                        },
-                                                    ]}
-                                                />
-                                                <Pagination
-                                                    currentPage={currentPage}
-                                                    loading={isLoading}
-                                                    setCurrentPage={setCurrentPage}
-                                                    currentPageSize={pageSize}
-                                                    onPageSizeChange={setPageSize}
-                                                    totalPages={totalPages}
-                                                />
-                                            </dt>
-                                        ) : (
-                                            <div className="p-8 text-center">
-                                                <p className="text-gray-500 mb-4">No se encontraron pago con los filtros aplicados.</p>
-                                                <button
-                                                    onClick={limpiarFiltros}
-                                                    className="text-green-600 hover:text-green-800 underline"
-                                                >
-                                                    Ver todos los pago
-                                                </button>
-                                            </div>
-                                        )}
-                                    </section>
+                            {/* Modales exclusivos de pagos */}
+                            <Modal
+                                modalName="detalles-pago"
+                                title="Detalles del Pago"
+                                maxWidth="5xl"
+                            >
+                                {pagoseleccionado ? (
+                                    <DetallesPago selectedPago={pagoseleccionado} />
+                                ) : (
+                                    <div className="p-4 text-center">
+                                        <p className="text-gray-500">No se ha seleccionado ningún pago.</p>
+                                    </div>
+                                )}
+                            </Modal>
 
-                                    {/* Modales exclusivos de pagos */}
-                                    <Modal
-                                        modalName="detalles-pago"
-                                        title="Detalles del Pago"
-                                        maxWidth="5xl"
-                                    >
-                                        {pagoseleccionado ? (
-                                            <DetallesPago selectedPago={pagoseleccionado} />
-                                        ) : (
-                                            <div className="p-4 text-center">
-                                                <p className="text-gray-500">No se ha seleccionado ningún pago.</p>
-                                            </div>
-                                        )}
-                                    </Modal>
+                            <Modal
+                                modalName="nuevo-pago"
+                                title="Agregar Nuevo Pago"
+                                maxWidth="lg"
+                            >
+                                <></>
+                            </Modal>
 
-                                    <Modal
-                                        modalName="nuevo-pago"
-                                        title="Agregar Nuevo Pago"
-                                        maxWidth="lg"
-                                    >
-                                        <></>
-                                    </Modal>
-
-                                    <Modal
-                                        modalName="chat-general"
-                                        title="Chat General"
-                                        maxWidth="xl"
-                                    >
-                                        <></>
-                                    </Modal>
+                            <Modal
+                                modalName="chat-general"
+                                title="Chat General"
+                                maxWidth="xl"
+                            >
+                                <></>
+                            </Modal>
                         </article>
                     </div>
                 ) : (

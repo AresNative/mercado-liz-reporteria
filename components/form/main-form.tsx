@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useImperativeHandle, useState } from "react";
+import React, { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { CircleCheckBig } from "lucide-react";
 
@@ -125,6 +125,20 @@ export const MainForm = React.forwardRef(({
   const [putInt] = usePutIntelisisMutation();
   const [postImg] = usePostImgMutation(); // Hook para subir imágenes
 
+  const submitAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    return () => {
+      submitAbortRef.current?.abort();
+    };
+  }, []);
+
+  function newSubmitSignal(): AbortSignal {
+    submitAbortRef.current?.abort();
+    const controller = new AbortController();
+    submitAbortRef.current = controller;
+    return controller.signal;
+  }
+
   async function getMutationFunction(actionType: string, data: FormData | any) {
     const { id, ...restData } = data;
     switch (actionType) {
@@ -136,13 +150,13 @@ export const MainForm = React.forwardRef(({
         return await postGeneral({
           table: table,
           data: data,
-          signal: new AbortController().signal,
+          signal: newSubmitSignal(),
         }).unwrap();
       case "post-intelisis":
         return await portInt({
           table: table,
           data: data,
-          signal: new AbortController().signal,
+          signal: newSubmitSignal(),
         }).unwrap();
       case "put-general":
         return await putGeneral({
@@ -151,7 +165,7 @@ export const MainForm = React.forwardRef(({
             Data: restData,
             Filtros: [{ Key: "id", Value: aditionalData.id, Operator: "=" }]
           },
-          signal: new AbortController().signal,
+          signal: newSubmitSignal(),
         }).unwrap();
       case "put-intelisis":
         return await putInt({
@@ -160,7 +174,7 @@ export const MainForm = React.forwardRef(({
             Data: restData,
             Filtros: [{ Key: "id", Value: aditionalData.id, Operator: "=" }]
           },
-          signal: new AbortController().signal,
+          signal: newSubmitSignal(),
         }).unwrap();
       default:
         return data;
@@ -186,7 +200,7 @@ export const MainForm = React.forwardRef(({
       tabla,
       descripcion,
       file: formData, // Aquí va el FormData completo
-      signal: new AbortController().signal,
+      signal: newSubmitSignal(),
     }).unwrap();
   }
 
@@ -342,7 +356,11 @@ export const MainForm = React.forwardRef(({
       onSubmit={handleSubmit(onSubmit)}
       method="post"
       className={cn(
-        "relative flex w-full my-2 m-auto gap-2",
+        // `flex-wrap` es nuevo: antes, con flexDirection="flex-row" (como
+        // los filtros de page.tsx/transferencia-page.tsx), los campos se
+        // comprimían o desbordaban horizontalmente en mobile porque nunca
+        // pasaban a una segunda línea.
+        "relative flex w-full my-2 m-auto gap-2 flex-wrap",
         flexDirection,
         // En row, necesitamos items-end para que el div del botón se alinee abajo
         flexDirection === "flex-row" && "items-end"

@@ -9,21 +9,17 @@ const { api_int: apiUrl } = EnvConfig();
 export const api_int = createApi({
   reducerPath: "api_int",
   refetchOnFocus: true,
-  keepUnusedDataFor: 10, // Reducir tiempo de caché para datos no usados
-  refetchOnMountOrArgChange: true, // Mejor control de refetch
+  keepUnusedDataFor: 10,
+  refetchOnMountOrArgChange: true,
   baseQuery: fetchBaseQuery({
     baseUrl: apiUrl,
     prepareHeaders: async (headers) => {
       headers.set("Content-Type", "application/json");
 
-      // Obtener token de cookies primero
       let token = await getCookie("token");
 
-      // Si no hay token en cookies, buscar en localStorage
       if (!token) {
         const userData = getLocalStorageItem(USER_DATA_KEY);
-
-        // userData es un objeto, necesitamos extraer el token
         if (userData && typeof userData === "object" && userData.token) {
           token = userData.token;
         }
@@ -41,7 +37,7 @@ export const api_int = createApi({
       query: ({ url, filters, signal, page, pageSize, sum, distinct }) => ({
         url: `v2/${url}`,
         method: "POST",
-        params: { sum, page, pageSize, distinct }, // Mejor práctica para parámetros
+        params: { sum, page, pageSize, distinct },
         body: filters,
         signal,
       }),
@@ -76,7 +72,7 @@ export const api_int = createApi({
           page,
           pageSize,
           listaPrecio,
-          filtro, // codigo de barras o nombre
+          filtro,
         },
         signal,
       }),
@@ -91,9 +87,9 @@ export const api_int = createApi({
         url: `/v1/consultar`,
         method: "POST",
         params: {
-          fromClause: table, // tabla a consultar
+          fromClause: table,
         },
-        body: { ...filtros, page, pageSize }, // Enviar filtros en el body
+        body: { ...filtros, page, pageSize },
         signal,
       }),
       transformErrorResponse: (response: any) => ({
@@ -126,5 +122,5 @@ export const {
   usePostIntelisisMutation,
   useGetArticulosQuery,
   useGetWithFiltersIntelisisMutation,
-  usePutIntelisisMutation
+  usePutIntelisisMutation,
 } = api_int;
