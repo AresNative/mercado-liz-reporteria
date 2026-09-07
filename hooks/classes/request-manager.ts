@@ -84,7 +84,11 @@ export class RequestManager {
     const body = { ...payload, signal: controller.signal };
     this.activeControllers.set(requestId, controller);
 
-    const promise = safeCall(() => this.getData(body), requestId)
+    const promise = safeCall(
+      () => this.getData(body),
+      requestId,
+      controller.signal,
+    )
       .then((response) => {
         if (controller.signal.aborted) {
           return {

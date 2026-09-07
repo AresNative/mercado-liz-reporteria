@@ -16,10 +16,6 @@ export function useDebounce<T>(value: T, delay = 500): T {
   return debouncedValue;
 }
 
-// Error enriquecido: además del mensaje, expone si la causa fue que el
-// servidor (p.ej. Intelisis) no respondió, para que la UI pueda mostrar
-// un mensaje distinto ("está caído, reintenta más tarde") de un error de
-// datos/validación.
 export class SafeCallError extends Error {
   isServerDown: boolean;
   context: string;
@@ -32,36 +28,52 @@ export class SafeCallError extends Error {
   }
 }
 
+// use-debounce.ts (versión mejorada)
+
 export async function safeCall<T>(
   fn: () => Promise<T>,
   context: string,
+  signal?: AbortSignal,
 ): Promise<T> {
-  try {
-    const res: any = await fn();
+  // Si la señal ya está abortada, lanzamos inmediatamente
+  if (signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
 
-    if (res && "error" in res) {
-      // res.error viene de transformErrorResponse en api_int.ts:
-      // { status, message, isServerDown }
-      const apiError = res.error || {};
-      const message = apiError.message || `Error en ${context}`;
-      throw new SafeCallError(message, context, Boolean(apiError.isServerDown));
+  // Creamos una promesa que se rechaza cuando la señal se aborta
+  let abortListener: (() => void) | undefined;
+  const abortPromise = new Promise<never>((_, reject) => {
+    if (signal) {
+      abortListener = () => reject(new DOMException('Aborted', 'AbortError'));
+      signal.addEventListener('abort', abortListener);
     }
-    return res;
-  } catch (err: any) {
-    if (err?.name === "AbortError") throw err; // dejar pasar cancelaciones tal cual
+  });
 
+  try {
+    // Competimos entre la función original y la promesa de aborto
+    return await Promise.race([fn(), abortPromise]);
+  } catch (err: any) {
+    // Si es AbortError, lo relanzamos tal cual
+    if (err?.name === 'AbortError') throw err;
+
+    // Si ya es SafeCallError, lo relanzamos
     if (err instanceof SafeCallError) throw err;
 
-    /* console.error(`❌ ${context}:`, err); */
-    // Errores de red "crudos" (fetch falló antes de llegar a RTK Query) también
-    // cuentan como servidor caído / inalcanzable.
-    const looksLikeNetworkFailure =
-      err?.message?.toLowerCase?.().includes("fetch") ||
-      err?.message?.toLowerCase?.().includes("network");
+    // Detección mejorada de error de red / servidor caído
+    const isNetworkError =
+      err instanceof TypeError ||
+      err?.message?.toLowerCase?.().includes('fetch') ||
+      err?.message?.toLowerCase?.().includes('network') ||
+      err?.status === 0;
+
     throw new SafeCallError(
       err.message || `Fallo en ${context}`,
       context,
-      looksLikeNetworkFailure,
+      isNetworkError,
     );
+  } finally {
+    if (abortListener && signal) {
+      signal.removeEventListener('abort', abortListener);
+    }
   }
 }

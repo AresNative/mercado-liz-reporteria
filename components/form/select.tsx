@@ -36,11 +36,9 @@ export function SelectComponent(props: SearchableSelectProps) {
                 .split(",")
                 .map((p: any) => p.trim())
                 .filter(Boolean);
-
             setSkills(cuestion.multi ? parts : parts.slice(0, 1));
         }
     }, [cuestion.valueDefined]);
-
     // ----------------------------------------
     // 🔹 Enviar valor a react-hook-form cuando cambia
     // ----------------------------------------
