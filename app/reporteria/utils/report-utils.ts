@@ -248,6 +248,39 @@ export const REPORT_CONFIGS: Record<
   },
 };
 
+// app/analisis/utils/report-utils.ts
+
+export const SUGGESTION_CONFIGS: Record<
+  REPORT,
+  {
+    table: string;
+    searchFields: string[]; // campos para LIKE y para seleccionar
+  }
+> = {
+  venta: {
+    // Solo necesitamos ART y ventad (para el código de artículo)
+    table: `ART`,
+    searchFields: ["ART.Descripcion1", "ART.Articulo"],
+  },
+  compra: {
+    // Similar a venta, pero podría incluir PROV para nombre de proveedor
+    table: `COMPRAD AS comprad INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN PROV AS P ON comprad.Proveedor = P.Proveedor`,
+    searchFields: ["ART.Descripcion1", "ART.Articulo", "P.Nombre"],
+  },
+  merma: {
+    table: `INVD AS invd INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
+    searchFields: ["art.Descripcion1", "invd.Articulo"],
+  },
+  "merma no conocida": {
+    table: `INVD AS invd INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
+    searchFields: ["art.Descripcion1", "invd.Articulo"],
+  },
+  inventario: {
+    table: `INVD AS invd INNER JOIN Art AS art ON art.Articulo = invd.Articulo`,
+    searchFields: ["art.Descripcion1", "invd.Articulo"],
+  },
+};
+
 // ─── Columnas sintéticas ──────────────────────────────────────────────────────
 
 export const SYNTHETIC_COLUMNS: {

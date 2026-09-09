@@ -3,7 +3,7 @@
 
 import Footer from "@/template/footer";
 import Header from "@/template/header";
-import { RequestPayload, useManagmentRead } from "@/hooks/classes/api";
+import { RequestPayload } from "@/hooks/classes/api";
 import {
     useCallback,
     useEffect,
@@ -16,7 +16,6 @@ import Pagination from "@/components/pagination";
 import { formatValue } from "@/utils/constants/format-values";
 import {
     RefreshCw,
-    Loader2,
     Search,
     Calendar,
     Eye,
@@ -29,7 +28,7 @@ import { Button } from "@/components/button";
 import MainForm from "@/components/form/main-form";
 import { ArrayColumnDisplay } from "@/components/table/toggle-view";
 import KardexStats from "./components/kardex-stats";
-import { Field } from "@/utils/types/interfaces";
+import { Field, SelectOption } from "@/utils/types/interfaces";
 import dynamic from "next/dynamic";
 import { useModalTrigger } from "@/hooks/use-modal-trigger";
 import {
@@ -45,9 +44,11 @@ import {
     getDefaultDateRangeValue,
     getHiddenAggregations,
     buildFiltrosAnd,
+    SUGGESTION_CONFIGS,
 } from "./utils/report-utils";
 import { useForm } from "react-hook-form";
 import { useSuggestions } from "./utils/use-suggestions"; // <-- NUEVO HOOK
+import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
 
 const ScoreCard = dynamic(() => import("./components/modal-scorecard"), {
     ssr: false,
@@ -58,12 +59,12 @@ const ModalReporting = dynamic(
 );
 
 export default function Analisis() {
-    const [manager] = useManagmentRead();
     const { watch } = useForm();
 
     const scoreCardModal = useModalTrigger("scorecard");
     const reportingModal = useModalTrigger("reporting");
 
+    const [getWithFilter] = useGetWithFiltersIntelisisMutation();
     // Estados de UI
     const [totalPages, setTotalPages] = useState(0);
     const [pageSize, setPageSize] = useState<number>(10);
@@ -110,13 +111,6 @@ export default function Analisis() {
         Record<string, Record<string, ArrayColumnDisplay>>
     >({});
 
-    // --- Sugerencias en tiempo real usando el nuevo hook ---
-    const searchValue = watch("search"); // valor en vivo del campo
-    const searchSuggestions = useSuggestions(
-        selectedReport,
-        searchValue || "",
-        activeFilters
-    );
 
     // Funciones de acceso y mutación para modos de visualización de arrays
     const getCurrentArrayDisplayModes = useCallback(
@@ -185,9 +179,55 @@ export default function Analisis() {
         [selectedReport]
     );
 
+    // --- Sugerencias en tiempo real usando el nuevo hook ---
+    const searchValue = watch("search");
+    const searchSuggestions = useCallback(
+        async (term: string): Promise<SelectOption[]> => {
+            if (!term || term.length < 2) return [];
+
+            const config = SUGGESTION_CONFIGS[selectedReport];
+            if (!config) return [];
+
+            const searchFields = SEARCH_FIELDS_MAP[selectedReport] || [];
+            if (searchFields.length < 2) return []; // necesitamos al menos dos campos
+
+            const filtrosOr: Filtro[] = searchFields.map((field) => ({
+                Key: field,
+                Operator: "LIKE",
+                Value: term,
+            }));
+
+            const payload: RequestPayload = {
+                table: config.table,
+                filtros: {
+                    FiltrosAnd: [
+                        {
+                            Filtros: filtrosOr,
+                            OperadorLogico: "OR",
+                        },
+                    ],
+                    agregaciones: searchFields.map((field) => ({ Key: field, Alias: field, Operation: "DISTINCT" })),
+                },
+                page: 1,
+                pageSize: 25,
+            };
+
+            try {
+                const { data } = await getWithFilter(payload);
+                const items = await data.data; // revisar si realmente hace falta await
+                return items.map((item: any) => ({
+                    label: item[searchFields[0]], // clave completa
+                    value: item[searchFields[0]], // clave completa
+                }));
+            } catch (error) {
+                console.error("Error al obtener sugerencias:", error);
+                return [];
+            }
+        },
+        [selectedReport, getWithFilter]
+    );
     // --- Fetch de datos de tabla ---
     const fetchTableData = useCallback(async () => {
-
         setTableError(null);
         setTableLoading(true);
 
@@ -300,12 +340,12 @@ export default function Analisis() {
         };
 
         try {
-            const { promise } = await manager.execute(payload);
-            const response: any = await promise;
+            const { data } = await getWithFilter(payload);
+            const response: any = await data;
             const activeVisible = visibleKeys.length > 0 ? new Set(visibleKeys) : null;
 
             const formattedData =
-                response.data.data.map((item: any) => {
+                response.data.map((item: any) => {
                     const {
                         ["Nombre Sucursal"]: NombreSucursal,
                         Sucursal,
@@ -411,14 +451,12 @@ export default function Analisis() {
         selectedReport,
         currentPage,
         pageSize,
-        manager,
         activeFilters,
         getCurrentVisibility,
         getCurrentArrayDisplayModes,
     ]);
 
     // --- Fetch de estadísticas ---
-
     const fetchStatsData = useCallback(async () => {
         const config = REPORT_CONFIGS[selectedReport];
         if (!config) return;
@@ -437,9 +475,8 @@ export default function Analisis() {
         };
 
         try {
-            const { promise } = await manager.execute(payload);
-            const response: any = await promise;
-            const formattedData = response.data.data.map((out: any) => {
+            const { data } = await getWithFilter(payload);
+            const formattedData = data.data.map((out: any) => {
                 const totalVentas = out["Total Ventas"];
                 const totalCosto = out["Total Costo"];
                 const data: any = { ...out };
@@ -459,7 +496,7 @@ export default function Analisis() {
         } catch (err: any) {
             if (err?.name === "AbortError") return;
         }
-    }, [selectedReport, currentPage, pageSize, activeFilters, manager]);
+    }, [selectedReport, currentPage, pageSize, activeFilters]);
 
     // Efectos para cargar datos al cambiar dependencias
     useEffect(() => {
@@ -471,7 +508,7 @@ export default function Analisis() {
     }, [fetchStatsData]);
 
     // --- Configuración del formulario de filtros ---
-    const dataFormConfig: Field[] = useMemo(
+    const dataFormConfig: any = useMemo(
         () => [
             {
                 require: false,
@@ -510,10 +547,8 @@ export default function Analisis() {
                 ],
             },
         ],
-        [formValues, searchSuggestions]
+        [formValues, searchValue, searchSuggestions]
     );
-
-    // --- Render ---
     return (
         <>
             <Header />

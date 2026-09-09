@@ -1,7 +1,6 @@
 // hooks/useSuggestions.ts
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useManagmentRead } from "@/hooks/classes/api";
-import { safeCall } from "@/hooks/use-debounce";
 import { REPORT, ActiveFilters, REPORT_CONFIGS, SEARCH_FIELDS_MAP, buildFiltrosAnd, SUGGESTIONS_LIMIT } from "./report-utils";
 
 // Caché simple: clave -> array de sugerencias
@@ -19,7 +18,7 @@ export function useSuggestions(
 
   const fetchSuggestions = useCallback(async () => {
     // Si no hay término de búsqueda, limpiar y salir
-    const trimmed = searchTerm.trim();
+    const trimmed = searchTerm;
     if (!trimmed) {
       setSuggestions([]);
       return;
@@ -75,10 +74,7 @@ export function useSuggestions(
 
     try {
       const { promise } = await manager.execute(payload);
-      const response: any = await safeCall(
-        () => promise,
-        `suggestions/${selectedReport}`,
-      );
+      const response: any = await promise;
       if (abortRef.current?.signal.aborted) return;
 
       // Extraer valores únicos de todas las columnas devueltas

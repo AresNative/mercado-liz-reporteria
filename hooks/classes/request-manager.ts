@@ -54,13 +54,10 @@ export class RequestManager {
 
   execute<T = any>(
     payload: Omit<RequestPayload, "signal">,
-    key?: string,
     options?: { skipCache?: boolean },
   ): { promise: Promise<ApiResponse<T>>; cancel: () => void } {
     const cacheKey = this.cacheKeyFor(payload);
-    const requestId = key ?? uuidv4();
-
-    if (key) this.cancel(key);
+    const requestId = uuidv4();
 
     if (!options?.skipCache) {
       const cached = this.cache.get(cacheKey);
@@ -84,11 +81,7 @@ export class RequestManager {
     const body = { ...payload, signal: controller.signal };
     this.activeControllers.set(requestId, controller);
 
-    const promise = safeCall(
-      () => this.getData(body),
-      requestId,
-      controller.signal,
-    )
+    const promise =  this.getData(body)
       .then((response) => {
         if (controller.signal.aborted) {
           return {
