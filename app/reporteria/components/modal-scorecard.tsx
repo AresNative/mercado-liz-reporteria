@@ -410,7 +410,7 @@ const ScoreCard = () => {
                     // vieja de verdad en vez de solo llevar un
                     // AbortController local que nunca llegaba a la petición
                     // real (ver hooks/classes/request-manager.ts).
-                    const { promise } = manager.execute<any>(payload, key);
+                    const { promise } = manager.execute<any>(payload);
                     const response = await promise;
                     if (response.error) throw response.error;
                     setRefreshProgress(prev => ({ ...prev, current: idx + 1 }));
