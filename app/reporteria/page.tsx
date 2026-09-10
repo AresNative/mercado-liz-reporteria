@@ -475,7 +475,7 @@ export default function Analisis() {
             setDataTable(formattedData);
             setTotalPages(response.data?.totalPages);
             setTotalRecords(
-                response.data?.totalRecords || response.data?.totalEstimated || 0
+                response?.totalRecords || response?.totalEstimated || 0
             );
         } catch (err: any) {
             if (err?.name === "AbortError" || controller.signal.aborted) return;
@@ -557,42 +557,57 @@ export default function Analisis() {
         fetchStatsData();
     }, [fetchStatsData]);
 
-    // --- Datos para las gráficas (derivados de dataStats) ---
-    // Solo se calculan cuando hay algo que mostrar; el componente de gráfica
-    // en sí se monta bajo demanda (ver showCharts) para no pagar su costo si
-    // el usuario nunca las abre.
     const chartData = useMemo(() => {
-        if (!dataStats || dataStats.length === 0) return null;
+        if (!dataTable || dataTable.length === 0) return null;
 
-        const firstRow = dataStats[0];
-        const numericKeys = Object.keys(firstRow).filter(
-            (key) => typeof firstRow[key] === "number"
+        const groupCandidates = ["Categoria", "Proveedor", "Articulo", "Sucursal"];
+        const groupKey = groupCandidates.find((key) =>
+            dataTable.some((row) => row[key] !== undefined)
         );
-        if (numericKeys.length === 0) return null;
+        if (!groupKey) return null;
 
-        const labelKey = Object.keys(firstRow).find(
-            (key) => typeof firstRow[key] === "string"
+        // Costo/Precio/Cantidad llegan como arreglo [valorNumerico, ...extras]
+        // por las columnas sintéticas; tomamos el primer elemento numérico.
+        const metricCandidates = ["Costo", "Precio", "Cantidad"];
+        const metricKey = metricCandidates.find((key) =>
+            dataTable.some((row) => {
+                const raw = row[key];
+                const val = Array.isArray(raw) ? raw[0] : raw;
+                return typeof val === "number";
+            })
         );
+        if (!metricKey) return null;
 
-        const categories = dataStats.map((row, index) =>
-            labelKey && row[labelKey] ? String(row[labelKey]) : `#${index + 1}`
-        );
+        const totalsByGroup = new Map<string, number>();
+        dataTable.forEach((row) => {
+            const rawGroup = row[groupKey];
+            const label = Array.isArray(rawGroup)
+                ? String(rawGroup[0] ?? "Otro")
+                : String(rawGroup ?? "Otro");
+            const rawMetric = row[metricKey];
+            const value = Array.isArray(rawMetric)
+                ? Number(rawMetric[0]) || 0
+                : Number(rawMetric) || 0;
+            totalsByGroup.set(label, (totalsByGroup.get(label) || 0) + value);
+        });
 
-        const series = numericKeys.slice(0, 4).map((key) => ({
-            name: key,
-            data: dataStats.map((row) => Number(row[key]) || 0),
-        }));
+        // Top 8 categorías por valor, para que el gráfico siga siendo legible.
+        const sorted = Array.from(totalsByGroup.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8);
+        if (sorted.length === 0) return null;
 
-        const treemapSeries = numericKeys.slice(0, 1).map((key) => ({
-            name: key,
-            data: dataStats.map((row, index) => ({
-                x: labelKey && row[labelKey] ? String(row[labelKey]) : `#${index + 1}`,
-                y: Number(row[key]) || 0,
-            })),
-        }));
+        const categories = sorted.map(([label]) => label);
+        const series = [{ name: metricKey, data: sorted.map(([, value]) => value) }];
+        const treemapSeries = [
+            {
+                name: metricKey,
+                data: sorted.map(([label, value]) => ({ x: label, y: value })),
+            },
+        ];
 
-        return { categories, series, treemapSeries };
-    }, [dataStats]);
+        return { categories, series, treemapSeries, groupKey, metricKey };
+    }, [dataTable]);
 
     // --- Configuración del formulario de filtros ---
     const dataFormConfig: any = useMemo(
@@ -725,15 +740,23 @@ export default function Analisis() {
                             type="bar"
                             categories={chartData?.categories || []}
                             data={chartData?.series || []}
-                            title="Comparativo por métrica"
-                            subtitle={`Reporte: ${selectedReport}`}
+                            title={
+                                chartData
+                                    ? `${chartData.metricKey} por ${chartData.groupKey}`
+                                    : "Comparativo"
+                            }
+                            subtitle="Registros de la página actual"
                             loading={tableLoading}
                             emptyMessage="No hay datos para graficar"
                         />
                         <TreemapChart
                             data={chartData?.treemapSeries || []}
-                            title="Distribución"
-                            subtitle={`Reporte: ${selectedReport}`}
+                            title={
+                                chartData
+                                    ? `Distribución de ${chartData.metricKey}`
+                                    : "Distribución"
+                            }
+                            subtitle="Registros de la página actual"
                             loading={tableLoading}
                             emptyMessage="No hay datos para graficar"
                         />
@@ -837,7 +860,7 @@ export default function Analisis() {
                         onArrayDisplayChange={handleArrayDisplayChange}
                     />
 
-                    {!tableLoading && totalRecords > 0 && (
+                    {totalRecords > 0 && (
                         <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
