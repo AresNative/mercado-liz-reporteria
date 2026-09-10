@@ -264,7 +264,7 @@ export const SUGGESTION_CONFIGS: Record<
   },
   compra: {
     // Similar a venta, pero podría incluir PROV para nombre de proveedor
-    table: `COMPRAD AS comprad INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN PROV AS P ON comprad.Proveedor = P.Proveedor`,
+    table: `COMPRA AS compra INNER JOIN ( SELECT c.ID, c.Articulo FROM COMPRAD c WHERE c.ID = (SELECT MAX(c2.ID) FROM COMPRAD c2 WHERE c2.Articulo = c.Articulo ) ) AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
     searchFields: ["ART.Descripcion1", "ART.Articulo", "P.Nombre"],
   },
   merma: {

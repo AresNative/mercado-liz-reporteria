@@ -47,7 +47,6 @@ import {
     SUGGESTION_CONFIGS,
 } from "./utils/report-utils";
 import { useForm } from "react-hook-form";
-import { useSuggestions } from "./utils/use-suggestions"; // <-- NUEVO HOOK
 import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
 
 const ScoreCard = dynamic(() => import("./components/modal-scorecard"), {
