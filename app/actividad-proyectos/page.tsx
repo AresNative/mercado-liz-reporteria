@@ -545,7 +545,7 @@ export default function ActividadProyectosPage() {
                     </div>
                     {showStats && (
                         <BentoGrid cols={2} className="p-0">
-                            <BentoItem colSpan={1} className="h-full items-center">
+                            <BentoItem colSpan={1} className="h-full items-center shadow-0 border-0 p-0 hover:shadow-0 hover:border-0 hover:p-0">
                                 {statsLoading ? (
                                     <div className="h-60 flex items-center justify-center text-gray-400">
                                         Cargando estadísticas...
@@ -555,6 +555,7 @@ export default function ActividadProyectosPage() {
                                         type={stats.tipo}
                                         categories={stats.categories}
                                         data={stats.series}
+                                        height={630}
                                     />
                                 )}
                             </BentoItem>
