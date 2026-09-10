@@ -46,7 +46,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             </div>
         );
     }
-    console.log(userRole);
     
     return (
         <AuthController>

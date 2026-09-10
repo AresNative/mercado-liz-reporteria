@@ -601,14 +601,16 @@ export default function Analisis() {
                             </Button>
                         ))}
                     </li>
-                    <li className="flex flex-wrap gap-2">
-                        <Button color="success" size="small" onClick={reportingModal.open}>
-                            Desglose
-                        </Button>
-                        <Button color="success" size="small" onClick={scoreCardModal.open}>
-                            Score Card
-                        </Button>
-                    </li>
+                    { selectedReport === "venta" && (
+                        <li className="flex flex-wrap gap-2">
+                            <Button color="success" size="small" onClick={reportingModal.open}>
+                                Desglose
+                            </Button>
+                            <Button color="success" size="small" onClick={scoreCardModal.open}>
+                                Score Card
+                            </Button>
+                        </li>
+                    )}
                 </ul>
 
                 <KardexStats
