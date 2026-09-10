@@ -49,8 +49,12 @@ export const MainForm = React.forwardRef(({
   valueAssign,
   onSuccess,
   iconButton,
-  table
-}: MainFormProps, ref: any) => {
+  table,
+  // Si es false, tras un envío exitoso el formulario conserva los valores
+  // que se acaban de enviar en vez de limpiarse (útil para formularios de
+  // filtros, donde "reset()" borraba los inputs en cada Filtrar).
+  resetOnSuccess = true,
+}: MainFormProps & { resetOnSuccess?: boolean }, ref: any) => {
   const dispatch = useAppDispatch()
   const [page, setPage] = useState(0);
   const [formData, setFormData] = useState<any>({}); // Estado para guardar datos
@@ -331,7 +335,16 @@ export const MainForm = React.forwardRef(({
         }));
     } finally {
       setLoading(false);
-      reset();
+      if (resetOnSuccess) {
+        // Comportamiento original: limpia el formulario (útil en altas/creación).
+        reset();
+      } else {
+        // Mantiene y "re-envía" los valores guardados en cada input: en vez de
+        // vaciar el formulario, lo reseteamos usando los mismos valores que
+        // se acaban de enviar, así quedan reflejados y disponibles para el
+        // próximo submit (p. ej. formularios de filtros).
+        reset(submitData);
+      }
     }
   }
 

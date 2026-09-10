@@ -23,6 +23,7 @@ import {
     Package,
     AlertTriangle,
     Filter,
+    BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/button";
 import MainForm from "@/components/form/main-form";
@@ -56,6 +57,15 @@ const ModalReporting = dynamic(
     () => import("./components/modal-reporting").then((m) => m.ModalReporting),
     { ssr: false }
 );
+// Gráficas: se cargan de forma dinámica (y solo se piden cuando el usuario
+// activa el botón "Gráficas") para no pagar el costo de ApexCharts si nadie
+// las usa.
+const DynamicChart = dynamic(() => import("@/components/charts/dynamic"), {
+    ssr: false,
+});
+const TreemapChart = dynamic(() => import("@/components/charts/term"), {
+    ssr: false,
+});
 
 export default function Analisis() {
     const { watch } = useForm();
@@ -70,6 +80,7 @@ export default function Analisis() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
     const [showStats, setShowStats] = useState(true);
+    const [showCharts, setShowCharts] = useState(false);
     const [selectedReport, setSelectedReport] = useState<REPORT>("venta");
     const [tableLoading, setTableLoading] = useState(false);
     const [dataTable, setDataTable] = useState<any[]>([]);
@@ -109,6 +120,19 @@ export default function Analisis() {
     const [arrayDisplayModesByReport, setArrayDisplayModesByReport] = useState<
         Record<string, Record<string, ArrayColumnDisplay>>
     >({});
+
+    // Controllers para poder cancelar la petición anterior (de tabla y de
+    // estadísticas) en cuanto se dispara una nueva, por ejemplo al cambiar de
+    // reporte antes de que la petición previa haya terminado.
+    const tableAbortRef = useRef<AbortController | null>(null);
+    const statsAbortRef = useRef<AbortController | null>(null);
+
+    useEffect(() => {
+        return () => {
+            tableAbortRef.current?.abort();
+            statsAbortRef.current?.abort();
+        };
+    }, []);
 
 
     // Funciones de acceso y mutación para modos de visualización de arrays
@@ -227,6 +251,13 @@ export default function Analisis() {
     );
     // --- Fetch de datos de tabla ---
     const fetchTableData = useCallback(async () => {
+        // Cancela cualquier petición de tabla anterior que siga en vuelo (p.
+        // ej. si el usuario cambió de reporte antes de que respondiera) para
+        // que no llegue a pisar los datos del reporte actual.
+        tableAbortRef.current?.abort();
+        const controller = new AbortController();
+        tableAbortRef.current = controller;
+
         setTableError(null);
         setTableLoading(true);
 
@@ -339,7 +370,13 @@ export default function Analisis() {
         };
 
         try {
-            const { data } = await getWithFilter(payload);
+            const { data } = await getWithFilter({
+                ...payload,
+                signal: controller.signal,
+            } as any);
+            // Si mientras esperábamos la respuesta se lanzó una petición más
+            // nueva (otro reporte/página), descartamos esta por obsoleta.
+            if (controller.signal.aborted) return;
             const response: any = await data;
             const activeVisible = visibleKeys.length > 0 ? new Set(visibleKeys) : null;
 
@@ -441,10 +478,14 @@ export default function Analisis() {
                 response.data?.totalRecords || response.data?.totalEstimated || 0
             );
         } catch (err: any) {
-            if (err?.name === "AbortError") return;
+            if (err?.name === "AbortError" || controller.signal.aborted) return;
             setTableError(err?.message || "Error al cargar los datos");
         } finally {
-            setTableLoading(false);
+            // Evita que una petición cancelada (obsoleta) apague el loading
+            // de la petición nueva que ya está en curso.
+            if (tableAbortRef.current === controller) {
+                setTableLoading(false);
+            }
         }
     }, [
         selectedReport,
@@ -457,6 +498,12 @@ export default function Analisis() {
 
     // --- Fetch de estadísticas ---
     const fetchStatsData = useCallback(async () => {
+        // Igual que en fetchTableData: cancela la petición de estadísticas
+        // anterior si todavía sigue en vuelo.
+        statsAbortRef.current?.abort();
+        const controller = new AbortController();
+        statsAbortRef.current = controller;
+
         const config = REPORT_CONFIGS[selectedReport];
         if (!config) return;
 
@@ -474,7 +521,11 @@ export default function Analisis() {
         };
 
         try {
-            const { data } = await getWithFilter(payload);
+            const { data } = await getWithFilter({
+                ...payload,
+                signal: controller.signal,
+            } as any);
+            if (controller.signal.aborted) return;
             const formattedData = data.data.map((out: any) => {
                 const totalVentas = out["Total Ventas"];
                 const totalCosto = out["Total Costo"];
@@ -493,7 +544,7 @@ export default function Analisis() {
             });
             setDataStats(formattedData);
         } catch (err: any) {
-            if (err?.name === "AbortError") return;
+            if (err?.name === "AbortError" || controller.signal.aborted) return;
         }
     }, [selectedReport, currentPage, pageSize, activeFilters]);
 
@@ -505,6 +556,43 @@ export default function Analisis() {
     useEffect(() => {
         fetchStatsData();
     }, [fetchStatsData]);
+
+    // --- Datos para las gráficas (derivados de dataStats) ---
+    // Solo se calculan cuando hay algo que mostrar; el componente de gráfica
+    // en sí se monta bajo demanda (ver showCharts) para no pagar su costo si
+    // el usuario nunca las abre.
+    const chartData = useMemo(() => {
+        if (!dataStats || dataStats.length === 0) return null;
+
+        const firstRow = dataStats[0];
+        const numericKeys = Object.keys(firstRow).filter(
+            (key) => typeof firstRow[key] === "number"
+        );
+        if (numericKeys.length === 0) return null;
+
+        const labelKey = Object.keys(firstRow).find(
+            (key) => typeof firstRow[key] === "string"
+        );
+
+        const categories = dataStats.map((row, index) =>
+            labelKey && row[labelKey] ? String(row[labelKey]) : `#${index + 1}`
+        );
+
+        const series = numericKeys.slice(0, 4).map((key) => ({
+            name: key,
+            data: dataStats.map((row) => Number(row[key]) || 0),
+        }));
+
+        const treemapSeries = numericKeys.slice(0, 1).map((key) => ({
+            name: key,
+            data: dataStats.map((row, index) => ({
+                x: labelKey && row[labelKey] ? String(row[labelKey]) : `#${index + 1}`,
+                y: Number(row[key]) || 0,
+            })),
+        }));
+
+        return { categories, series, treemapSeries };
+    }, [dataStats]);
 
     // --- Configuración del formulario de filtros ---
     const dataFormConfig: any = useMemo(
@@ -567,6 +655,15 @@ export default function Analisis() {
                             )}
                             <span className="hidden sm:inline">Estadísticas</span>
                         </button>
+                        <button
+                            onClick={() => setShowCharts((prev) => !prev)}
+                            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+                        >
+                            <BarChart3 className="h-4 w-4" />
+                            <span className="hidden sm:inline">
+                                {showCharts ? "Ocultar gráficas" : "Ver gráficas"}
+                            </span>
+                        </button>
                     </dl>
                     <dl className="flex gap-2">
                         <Button
@@ -601,7 +698,7 @@ export default function Analisis() {
                             </Button>
                         ))}
                     </li>
-                    { selectedReport === "venta" && (
+                    {selectedReport === "venta" && (
                         <li className="flex flex-wrap gap-2">
                             <Button color="success" size="small" onClick={reportingModal.open}>
                                 Desglose
@@ -619,6 +716,30 @@ export default function Analisis() {
                     show={showStats}
                 />
 
+                {/* Gráficas: no se montan hasta que el usuario las activa con el
+                    botón "Ver gráficas", así no se paga el costo de ApexCharts
+                    (bundle + render) si nadie las necesita. */}
+                {showCharts && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+                        <DynamicChart
+                            type="bar"
+                            categories={chartData?.categories || []}
+                            data={chartData?.series || []}
+                            title="Comparativo por métrica"
+                            subtitle={`Reporte: ${selectedReport}`}
+                            loading={tableLoading}
+                            emptyMessage="No hay datos para graficar"
+                        />
+                        <TreemapChart
+                            data={chartData?.treemapSeries || []}
+                            title="Distribución"
+                            subtitle={`Reporte: ${selectedReport}`}
+                            loading={tableLoading}
+                            emptyMessage="No hay datos para graficar"
+                        />
+                    </div>
+                )}
+
                 <div className="relative flex flex-col rounded-xl border gap-3 border-gray-200 bg-white shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
                     <MainForm
                         actionType=""
@@ -627,10 +748,23 @@ export default function Analisis() {
                         dataForm={dataFormConfig}
                         message_button="Filtrar"
                         iconButton={<Filter className="mr-1 h-4 w-4" />}
+                        // Este es un formulario de filtros, no de alta: tras filtrar
+                        // no queremos que se borren los campos, sino que se
+                        // mantengan (y se sigan enviando) los valores que el
+                        // usuario ya escribió/seleccionó.
+                        resetOnSuccess={false}
                         onSuccess={(rows: any) => {
                             const { almacen, search, dateRange } = rows;
+                            // Para cada campo: si el form no trae un valor nuevo,
+                            // se conserva el último valor guardado (formValues) en
+                            // vez de perderlo, y ese valor guardado es el que se
+                            // envía en el filtro.
                             const effectiveDateRange =
                                 dateRange || formValues.dateRange || getDefaultDateRangeValue();
+                            const effectiveAlmacen =
+                                almacen !== undefined ? almacen : formValues.almacen || "";
+                            const effectiveSearch =
+                                search !== undefined ? search : formValues.search || "";
 
                             const filtrosAnd: Filtro[] = [
                                 {
@@ -640,18 +774,18 @@ export default function Analisis() {
                                 },
                             ];
                             const almacenField = ALMACEN_FIELD_MAP[selectedReport];
-                            if (almacen && almacenField) {
+                            if (effectiveAlmacen && almacenField) {
                                 filtrosAnd.push({
                                     Key: almacenField,
                                     Operator: "=",
-                                    Value: almacen,
+                                    Value: effectiveAlmacen,
                                 });
                             }
 
                             const filtrosOr: Filtro[] = [];
-                            if (search) {
+                            if (effectiveSearch) {
                                 const searchFields = SEARCH_FIELDS_MAP[selectedReport] || [];
-                                const searchTerms = search
+                                const searchTerms = effectiveSearch
                                     .split(",")
                                     .map((term: string) => term.trim())
                                     .filter(Boolean);
@@ -674,8 +808,8 @@ export default function Analisis() {
 
                             setFormValues({
                                 dateRange: effectiveDateRange,
-                                almacen: almacen || "",
-                                search: search || "",
+                                almacen: effectiveAlmacen,
+                                search: effectiveSearch,
                             });
 
                             setCurrentPage(1);
