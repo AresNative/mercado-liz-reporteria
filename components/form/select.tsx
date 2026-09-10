@@ -113,6 +113,18 @@ export function SelectComponent(props: SearchableSelectProps) {
     };
 
     // ----------------------------------------
+    // 🔹 Limpiar selección completa (manual)
+    // ----------------------------------------
+    const handleClear = (e: React.MouseEvent) => {
+        // Evita que el click también dispare toggleDropdown (el botón vive
+        // dentro del mismo contenedor clickeable).
+        e.stopPropagation();
+        setIsTouched(true);
+        setSkills([]);
+        setSearchTerm("");
+    };
+
+    // ----------------------------------------
     // 🔹 Filtrado por búsqueda
     // ----------------------------------------
     const filteredOptions = normalizedOptions.filter((opt) =>
@@ -124,7 +136,7 @@ export function SelectComponent(props: SearchableSelectProps) {
     // ----------------------------------------
     const displayText =
         skills.length === 0
-            ? cuestion.valueDefined ?? `Seleccionar ${cuestion.name}`
+            ? cuestion.placeholder ?? `Seleccionar ${cuestion.name}`
             : cuestion.multi
                 ? `${skills.length} seleccionadas`
                 : skills[0];
@@ -145,7 +157,20 @@ export function SelectComponent(props: SearchableSelectProps) {
                     onClick={toggleDropdown}
                 >
                     <span>{displayText}</span>
-                    <ChevronDown className="w-4 h-4" />
+                    <span className="flex items-center gap-1">
+                        {skills.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={handleClear}
+                                className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                                aria-label="Limpiar selección"
+                                title="Limpiar selección"
+                            >
+                                <X className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                            </button>
+                        )}
+                        <ChevronDown className="w-4 h-4" />
+                    </span>
                 </div>
 
                 {showDropdown && (
