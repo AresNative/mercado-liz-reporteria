@@ -29,7 +29,7 @@ import { Button } from "@/components/button";
 import MainForm from "@/components/form/main-form";
 import { ArrayColumnDisplay } from "@/components/table/toggle-view";
 import KardexStats from "./components/kardex-stats";
-import { Field, SelectOption } from "@/utils/types/interfaces";
+import { SelectOption } from "@/utils/types/interfaces";
 import dynamic from "next/dynamic";
 import { useModalTrigger } from "@/hooks/use-modal-trigger";
 import {
@@ -53,13 +53,9 @@ import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
 const ScoreCard = dynamic(() => import("./components/modal-scorecard"), {
     ssr: false,
 });
-const ModalReporting = dynamic(
-    () => import("./components/modal-reporting").then((m) => m.ModalReporting),
-    { ssr: false }
-);
-// Gráficas: se cargan de forma dinámica (y solo se piden cuando el usuario
-// activa el botón "Gráficas") para no pagar el costo de ApexCharts si nadie
-// las usa.
+const ModalReporting = dynamic(() => import("./components/modal-reporting").then((m) => m.ModalReporting), {
+    ssr: false
+});
 const DynamicChart = dynamic(() => import("@/components/charts/dynamic"), {
     ssr: false,
 });

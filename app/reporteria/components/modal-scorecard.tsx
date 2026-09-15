@@ -200,6 +200,11 @@ const DateRangePicker = ({ value, onChange, onApply, loading, extraActions }: {
 const ScoreCard = () => {
     const [manager] = useManagmentRead();
     const controllersRef = useRef<Map<string, AbortController>>(new Map());
+    // Id incremental por tarjeta: sirve para saber si una respuesta (o un
+    // abort) corresponde a la petición MÁS RECIENTE de esa tarjeta. Sin
+    // esto, cuando una petición se cancelaba se hacía `return` y el
+    // `loading: true` de esa tarjeta ya nunca se apagaba → spinner infinito.
+    const requestIdRef = useRef<Record<string, number>>({});
 
     // Estado de comparación de períodos (usa strings YYYY-MM-DD directamente,
     // sin pasar por Date, para no tener problemas de timezone)
@@ -301,6 +306,7 @@ const ScoreCard = () => {
 
     const fetchComparisonData = useCallback(async () => {
         const qKey = "PERIODOS_SEMANA";
+        controllersRef.current.get(`comparison_${qKey}`)?.abort();
         const controller = new AbortController();
         controllersRef.current.set(`comparison_${qKey}`, controller);
         setComparisonData(prev => ({ ...prev, loading: true, error: null }));
@@ -322,10 +328,18 @@ const ScoreCard = () => {
                 }
             }));
         } catch (err: any) {
-            if (err?.name !== "AbortError")
+            if (err?.name === "AbortError") {
+                // Si nadie tomó el relevo, apagar el loading (si no, el botón
+                // "Comparar" se queda deshabilitado y `anyLoading` nunca baja).
+                if (controllersRef.current.get(`comparison_${qKey}`) === controller)
+                    setComparisonData(prev => ({ ...prev, loading: false }));
+            } else {
                 setComparisonData(prev => ({ ...prev, error: err?.message || "Error desconocido", loading: false }));
+                setQueriesState(prev => ({ ...prev, [qKey]: { ...prev[qKey], loading: false } }));
+            }
         } finally {
-            controllersRef.current.delete(`comparison_${qKey}`);
+            if (controllersRef.current.get(`comparison_${qKey}`) === controller)
+                controllersRef.current.delete(`comparison_${qKey}`);
         }
     }, [manager, comparisonPeriods]);
 
@@ -350,6 +364,8 @@ const ScoreCard = () => {
             const promises = normalKeys.map(async (key, idx) => {
                 const controller = new AbortController();
                 controllersRef.current.set(key, controller);
+                const reqId = (requestIdRef.current[key] ?? 0) + 1;
+                requestIdRef.current[key] = reqId;
                 try {
                     const config = QUERY_CONFIGS[key];
                     const stateSnap = queriesStateRef.current[key];
@@ -414,23 +430,37 @@ const ScoreCard = () => {
                     const response = await promise;
                     if (response.error) throw response.error;
                     setRefreshProgress(prev => ({ ...prev, current: idx + 1 }));
-                    return { key, data: response.data?.data ?? [], totalRecords: response.data?.totalRecords ?? 0, lastUpdated: new Date(), error: null };
+                    return { key, reqId, controller, data: response.data?.data ?? [], totalRecords: response.data?.totalRecords ?? 0, lastUpdated: new Date(), error: null };
                 } catch (err: any) {
-                    if (err?.name === "AbortError") return { key, data: [], totalRecords: 0, lastUpdated: null, error: "__ABORTED__" };
-                    return { key, data: [], totalRecords: 0, lastUpdated: null, error: err?.message || "Error desconocido" };
+                    if (err?.name === "AbortError") return { key, reqId, controller, data: [], totalRecords: 0, lastUpdated: null, error: "__ABORTED__" };
+                    return { key, reqId, controller, data: [], totalRecords: 0, lastUpdated: null, error: err?.message || "Error desconocido" };
                 }
             });
 
             const results = await Promise.all(promises);
             setQueriesState(prev => {
                 const n = { ...prev };
-                results.forEach(({ key, data, totalRecords, lastUpdated, error }) => {
-                    if (error === "__ABORTED__") return;
+                results.forEach(({ key, reqId, data, totalRecords, lastUpdated, error }) => {
+                    // Respuesta vieja: ya hay otra petición en curso para esa
+                    // tarjeta; esa otra será la que actualice el estado.
+                    if (requestIdRef.current[key] !== reqId) return;
+                    if (error === "__ABORTED__") {
+                        // Cancelada y sin reemplazo (cierre del modal / cleanup):
+                        // hay que apagar el loading igual, o la tarjeta se queda
+                        // cargando para siempre.
+                        n[key] = { ...n[key], loading: false };
+                        return;
+                    }
                     n[key] = { ...n[key], data, totalRecords: totalRecords ?? n[key].totalRecords, loading: false, error, lastUpdated };
                 });
                 return n;
             });
-            normalKeys.forEach(k => controllersRef.current.delete(k));
+            // Solo borrar el controller si sigue siendo el de ESTA ejecución
+            // (si no, se estaría borrando el de una petición más nueva y ya no
+            // se podría cancelar).
+            results.forEach(({ key, controller }) => {
+                if (controllersRef.current.get(key) === controller) controllersRef.current.delete(key);
+            });
             setIsRefreshing(false);
             setRefreshProgress({ current: 0, total: 0 });
         },
@@ -447,7 +477,7 @@ const ScoreCard = () => {
             (k) => (debouncedQuickSearch[k] || "") !== (prev[k] || ""),
         );
         prevQuickSearchRef.current = debouncedQuickSearch;
-        if (changedKeys.length && open()) fetchData(changedKeys);
+        if (changedKeys.length) fetchData(changedKeys);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [debouncedQuickSearch]);
 
@@ -460,7 +490,7 @@ const ScoreCard = () => {
             (k) => (almacenSelected[k] || "") !== (prev[k] || ""),
         );
         prevAlmacenRef.current = almacenSelected;
-        if (changedKeys.length && open()) fetchData(changedKeys);
+        if (changedKeys.length) fetchData(changedKeys);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [almacenSelected]);
 
@@ -497,13 +527,24 @@ const ScoreCard = () => {
         fetchData([key]);
     }, [fetchData]);
 
+    // Carga inicial. Este componente SOLO se monta cuando el modal está
+    // abierto (page.tsx: `{scoreCardModal.mounted && <ScoreCard />}`), así que
+    // montarse ya es la señal de "se abrió" y no hace falta ninguna guarda.
+    //
+    // Antes aquí decía `if (open()) { ... }`. `open` no estaba declarado en
+    // ningún lado del componente, así que JS lo resolvía contra el global
+    // `window.open`: cada vez que se entraba al ScoreCard se llamaba a
+    // window.open() y el navegador abría una ventana/pestaña en blanco, y si
+    // el bloqueador de pop-ups la bloqueaba, `open()` devolvía null → la
+    // condición era falsa → las consultas nunca se disparaban y el dashboard
+    // se quedaba "cargando"/vacío.
     useEffect(() => {
-        if (open()) {
-            fetchComparisonData();
-            fetchData(ALL_QUERY_KEYS.filter(k => k !== "PERIODOS_SEMANA"), debouncedDateRange);
-        }
-        return () => { controllersRef.current.forEach(c => c.abort()); controllersRef.current.clear(); };
-    }, [open]);
+        fetchComparisonData();
+        fetchData(ALL_QUERY_KEYS.filter(k => k !== "PERIODOS_SEMANA"), debouncedDateRange);
+        const controllers = controllersRef.current;
+        return () => { controllers.forEach(c => c.abort()); controllers.clear(); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // ── WhatsApp ───────────────────────────────────────────────────────────────
 

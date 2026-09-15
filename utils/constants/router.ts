@@ -158,6 +158,11 @@ export const navigationAdmin = [
     icon: UsersRound,
   },
   {
+    name: "Proveedores sin cuenta",
+    href: "/proveedores-sin-cuenta",
+    icon: Clock10,
+  },
+  {
     name: "Articulos",
     href: "/articulos",
     icon: ShoppingBasket,

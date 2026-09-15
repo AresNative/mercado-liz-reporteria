@@ -568,10 +568,7 @@ export default function ActividadProyectosPage() {
                         </BentoGrid>
                     )}
                 </section>
-            )}
-
-            {/* ─── Resumen por proyecto (solo actividad) ────────────────────────── */}
-           
+            )}       
 
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm p-4">
                 {/* ─── Formulario de filtros ─── */}
