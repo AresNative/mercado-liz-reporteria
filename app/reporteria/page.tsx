@@ -42,6 +42,7 @@ import {
     ALMACEN_FIELD_MAP,
     SEARCH_FIELDS_MAP,
     ALMACENES_OPCIONES,
+    DATE_FIELD_MAP,
     getDefaultDateRangeValue,
     getHiddenAggregations,
     buildFiltrosAnd,

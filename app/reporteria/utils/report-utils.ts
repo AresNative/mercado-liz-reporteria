@@ -6,6 +6,7 @@ import { CONFIG } from "./config-constants";
 
 export type REPORT =
   | "venta"
+  | "no vendido"
   | "compra"
   | "merma"
   | "merma no conocida"
@@ -16,7 +17,6 @@ export interface Filtro {
   Value: any;
   Operator: string;
 }
-
 export interface FiltroGrupo {
   Filtros: Filtro[];
   OperadorLogico: "AND" | "OR";
@@ -33,7 +33,17 @@ export interface DateRange {
   from: Date | null;
   to: Date | null;
 }
-
+// ─── Campo de fecha por reporte ─────────────────────────────────────────────
+// Para reportes cuyo `FROM` no expone un `FechaEmision` directo, se usa
+// un campo equivalente para el filtro de rango por defecto.
+export const DATE_FIELD_MAP: Record<REPORT, string> = {
+  venta: "FechaEmision",
+  compra: "FechaEmision",
+  merma: "FechaEmision",
+  "merma no conocida": "FechaEmision",
+  inventario: "FechaEmision",
+  "no vendido": "uc.FechaEmision",
+};
 // ─── Configuración de reportes ──────────────────────────────────────────────
 
 export const REPORT_CONFIGS: Record<
@@ -94,7 +104,41 @@ export const REPORT_CONFIGS: Record<
       Order: [{ Key: "FechaEmision", Direction: "DESC" }],
     },
   },
-
+  "no vendido": {
+    table: `ART AS art LEFT JOIN (SELECT vd.Articulo, MAX(v.FechaEmision) AS UltimaVenta FROM VENTA v INNER JOIN VENTAD vd ON vd.ID = v.ID WHERE v.Estatus = 'CONCLUIDO' GROUP BY vd.Articulo) AS uv ON uv.Articulo = art.Articulo LEFT JOIN (SELECT cd.Articulo, MAX(c.FechaEmision) AS FechaEmision, MAX(c.Proveedor) AS Proveedor FROM COMPRA c INNER JOIN COMPRAD cd ON cd.ID = c.ID WHERE c.Estatus = 'CONCLUIDO' GROUP BY cd.Articulo) AS uc ON uc.Articulo = art.Articulo LEFT JOIN PROV AS P ON uc.Proveedor = P.Proveedor LEFT JOIN (SELECT invd.Articulo, invd.Almacen, invd.Sucursal, invd.Costo, invd.Unidad, invd.Cantidad FROM INVD invd WHERE invd.ID = (SELECT MAX(invd2.ID) FROM INVD invd2 WHERE invd2.Articulo = invd.Articulo)) AS ult_inv ON ult_inv.Articulo = art.Articulo LEFT JOIN Sucursal ON ult_inv.Sucursal = Sucursal.Sucursal`,
+    filtros: {
+      selects: [
+        { Key: "art.Articulo" },
+        { Key: "art.Descripcion1", Alias: "Nombre" },
+        { Key: "art.Categoria" },
+        { Key: "art.Grupo" },
+        { Key: "art.Linea" },
+        { Key: "art.Familia" },
+        { Key: "art.Fabricante" },
+        { Key: "P.Nombre", Alias: "Proveedor Nombre" },
+        { Key: "P.Proveedor" },
+        { Key: "Sucursal.Nombre", Alias: "Nombre Sucursal" },
+        { Key: "ult_inv.Sucursal" },
+        { Key: "ult_inv.Almacen" },
+        // FechaEmision = fecha de la última compra (columna filtrable).
+        { Key: "uc.FechaEmision" },
+        // Fecha de la última venta, como columna adicional de display.
+        { Key: "uv.UltimaVenta", Alias: "Ultima Venta" },
+        { Key: "ult_inv.Costo" },
+        { Key: "ult_inv.Unidad" },
+      ],
+      agregaciones: [
+        { Key: "ult_inv.Cantidad", Alias: "Cantidad", Operation: "SUM" },
+        {
+          Key: "(ult_inv.Costo * ult_inv.Cantidad)",
+          Alias: "Total Costo",
+          Operation: "SUM",
+        },
+      ],
+      Filtros: [],
+      Order: [{ Key: "FechaEmision", Direction: "DESC" }],
+    },
+  },
   compra: {
     table: `COMPRA AS compra INNER JOIN COMPRAD AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor INNER JOIN Sucursal ON comprad.Sucursal = Sucursal.Sucursal`,
     filtros: {
@@ -262,6 +306,10 @@ export const SUGGESTION_CONFIGS: Record<
     table: `ART`,
     searchFields: ["ART.Descripcion1", "ART.Articulo"],
   },
+  "no vendido": {
+    table: `ART`,
+    searchFields: ["ART.Descripcion1", "ART.Articulo"],
+  },
   compra: {
     // Similar a venta, pero podría incluir PROV para nombre de proveedor
     table: `COMPRA AS compra INNER JOIN ( SELECT c.ID, c.Articulo FROM COMPRAD c WHERE c.ID = (SELECT MAX(c2.ID) FROM COMPRAD c2 WHERE c2.Articulo = c.Articulo ) ) AS comprad ON comprad.ID = compra.ID INNER JOIN ART AS ART ON comprad.Articulo = ART.Articulo LEFT JOIN PROV AS P ON compra.Proveedor = P.Proveedor`,
@@ -325,6 +373,7 @@ export const ALMACEN_FIELD_MAP: Record<REPORT, string> = {
   merma: "Sucursal.Nombre",
   "merma no conocida": "Sucursal.Nombre",
   inventario: "Sucursal.Nombre",
+  "no vendido": "Sucursal.Nombre",
 };
 
 // ─── Mapeo de campos de búsqueda por reporte ────────────────────────────────
@@ -335,6 +384,7 @@ export const SEARCH_FIELDS_MAP: Record<REPORT, string[]> = {
   merma: ["art.Descripcion1", "art.Articulo"],
   "merma no conocida": ["art.Descripcion1", "art.Articulo"],
   inventario: ["art.Descripcion1", "art.Articulo"],
+  "no vendido": ["art.Descripcion1", "art.Articulo"],
 };
 
 // ─── Opciones de almacenes ──────────────────────────────────────────────────
@@ -358,14 +408,18 @@ export const getDefaultDateRangeValue = (): string => {
 export const buildFiltrosAnd = (
   baseFiltros: any,
   activeFilters: ActiveFilters,
+  dateField: string = "FechaEmision",
 ): FiltroGrupo[] => {
+  // Reemplaza el `FechaEmision` genérico por el campo correcto del reporte.
+  const remap = (f: Filtro): Filtro =>
+    f.Key === "FechaEmision" ? { ...f, Key: dateField } : f;
+
   const grupoAnd: Filtro[] = [
-    ...baseFiltros,
-    ...(activeFilters.FiltrosOther || []),
+    ...baseFiltros.map(remap),
+    ...(activeFilters.FiltrosOther || []).map(remap),
   ];
-  const grupoOr: Filtro[] = activeFilters.Filtros || [];
-  console.log(activeFilters);
-  
+  const grupoOr: Filtro[] = (activeFilters.Filtros || []).map(remap);
+
   const grupos: FiltroGrupo[] = [];
   if (grupoAnd.length > 0) {
     grupos.push({ Filtros: grupoAnd, OperadorLogico: "AND" });

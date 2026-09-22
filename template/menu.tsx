@@ -168,7 +168,7 @@ const AppMenu: React.FC<MenuProps> = ({ isScrolled }) => {
                 </header>
 
                 <nav className="p-2">
-                    <ul className="space-y-1">
+                    <ul className="space-y-1 overflow-y-auto max-h-[calc(100vh-8rem)]">
                         {navigationItems().map((item: any) => {
                             const Icon = item.icon;
                             const isActive = pathname === item.href;
