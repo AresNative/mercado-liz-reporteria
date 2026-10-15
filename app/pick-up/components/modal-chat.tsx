@@ -1,24 +1,29 @@
 "use client";
 import { Modal } from "@/components/modal";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { where } from "firebase/firestore";
 import { Send, UserCircle } from "lucide-react";
 import { usePutGeneralMutation } from "@/hooks/api/api";
-import { getMessages, getUsers, sendMessage, updateUser } from "@/hooks/reducers/chat-actions";
+import { getLocalStorageItem } from "@/utils/functions/local-storage";
 
+// ─── Firestore ──────────────────────────────────────
+import { FirestoreService } from "@/hooks/use-firestore";
+
+// ─── Tipos ──────────────────────────────────────────
 export type Message = {
     id: string;
     text: string;
     userId: string;
     userName: string;
     timestamp: number;
-    type?: 'normal';
+    type?: "normal";
     actions?: {
         label: string;
-        action: 'replace' | 'remove';
+        action: "replace" | "remove";
         productId: string;
         productName: string;
     }[];
-    chatId?: string;
+    chatId: string;
 };
 
 export type User = {
@@ -27,122 +32,157 @@ export type User = {
     telefono: string;
     lastSeen?: number;
 };
+
+// Una sola instancia por colección
+const messagesService = new FirestoreService<Message>("messages");
+const usersService = new FirestoreService<User>("users");
+
 interface ModalChatProps {
     telefonoClient: string | null;
     pedido?: any;
 }
 
 export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
-    const modalName = pedido ? `chat_${pedido?.cliente_telefono}_${pedido?.id}` : `chat_${telefonoClient}`;
-    if (!modalName) return null;
+    const modalName = pedido
+        ? `chat_${pedido?.cliente_telefono}_${pedido?.id}`
+        : `chat_${telefonoClient}`;
+
+    // ⚠️ Hooks SIEMPRE antes de cualquier return
+    const userId = useMemo(
+        () => getLocalStorageItem("user-id") || "unknown",
+        []
+    );
 
     const [messages, setMessages] = useState<Message[]>([]);
-    const [newMessage, setNewMessage] = useState('');
+    const [newMessage, setNewMessage] = useState("");
     const [users, setUsers] = useState<Record<string, User>>({});
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const userId = 'unknown';
     const [putGeneral] = usePutGeneralMutation();
+
+    const chatId = useMemo(() => {
+        if (pedido?.cliente_telefono && pedido?.id) {
+            return `${pedido.cliente_telefono}_${pedido.id}`;
+        }
+        if (telefonoClient) return `${telefonoClient}_general`;
+        return null;
+    }, [pedido?.cliente_telefono, pedido?.id, telefonoClient]);
 
     const getModalTitle = () => {
         if (pedido?.nombre) {
-            return `Chat con ${pedido.nombre} - #${pedido.id} - ${telefonoClient || 'Sin teléfono'}`;
+            return `Chat con ${pedido.nombre} - #${pedido.id} - ${telefonoClient || "Sin teléfono"}`;
         }
-        return telefonoClient ? `Chat - ${telefonoClient}` : 'Chat General';
+        return telefonoClient ? `Chat - ${telefonoClient}` : "Chat General";
     };
 
-    // Suscripción a usuarios (polling)
+    // ─── Suscripción a usuarios ─────────────────────────
     useEffect(() => {
-        if (!userId) return;
+        const unsubscribe = usersService.subscribe([], (data) => {
+            const map = data.reduce((acc, user) => {
+                acc[user.id] = user;
+                return acc;
+            }, {} as Record<string, User>);
+            setUsers(map);
+        });
 
-        const fetchUsers = async () => {
-            try {
-                const usersArray = await getUsers();
-                const usersMap = usersArray.reduce((acc, user) => {
-                    acc[user.id] = user;
-                    return acc;
-                }, {} as Record<string, User>);
-                setUsers(usersMap);
-            } catch (error) {
-                console.error("Error obteniendo usuarios:", error);
-            }
-        };
-
-        fetchUsers();
-
+        // "Upsert" del usuario soporte actual
         const updateCurrentUser = async () => {
             try {
-                await updateUser(userId, {
-                    nombre: "Soporte",
-                    telefono: '000-000-0000',
-                    lastSeen: Date.now()
-                });
+                const existing = await usersService.getById(userId);
+                if (existing) {
+                    await usersService.update(userId, {
+                        nombre: "Soporte",
+                        telefono: "000-000-0000",
+                        lastSeen: Date.now(),
+                    });
+                } else {
+                    // FirestoreService.create genera ID automático,
+                    // así que usamos setDoc-like vía update no aplica.
+                    // Para respetar `userId` como ID del doc, escribimos directo.
+                    await usersService.create({
+                        id: userId, // nota: create ignora `id` y genera uno nuevo
+                        nombre: "Soporte",
+                        telefono: "000-000-0000",
+                        lastSeen: Date.now(),
+                    } as Omit<User, "id">);
+                }
             } catch (error) {
                 console.error("Error actualizando/creando usuario:", error);
             }
         };
         updateCurrentUser();
 
+        return () => unsubscribe();
     }, [userId]);
 
-    // Obtener mensajes (polling)
+    // ─── Suscripción a mensajes (tiempo real) ───────────
     useEffect(() => {
-        if (!telefonoClient || !pedido) {
+        if (!chatId) {
             setMessages([]);
             return;
         }
 
-        const chatId = `${pedido.cliente_telefono}_${pedido.id}`;
-
-        const fetchMessages = async () => {
-            try {
-                const messagesArray = await getMessages(chatId);
-                const sorted = [...messagesArray].sort((a, b) => a.timestamp - b.timestamp);
+        const unsubscribe = messagesService.subscribe(
+            [where("chatId", "==", chatId)],
+            (data) => {
+                const sorted = [...data].sort(
+                    (a, b) => a.timestamp - b.timestamp
+                );
                 setMessages(sorted);
-            } catch (error) {
-                console.error("Error obteniendo mensajes:", error);
-            }
-        };
+            },
+            (error) => console.error("Error en suscripción de mensajes:", error)
+        );
 
-        fetchMessages();
-    }, [telefonoClient, pedido]);
+        return () => unsubscribe();
+    }, [chatId]);
 
     // Scroll automático
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    const handleSendMessage = async () => {
-        if (!newMessage.trim() || !telefonoClient || !pedido) return;
-        const chatId = `${pedido.cliente_telefono}_${pedido.id}`;
+    // ─── Enviar mensaje ─────────────────────────────────
+    const handleSendMessage = useCallback(async () => {
+        if (!newMessage.trim() || !chatId) return;
         try {
-            await sendMessage(chatId, newMessage.trim(), 'unknown', 'Soporte');
-            setNewMessage('');
+            await messagesService.create({
+                chatId,
+                text: newMessage.trim(),
+                userId,
+                userName: "Soporte",
+                timestamp: Date.now(),
+            } as Omit<Message, "id">);
+            setNewMessage("");
         } catch (error) {
-            console.error('Error al enviar mensaje:', error);
+            console.error("Error al enviar mensaje:", error);
         }
-    };
+    }, [chatId, newMessage, userId]);
 
-    // Acciones: para eliminar o reemplazar, usaremos las Server Actions correspondientes
-    const handleAction = async (action: string, productId: string, productName: string) => {
-        if (!pedido) return;
-        const chatId = `${pedido.cliente_telefono}_${pedido.id}`;
+    // ─── Acciones (remove / replace) ────────────────────
+    const handleAction = async (
+        action: string,
+        productId: string,
+        productName: string
+    ) => {
+        if (!pedido || !chatId) return;
 
-        if (action === 'remove') {
-            // Llamar a Server Action para eliminar producto
-            // (Deberías crear esa acción)
-            // Por ahora, replicamos la lógica aquí, pero debería estar en el servidor.
-            // ... (lo dejamos igual, pero es mejor moverlo a Server Action)
-        } else if (action === 'replace') {
-            // Similar
+        if (action === "remove") {
+            // TODO: mover a Server Action o Cloud Function para tocar Intelisis
+            console.warn("Acción remove pendiente de implementar:", productId);
+        } else if (action === "replace") {
+            // TODO: mover a Server Action o Cloud Function para tocar Intelisis
+            console.warn("Acción replace pendiente de implementar:", productId);
         }
     };
 
     const formatTime = (timestamp: number) => {
-        if (!timestamp) return 'Ahora';
-        return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (!timestamp) return "Ahora";
+        return new Date(timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
     };
 
-    if (!telefonoClient || !pedido) return null;
+    if (!modalName || !telefonoClient || !pedido) return null;
 
     return (
         <Modal modalName={modalName} title={getModalTitle()} maxWidth="md">
@@ -151,7 +191,9 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                     {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center py-12 px-4">
                             <UserCircle className="w-16 h-16 text-gray-300 mb-4" />
-                            <h3 className="text-lg font-medium text-gray-500">Chat vacío</h3>
+                            <h3 className="text-lg font-medium text-gray-500">
+                                Chat vacío
+                            </h3>
                             <p className="text-gray-400 mt-1">
                                 Envía un mensaje para iniciar la conversación
                             </p>
@@ -160,14 +202,23 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                         <div className="space-y-3">
                             {messages.map((message) => {
                                 const isCurrentUser = message.userId === userId;
-                                const isNormal = message.type === 'normal';
-                                const user = users[message.userId] || { nombre: message.userName };
+                                const isNormal = message.type === "normal";
+                                const user = users[message.userId] || {
+                                    nombre: message.userName,
+                                };
 
                                 return (
-                                    <div key={message.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[85%] flex ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                                    <div
+                                        key={message.id}
+                                        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
+                                    >
+                                        <div
+                                            className={`max-w-[85%] flex ${isCurrentUser ? "flex-row-reverse" : ""}`}
+                                        >
                                             <div className="mx-2 flex items-end">
-                                                <UserCircle className={`w-8 h-8 ${isCurrentUser ? 'text-purple-500' : isNormal ? 'text-gray-400' : 'text-gray-400'}`} />
+                                                <UserCircle
+                                                    className={`w-8 h-8 ${isCurrentUser ? "text-purple-500" : "text-gray-400"}`}
+                                                />
                                             </div>
                                             <div>
                                                 {!isCurrentUser && !isNormal && (
@@ -181,30 +232,46 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                                                     </div>
                                                 )}
                                                 <div className="flex flex-col">
-                                                    <div className={`
-                            rounded-2xl px-4 py-3
-                            ${isCurrentUser
-                                                            ? 'bg-purple-500 text-white rounded-br-none'
-                                                            : isNormal
-                                                                ? 'bg-gray-100 text-gray-700 rounded-bl-none border border-gray-200'
-                                                                : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-200'}
-                          `}>
+                                                    <div
+                                                        className={`
+                              rounded-2xl px-4 py-3
+                              ${isCurrentUser
+                                                                ? "bg-purple-500 text-white rounded-br-none"
+                                                                : isNormal
+                                                                    ? "bg-gray-100 text-gray-700 rounded-bl-none border border-gray-200"
+                                                                    : "bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-200"
+                                                            }
+                            `}
+                                                    >
                                                         {message.text}
-                                                        {message.actions && message.actions.length > 0 && (
-                                                            <div className="flex gap-2 mt-3">
-                                                                {message.actions.map(action => (
-                                                                    <button
-                                                                        key={action.action}
-                                                                        onClick={() => handleAction(action.action, action.productId, action.productName)}
-                                                                        className="px-3 py-1 text-xs rounded-full bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
-                                                                    >
-                                                                        {action.label}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                        {message.actions &&
+                                                            message.actions.length > 0 && (
+                                                                <div className="flex gap-2 mt-3">
+                                                                    {message.actions.map(
+                                                                        (action) => (
+                                                                            <button
+                                                                                key={
+                                                                                    action.action
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    handleAction(
+                                                                                        action.action,
+                                                                                        action.productId,
+                                                                                        action.productName
+                                                                                    )
+                                                                                }
+                                                                                className="px-3 py-1 text-xs rounded-full bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                                                                            >
+                                                                                {action.label}
+                                                                            </button>
+                                                                        )
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                     </div>
-                                                    <div className={`text-xs text-gray-500 mt-1 ${isCurrentUser ? 'text-right' : 'text-left'}`}>
+                                                    <div
+                                                        className={`text-xs text-gray-500 mt-1 ${isCurrentUser ? "text-right" : "text-left"}`}
+                                                    >
                                                         {formatTime(message.timestamp)}
                                                     </div>
                                                 </div>
@@ -225,14 +292,16 @@ export const ModalChat = ({ telefonoClient, pedido }: ModalChatProps) => {
                             placeholder="Escribe un mensaje..."
                             onChange={(e) => setNewMessage(e.target.value)}
                             className="flex-1 rounded-full bg-gray-100 dark:bg-gray-900 dark:text-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                            onKeyDown={(e) =>
+                                e.key === "Enter" && handleSendMessage()
+                            }
                         />
                         <button
                             onClick={handleSendMessage}
                             disabled={!newMessage.trim()}
                             className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors ${newMessage.trim()
-                                ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                 }`}
                         >
                             <Send className="w-5 h-5" />

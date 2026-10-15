@@ -50,6 +50,7 @@ import {
 } from "./utils/report-utils";
 import { useForm } from "react-hook-form";
 import { useGetWithFiltersIntelisisMutation } from "@/hooks/api/api_int";
+import Segment from "@/components/segment";
 
 const ScoreCard = dynamic(() => import("./components/modal-scorecard"), {
     ssr: false,
@@ -697,30 +698,38 @@ export default function Analisis() {
                 </dt>
 
                 {/* Selector de reporte */}
-                <ul className="mb-4 flex items-center justify-between">
-                    <li className="flex flex-wrap gap-2">
-                        {REPORT_KEYS.map((report) => (
-                            <Button
-                                key={report}
-                                color={selectedReport === report ? "completed" : "success"}
-                                size="small"
-                                onClick={() => setSelectedReport(report)}
-                            >
-                                {report.charAt(0).toUpperCase() + report.slice(1)}
-                            </Button>
-                        ))}
-                    </li>
+                <div className="mb-3 sm:mb-4 flex flex-col md:flex-row md:justify-between md:items-center gap-2 sm:gap-3">
+                    <div className="-mx-1 px-1 overflow-x-auto sm:overflow-visible">
+                        <Segment
+                            items={REPORT_KEYS.map((report) => ({
+                                value: report,
+                                label: report,
+                            }))}
+                            value={selectedReport}
+                            onValueChange={(report: any) => setSelectedReport(report)}
+                            size="sm"
+                            className="min-w-max"
+                        />
+                    </div>
                     {selectedReport === "venta" && (
-                        <li className="flex flex-wrap gap-2">
-                            <Button color="success" size="small" onClick={reportingModal.open}>
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <Button
+                                color="success"
+                                size="small"
+                                onClick={reportingModal.open}
+                            >
                                 Desglose
                             </Button>
-                            <Button color="success" size="small" onClick={scoreCardModal.open}>
+                            <Button
+                                color="success"
+                                size="small"
+                                onClick={scoreCardModal.open}
+                            >
                                 Score Card
                             </Button>
-                        </li>
+                        </div>
                     )}
-                </ul>
+                </div>
 
                 <KardexStats
                     dataStats={dataStats}
@@ -764,14 +773,10 @@ export default function Analisis() {
                     <MainForm
                         actionType=""
                         ref={formRef}
-                        flexDirection="flex-row"
+                        flexDirection="row"
                         dataForm={dataFormConfig}
                         message_button="Filtrar"
                         iconButton={<Filter className="mr-1 h-4 w-4" />}
-                        // Este es un formulario de filtros, no de alta: tras filtrar
-                        // no queremos que se borren los campos, sino que se
-                        // mantengan (y se sigan enviando) los valores que el
-                        // usuario ya escribió/seleccionó.
                         resetOnSuccess={false}
                         onSuccess={(rows: any) => {
                             const { almacen, search, dateRange } = rows;

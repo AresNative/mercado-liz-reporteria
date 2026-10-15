@@ -369,13 +369,8 @@ export const MainForm = React.forwardRef(({
       onSubmit={handleSubmit(onSubmit)}
       method="post"
       className={cn(
-        // `flex-wrap` es nuevo: antes, con flexDirection="flex-row" (como
-        // los filtros de page.tsx/transferencia-page.tsx), los campos se
-        // comprimían o desbordaban horizontalmente en mobile porque nunca
-        // pasaban a una segunda línea.
-        "relative flex w-full my-2 m-auto gap-2 flex-wrap",
+        "relative flex my-2 m-auto gap-2 flex-wrap w-full",
         flexDirection,
-        // En row, necesitamos items-end para que el div del botón se alinee abajo
         flexDirection === "flex-row" && "items-end"
       )}
     >
@@ -399,7 +394,7 @@ export const MainForm = React.forwardRef(({
       {showButton && (
         <div
           className={cn(
-            "flex gap-2",
+            "flex gap-2 w-fit",
             flexDirection === "flex-row"
               // row: columna de botones pegada al borde inferior derecho, sin crecer
               ? "flex-col justify-end items-end shrink-0 self-end"

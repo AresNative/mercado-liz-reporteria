@@ -5,16 +5,12 @@ import {
     Search,
     Truck,
     Package,
-    Clock,
     RefreshCw,
     AlertCircle,
     Copy,
     Edit,
-    FileText,
     Printer,
     Eye,
-    Image,
-    ImageDown,
     MessageCircle,
 } from "lucide-react"
 import { openModalReducer } from "@/hooks/reducers/drop-down"
@@ -102,7 +98,7 @@ export default function GestionPedidos() {
     const [totalRecords, setTotalRecords] = useState(0);
     const [pageSize, setPageSize] = useState(10);
     const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false); // refresco silencioso (SignalR / countdown)
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [getWithFilter] = useGetWithFiltersMutation();
     const [putGeneral] = usePutGeneralMutation();
@@ -242,10 +238,6 @@ export default function GestionPedidos() {
         };
     };
 
-    // Petición en curso: nos permite cancelar una anterior si llega otra antes
-    // de que termine (p.ej. el usuario cambia de página muy rápido, o un
-    // refresco de SignalR llega mientras ya había uno en vuelo). Sin esto,
-    // la respuesta más vieja podía llegar después y pisar datos más nuevos.
     const peticionActualRef = useRef<{ abort: () => void } | null>(null);
 
     const fetchPedidos = useCallback(async (opciones?: { silent?: boolean }) => {
@@ -285,11 +277,6 @@ export default function GestionPedidos() {
                 filtros.Filtros = activeFilters.Filtros;
             }
 
-            // Ordenamos en el servidor por fecha de entrega (más próxima primero).
-            // Esto es indispensable porque los datos vienen paginados: si solo
-            // ordenáramos en el cliente, cada página mostraría un orden correcto
-            // "hacia adentro" pero los pedidos más urgentes podrían quedar
-            // repartidos en páginas distintas en vez de aparecer primero.
             filtros.Order = activeFilters.OrderBy
                 ? [activeFilters.OrderBy]
                 : [{ Key: "listas.fecha_entrega", Direction: "ASC" }];
@@ -311,10 +298,6 @@ export default function GestionPedidos() {
 
                 const pedidosProcesados: Pedido[] = response.data.map(parseListaData);
 
-                // El servidor ya devuelve la página ordenada por fecha_entrega ASC
-                // (ver filtros.Order más arriba). Este sort adicional solo afina el
-                // orden dentro de la página actual (p.ej. tras una actualización por
-                // SignalR) y prioriza pedidos activos y urgentes sobre los demás.
                 const pedidosOrdenados = pedidosProcesados.sort((a, b) => {
                     const estadosActivos = ['nuevo', 'proceso', 'listo'];
                     const esAActivo = estadosActivos.includes(a.estado);
@@ -340,15 +323,11 @@ export default function GestionPedidos() {
                 setPedidos(pedidosOrdenados);
             }
         } catch (error: any) {
-            // Si fue cancelada por una petición más nueva, la ignoramos: no es
-            // un error real, solo una respuesta vieja que ya no nos interesa.
             if (error?.name === 'AbortError' || error?.message === 'Aborted') {
                 return;
             }
             console.error("Error fetching pedidos:", error);
             setError("No se pudieron cargar los pedidos. Verifica tu conexión e intenta de nuevo.");
-            // Solo limpiamos la tabla si era la carga inicial; en un refresco
-            // silencioso preferimos mantener los últimos datos buenos en pantalla.
             if (!silencioso) {
                 setPedidos([]);
             }
@@ -365,10 +344,6 @@ export default function GestionPedidos() {
         fetchPedidos();
     }, [fetchPedidos]);
 
-    // Punto único de entrada para refrescos en segundo plano (SignalR y
-    // countdowns que expiran). Se agrupan con un pequeño debounce: si varios
-    // disparadores llegan casi juntos (p.ej. 3 pedidos expiran el mismo
-    // segundo), solo se hace UNA petición en vez de varias simultáneas.
     const debounceRefrescoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const refrescarSilenciosamente = useCallback(() => {
         if (debounceRefrescoRef.current) clearTimeout(debounceRefrescoRef.current);
@@ -431,12 +406,6 @@ export default function GestionPedidos() {
         handleRefrescarDatos
     );
 
-    // ── Auto-cancelación de pedidos vencidos ────────────────────────────────
-    // Un pedido "activo" (nuevo, en proceso o listo) cuya fecha_entrega ya
-    // pasó y que nadie marcó como entregado se considera vencido: se cancela
-    // automáticamente en la BD y se refleja en la tabla. Un ref evita mandar
-    // la misma petición dos veces si el intervalo dispara mientras la
-    // anterior sigue en curso.
     const pedidosCancelandoRef = useRef<Set<number>>(new Set());
 
     const cancelarPedidosVencidos = useCallback(async () => {
@@ -491,9 +460,6 @@ export default function GestionPedidos() {
         }));
     }, [pedidos, putGeneral, pedidoSeleccionado, isConnected, notificarCambioLista]);
 
-    // Revisamos cada vez que cambia la lista de pedidos (nueva carga, update
-    // por SignalR, etc.) y además con un intervalo fijo para detectar los
-    // que vencen simplemente porque pasó el tiempo, sin que nada más cambie.
     useEffect(() => {
         cancelarPedidosVencidos();
         const intervalo = setInterval(cancelarPedidosVencidos, 30000);
@@ -561,9 +527,6 @@ export default function GestionPedidos() {
         dispatch(openModalReducer({ modalName: "detalle_pedido" }));
     };
 
-    // Preparar datos para DynamicTable
-    // Memoizado: solo se recalcula cuando cambian los pedidos, no en cada
-    // render (p.ej. cuando solo cambia isRefreshing).
     const tableData = useMemo(() => pedidos.map(p => formatPedidoForTable(p)), [pedidos]);
 
     return (
